@@ -147,13 +147,16 @@ class CandidateNewsMatcher
      */
     private function sanitize(array $terms): array
     {
-        return collect($terms)
-            ->filter(fn (?string $term): bool => is_string($term) && trim($term) !== '')
-            ->map(fn (string $term): string => $this->normalize($term))
-            ->filter(fn (string $term): bool => mb_strlen($term) >= self::MIN_TERM_LENGTH)
-            ->unique()
-            ->values()
-            ->all();
+        // `unique()` preserva as chaves originais; `array_values` é o que
+        // devolve de fato a lista reindexada prometida no retorno.
+        return array_values(
+            collect($terms)
+                ->filter(fn (?string $term): bool => is_string($term) && trim($term) !== '')
+                ->map(fn (string $term): string => $this->normalize($term))
+                ->filter(fn (string $term): bool => mb_strlen($term) >= self::MIN_TERM_LENGTH)
+                ->unique()
+                ->all(),
+        );
     }
 
     /**

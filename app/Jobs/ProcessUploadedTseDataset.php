@@ -33,8 +33,7 @@ class ProcessUploadedTseDataset implements ShouldQueue
     public function handle(
         TsePoliticalDataSyncService $service,
         ?GabineteModuleManager $modules = null,
-    ): void
-    {
+    ): void {
         // -d memory_limit= na invocação de `queue:listen` não chega até
         // aqui: o listener só repassa a memória pro PRÓPRIO processo, não
         // pro `queue:work --once` que ele spawna pra cada job (ver

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\EntidadeController as AdminEntidadeController;
 use App\Http\Controllers\Admin\GlobalPoliticalDataSyncController;
+use App\Http\Controllers\Admin\GovnexApiIntegrationController;
 use App\Http\Controllers\Admin\OfficeController;
 use App\Http\Controllers\Admin\OfficePoliticalDataSyncController;
 use App\Http\Controllers\Admin\PartyColorController;
@@ -131,6 +132,14 @@ Route::middleware(['auth', 'verified', 'user.active'])->group(function () {
         Route::post('usuarios/{rootUsuario}/redefinir-senha', [RootUserController::class, 'resetPassword'])
             ->name('users.reset-password');
         Route::delete('usuarios/{rootUsuario}', [RootUserController::class, 'destroy'])->name('users.destroy');
+
+        Route::get('integracoes/govnex-api', [GovnexApiIntegrationController::class, 'edit'])
+            ->name('integrations.govnex-api.edit');
+        Route::put('integracoes/govnex-api', [GovnexApiIntegrationController::class, 'update'])
+            ->name('integrations.govnex-api.update');
+        Route::post('integracoes/govnex-api/testar', [GovnexApiIntegrationController::class, 'test'])
+            ->middleware('throttle:10,1')
+            ->name('integrations.govnex-api.test');
 
         Route::get('sistema', [SystemCheckController::class, 'index'])->name('system.index');
         Route::post('sistema/teste-upload', [SystemCheckController::class, 'testUpload'])->name('system.test-upload');

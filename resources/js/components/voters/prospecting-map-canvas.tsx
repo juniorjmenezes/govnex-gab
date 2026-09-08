@@ -10,6 +10,7 @@ import {
     useMap,
     ZoomControl,
 } from 'react-leaflet';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { VoterMapMarker } from '@/types';
 import 'leaflet/dist/leaflet.css';
 // Precisa vir depois de leaflet.css para sobrescrever o balão padrão do
@@ -68,6 +69,8 @@ export default function ProspectingMapCanvas({
     selectedId: number | null;
     onSelect: (id: number) => void;
 }) {
+    const tenantUrl = useTenantUrl();
+
     return (
         <MapContainer
             center={[-14.235, -51.9253]}
@@ -118,7 +121,7 @@ export default function ProspectingMapCanvas({
                                         'Endereço não informado'}
                                 </span>
                                 <Link
-                                    href={`/cidadaos/${marker.id}`}
+                                    href={tenantUrl(`/cidadaos/${marker.id}`)}
                                     className="inline-block pt-1 text-sm font-medium text-primary hover:underline"
                                 >
                                     Abrir perfil

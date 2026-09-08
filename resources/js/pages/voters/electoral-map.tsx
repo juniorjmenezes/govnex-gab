@@ -36,6 +36,7 @@ import type {
     MapViewMode,
 } from '@/components/voters/electoral-heatmap-canvas';
 import { useIsHydrated } from '@/hooks/use-is-hydrated';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 import type { ElectoralMapPoint, ElectoralMapSummary } from '@/types';
 
@@ -65,6 +66,7 @@ export default function ElectoralMap({
     points: ElectoralMapPoint[];
     summary: ElectoralMapSummary;
 }) {
+    const tenantUrl = useTenantUrl();
     const [query, setQuery] = useState('');
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [hoveredId, setHoveredId] = useState<number | null>(null);
@@ -240,7 +242,9 @@ export default function ElectoralMap({
                                 )}
                             </p>
                             <Button asChild size="sm" className="mx-auto">
-                                <Link href="/configuracoes/gabinete">
+                                <Link
+                                    href={tenantUrl('/configuracoes/gabinete')}
+                                >
                                     Ver detalhes em Configurações
                                 </Link>
                             </Button>

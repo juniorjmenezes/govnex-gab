@@ -30,6 +30,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
 import { Switch } from '@/components/ui/switch';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 import type {
     Demand,
@@ -80,6 +81,7 @@ export default function DemandsIndex({
     options: DemandOptions;
     tabCounts: Record<DemandTab, number>;
 }) {
+    const tenantUrl = useTenantUrl();
     const [filterState, setFilterState] = useState<FilterState>({
         q: filters.q,
         prioridade: filters.prioridade,
@@ -96,7 +98,7 @@ export default function DemandsIndex({
 
     const visit = (state: FilterState, tab: DemandTab = filters.tab) => {
         router.get(
-            '/demandas',
+            tenantUrl('/demandas'),
             { ...state, tab, sem_responsavel: state.sem_responsavel ? 1 : 0 },
             { preserveState: true, preserveScroll: true, replace: true },
         );
@@ -160,13 +162,13 @@ export default function DemandsIndex({
                     actions={
                         <>
                             <Button asChild variant="outline">
-                                <Link href="/demandas/kanban">
+                                <Link href={tenantUrl('/demandas/kanban')}>
                                     <ThreeSquaresIcon />
                                     Kanban
                                 </Link>
                             </Button>
                             <Button asChild>
-                                <Link href="/demandas/create">
+                                <Link href={tenantUrl('/demandas/create')}>
                                     <AddIcon />
                                     Nova demanda
                                 </Link>
@@ -413,6 +415,7 @@ export default function DemandsIndex({
 }
 
 function DemandRow({ demand }: { demand: Demand }) {
+    const tenantUrl = useTenantUrl();
     const favorited = demand.favoritada_em !== null;
     const responsible = demand.responsavel?.name ?? 'Não atribuído';
     const urgent = demand.proxima_acao_descricao
@@ -434,7 +437,7 @@ function DemandRow({ demand }: { demand: Demand }) {
 
     const toggleFavorite = () => {
         router.patch(
-            `/demandas/${demand.id}/favorito`,
+            tenantUrl(`/demandas/${demand.id}/favorito`),
             {},
             { preserveScroll: true },
         );
@@ -468,7 +471,7 @@ function DemandRow({ demand }: { demand: Demand }) {
                 )}
             </button>
             <Link
-                href={`/demandas/${demand.id}`}
+                href={tenantUrl(`/demandas/${demand.id}`)}
                 className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
             >
                 <span className="shrink-0 font-mono text-sm font-normal">

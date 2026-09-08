@@ -45,6 +45,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 import type { DashboardDatum, ReportExport, ReportPageProps } from '@/types';
 
@@ -207,6 +208,7 @@ export default function ReportsIndex({
     options,
     exports,
 }: ReportPageProps) {
+    const tenantUrl = useTenantUrl();
     const [form, setForm] = useState({
         ...filters,
         categoria_id: filters.categoria_id?.toString() ?? '',
@@ -254,7 +256,7 @@ export default function ReportsIndex({
         }
 
         const timeout = setTimeout(() => {
-            router.get('/relatorios', queryData(), {
+            router.get(tenantUrl('/relatorios'), queryData(), {
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
@@ -285,11 +287,11 @@ export default function ReportsIndex({
         form.atrasadas,
     );
 
-    const reset = () => router.get('/relatorios');
+    const reset = () => router.get(tenantUrl('/relatorios'));
 
     const requestExport = (formatType: 'pdf' | 'xlsx') => {
         router.post(
-            '/relatorios/exportacoes',
+            tenantUrl('/relatorios/exportacoes'),
             { ...queryData(), formato: formatType },
             { preserveScroll: true },
         );
@@ -567,7 +569,9 @@ export default function ReportsIndex({
                                             <TableRow key={demand.id}>
                                                 <TableCell>
                                                     <Link
-                                                        href={`/demandas/${demand.id}`}
+                                                        href={tenantUrl(
+                                                            `/demandas/${demand.id}`,
+                                                        )}
                                                         className="font-normal hover:underline"
                                                     >
                                                         <span className="font-mono">
@@ -621,7 +625,9 @@ export default function ReportsIndex({
                                 {demands.data.map((demand) => (
                                     <Link
                                         key={demand.id}
-                                        href={`/demandas/${demand.id}`}
+                                        href={tenantUrl(
+                                            `/demandas/${demand.id}`,
+                                        )}
                                         className="block space-y-3 px-5 py-4 hover:bg-muted/40"
                                     >
                                         <div>
@@ -903,7 +909,9 @@ export default function ReportsIndex({
                                     .map((referral) => (
                                         <Link
                                             key={referral.id}
-                                            href={`/demandas/${referral.demand?.id}`}
+                                            href={tenantUrl(
+                                                `/demandas/${referral.demand?.id}`,
+                                            )}
                                             className="flex items-start justify-between gap-4 px-5 py-4 hover:bg-muted/40"
                                         >
                                             <div className="min-w-0">
@@ -1014,7 +1022,9 @@ export default function ReportsIndex({
                                             label={`Baixar ${item.format_label}`}
                                         >
                                             <a
-                                                href={`/relatorios/exportacoes/${item.id}/download`}
+                                                href={tenantUrl(
+                                                    `/relatorios/exportacoes/${item.id}/download`,
+                                                )}
                                             >
                                                 <DownloadIcon aria-hidden="true" />
                                             </a>

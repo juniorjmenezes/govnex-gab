@@ -9,6 +9,7 @@ import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import {
     DEMAND_ATTACHMENT_ACCEPT,
     DEMAND_ATTACHMENT_EXTENSIONS,
@@ -49,6 +50,7 @@ export function ReferralResponseForm({
         defaultValues: { descricao: '', encaminhamento_id: '' },
     });
 
+    const tenantUrl = useTenantUrl();
     const submit = (values: Values) => {
         const data = new FormData();
         data.append('descricao', values.descricao);
@@ -58,7 +60,7 @@ export function ReferralResponseForm({
         }
 
         files.forEach((file) => data.append('arquivos[]', file));
-        router.post(`/demandas/${demandId}/retornos`, data, {
+        router.post(tenantUrl(`/demandas/${demandId}/retornos`), data, {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {

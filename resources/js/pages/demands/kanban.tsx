@@ -14,6 +14,7 @@ import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { surfaceClasses } from '@/components/ui/surface';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 import type {
     DemandKanbanColumn,
@@ -33,6 +34,7 @@ export default function DemandsKanban({
     filters: DemandKanbanFilters;
     options: DemandKanbanOptions;
 }) {
+    const tenantUrl = useTenantUrl();
     const [query, setQuery] = useState(filters.q);
     const [priority, setPriority] = useState(filters.prioridade);
     const [responsible, setResponsible] = useState(
@@ -41,7 +43,7 @@ export default function DemandsKanban({
 
     const visit = () => {
         router.get(
-            '/demandas/kanban',
+            tenantUrl('/demandas/kanban'),
             {
                 q: query,
                 prioridade: priority,
@@ -69,7 +71,7 @@ export default function DemandsKanban({
         setPriority('');
         setResponsible('');
         router.get(
-            '/demandas/kanban',
+            tenantUrl('/demandas/kanban'),
             {},
             { preserveState: true, replace: true },
         );
@@ -86,7 +88,7 @@ export default function DemandsKanban({
                         <>
                             <div className="flex rounded-md border p-0.5">
                                 <Button asChild size="sm" variant="ghost">
-                                    <Link href="/demandas">
+                                    <Link href={tenantUrl('/demandas')}>
                                         <ListIcon />
                                         Lista
                                     </Link>
@@ -97,7 +99,7 @@ export default function DemandsKanban({
                                 </Button>
                             </div>
                             <Button asChild>
-                                <Link href="/demandas/create">
+                                <Link href={tenantUrl('/demandas/create')}>
                                     <AddIcon />
                                     Nova demanda
                                 </Link>

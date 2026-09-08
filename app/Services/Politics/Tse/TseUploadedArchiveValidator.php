@@ -75,8 +75,11 @@ class TseUploadedArchiveValidator
                 $stats = $zip->statIndex($index);
 
                 if (is_array($stats)) {
-                    $uncompressed = max(0, (int) ($stats['size'] ?? 0));
-                    $compressed = max(1, (int) ($stats['comp_size'] ?? 0));
+                    // statIndex() sempre traz 'size' e 'comp_size' quando não
+                    // retorna false; o max() continua valendo para blindar o
+                    // divisor da razão de compressão contra entrada zerada.
+                    $uncompressed = max(0, $stats['size']);
+                    $compressed = max(1, $stats['comp_size']);
                     $totalUncompressedBytes += $uncompressed;
 
                     if ($uncompressed > $compressed * $maximumCompressionRatio) {
@@ -141,9 +144,9 @@ class TseUploadedArchiveValidator
                         $rowMatchesYear = ! $requiresYearMatch
                             || ($yearIndex !== false && (int) trim((string) ($values[$yearIndex] ?? '')) === $year)
                             || (
-                            $protocolIndex !== false
-                            && str_ends_with(trim((string) ($values[$protocolIndex] ?? '')), (string) $year)
-                        );
+                                $protocolIndex !== false
+                                && str_ends_with(trim((string) ($values[$protocolIndex] ?? '')), (string) $year)
+                            );
                         $rowMatchesUf = $expectedUf === null || (
                             $ufIndex !== false
                             && mb_strtoupper(trim((string) ($values[$ufIndex] ?? ''))) === $expectedUf

@@ -16,6 +16,7 @@ import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { hasModule } from '@/lib/modules';
 import type { Auth, Demand, DemandMember } from '@/types';
 
@@ -45,6 +46,7 @@ export function NextActionPanel({
     demand: Demand;
     members: DemandMember[];
 }) {
+    const tenantUrl = useTenantUrl();
     const { auth } = usePage<{ auth: Auth }>().props;
     const scheduleEnabled = hasModule(auth.modules, 'AGENDA');
     const hasPending =
@@ -69,7 +71,7 @@ export function NextActionPanel({
     });
 
     const submit = (values: Values) => {
-        router.post(`/demandas/${demand.id}/proxima-acao`, values, {
+        router.post(tenantUrl(`/demandas/${demand.id}/proxima-acao`), values, {
             preserveScroll: true,
             onSuccess: () => setEditing(false),
         });
@@ -77,7 +79,7 @@ export function NextActionPanel({
 
     const complete = () => {
         router.patch(
-            `/demandas/${demand.id}/proxima-acao/concluir`,
+            tenantUrl(`/demandas/${demand.id}/proxima-acao/concluir`),
             {},
             {
                 preserveScroll: true,
@@ -105,7 +107,7 @@ export function NextActionPanel({
             );
         }
 
-        return `/agenda?${params.toString()}`;
+        return tenantUrl(`/agenda?${params.toString()}`);
     };
 
     if (!editing && hasPending) {

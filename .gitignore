@@ -3,7 +3,7 @@
 /node_modules
 /.pnpm-store
 /tmp
-/build(90))
+/build
 /public/build
 /public/fonts-manifest.dev.json
 /public/hot

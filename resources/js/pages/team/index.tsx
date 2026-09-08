@@ -16,6 +16,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { surfaceClasses } from '@/components/ui/surface';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 type Member = {
     id: number;
@@ -60,6 +61,7 @@ export default function Team({
     allowedRoles: RoleOption[];
     canManage: boolean;
 }) {
+    const tenantUrl = useTenantUrl();
     const {
         control,
         register,
@@ -78,7 +80,7 @@ export default function Team({
         },
     });
     const submit = (values: Values) =>
-        router.post('/equipe', values, {
+        router.post(tenantUrl('/equipe'), values, {
             onSuccess: () => reset(),
             onError: (items) =>
                 Object.entries(items).forEach(([key, message]) =>
@@ -89,7 +91,7 @@ export default function Team({
         allowedRoles.some((role) => role.value === member.role);
     const toggle = (member: Member) =>
         router.put(
-            `/equipe/${member.id}`,
+            tenantUrl(`/equipe/${member.id}`),
             {
                 role: member.role,
                 is_active: !member.is_active,
@@ -103,7 +105,7 @@ export default function Team({
 
         if (password) {
             router.put(
-                `/equipe/${member.id}/senha`,
+                tenantUrl(`/equipe/${member.id}/senha`),
                 { password, password_confirmation: password },
                 { preserveScroll: true },
             );
@@ -179,7 +181,9 @@ export default function Team({
                                                 <PowerIcon aria-hidden="true" />
                                             </TableActionButton>
                                             <DeleteRecordButton
-                                                url={`/equipe/${member.id}`}
+                                                url={tenantUrl(
+                                                    `/equipe/${member.id}`,
+                                                )}
                                                 label={`Excluir ${member.name}`}
                                                 title="Excluir integrante?"
                                                 description="O acesso será removido e o integrante deixará de aparecer na equipe. O histórico de atividades será preservado."

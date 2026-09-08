@@ -29,6 +29,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { hasModule } from '@/lib/modules';
 import { cn } from '@/lib/utils';
 import type { AttendanceIndexProps, Auth } from '@/types';
@@ -54,6 +55,7 @@ export default function AttendancesIndex({
     canDelete,
 }: AttendanceIndexProps) {
     const { auth } = usePage<{ auth: Auth }>().props;
+    const tenantUrl = useTenantUrl();
     const demandsEnabled = hasModule(auth.modules, 'DEMANDAS');
     const [query, setQuery] = useState(filters.q);
     const [attendantId, setAttendantId] = useState(
@@ -73,7 +75,7 @@ export default function AttendancesIndex({
 
         const timeout = setTimeout(() => {
             router.get(
-                '/atendimentos',
+                tenantUrl('/atendimentos'),
                 {
                     ...(query && { q: query }),
                     ...(attendantId && { atendente_id: attendantId }),
@@ -86,7 +88,7 @@ export default function AttendancesIndex({
         }, 400);
 
         return () => clearTimeout(timeout);
-    }, [query, attendantId, from, to, returnOnly]);
+    }, [query, attendantId, from, to, returnOnly, tenantUrl]);
 
     const hasFilters = Boolean(
         query || attendantId || from || to || returnOnly,
@@ -97,7 +99,7 @@ export default function AttendancesIndex({
         setFrom('');
         setTo('');
         setReturnOnly(false);
-        router.get('/atendimentos', {}, { replace: true });
+        router.get(tenantUrl('/atendimentos'), {}, { replace: true });
     };
 
     return (
@@ -109,7 +111,7 @@ export default function AttendancesIndex({
                     description="Histórico das visitas realizadas no gabinete e das providências registradas."
                     actions={
                         <Button asChild>
-                            <Link href="/atendimentos/create">
+                            <Link href={tenantUrl('/atendimentos/create')}>
                                 <AddIcon />
                                 Novo atendimento
                             </Link>
@@ -221,7 +223,9 @@ export default function AttendancesIndex({
                                             </TableCell>
                                             <TableCell>
                                                 <Link
-                                                    href={`/cidadaos/${attendance.cidadao.id}`}
+                                                    href={tenantUrl(
+                                                        `/cidadaos/${attendance.cidadao.id}`,
+                                                    )}
                                                     className="font-normal hover:underline"
                                                 >
                                                     {attendance.cidadao.nome}
@@ -237,7 +241,9 @@ export default function AttendancesIndex({
                                             </TableCell>
                                             <TableCell>
                                                 <Link
-                                                    href={`/atendimentos/${attendance.id}`}
+                                                    href={tenantUrl(
+                                                        `/atendimentos/${attendance.id}`,
+                                                    )}
                                                     className="font-normal hover:underline"
                                                 >
                                                     {attendance.assunto}
@@ -277,7 +283,9 @@ export default function AttendancesIndex({
                                                         label={`Visualizar ${attendance.assunto}`}
                                                     >
                                                         <Link
-                                                            href={`/atendimentos/${attendance.id}`}
+                                                            href={tenantUrl(
+                                                                `/atendimentos/${attendance.id}`,
+                                                            )}
                                                         >
                                                             <EyeIcon aria-hidden="true" />
                                                         </Link>
@@ -287,14 +295,18 @@ export default function AttendancesIndex({
                                                         label={`Editar ${attendance.assunto}`}
                                                     >
                                                         <Link
-                                                            href={`/atendimentos/${attendance.id}/edit`}
+                                                            href={tenantUrl(
+                                                                `/atendimentos/${attendance.id}/edit`,
+                                                            )}
                                                         >
                                                             <PenIcon aria-hidden="true" />
                                                         </Link>
                                                     </TableActionButton>
                                                     {canDelete && (
                                                         <DeleteRecordButton
-                                                            url={`/atendimentos/${attendance.id}`}
+                                                            url={tenantUrl(
+                                                                `/atendimentos/${attendance.id}`,
+                                                            )}
                                                             label={`Excluir ${attendance.assunto}`}
                                                             title="Excluir atendimento?"
                                                             description="O registro deixará de aparecer no histórico do gabinete."

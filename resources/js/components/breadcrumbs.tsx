@@ -8,6 +8,7 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
 export function Breadcrumbs({
@@ -15,6 +16,11 @@ export function Breadcrumbs({
 }: {
     breadcrumbs: BreadcrumbItemType[];
 }) {
+    // As trilhas são declaradas como metadado estático em `Page.layout`, fora
+    // de qualquer componente, então não têm como conhecer o gabinete atual.
+    // Resolver o contexto aqui cobre todas elas de uma vez, na renderização.
+    const tenantUrl = useTenantUrl();
+
     return (
         <>
             {breadcrumbs.length > 0 && (
@@ -32,7 +38,16 @@ export function Breadcrumbs({
                                             </BreadcrumbPage>
                                         ) : (
                                             <BreadcrumbLink asChild>
-                                                <Link href={item.href}>
+                                                <Link
+                                                    href={
+                                                        typeof item.href ===
+                                                        'string'
+                                                            ? tenantUrl(
+                                                                  item.href,
+                                                              )
+                                                            : item.href
+                                                    }
+                                                >
                                                     {item.title}
                                                 </Link>
                                             </BreadcrumbLink>

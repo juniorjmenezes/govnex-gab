@@ -11,6 +11,7 @@ import {
     HandShakeIcon,
     MapIcon,
     PaletteIcon,
+    PlugCircleIcon,
     RadarIcon,
     ServerIcon,
     ShieldCheckIcon,
@@ -148,6 +149,11 @@ export function useAppNavSections(): NavSection[] {
                       title: 'WhatsApp',
                       href: '/admin/whatsapp',
                       icon: ChatRoundDotsIcon,
+                  },
+                  {
+                      title: 'Integração GOVNEX API',
+                      href: '/admin/integracoes/govnex-api',
+                      icon: PlugCircleIcon,
                   },
                   {
                       title: 'Usuários da plataforma',

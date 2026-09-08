@@ -18,7 +18,10 @@ const config: Record<DemandPriority, { label: string; className: string }> = {
     },
     urgente: {
         label: 'Urgente',
-        className: 'bg-destructive text-white',
+        // Acompanha a variante `destructive` do Badge, que suaviza o fundo no
+        // tema escuro; sem isso o vermelho cheio destoava dos demais.
+        className:
+            'border-transparent bg-destructive text-white dark:bg-destructive/60',
     },
 };
 

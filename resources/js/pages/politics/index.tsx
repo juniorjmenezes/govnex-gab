@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/sheet';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
 import { Switch } from '@/components/ui/switch';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 import type {
     PoliticalCandidate,
@@ -151,12 +152,13 @@ function CandidateRow({
     canFavorite: boolean;
     onOpenNews: (candidate: PoliticalCandidate) => void;
 }) {
+    const tenantUrl = useTenantUrl();
     // Só o favorito abre o modal, então só ele vira botão; os demais
     // seguem como div, sem alvo de clique nem parada de foco.
     const Body = candidate.is_favorite ? 'button' : 'div';
 
     const toggleFavorite = () => {
-        const url = `/painel-politico/favoritos/${candidate.id}`;
+        const url = tenantUrl(`/painel-politico/favoritos/${candidate.id}`);
 
         if (candidate.is_favorite) {
             router.delete(url, {
@@ -848,6 +850,7 @@ export default function PoliticalPanel({
     polls,
     sync,
 }: PoliticalPanelProps) {
+    const tenantUrl = useTenantUrl();
     const [query, setQuery] = useState(filters.q);
     const [office, setOffice] = useState(filters.cargo);
     const [party, setParty] = useState(filters.partido);
@@ -857,7 +860,7 @@ export default function PoliticalPanel({
 
     const navigate = (values: Record<string, string | number | boolean>) => {
         router.get(
-            '/painel-politico',
+            tenantUrl('/painel-politico'),
             {
                 ...(selectedElectionId && {
                     eleicao_id: selectedElectionId,
@@ -894,7 +897,7 @@ export default function PoliticalPanel({
         setParty('');
         setFavoritesOnly(false);
         router.get(
-            '/painel-politico',
+            tenantUrl('/painel-politico'),
             selectedElectionId ? { eleicao_id: selectedElectionId } : {},
             { replace: true },
         );

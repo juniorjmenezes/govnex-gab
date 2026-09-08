@@ -27,6 +27,12 @@
         <env name="DB_CONNECTION" value="sqlite" force="true"/>
         <env name="DB_DATABASE" value=":memory:" force="true"/>
         <env name="DB_URL" value="" force="true"/>
+        <!-- Os testes de eleitorado registram rotas de Http::fake() nesta
+             URL. Sem forçá-la, a suíte passa a depender do GOVNEX_API_URL
+             que cada desenvolvedor tiver no .env e quebra com
+             "without a matching fake" quando ele aponta para outra porta. -->
+        <env name="GOVNEX_API_URL" value="http://127.0.0.1:8020/api/v1" force="true"/>
+        <env name="GOVNEX_API_KEY" value="" force="true"/>
         <env name="MAIL_MAILER" value="array" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <env name="SESSION_DRIVER" value="array" force="true"/>

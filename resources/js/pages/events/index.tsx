@@ -40,6 +40,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 import type { EventIndexProps, EventStatus, EventType } from '@/types';
 
@@ -86,6 +87,7 @@ export default function EventsIndex({
     options,
     canDelete,
 }: EventIndexProps) {
+    const tenantUrl = useTenantUrl();
     const [filterState, setFilterState] = useState<FilterState>({
         q: filters.q,
         tipo: filters.tipo,
@@ -99,7 +101,7 @@ export default function EventsIndex({
 
     const visit = (state: FilterState) => {
         router.get(
-            '/eventos',
+            tenantUrl('/eventos'),
             { ...state },
             { preserveState: true, preserveScroll: true, replace: true },
         );
@@ -168,7 +170,7 @@ export default function EventsIndex({
                     description="Reuniões, eventos públicos, atos políticos e assembleias do gabinete."
                     actions={
                         <Button asChild>
-                            <Link href="/eventos/create">
+                            <Link href={tenantUrl('/eventos/create')}>
                                 <AddIcon />
                                 Novo evento
                             </Link>
@@ -391,7 +393,9 @@ export default function EventsIndex({
                                         <TableRow key={event.id}>
                                             <TableCell>
                                                 <Link
-                                                    href={`/eventos/${event.id}`}
+                                                    href={tenantUrl(
+                                                        `/eventos/${event.id}`,
+                                                    )}
                                                     className="font-normal hover:underline"
                                                 >
                                                     {event.titulo}
@@ -468,7 +472,9 @@ export default function EventsIndex({
                                                         label={`Visualizar ${event.titulo}`}
                                                     >
                                                         <Link
-                                                            href={`/eventos/${event.id}`}
+                                                            href={tenantUrl(
+                                                                `/eventos/${event.id}`,
+                                                            )}
                                                         >
                                                             <EyeIcon aria-hidden="true" />
                                                         </Link>
@@ -478,14 +484,18 @@ export default function EventsIndex({
                                                         label={`Editar ${event.titulo}`}
                                                     >
                                                         <Link
-                                                            href={`/eventos/${event.id}/edit`}
+                                                            href={tenantUrl(
+                                                                `/eventos/${event.id}/edit`,
+                                                            )}
                                                         >
                                                             <PenIcon aria-hidden="true" />
                                                         </Link>
                                                     </TableActionButton>
                                                     {canDelete && (
                                                         <DeleteRecordButton
-                                                            url={`/eventos/${event.id}`}
+                                                            url={tenantUrl(
+                                                                `/eventos/${event.id}`,
+                                                            )}
                                                             label={`Excluir ${event.titulo}`}
                                                             title="Excluir evento?"
                                                             description="O evento deixará de aparecer na central."

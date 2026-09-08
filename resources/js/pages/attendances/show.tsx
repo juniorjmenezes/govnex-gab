@@ -14,6 +14,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { maskPhone } from '@/lib/masks';
 import { hasModule } from '@/lib/modules';
 import type { Attendance, Auth } from '@/types';
@@ -40,6 +41,7 @@ export default function AttendanceShow({
     canDelete: boolean;
 }) {
     const { auth } = usePage<{ auth: Auth }>().props;
+    const tenantUrl = useTenantUrl();
     const demandsEnabled = hasModule(auth.modules, 'DEMANDAS');
 
     return (
@@ -53,7 +55,9 @@ export default function AttendanceShow({
                         <div className="flex gap-2">
                             <Button variant="outline" asChild>
                                 <Link
-                                    href={`/atendimentos/${attendance.id}/edit`}
+                                    href={tenantUrl(
+                                        `/atendimentos/${attendance.id}/edit`,
+                                    )}
                                 >
                                     <PenIcon />
                                     Editar
@@ -61,7 +65,9 @@ export default function AttendanceShow({
                             </Button>
                             {canDelete && (
                                 <DeleteRecordButton
-                                    url={`/atendimentos/${attendance.id}`}
+                                    url={tenantUrl(
+                                        `/atendimentos/${attendance.id}`,
+                                    )}
                                     label="Excluir atendimento"
                                     title="Excluir atendimento?"
                                     description="O registro deixará de aparecer no histórico do gabinete."
@@ -104,7 +110,9 @@ export default function AttendanceShow({
                                 </div>
                                 <div className="p-5">
                                     <Link
-                                        href={`/demandas/${attendance.demanda.id}`}
+                                        href={tenantUrl(
+                                            `/demandas/${attendance.demanda.id}`,
+                                        )}
                                         className="rounded-xl border p-4 transition-colors hover:bg-muted"
                                     >
                                         <span className="font-mono text-xs text-muted-foreground">
@@ -171,7 +179,9 @@ export default function AttendanceShow({
                             </div>
                             <div className="p-5">
                                 <Link
-                                    href={`/cidadaos/${attendance.cidadao.id}`}
+                                    href={tenantUrl(
+                                        `/cidadaos/${attendance.cidadao.id}`,
+                                    )}
                                     className="font-medium hover:underline"
                                 >
                                     {attendance.cidadao.nome}

@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { MaskedInput } from '@/components/ui/masked-input';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { applyMask } from '@/lib/masks';
 import type { MaskType } from '@/lib/masks';
 import type { Auth } from '@/types';
@@ -94,6 +95,7 @@ export default function OfficeSettings({
     canUpdate: boolean;
     electoralCandidate: ElectoralCandidate;
 }) {
+    const tenantUrl = useTenantUrl();
     const { auth } = usePage<{ auth: Auth }>().props;
     const inheritedPrimaryColor =
         auth.context.entidade?.primary_color ?? SYSTEM_PRIMARY_COLOR;
@@ -155,7 +157,7 @@ export default function OfficeSettings({
         }
 
         data.append('_method', 'put');
-        router.post('/configuracoes/gabinete', data, {
+        router.post(tenantUrl('/configuracoes/gabinete'), data, {
             forceFormData: true,
             onError: (items) =>
                 Object.entries(items).forEach(([key, message]) =>

@@ -31,8 +31,7 @@ class DownloadAndProcessTseDataset implements ShouldQueue
     public function handle(
         TsePoliticalDataSyncService $service,
         ?GabineteModuleManager $modules = null,
-    ): void
-    {
+    ): void {
         // Ver comentário equivalente em ProcessUploadedTseDataset::handle().
         ini_set('memory_limit', (string) config('services.tse.worker_memory_limit', '2048M'));
 

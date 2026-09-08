@@ -18,6 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { DateTimeParts, EventOptions, OfficeEvent } from '@/types';
 
 const schema = z
@@ -96,6 +97,7 @@ export function EventForm({
     dateTime: { start: DateTimeParts; end: DateTimeParts };
     responsibleId?: number;
 }) {
+    const tenantUrl = useTenantUrl();
     const {
         control,
         register,
@@ -170,9 +172,13 @@ export function EventForm({
         };
 
         if (event) {
-            router.put(`/eventos/${event.id}`, payload, requestOptions);
+            router.put(
+                tenantUrl(`/eventos/${event.id}`),
+                payload,
+                requestOptions,
+            );
         } else {
-            router.post('/eventos', payload, requestOptions);
+            router.post(tenantUrl('/eventos'), payload, requestOptions);
         }
     };
 
@@ -489,6 +495,7 @@ function CitizenParticipantPicker({
     citizens: EventOptions['citizens'];
     error?: string;
 }) {
+    const tenantUrl = useTenantUrl();
     const [query, setQuery] = useState('');
     const [knownCitizens, setKnownCitizens] = useState(citizens);
     const [results, setResults] = useState<EventOptions['citizens']>([]);
@@ -505,7 +512,9 @@ function CitizenParticipantPicker({
         const timer = window.setTimeout(async () => {
             try {
                 const response = await fetch(
-                    `/eventos/participantes/cidadaos?q=${encodeURIComponent(normalizedQuery)}`,
+                    tenantUrl(
+                        `/eventos/participantes/cidadaos?q=${encodeURIComponent(normalizedQuery)}`,
+                    ),
                     {
                         signal: controller.signal,
                         headers: { Accept: 'application/json' },
@@ -537,7 +546,7 @@ function CitizenParticipantPicker({
             window.clearTimeout(timer);
             controller.abort();
         };
-    }, [query]);
+    }, [query, tenantUrl]);
 
     return (
         <div className="space-y-1">

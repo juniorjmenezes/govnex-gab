@@ -140,7 +140,7 @@ class PlatformAdministrationTest extends TestCase
                 ->where(
                     'offices.data.0.political_data_checklist',
                     fn (Collection $checklist): bool => $checklist
-                            ->firstWhere('key', 'candidates')['available'] === true
+                        ->firstWhere('key', 'candidates')['available'] === true
                         && $checklist
                             ->firstWhere('key', 'turnout')['available'] === false
                         && $checklist

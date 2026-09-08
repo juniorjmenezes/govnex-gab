@@ -15,6 +15,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { Demand, DemandOptions, OfficeLocation } from '@/types';
 
 const schema = z
@@ -75,6 +76,7 @@ export function DemandForm({
     options: DemandOptions;
     officeLocation?: OfficeLocation;
 }) {
+    const tenantUrl = useTenantUrl();
     const deadline = dateTimeParts(demand?.prazo);
     const {
         control,
@@ -139,9 +141,13 @@ export function DemandForm({
         };
 
         if (demand) {
-            router.put(`/demandas/${demand.id}`, payload, requestOptions);
+            router.put(
+                tenantUrl(`/demandas/${demand.id}`),
+                payload,
+                requestOptions,
+            );
         } else {
-            router.post('/demandas', payload, requestOptions);
+            router.post(tenantUrl('/demandas'), payload, requestOptions);
         }
     };
     const applyCitizenAddress = (citizenId: string) => {

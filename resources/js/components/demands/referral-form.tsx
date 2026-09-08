@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import {
     DEMAND_ATTACHMENT_ACCEPT,
     DEMAND_ATTACHMENT_EXTENSIONS,
@@ -55,6 +56,7 @@ export function ReferralForm({
         },
     });
 
+    const tenantUrl = useTenantUrl();
     const submit = (values: Values) => {
         const data = new FormData();
         Object.entries(values).forEach(([key, value]) => {
@@ -63,7 +65,7 @@ export function ReferralForm({
             }
         });
         files.forEach((file) => data.append('arquivos[]', file));
-        router.post(`/demandas/${demandId}/encaminhamentos`, data, {
+        router.post(tenantUrl(`/demandas/${demandId}/encaminhamentos`), data, {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {

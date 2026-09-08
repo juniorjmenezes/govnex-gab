@@ -4,7 +4,7 @@ import { EmptyState } from '@/components/feedback/empty-state';
 import { PageContainer } from '@/components/layout/page-container';
 import { Button } from '@/components/ui/button';
 import { Surface } from '@/components/ui/surface';
-import { dashboard } from '@/routes';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 
 type Props = {
     module: {
@@ -15,6 +15,8 @@ type Props = {
 };
 
 export default function ModuleDisabled({ module }: Props) {
+    const tenantUrl = useTenantUrl();
+
     return (
         <>
             <Head title="Módulo indisponível" />
@@ -26,7 +28,7 @@ export default function ModuleDisabled({ module }: Props) {
                         description={`Este gabinete não possui acesso a este módulo. ${module.description} Os dados existentes permanecem preservados.`}
                         action={
                             <Button asChild>
-                                <Link href={dashboard()}>
+                                <Link href={tenantUrl('/dashboard')}>
                                     <WidgetIcon aria-hidden="true" />
                                     Voltar à visão geral
                                 </Link>

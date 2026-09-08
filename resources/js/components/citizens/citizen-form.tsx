@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { MaskedInput } from '@/components/ui/masked-input';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { applyMask } from '@/lib/masks';
 import type { MaskType } from '@/lib/masks';
 import type { Citizen, Neighborhood, OfficeLocation } from '@/types';
@@ -60,6 +61,7 @@ export function CitizenForm({
     officeLocation?: OfficeLocation;
     whatsappConsentText: string;
 }) {
+    const tenantUrl = useTenantUrl();
     const {
         control,
         register,
@@ -149,9 +151,9 @@ export function CitizenForm({
         };
 
         if (citizen) {
-            router.put(`/cidadaos/${citizen.id}`, payload, options);
+            router.put(tenantUrl(`/cidadaos/${citizen.id}`), payload, options);
         } else {
-            router.post('/cidadaos', payload, options);
+            router.post(tenantUrl('/cidadaos'), payload, options);
         }
     };
     const field = (

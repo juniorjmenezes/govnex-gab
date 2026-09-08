@@ -7,6 +7,7 @@ import { AttachmentField } from '@/components/forms/attachment-field';
 import { FieldError } from '@/components/forms/field-error';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import {
     DEMAND_ATTACHMENT_ACCEPT,
     DEMAND_ATTACHMENT_EXTENSIONS,
@@ -38,11 +39,12 @@ export function UpdateForm({
         defaultValues: { texto: '' },
     });
 
+    const tenantUrl = useTenantUrl();
     const submit = (values: Values) => {
         const data = new FormData();
         data.append('texto', values.texto);
         files.forEach((file) => data.append('arquivos[]', file));
-        router.post(`/demandas/${demandId}/atualizacoes`, data, {
+        router.post(tenantUrl(`/demandas/${demandId}/atualizacoes`), data, {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {

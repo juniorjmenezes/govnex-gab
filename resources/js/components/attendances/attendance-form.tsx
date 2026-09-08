@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { Attendance, AttendanceOptions } from '@/types';
 
 const schema = z.object({
@@ -53,6 +54,7 @@ export function AttendanceForm({
         attendantId: number;
     };
 }) {
+    const tenantUrl = useTenantUrl();
     const attendedAtParts = dateTimeParts(attendedAt);
     const {
         control,
@@ -108,12 +110,12 @@ export function AttendanceForm({
 
         if (attendance) {
             router.put(
-                `/atendimentos/${attendance.id}`,
+                tenantUrl(`/atendimentos/${attendance.id}`),
                 payload,
                 requestOptions,
             );
         } else {
-            router.post('/atendimentos', payload, requestOptions);
+            router.post(tenantUrl('/atendimentos'), payload, requestOptions);
         }
     };
 

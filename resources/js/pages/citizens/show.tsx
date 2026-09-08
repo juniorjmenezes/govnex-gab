@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Surface } from '@/components/ui/surface';
 import { useIsHydrated } from '@/hooks/use-is-hydrated';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { maskCpf, maskPhone } from '@/lib/masks';
 import type { Citizen, DuplicateMatch } from '@/types';
 
@@ -50,6 +51,8 @@ export default function CitizenShow({
         }>;
     };
 }) {
+    const tenantUrl = useTenantUrl();
+
     const contacts = [
         {
             icon: PhoneIcon,
@@ -83,7 +86,9 @@ export default function CitizenShow({
                     description="Perfil, contato e histórico de atendimento."
                     actions={
                         <Button asChild>
-                            <Link href={`/cidadaos/${citizen.id}/edit`}>
+                            <Link
+                                href={tenantUrl(`/cidadaos/${citizen.id}/edit`)}
+                            >
                                 <PenIcon />
                                 Editar cadastro
                             </Link>
@@ -102,7 +107,9 @@ export default function CitizenShow({
                                     <p key={item.id} className="mt-1 text-sm">
                                         <Link
                                             className="underline"
-                                            href={`/cidadaos/${item.id}`}
+                                            href={tenantUrl(
+                                                `/cidadaos/${item.id}`,
+                                            )}
                                         >
                                             {item.nome}
                                         </Link>{' '}
@@ -253,7 +260,9 @@ export default function CitizenShow({
                                 </div>
                                 <Button size="sm" asChild>
                                     <Link
-                                        href={`/atendimentos/create?cidadao_id=${citizen.id}`}
+                                        href={tenantUrl(
+                                            `/atendimentos/create?cidadao_id=${citizen.id}`,
+                                        )}
                                     >
                                         Registrar atendimento
                                     </Link>
@@ -266,7 +275,9 @@ export default function CitizenShow({
                                             (attendance) => (
                                                 <Link
                                                     key={attendance.id}
-                                                    href={`/atendimentos/${attendance.id}`}
+                                                    href={tenantUrl(
+                                                        `/atendimentos/${attendance.id}`,
+                                                    )}
                                                     className="flex items-center justify-between gap-4 p-3 transition-colors hover:bg-muted"
                                                 >
                                                     <span className="min-w-0">

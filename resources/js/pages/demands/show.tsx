@@ -31,6 +31,7 @@ import {
     DrawerTitle,
 } from '@/components/ui/drawer';
 import { Surface } from '@/components/ui/surface';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { maskPhone } from '@/lib/masks';
 import { cn } from '@/lib/utils';
 import type {
@@ -316,6 +317,7 @@ export default function DemandShow({
 }
 
 function FavoriteButton({ demand }: { demand: Demand }) {
+    const tenantUrl = useTenantUrl();
     const favorited = demand.favoritada_em !== null;
 
     return (
@@ -323,7 +325,7 @@ function FavoriteButton({ demand }: { demand: Demand }) {
             type="button"
             onClick={() =>
                 router.patch(
-                    `/demandas/${demand.id}/favorito`,
+                    tenantUrl(`/demandas/${demand.id}/favorito`),
                     {},
                     { preserveScroll: true },
                 )

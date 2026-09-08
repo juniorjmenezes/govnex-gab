@@ -17,6 +17,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { CandidateNews, PoliticalCandidate } from '@/types/politics';
 
 type Page = {
@@ -93,6 +94,7 @@ export function CandidateNewsDialog({
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) {
+    const tenantUrl = useTenantUrl();
     const [page, setPage] = useState(1);
     const [result, setResult] = useState<Page | null>(null);
     const [loading, setLoading] = useState(false);
@@ -112,7 +114,9 @@ export function CandidateNewsDialog({
 
             try {
                 const response = await fetch(
-                    `/painel-politico/candidatos/${candidateId}/noticias?page=${page}`,
+                    tenantUrl(
+                        `/painel-politico/candidatos/${candidateId}/noticias?page=${page}`,
+                    ),
                     {
                         signal: controller.signal,
                         headers: { Accept: 'application/json' },
@@ -137,7 +141,7 @@ export function CandidateNewsDialog({
             window.clearTimeout(timer);
             controller.abort();
         };
-    }, [open, candidateId, page]);
+    }, [open, candidateId, page, tenantUrl]);
 
     const news = result?.data ?? [];
     const lastPage = result?.last_page ?? 1;

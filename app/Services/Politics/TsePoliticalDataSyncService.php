@@ -21,6 +21,7 @@ use App\Models\VotoSecaoCandidato;
 use App\Services\Geocoding\GeocodingService;
 use App\Services\Modules\GabineteModuleManager;
 use App\Services\Politics\Tse\GovnexApiClient;
+use App\Services\Politics\Tse\GovnexApiSettings;
 use App\Services\Politics\Tse\TseDatasetArchiveContract;
 use App\Services\Politics\Tse\TseDatasetUrlBuilder;
 use App\Services\Politics\Tse\TseUploadedArchiveValidator;
@@ -360,7 +361,7 @@ class TsePoliticalDataSyncService
 
         // Proveniência real do snapshot: o catálogo da GOVNEX API, não a URL
         // oficial do TSE recebida em $sourceUrl (ver docblock do método).
-        $govnexSourceUrl = rtrim((string) config('services.govnex_api.url'), '/').'/sources/tse/datasets';
+        $govnexSourceUrl = app(GovnexApiSettings::class)->url().'/sources/tse/datasets';
         $snapshotRows = [];
 
         foreach ($totals as $total) {
@@ -1053,30 +1054,19 @@ class TsePoliticalDataSyncService
         foreach ($entries as $entry) {
             $locations = [];
             $sections = [];
-            $flush = function () use (
-                &$locations,
-                &$sections,
-                &$totalProcessed,
-                $election,
-                $sourceUrl,
-                $now,
-                $run,
-            ): void {
-                if ($locations === []) {
-                    return;
-                }
-
-                $totalProcessed += $this->flushPollingLocations(
-                    $locations,
-                    $sections,
+            // Recebe os buffers por argumento em vez de capturá-los por
+            // referência: quem acumula é quem esvazia, e o descarregamento
+            // vira função pura da sua entrada.
+            $flush = fn (array $pendingLocations, array $pendingSections): int => $pendingLocations === []
+                ? 0
+                : $this->flushPollingLocations(
+                    $pendingLocations,
+                    $pendingSections,
                     $election,
                     $sourceUrl,
                     $now,
                     $run,
                 );
-                $locations = [];
-                $sections = [];
-            };
 
             $this->readCsvArchive(
                 $archivePath,
@@ -1085,6 +1075,7 @@ class TsePoliticalDataSyncService
                     $municipalitiesByCode,
                     &$locations,
                     &$sections,
+                    &$totalProcessed,
                     $chunkSize,
                     $flush,
                 ): void {
@@ -1159,7 +1150,9 @@ class TsePoliticalDataSyncService
                     ];
 
                     if (count($sections) >= $chunkSize) {
-                        $flush();
+                        $totalProcessed += $flush($locations, $sections);
+                        $locations = [];
+                        $sections = [];
                     }
                 },
                 entryFilter: fn (string $name): bool => $name === $entry['name'],
@@ -1169,7 +1162,7 @@ class TsePoliticalDataSyncService
             );
 
             $processedBytes += $entry['size'];
-            $flush();
+            $totalProcessed += $flush($locations, $sections);
         }
 
         return $totalProcessed;
@@ -1880,7 +1873,7 @@ class TsePoliticalDataSyncService
      */
     public function syncElectorateFromGovnexApi(SincronizacaoTse $run): int
     {
-        $sourceUrl = rtrim((string) config('services.govnex_api.url'), '/').'/sources/tse/datasets';
+        $sourceUrl = app(GovnexApiSettings::class)->url().'/sources/tse/datasets';
         $run->update([
             'fonte_url' => $sourceUrl,
             'situacao' => 'processando',
@@ -2249,9 +2242,18 @@ class TsePoliticalDataSyncService
     }
 
     /**
+     * Os três callbacks rodam durante a própria chamada, linha a linha, e
+     * nunca são guardados para depois. Sem marcá-los como imediatos, a
+     * análise estática assume que um `use (&$var)` do chamador jamais é
+     * executado e passa a tratar os acumuladores como sempre vazios.
+     *
      * @param  callable(array<string, string>): void  $callback
      * @param  (callable(string): bool)|null  $entryFilter
      * @param  (callable(list<string>, list<string>): bool)|null  $rowFilter  Filtro barato aplicado nos valores BRUTOS de cada linha (ainda em Windows-1252, na mesma ordem do cabeçalho já convertido) antes de combiná-la com o cabeçalho em array_combine(). Alguns datasets do TSE têm milhões de linhas das quais só uma fração mínima interessa (ex.: votação por seção tem todo candidato a vereador do estado, não só o titular do gabinete) — filtrar antes evita gastar até a conversão de charset (adiada pra value(), ver utf8()) em colunas que vão ser descartadas de qualquer forma. Deve ser conservador: só retornar false quando tiver certeza de que a linha completa (após combinar) também seria descartada.
+     *
+     * @param-immediately-invoked-callable $callback
+     * @param-immediately-invoked-callable $entryFilter
+     * @param-immediately-invoked-callable $rowFilter
      */
     private function readCsvArchive(
         string $path,

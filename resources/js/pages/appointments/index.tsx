@@ -50,6 +50,7 @@ import { Dialog, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 import type {
     Appointment,
@@ -203,6 +204,7 @@ export default function AppointmentsIndex({
     capabilities,
     options,
 }: AppointmentPageProps) {
+    const tenantUrl = useTenantUrl();
     const [nextActionPrefill] = useState(readNextActionPrefill);
     const [editing, setEditing] = useState<Appointment | null>(null);
     const [dialogOpen, setDialogOpen] = useState(nextActionPrefill !== null);
@@ -308,7 +310,7 @@ export default function AppointmentsIndex({
 
     const openAgendaItem = (appointment: Appointment) => {
         if (appointment.source === 'event') {
-            router.visit(`/eventos/${appointment.id}`);
+            router.visit(tenantUrl(`/eventos/${appointment.id}`));
 
             return;
         }
@@ -318,7 +320,7 @@ export default function AppointmentsIndex({
 
     const navigate = (target: Date, view = filters.view) => {
         router.get(
-            '/agenda',
+            tenantUrl('/agenda'),
             {
                 ...filters,
                 view,
@@ -357,7 +359,7 @@ export default function AppointmentsIndex({
         if (editing?.is_past) {
             setStatusSaving(true);
             router.patch(
-                `/agenda/${editing.id}/status`,
+                tenantUrl(`/agenda/${editing.id}/status`),
                 { status: form.data.status },
                 {
                     ...options,
@@ -373,7 +375,7 @@ export default function AppointmentsIndex({
                         : reminder,
                 ),
             }));
-            form.put(`/agenda/${editing.id}`, options);
+            form.put(tenantUrl(`/agenda/${editing.id}`), options);
         } else {
             form.transform((data) => ({
                 ...data,
@@ -383,7 +385,7 @@ export default function AppointmentsIndex({
                         : reminder,
                 ),
             }));
-            form.post('/agenda', options);
+            form.post(tenantUrl('/agenda'), options);
         }
     };
 
@@ -554,7 +556,7 @@ export default function AppointmentsIndex({
                                 value={filters.responsavel_id?.toString()}
                                 onValueChange={(value) =>
                                     router.get(
-                                        '/agenda',
+                                        tenantUrl('/agenda'),
                                         {
                                             ...filters,
                                             responsavel_id: value || undefined,
@@ -1206,7 +1208,7 @@ export default function AppointmentsIndex({
                         <div className="flex gap-2">
                             {editing && canDelete && (
                                 <DeleteRecordButton
-                                    url={`/agenda/${editing.id}`}
+                                    url={tenantUrl(`/agenda/${editing.id}`)}
                                     label={`Excluir ${editing.title}`}
                                     title="Excluir compromisso?"
                                     description="O compromisso e seus lembretes deixarão de aparecer na agenda. O registro permanecerá preservado no banco de dados."
@@ -1221,7 +1223,9 @@ export default function AppointmentsIndex({
                                         variant="destructive-solid"
                                         onClick={() => {
                                             router.patch(
-                                                `/agenda/${editing.id}/cancelar`,
+                                                tenantUrl(
+                                                    `/agenda/${editing.id}/cancelar`,
+                                                ),
                                                 {},
                                                 {
                                                     onSuccess: () =>

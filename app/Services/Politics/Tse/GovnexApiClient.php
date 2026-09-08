@@ -21,10 +21,10 @@ class GovnexApiClient
 
     private readonly ?string $apiKey;
 
-    public function __construct()
+    public function __construct(GovnexApiSettings $settings)
     {
-        $this->baseUrl = rtrim((string) config('services.govnex_api.url'), '/');
-        $this->apiKey = config('services.govnex_api.key');
+        $this->baseUrl = $settings->url();
+        $this->apiKey = $settings->key();
     }
 
     /**

@@ -25,6 +25,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { maskPhone } from '@/lib/masks';
 import { cn } from '@/lib/utils';
 import type { Citizen, Pagination } from '@/types';
@@ -38,6 +39,7 @@ export default function CitizensIndex({
     filters: { q: string };
     canDelete: boolean;
 }) {
+    const tenantUrl = useTenantUrl();
     const [query, setQuery] = useState(filters.q);
     const isFirstRender = useRef(true);
 
@@ -49,14 +51,14 @@ export default function CitizensIndex({
         }
 
         const timeout = setTimeout(() => {
-            router.get('/cidadaos', query ? { q: query } : {}, {
+            router.get(tenantUrl('/cidadaos'), query ? { q: query } : {}, {
                 preserveState: true,
                 replace: true,
             });
         }, 400);
 
         return () => clearTimeout(timeout);
-    }, [query]);
+    }, [query, tenantUrl]);
 
     return (
         <>
@@ -67,7 +69,7 @@ export default function CitizensIndex({
                     description="Base de contatos atendidos pelo gabinete, isolada por equipe."
                     actions={
                         <Button asChild>
-                            <Link href="/cidadaos/create">
+                            <Link href={tenantUrl('/cidadaos/create')}>
                                 <AddIcon />
                                 Novo cidadão
                             </Link>
@@ -130,7 +132,9 @@ export default function CitizensIndex({
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <Link
                                                         className="font-normal hover:underline"
-                                                        href={`/cidadaos/${citizen.id}`}
+                                                        href={tenantUrl(
+                                                            `/cidadaos/${citizen.id}`,
+                                                        )}
                                                     >
                                                         {citizen.nome}
                                                     </Link>
@@ -184,14 +188,18 @@ export default function CitizensIndex({
                                                         label={`Editar ${citizen.nome}`}
                                                     >
                                                         <Link
-                                                            href={`/cidadaos/${citizen.id}/edit`}
+                                                            href={tenantUrl(
+                                                                `/cidadaos/${citizen.id}/edit`,
+                                                            )}
                                                         >
                                                             <PenIcon aria-hidden="true" />
                                                         </Link>
                                                     </TableActionButton>
                                                     {canDelete && (
                                                         <DeleteRecordButton
-                                                            url={`/cidadaos/${citizen.id}`}
+                                                            url={tenantUrl(
+                                                                `/cidadaos/${citizen.id}`,
+                                                            )}
                                                             label={`Excluir ${citizen.nome}`}
                                                             title="Excluir cidadão?"
                                                             description="O cadastro deixará de aparecer nas consultas. Demandas e atendimentos históricos serão preservados."

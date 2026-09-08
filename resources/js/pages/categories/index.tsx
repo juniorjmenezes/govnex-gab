@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { surfaceClasses } from '@/components/ui/surface';
 import { Textarea } from '@/components/ui/textarea';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 import type { Category, Pagination } from '@/types';
 const schema = z.object({
@@ -46,6 +47,7 @@ export default function Categories({
     categories: Pagination<Category>;
     canManage: boolean;
 }) {
+    const tenantUrl = useTenantUrl();
     const {
         control,
         register,
@@ -65,7 +67,7 @@ export default function Categories({
     });
     const selectedColor = useWatch({ control, name: 'cor_semantica' });
     const submit = (values: Values) =>
-        router.post('/categorias', values, {
+        router.post(tenantUrl('/categorias'), values, {
             onSuccess: () => reset(),
             onError: (items) =>
                 Object.entries(items).forEach(([key, message]) =>
@@ -128,7 +130,9 @@ export default function Categories({
                                                 }
                                                 onClick={() =>
                                                     router.put(
-                                                        `/categorias/${item.id}`,
+                                                        tenantUrl(
+                                                            `/categorias/${item.id}`,
+                                                        ),
                                                         {
                                                             ...item,
                                                             ativo: !item.ativo,
@@ -142,7 +146,9 @@ export default function Categories({
                                                 <PowerIcon aria-hidden="true" />
                                             </TableActionButton>
                                             <DeleteRecordButton
-                                                url={`/categorias/${item.id}`}
+                                                url={tenantUrl(
+                                                    `/categorias/${item.id}`,
+                                                )}
                                                 label={`Excluir ${item.nome}`}
                                                 title="Excluir categoria?"
                                                 description="O registro deixará de aparecer nos novos cadastros. Os vínculos históricos serão preservados."

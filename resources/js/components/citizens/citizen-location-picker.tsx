@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/collapsible';
 import { Surface } from '@/components/ui/surface';
 import { useIsHydrated } from '@/hooks/use-is-hydrated';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 
 type Coordinates = {
@@ -54,6 +55,7 @@ export function CitizenLocationPicker({
         source: LocationSource | null,
     ) => void;
 }) {
+    const tenantUrl = useTenantUrl();
     const [open, setOpen] = useState(true);
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<GeocodingResult[]>([]);
@@ -103,7 +105,7 @@ export function CitizenLocationPicker({
                 estado: address.state,
             });
             const response = await fetch(
-                `/cidadaos/localizacao/buscar?${query.toString()}`,
+                tenantUrl(`/cidadaos/localizacao/buscar?${query.toString()}`),
                 {
                     headers: { Accept: 'application/json' },
                     credentials: 'same-origin',

@@ -35,6 +35,7 @@ import { toast } from 'sonner';
 import { PriorityBadge } from '@/components/demands/priority-badge';
 import { Button } from '@/components/ui/button';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 import type {
     DemandKanbanColumn,
@@ -58,6 +59,7 @@ export function DemandKanban({
     initialColumns: DemandKanbanColumn[];
     transitions: DemandKanbanTransitions;
 }) {
+    const tenantUrl = useTenantUrl();
     const [columns, setColumns] = useState(initialColumns);
     const [activeId, setActiveId] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
@@ -153,7 +155,7 @@ export function DemandKanban({
         );
         setSaving(true);
         router.patch(
-            `/demandas/${demand.id}/kanban-status`,
+            tenantUrl(`/demandas/${demand.id}/kanban-status`),
             { status: targetStatus },
             {
                 preserveScroll: true,
@@ -292,6 +294,7 @@ function KanbanCard({
     demand: DemandKanbanItem;
     disabled: boolean;
 }) {
+    const tenantUrl = useTenantUrl();
     const {
         attributes,
         listeners,
@@ -318,13 +321,13 @@ function KanbanCard({
             <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                     <Link
-                        href={`/demandas/${demand.id}`}
+                        href={tenantUrl(`/demandas/${demand.id}`)}
                         className="font-mono text-[11px] font-semibold text-muted-foreground hover:text-foreground"
                     >
                         {demand.protocolo}
                     </Link>
                     <Link
-                        href={`/demandas/${demand.id}`}
+                        href={tenantUrl(`/demandas/${demand.id}`)}
                         className="mt-1 line-clamp-2 block text-sm leading-5 font-semibold hover:underline"
                     >
                         {demand.titulo}

@@ -34,8 +34,7 @@ class SyncOfficePoliticalDataFromRetainedArchives implements ShouldQueue
     public function handle(
         TsePoliticalDataSyncService $service,
         GabineteModuleManager $modules,
-    ): void
-    {
+    ): void {
         $office = Gabinete::withoutGlobalScopes()->find($this->officeId);
 
         if (

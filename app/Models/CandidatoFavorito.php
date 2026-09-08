@@ -4,6 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $candidato_politico_id
+ * @property int|null $escolhido_por_id
+ * @property list<string>|null $termos_busca
+ * @property list<string>|null $termos_exclusao
+ * @property-read CandidatoPolitico|null $candidato
+ */
 class CandidatoFavorito extends TenantModel
 {
     protected $table = 'candidatos_favoritos';

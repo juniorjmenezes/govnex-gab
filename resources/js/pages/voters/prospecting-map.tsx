@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useIsHydrated } from '@/hooks/use-is-hydrated';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { VoterMapMarker, VoterMapSummary } from '@/types';
 
 const ProspectingMapCanvas = lazy(
@@ -42,6 +43,7 @@ export default function ProspectingMap({
     markers: VoterMapMarker[];
     summary: VoterMapSummary;
 }) {
+    const tenantUrl = useTenantUrl();
     const [query, setQuery] = useState('');
     const [neighborhoodId, setNeighborhoodId] = useState('');
     const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -255,7 +257,7 @@ export default function ProspectingMap({
                     )}
 
                     <Button variant="outline" size="sm" asChild>
-                        <Link href="/cidadaos">
+                        <Link href={tenantUrl('/cidadaos')}>
                             <UsersGroupRoundedIcon />
                             Abrir cadastro de cidadãos
                         </Link>

@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import { CloseIcon, DownloadIcon, FileIcon } from '@solar-icons/react/outline';
 import { Button } from '@/components/ui/button';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { DemandAttachment } from '@/types';
 
 const formatSize = (bytes: number) =>
@@ -34,6 +35,8 @@ export function AttachmentList({
     demandId: number;
     attachments: DemandAttachment[];
 }) {
+    const tenantUrl = useTenantUrl();
+
     if (attachments.length === 0) {
         return null;
     }
@@ -41,7 +44,9 @@ export function AttachmentList({
     return (
         <ul className="mt-3 grid gap-2">
             {attachments.map((attachment) => {
-                const base = `/demandas/${demandId}/anexos/${attachment.id}`;
+                const base = tenantUrl(
+                    `/demandas/${demandId}/anexos/${attachment.id}`,
+                );
 
                 return (
                     <li

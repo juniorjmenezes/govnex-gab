@@ -10,6 +10,7 @@ use App\Jobs\DownloadAndProcessTseDataset;
 use App\Jobs\ProcessUploadedTseDataset;
 use App\Jobs\SyncElectorateFromGovnexApi;
 use App\Models\SincronizacaoTse;
+use App\Services\Politics\Tse\GovnexApiSettings;
 use App\Services\Politics\TsePoliticalDataSyncService;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
@@ -123,7 +124,7 @@ class GlobalPoliticalDataSyncController extends Controller
                         'solicitado_por_id' => $request->user()->id,
                         'dataset' => $dataset,
                         'ano' => $year,
-                        'fonte_url' => rtrim((string) config('services.govnex_api.url'), '/').'/sources/tse/datasets',
+                        'fonte_url' => app(GovnexApiSettings::class)->url().'/sources/tse/datasets',
                         'situacao' => 'pendente',
                         'iniciada_em' => now(),
                     ]);
@@ -197,9 +198,6 @@ class GlobalPoliticalDataSyncController extends Controller
             throw ValidationException::withMessages(['arquivo' => $exception->getMessage()]);
         }
 
-        $storedPath = null;
-        $run = null;
-
         try {
             Cache::lock($this->enqueueLockKey($dataset, $year, $uf), 15)
                 ->block(5, function () use (
@@ -209,8 +207,6 @@ class GlobalPoliticalDataSyncController extends Controller
                     $request,
                     $service,
                     $file,
-                    &$storedPath,
-                    &$run,
                 ): void {
                     if ($this->hasActiveRun($dataset, $year, $uf)) {
                         throw ValidationException::withMessages([
@@ -223,37 +219,44 @@ class GlobalPoliticalDataSyncController extends Controller
                     $storedPath = $directory.DIRECTORY_SEPARATOR."{$dataset}-{$year}-".Str::uuid().'.zip';
                     $file->move($directory, basename($storedPath));
 
-                    $run = SincronizacaoTse::query()->create([
-                        'gabinete_id' => null,
-                        'solicitado_por_id' => $request->user()->id,
-                        'dataset' => $dataset,
-                        'ano' => $year,
-                        'uf' => $uf,
-                        'fonte_url' => $service->sourceUrl($dataset, $year, $uf),
-                        'situacao' => 'pendente',
-                        'iniciada_em' => now(),
-                    ]);
+                    // A partir daqui existe um ZIP no disco e, logo depois,
+                    // uma linha de sincronização. Cada passo desfaz o que já
+                    // tinha sido criado antes dele, para não deixar arquivo
+                    // órfão nem sincronização presa em "pendente".
+                    try {
+                        $run = SincronizacaoTse::query()->create([
+                            'gabinete_id' => null,
+                            'solicitado_por_id' => $request->user()->id,
+                            'dataset' => $dataset,
+                            'ano' => $year,
+                            'uf' => $uf,
+                            'fonte_url' => $service->sourceUrl($dataset, $year, $uf),
+                            'situacao' => 'pendente',
+                            'iniciada_em' => now(),
+                        ]);
+                    } catch (Throwable $exception) {
+                        File::delete($storedPath);
 
-                    ProcessUploadedTseDataset::dispatch($run->id, $storedPath, $uf);
+                        throw $exception;
+                    }
+
+                    try {
+                        ProcessUploadedTseDataset::dispatch($run->id, $storedPath, $uf);
+                    } catch (Throwable $exception) {
+                        File::delete($storedPath);
+                        $run->update([
+                            'situacao' => 'falhou',
+                            'erro' => 'Não foi possível adicionar o arquivo à fila: '.$exception->getMessage(),
+                            'concluida_em' => now(),
+                        ]);
+
+                        throw $exception;
+                    }
                 });
         } catch (LockTimeoutException) {
             throw ValidationException::withMessages([
                 'arquivo' => 'Outra solicitação deste dataset está sendo registrada. Tente novamente em alguns segundos.',
             ]);
-        } catch (Throwable $exception) {
-            if (is_string($storedPath)) {
-                File::delete($storedPath);
-            }
-
-            if ($run instanceof SincronizacaoTse && in_array($run->situacao, ['pendente', 'processando'], true)) {
-                $run->update([
-                    'situacao' => 'falhou',
-                    'erro' => 'Não foi possível adicionar o arquivo à fila: '.$exception->getMessage(),
-                    'concluida_em' => now(),
-                ]);
-            }
-
-            throw $exception;
         }
 
         Inertia::flash('toast', [

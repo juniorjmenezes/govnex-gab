@@ -8,14 +8,20 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 
 export function NotificationCenter() {
     const { notifications } = usePage().props;
+    const tenantUrl = useTenantUrl();
     const showCount = notifications.unread_count > 0;
 
     const markRead = (id: string) => {
-        router.patch(`/notificacoes/${id}/ler`, {}, { preserveScroll: true });
+        router.patch(
+            tenantUrl(`/notificacoes/${id}/ler`),
+            {},
+            { preserveScroll: true },
+        );
     };
 
     return (
@@ -57,7 +63,7 @@ export function NotificationCenter() {
                             className="h-7 gap-1 text-xs tracking-normal normal-case"
                             onClick={() =>
                                 router.patch(
-                                    '/notificacoes/ler-todas',
+                                    tenantUrl('/notificacoes/ler-todas'),
                                     {},
                                     { preserveScroll: true },
                                 )
@@ -113,7 +119,9 @@ export function NotificationCenter() {
                                         size="xs"
                                         onClick={() =>
                                             router.patch(
-                                                `/notificacoes/${item.id}/ler`,
+                                                tenantUrl(
+                                                    `/notificacoes/${item.id}/ler`,
+                                                ),
                                                 {},
                                                 {
                                                     preserveScroll: true,

@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { Demand, SelectOption } from '@/types';
 
 /** Código de 6 dígitos que o usuário precisa digitar para confirmar a exclusão. */
@@ -67,6 +68,7 @@ export function DemandStatusActions({
     resultados: SelectOption[];
     canDelete: boolean;
 }) {
+    const tenantUrl = useTenantUrl();
     const [dialog, setDialog] = useState<DialogKind>(null);
     const [resultado, setResultado] = useState('');
     const [descricao, setDescricao] = useState('');
@@ -92,7 +94,7 @@ export function DemandStatusActions({
 
     const moveTo = (status: string) => {
         router.patch(
-            `/demandas/${demand.id}/status`,
+            tenantUrl(`/demandas/${demand.id}/status`),
             { status },
             { preserveScroll: true },
         );
@@ -118,7 +120,9 @@ export function DemandStatusActions({
 
         setDescricaoError('');
         setSubmitting(true);
-        const url = `/demandas/${demand.id}/${{ resolve: 'resolver', reopen: 'reabrir' }[dialog]}`;
+        const url = tenantUrl(
+            `/demandas/${demand.id}/${{ resolve: 'resolver', reopen: 'reabrir' }[dialog]}`,
+        );
         const payload =
             dialog === 'resolve'
                 ? { resultado: resultado || null, descricao: descricao || null }
@@ -157,7 +161,7 @@ export function DemandStatusActions({
         setCloseDescricaoError('');
         setCloseSubmitting(true);
         router.patch(
-            `/demandas/${demand.id}/encerrar`,
+            tenantUrl(`/demandas/${demand.id}/encerrar`),
             { descricao: closeDescricao },
             {
                 preserveScroll: true,
@@ -190,7 +194,7 @@ export function DemandStatusActions({
         }
 
         setDeleteSubmitting(true);
-        router.delete(`/demandas/${demand.id}`, {
+        router.delete(tenantUrl(`/demandas/${demand.id}`), {
             onFinish: () => setDeleteSubmitting(false),
         });
     };
@@ -237,7 +241,7 @@ export function DemandStatusActions({
                         </DropdownMenuItem>
                     )}
                     <DropdownMenuItem asChild>
-                        <Link href={`/demandas/${demand.id}/edit`}>
+                        <Link href={tenantUrl(`/demandas/${demand.id}/edit`)}>
                             <PenIcon />
                             Editar dados
                         </Link>

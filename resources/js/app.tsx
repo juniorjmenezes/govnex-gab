@@ -84,6 +84,9 @@ createInertiaApp({
         window.__govnexGabReactRoot = root;
     },
     progress: {
-        color: '#4B5563',
+        // A barra de carregamento é o feedback mais visível do app e estava
+        // num cinza fixo, fora da paleta e igual nos dois temas. O token
+        // resolve contra `:root`, então acompanha claro/escuro sozinho.
+        color: 'var(--primary)',
     },
 });

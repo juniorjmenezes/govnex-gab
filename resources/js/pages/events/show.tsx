@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { EventStatus, OfficeEvent } from '@/types';
 
 const statusVariants: Record<
@@ -59,6 +60,7 @@ export default function EventShow({
     event: OfficeEvent;
     canDelete: boolean;
 }) {
+    const tenantUrl = useTenantUrl();
     const userParticipants = event.participantes_usuarios ?? [];
     const citizenParticipants = event.participantes_cidadaos ?? [];
 
@@ -72,14 +74,18 @@ export default function EventShow({
                     actions={
                         <div className="flex gap-2">
                             <Button variant="outline" asChild>
-                                <Link href={`/eventos/${event.id}/edit`}>
+                                <Link
+                                    href={tenantUrl(
+                                        `/eventos/${event.id}/edit`,
+                                    )}
+                                >
                                     <PenIcon />
                                     Editar
                                 </Link>
                             </Button>
                             {canDelete && (
                                 <DeleteRecordButton
-                                    url={`/eventos/${event.id}`}
+                                    url={tenantUrl(`/eventos/${event.id}`)}
                                     label="Excluir evento"
                                     title="Excluir evento?"
                                     description="O evento deixará de aparecer na central."
@@ -170,7 +176,9 @@ export default function EventShow({
                                                                 }
                                                             >
                                                                 <Link
-                                                                    href={`/cidadaos/${participant.id}`}
+                                                                    href={tenantUrl(
+                                                                        `/cidadaos/${participant.id}`,
+                                                                    )}
                                                                     className="hover:underline"
                                                                 >
                                                                     {
