@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Notifications\DemandActivityNotification;
 use App\Services\Modules\GabineteModuleManager;
 use App\Services\WhatsApp\WhatsAppEventNotificationService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Notifications\DatabaseNotification;
 
 /**
@@ -20,6 +21,9 @@ use Illuminate\Notifications\DatabaseNotification;
  */
 class DemandNotificationService
 {
+    /** @var array<int, array<int, User>> */
+    private array $fallbackCache = [];
+
     public function __construct(
         private readonly WhatsAppEventNotificationService $whatsApp,
         private readonly GabineteModuleManager $modules,
@@ -139,39 +143,99 @@ class DemandNotificationService
             ->whereNotNull('proxima_acao_data')
             ->whereNull('proxima_acao_concluida_em')
             ->where('proxima_acao_data', '<=', now()->addDay())
-            ->with('proximaAcaoResponsavel')
+            ->with(['proximaAcaoResponsavel', 'responsavel'])
             ->chunkById(200, function ($demands): void {
                 foreach ($demands as $demand) {
-                    $recipient = $demand->proximaAcaoResponsavel ?? $demand->responsavel;
-                    if (! $recipient) {
-                        continue;
-                    }
+                    $assignee = $demand->proximaAcaoResponsavel;
+                    $recipients = $assignee && $this->canReceive($assignee, (int) $demand->gabinete_id)
+                        ? [$assignee]
+                        : $this->recipients($demand);
                     $overdue = $demand->proxima_acao_data->isPast();
-                    $this->sendOnce(
-                        $recipient,
-                        "demand:{$demand->id}:next-action:".$demand->proxima_acao_data->toDateString().':'.($overdue ? 'overdue' : 'today'),
-                        $overdue ? 'Próxima ação atrasada' : 'Próxima ação para hoje',
-                        "{$demand->protocolo} · {$demand->proxima_acao_descricao}",
-                        $demand,
-                    );
+                    foreach ($recipients as $recipient) {
+                        $this->sendOnce(
+                            $recipient,
+                            "demand:{$demand->id}:next-action:".$demand->proxima_acao_data->toDateString().':'.($overdue ? 'overdue' : 'today'),
+                            $overdue ? 'Próxima ação atrasada' : 'Próxima ação para hoje',
+                            "{$demand->protocolo} · {$demand->proxima_acao_descricao}",
+                            $demand,
+                        );
+                    }
                 }
             });
     }
 
-    /** @return array<int, User> */
+    /**
+     * Destinatários de um alerta de prazo: o responsável, quando ainda pode
+     * receber, senão a liderança do gabinete. O segundo caminho é o que
+     * impede o alerta de sumir quando a demanda está sem responsável ou o
+     * responsável foi desativado/movido de gabinete.
+     *
+     * @return array<int, User>
+     */
     private function recipients(Demanda $demand): array
     {
-        if ($demand->responsavel) {
-            return [$demand->responsavel];
+        $responsible = $demand->responsavel;
+
+        if ($responsible && $this->canReceive($responsible, (int) $demand->gabinete_id)) {
+            return [$responsible];
         }
 
-        return User::query()
-            ->where('gabinete_id', $demand->gabinete_id)
+        return $this->fallbackRecipients((int) $demand->gabinete_id);
+    }
+
+    /**
+     * Liderança do gabinete e, na falta dela, qualquer membro ativo. Um
+     * gabinete sem vereador nem chefe — comum em diretorias e secretarias —
+     * não pode ficar sem ninguém para avisar.
+     *
+     * @return array<int, User>
+     */
+    private function fallbackRecipients(int $officeId): array
+    {
+        if (array_key_exists($officeId, $this->fallbackCache)) {
+            return $this->fallbackCache[$officeId];
+        }
+
+        $members = User::query()
             ->where('is_active', true)
-            ->whereIn('role', [UserRole::Councilor, UserRole::ChiefOfStaff])
-            ->get()
+            ->where('role', '!=', UserRole::Root)
+            ->where(fn (Builder $query) => $query
+                ->where('gabinete_id', $officeId)
+                ->orWhereHas('gabinetes', fn (Builder $query) => $query
+                    ->where('gabinete_id', $officeId)
+                    ->where('ativo', true)))
+            ->get();
+
+        $leadership = $members->filter(
+            fn (User $member): bool => in_array($member->role, [UserRole::Councilor, UserRole::ChiefOfStaff], true)
+                || $member->gabineteRole($officeId)?->canManageGabinete() === true,
+        );
+
+        return $this->fallbackCache[$officeId] = ($leadership->isNotEmpty() ? $leadership : $members)
             ->values()
             ->all();
+    }
+
+    private function canReceive(User $user, int $officeId): bool
+    {
+        return $user->is_active && $this->belongsToOffice($user, $officeId);
+    }
+
+    /**
+     * `users.gabinete_id` é a coluna legada: a lotação atual vive em
+     * `gabinete_membros`. Olhar só a coluna descartava em silêncio quem
+     * atende mais de um gabinete.
+     */
+    private function belongsToOffice(User $user, int $officeId): bool
+    {
+        if ($user->gabinete_id === $officeId) {
+            return true;
+        }
+
+        return $user->gabinetes()
+            ->where('gabinete_id', $officeId)
+            ->where('ativo', true)
+            ->exists();
     }
 
     private function sendOnce(
@@ -181,7 +245,7 @@ class DemandNotificationService
         string $message,
         Demanda $demand,
     ): void {
-        if (! $recipient || $recipient->gabinete_id !== $demand->gabinete_id) {
+        if (! $recipient || ! $this->belongsToOffice($recipient, (int) $demand->gabinete_id)) {
             return;
         }
 

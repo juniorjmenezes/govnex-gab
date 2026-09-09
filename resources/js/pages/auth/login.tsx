@@ -1,10 +1,8 @@
-import { Form, Head } from '@inertiajs/react';
-import InputError from '@/components/input-error';
+import { Form, Head, Link } from '@inertiajs/react';
+import { FieldError } from '@/components/forms/field-error';
 import PasskeyVerify from '@/components/passkey-verify';
 import PasswordInput from '@/components/password-input';
-import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
@@ -22,13 +20,19 @@ export default function Login({ status, canResetPassword }: Props) {
         <>
             <Head title="Entrar" />
 
+            {status && (
+                <div className="mb-4 text-center text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    {status}
+                </div>
+            )}
+
             <PasskeyVerify />
 
             <Form {...store.form()} resetOnSuccess={['password']}>
                 {({ processing, errors }) => (
-                    <FieldGroup>
-                        <Field>
-                            <FieldLabel htmlFor="email">E-mail</FieldLabel>
+                    <div className="space-y-4">
+                        <div className="space-y-1">
+                            <Label htmlFor="email">E-mail</Label>
                             <Input
                                 id="email"
                                 type="email"
@@ -38,25 +42,13 @@ export default function Login({ status, canResetPassword }: Props) {
                                 tabIndex={1}
                                 autoComplete="email"
                                 placeholder="nome@gabinete.gov.br"
+                                aria-invalid={Boolean(errors.email)}
                             />
-                            <InputError message={errors.email} />
-                        </Field>
+                            <FieldError message={errors.email} />
+                        </div>
 
-                        <Field>
-                            <div className="flex items-center">
-                                <FieldLabel htmlFor="password">
-                                    Senha
-                                </FieldLabel>
-                                {canResetPassword && (
-                                    <TextLink
-                                        href={request()}
-                                        className="ml-auto text-sm"
-                                        tabIndex={5}
-                                    >
-                                        Esqueci minha senha
-                                    </TextLink>
-                                )}
-                            </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="password">Senha</Label>
                             <PasswordInput
                                 id="password"
                                 name="password"
@@ -64,24 +56,25 @@ export default function Login({ status, canResetPassword }: Props) {
                                 tabIndex={2}
                                 autoComplete="current-password"
                                 placeholder="Sua senha"
+                                aria-invalid={Boolean(errors.password)}
                             />
-                            <InputError message={errors.password} />
-                        </Field>
+                            <FieldError message={errors.password} />
+                        </div>
 
-                        <div className="flex items-center space-x-3">
+                        <label className="flex shrink-0 items-center gap-2 text-xs font-medium text-muted-foreground">
                             <Switch
                                 id="remember"
                                 name="remember"
+                                size="sm"
                                 tabIndex={3}
                             />
-                            <Label htmlFor="remember">
-                                Manter acesso neste dispositivo
-                            </Label>
-                        </div>
+                            Ficar conectado
+                        </label>
 
-                        <Field>
+                        <div className="space-y-2">
                             <Button
                                 type="submit"
+                                className="w-full"
                                 tabIndex={4}
                                 disabled={processing}
                                 data-test="login-button"
@@ -89,21 +82,26 @@ export default function Login({ status, canResetPassword }: Props) {
                                 {processing && <Spinner />}
                                 Entrar
                             </Button>
-                        </Field>
-                    </FieldGroup>
+
+                            {canResetPassword && (
+                                <Button
+                                    asChild
+                                    variant="outline"
+                                    className="w-full"
+                                >
+                                    <Link href={request()} tabIndex={5}>
+                                        Esqueci minha senha
+                                    </Link>
+                                </Button>
+                            )}
+                        </div>
+                    </div>
                 )}
             </Form>
-
-            {status && (
-                <div className="text-center text-sm font-medium text-primary">
-                    {status}
-                </div>
-            )}
         </>
     );
 }
 
 Login.layout = {
-    title: 'Acesse o GOVNEX GAB',
-    description: 'Entre com as credenciais fornecidas pelo seu gabinete.',
+    title: 'Efetue login para entrar...',
 };

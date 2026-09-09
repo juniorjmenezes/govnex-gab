@@ -131,7 +131,7 @@ function Countdown({
                     key={part.label}
                     className="rounded-xl bg-muted/60 px-3 py-2 text-center"
                 >
-                    <span className="block text-2xl font-bold tabular-nums">
+                    <span className="block font-mono text-2xl font-bold tabular-nums">
                         {String(part.value).padStart(2, '0')}
                     </span>
                     <span className="mt-1 block text-xs font-medium tracking-wide text-muted-foreground uppercase">

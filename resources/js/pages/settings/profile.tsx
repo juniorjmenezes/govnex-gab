@@ -203,9 +203,17 @@ export default function Profile({
                                         message={whatsappForm.errors.telefone}
                                     />
                                 </div>
-                                <Label className="items-start gap-3 rounded-lg border p-4">
+                                <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border p-3">
+                                    <span className="min-w-0">
+                                        <span className="block text-sm font-medium">
+                                            Aceite para notificações
+                                            operacionais
+                                        </span>
+                                        <span className="block text-xs text-muted-foreground">
+                                            {whatsappConsent.text}
+                                        </span>
+                                    </span>
                                     <Checkbox
-                                        className="mt-0.5"
                                         checked={whatsappForm.data.aceite}
                                         onCheckedChange={(checked) =>
                                             whatsappForm.setData(
@@ -213,17 +221,9 @@ export default function Profile({
                                                 checked === true,
                                             )
                                         }
+                                        aria-label="Aceite para notificações operacionais"
                                     />
-                                    <span>
-                                        <strong className="block">
-                                            Aceite para notificações
-                                            operacionais
-                                        </strong>
-                                        <span className="text-muted-foreground">
-                                            {whatsappConsent.text}
-                                        </span>
-                                    </span>
-                                </Label>
+                                </div>
                                 <InputError
                                     message={whatsappForm.errors.aceite}
                                 />

@@ -523,7 +523,7 @@ export default function ReportsIndex({
                         ],
                     ].map(([label, value]) => (
                         <div key={label} className="bg-card px-4 py-3">
-                            <p className="text-xl font-semibold tabular-nums">
+                            <p className="font-mono text-xl font-semibold tabular-nums">
                                 {value}
                             </p>
                             <p className="mt-0.5 text-xs text-muted-foreground">

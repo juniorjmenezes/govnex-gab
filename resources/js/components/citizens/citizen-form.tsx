@@ -7,6 +7,7 @@ import { AddressFields } from '@/components/forms/address-fields';
 import { FieldError } from '@/components/forms/field-error';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MaskedInput } from '@/components/ui/masked-input';
@@ -185,176 +186,211 @@ export function CitizenForm({
 
     return (
         <form onSubmit={handleSubmit(submit)} className="space-y-6">
-            <div className="grid gap-5 md:grid-cols-2">
-                {field('nome', 'Nome completo')}{' '}
-                {field('cpf', 'CPF (opcional)', 'text', 'cpf')}{' '}
-                {field('telefone', 'Telefone', 'text', 'phone')}{' '}
-                {field('whatsapp', 'WhatsApp', 'text', 'phone')}{' '}
-                {field('email', 'E-mail', 'email')}{' '}
-                {field('data_nascimento', 'Data de nascimento', 'date')}
-                <AddressFields
-                    control={control}
-                    register={register}
-                    setValue={setValue}
-                    errors={errors}
-                    bairroName="bairro_id"
-                    renderBairro={() => (
-                        <div className="space-y-1">
-                            <Label htmlFor="bairro_id">Bairro</Label>
+            <Card className="gap-0 py-0">
+                <div className="border-b p-4">
+                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                        Dados pessoais
+                    </h2>
+                </div>
+                <div className="grid gap-5 p-5 md:grid-cols-2">
+                    {field('nome', 'Nome completo')}{' '}
+                    {field('cpf', 'CPF (opcional)', 'text', 'cpf')}{' '}
+                    {field('telefone', 'Telefone', 'text', 'phone')}{' '}
+                    {field('whatsapp', 'WhatsApp', 'text', 'phone')}{' '}
+                    {field('email', 'E-mail', 'email')}{' '}
+                    {field('data_nascimento', 'Data de nascimento', 'date')}
+                </div>
+            </Card>
+            <Card className="gap-0 py-0">
+                <div className="border-b p-4">
+                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                        Endereço
+                    </h2>
+                </div>
+                <div className="space-y-5 p-5">
+                    <AddressFields
+                        control={control}
+                        register={register}
+                        setValue={setValue}
+                        errors={errors}
+                        bairroName="bairro_id"
+                        renderBairro={() => (
+                            <div className="space-y-1">
+                                <Label htmlFor="bairro_id">Bairro</Label>
+                                <Controller
+                                    control={control}
+                                    name="bairro_id"
+                                    render={({ field }) => (
+                                        <AppSelect
+                                            id="bairro_id"
+                                            value={field.value}
+                                            onValueChange={field.onChange}
+                                            placeholder="Selecione"
+                                            options={neighborhoods.map(
+                                                (item) => ({
+                                                    value: item.id.toString(),
+                                                    label: `${item.nome} — ${item.municipio}/${item.estado}`,
+                                                }),
+                                            )}
+                                            aria-invalid={Boolean(
+                                                errors.bairro_id,
+                                            )}
+                                        />
+                                    )}
+                                />
+                                <FieldError
+                                    message={errors.bairro_id?.message}
+                                />
+                            </div>
+                        )}
+                    />
+                    {field('ponto_referencia', 'Ponto de referência')}
+                </div>
+            </Card>
+            <Card className="gap-0 py-0">
+                <div className="border-b p-4">
+                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                        Observações e consentimentos
+                    </h2>
+                </div>
+                <div className="space-y-5 p-5">
+                    <div className="space-y-1">
+                        <Label htmlFor="observacoes">Observações</Label>
+                        <Textarea
+                            id="observacoes"
+                            rows={4}
+                            {...register('observacoes')}
+                        />
+                        <FieldError message={errors.observacoes?.message} />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border p-3">
+                            <span className="min-w-0">
+                                <span className="block text-sm font-medium">
+                                    Eleitor do vereador
+                                </span>
+                                <span className="block text-xs text-muted-foreground">
+                                    Marque quando o cidadão informar que é
+                                    eleitor do vereador.
+                                </span>
+                            </span>
                             <Controller
                                 control={control}
-                                name="bairro_id"
+                                name="eleitor"
                                 render={({ field }) => (
-                                    <AppSelect
-                                        id="bairro_id"
-                                        value={field.value}
-                                        onValueChange={field.onChange}
-                                        placeholder="Selecione"
-                                        options={neighborhoods.map((item) => ({
-                                            value: item.id.toString(),
-                                            label: `${item.nome} — ${item.municipio}/${item.estado}`,
-                                        }))}
-                                        aria-invalid={Boolean(errors.bairro_id)}
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={(checked) => {
+                                            field.onChange(checked);
+
+                                            if (!checked) {
+                                                setValue('latitude', null, {
+                                                    shouldDirty: true,
+                                                });
+                                                setValue('longitude', null, {
+                                                    shouldDirty: true,
+                                                });
+                                                setValue(
+                                                    'localizacao_origem',
+                                                    null,
+                                                    {
+                                                        shouldDirty: true,
+                                                    },
+                                                );
+                                            }
+                                        }}
+                                        aria-label="Eleitor do vereador"
                                     />
                                 )}
                             />
-                            <FieldError message={errors.bairro_id?.message} />
                         </div>
-                    )}
-                />
-                {field('complemento', 'Complemento')}{' '}
-                {field('ponto_referencia', 'Ponto de referência')}
-            </div>
-            <div className="space-y-1">
-                <Label htmlFor="observacoes">Observações</Label>
-                <Textarea
-                    id="observacoes"
-                    rows={4}
-                    {...register('observacoes')}
-                />
-                <FieldError message={errors.observacoes?.message} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-                <Label className="items-start gap-3 rounded-lg border p-4">
-                    <Controller
-                        control={control}
-                        name="eleitor"
-                        render={({ field }) => (
-                            <Switch
-                                className="mt-0.5"
-                                checked={field.value}
-                                onCheckedChange={(checked) => {
-                                    field.onChange(checked);
-
-                                    if (!checked) {
-                                        setValue('latitude', null, {
-                                            shouldDirty: true,
-                                        });
-                                        setValue('longitude', null, {
-                                            shouldDirty: true,
-                                        });
-                                        setValue('localizacao_origem', null, {
-                                            shouldDirty: true,
-                                        });
-                                    }
-                                }}
-                                aria-label="Eleitor do vereador"
+                        <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border p-3">
+                            <span className="min-w-0">
+                                <span className="block text-sm font-medium">
+                                    Consentimento para contato
+                                </span>
+                                <span className="block text-xs text-muted-foreground">
+                                    O cidadão autorizou receber mensagens e
+                                    retornos do gabinete.
+                                </span>
+                            </span>
+                            <Controller
+                                control={control}
+                                name="consentimento_contato"
+                                render={({ field }) => (
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                        aria-label="Consentimento para contato"
+                                    />
+                                )}
                             />
-                        )}
-                    />
-                    <span>
-                        <strong className="block">Eleitor do vereador</strong>
-                        <span className="text-muted-foreground">
-                            Marque quando o cidadão informar que é eleitor do
-                            vereador.
+                        </div>
+                    </div>
+                    <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border p-3">
+                        <span className="min-w-0">
+                            <span className="block text-sm font-medium">
+                                Notificações operacionais pelo WhatsApp
+                            </span>
+                            <span className="block text-xs text-muted-foreground">
+                                {whatsappConsentText}
+                            </span>
                         </span>
-                    </span>
-                </Label>
-                <Label className="items-start gap-3 rounded-lg border p-4">
-                    <Controller
-                        control={control}
-                        name="consentimento_contato"
-                        render={({ field }) => (
-                            <Switch
-                                className="mt-0.5"
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                                aria-label="Consentimento para contato"
-                            />
-                        )}
-                    />
-                    <span>
-                        <strong className="block">
-                            Consentimento para contato
-                        </strong>
-                        <span className="text-muted-foreground">
-                            O cidadão autorizou receber mensagens e retornos do
-                            gabinete.
-                        </span>
-                    </span>
-                </Label>
-            </div>
-            <Label className="items-start gap-3 rounded-lg border p-4">
-                <Controller
-                    control={control}
-                    name="whatsapp_consentimento_operacional"
-                    render={({ field }) => (
-                        <Switch
-                            className="mt-0.5"
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            aria-label="Consentimento para notificações pelo WhatsApp"
+                        <Controller
+                            control={control}
+                            name="whatsapp_consentimento_operacional"
+                            render={({ field }) => (
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                    aria-label="Consentimento para notificações pelo WhatsApp"
+                                />
+                            )}
                         />
-                    )}
-                />
-                <span>
-                    <strong className="block">
-                        Notificações operacionais pelo WhatsApp
-                    </strong>
-                    <span className="text-muted-foreground">
-                        {whatsappConsentText}
-                    </span>
-                </span>
-            </Label>
-            <FieldError
-                message={errors.whatsapp_consentimento_operacional?.message}
-            />
-            {eleitor && (
-                <div className="space-y-2">
-                    <CitizenLocationPicker
-                        address={locationSearchAddress}
-                        coordinates={coordinates}
-                        source={locationSource}
-                        onChange={(nextCoordinates, source) => {
-                            setValue(
-                                'latitude',
-                                nextCoordinates?.latitude ?? null,
-                                {
-                                    shouldDirty: true,
-                                    shouldValidate: true,
-                                },
-                            );
-                            setValue(
-                                'longitude',
-                                nextCoordinates?.longitude ?? null,
-                                {
-                                    shouldDirty: true,
-                                    shouldValidate: true,
-                                },
-                            );
-                            setValue('localizacao_origem', source, {
-                                shouldDirty: true,
-                            });
-                        }}
-                    />
+                    </div>
                     <FieldError
                         message={
-                            errors.latitude?.message ??
-                            errors.longitude?.message
+                            errors.whatsapp_consentimento_operacional?.message
                         }
                     />
+                    {eleitor && (
+                        <div className="space-y-2">
+                            <CitizenLocationPicker
+                                address={locationSearchAddress}
+                                coordinates={coordinates}
+                                source={locationSource}
+                                onChange={(nextCoordinates, source) => {
+                                    setValue(
+                                        'latitude',
+                                        nextCoordinates?.latitude ?? null,
+                                        {
+                                            shouldDirty: true,
+                                            shouldValidate: true,
+                                        },
+                                    );
+                                    setValue(
+                                        'longitude',
+                                        nextCoordinates?.longitude ?? null,
+                                        {
+                                            shouldDirty: true,
+                                            shouldValidate: true,
+                                        },
+                                    );
+                                    setValue('localizacao_origem', source, {
+                                        shouldDirty: true,
+                                    });
+                                }}
+                            />
+                            <FieldError
+                                message={
+                                    errors.latitude?.message ??
+                                    errors.longitude?.message
+                                }
+                            />
+                        </div>
+                    )}
                 </div>
-            )}
+            </Card>
             <div className="flex justify-end gap-2">
                 <Button
                     type="button"

@@ -257,13 +257,21 @@ export function AttendanceForm({
             </Card>
 
             <Card className="gap-4 p-5">
-                <Label className="items-start gap-3">
+                <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border p-3">
+                    <span className="min-w-0">
+                        <span className="block text-sm font-medium">
+                            Necessita retorno
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                            Marque quando o gabinete precisar retornar ao
+                            cidadão.
+                        </span>
+                    </span>
                     <Controller
                         control={control}
                         name="requer_retorno"
                         render={({ field }) => (
                             <Switch
-                                className="mt-0.5"
                                 checked={field.value}
                                 onCheckedChange={(checked) => {
                                     field.onChange(checked);
@@ -278,14 +286,7 @@ export function AttendanceForm({
                             />
                         )}
                     />
-                    <span>
-                        <strong className="block">Necessita retorno</strong>
-                        <span className="text-muted-foreground">
-                            Marque quando o gabinete precisar retornar ao
-                            cidadão.
-                        </span>
-                    </span>
-                </Label>
+                </div>
                 {requiresReturn && (
                     <div className="max-w-sm space-y-1">
                         <Label htmlFor="retorno_previsto_em">

@@ -2,7 +2,6 @@ import { Head } from '@inertiajs/react';
 import { CitizenForm } from '@/components/citizens/citizen-form';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
-import { Card } from '@/components/ui/card';
 import type { Neighborhood, OfficeLocation } from '@/types';
 
 export default function CreateCitizen({
@@ -22,13 +21,11 @@ export default function CreateCitizen({
                     title="Novo cidadão"
                     description="Registre os dados de contato e localização para agilizar os atendimentos."
                 />
-                <Card className="p-5">
-                    <CitizenForm
-                        neighborhoods={neighborhoods}
-                        officeLocation={officeLocation}
-                        whatsappConsentText={whatsappConsentText}
-                    />
-                </Card>
+                <CitizenForm
+                    neighborhoods={neighborhoods}
+                    officeLocation={officeLocation}
+                    whatsappConsentText={whatsappConsentText}
+                />
             </PageContainer>
         </>
     );

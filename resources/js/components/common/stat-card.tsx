@@ -38,7 +38,7 @@ export function StatCard({
                         </CardTitle>
                         <p
                             className={cn(
-                                'mt-2 text-3xl font-bold tracking-tight text-foreground tabular-nums',
+                                'mt-2 font-mono text-3xl font-bold tracking-tight text-foreground tabular-nums',
                                 valueClassName,
                             )}
                         >
@@ -54,7 +54,7 @@ export function StatCard({
                     <div className="mt-3">
                         <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                             <span>{progress.label}</span>
-                            <span className="font-medium text-foreground">
+                            <span className="font-mono font-medium text-foreground tabular-nums">
                                 {progress.value}
                             </span>
                         </div>

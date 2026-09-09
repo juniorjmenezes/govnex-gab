@@ -53,9 +53,7 @@ export function NotificationCenter() {
                 className="w-[min(22rem,calc(100vw-2rem))]"
             >
                 <div className="flex items-center justify-between px-2">
-                    <DropdownMenuLabel className="tracking-normal normal-case">
-                        Notificações
-                    </DropdownMenuLabel>
+                    <DropdownMenuLabel>Notificações</DropdownMenuLabel>
                     {notifications.unread_count > 0 && (
                         <Button
                             variant="ghost"
@@ -99,11 +97,11 @@ export function NotificationCenter() {
                                         className="h-auto min-w-0 flex-1 justify-start px-0 py-0 text-left tracking-normal normal-case hover:bg-transparent"
                                         onClick={() => markRead(item.id)}
                                     >
-                                        <span className="min-w-0">
-                                            <span className="block font-medium">
+                                        <span className="block w-full min-w-0">
+                                            <span className="block truncate text-sm font-medium">
                                                 {item.title}
                                             </span>
-                                            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                                            <span className="mt-0.5 block text-xs font-normal break-words whitespace-normal text-muted-foreground">
                                                 {item.message}
                                             </span>
                                         </span>

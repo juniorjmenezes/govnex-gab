@@ -17,9 +17,12 @@ use App\Http\Controllers\EntidadeDirectoryController;
 use App\Http\Controllers\EntidadeInvitationAcceptController;
 use App\Http\Controllers\EntidadeInvitationController;
 use App\Http\Controllers\GabineteTransferController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'welcome')->name('home');
+Route::get('/', static function () {
+    return redirect()->route(Auth::check() ? 'dashboard' : 'login');
+})->name('home');
 
 Route::get('convites/entidade/{credential}', [EntidadeInvitationAcceptController::class, 'show'])
     ->middleware('throttle:30,1')

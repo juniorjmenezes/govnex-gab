@@ -8,16 +8,18 @@ import type { AuthLayoutProps } from '@/types';
  * partir de `md`. Usado apenas pela tela de login (ver `auth-layout.tsx`);
  * as demais telas de autenticação seguem no `auth-simple-layout`.
  *
+ * No lugar do título e do subtítulo centralizados do bloco original, a
+ * coluna do formulário abre com uma faixa que leva a marca à esquerda e o
+ * `title` à direita, na mesma tipografia do rótulo do separador do
+ * `passkey-verify`. O `title` segue como `h1`, então a página continua com
+ * um cabeçalho para leitores de tela.
+ *
  * O painel lateral do bloco original é uma `<img>` apontando para
  * `/placeholder.svg`. Sem arte para essa área, ele repete o cabeçalho da
  * sidebar — `AppLogoMark` mais o wordmark sobre `bg-sidebar-header` — em vez
  * de depender de um asset inexistente.
  */
-export default function AuthCardLayout({
-    children,
-    title,
-    description,
-}: AuthLayoutProps) {
+export default function AuthCardLayout({ children, title }: AuthLayoutProps) {
     return (
         <div className="flex min-h-svh flex-col items-center justify-center bg-muted p-6 md:p-10">
             <div className="w-full max-w-sm md:max-w-4xl">
@@ -25,13 +27,14 @@ export default function AuthCardLayout({
                     <CardContent className="grid p-0 md:grid-cols-2">
                         <div className="p-6 md:p-8">
                             <div className="flex flex-col gap-6">
-                                <div className="flex flex-col items-center gap-2 text-center">
-                                    <h1 className="text-2xl font-bold">
+                                <div className="flex items-center justify-between gap-4">
+                                    <AppLogoMark
+                                        className="h-8 w-auto shrink-0 text-muted-foreground"
+                                        aria-hidden="true"
+                                    />
+                                    <h1 className="bg-background px-2 text-xs text-muted-foreground uppercase">
                                         {title}
                                     </h1>
-                                    <p className="text-balance text-muted-foreground">
-                                        {description}
-                                    </p>
                                 </div>
                                 {children}
                             </div>
