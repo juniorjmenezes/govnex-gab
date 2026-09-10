@@ -2,14 +2,16 @@ import { Head } from '@inertiajs/react';
 import { CitizenForm } from '@/components/citizens/citizen-form';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
-import type { Citizen, Neighborhood } from '@/types';
+import type { Citizen, Neighborhood, OfficeLocation } from '@/types';
 export default function EditCitizen({
     citizen,
     neighborhoods,
+    officeLocation,
     whatsappConsentText,
 }: {
     citizen: Citizen;
     neighborhoods: Neighborhood[];
+    officeLocation: OfficeLocation;
     whatsappConsentText: string;
 }) {
     return (
@@ -23,6 +25,7 @@ export default function EditCitizen({
                 <CitizenForm
                     citizen={citizen}
                     neighborhoods={neighborhoods}
+                    officeLocation={officeLocation}
                     whatsappConsentText={whatsappConsentText}
                 />
             </PageContainer>

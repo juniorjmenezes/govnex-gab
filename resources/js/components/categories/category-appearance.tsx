@@ -12,7 +12,7 @@ import {
     TagIcon,
     ToolboxIcon,
     TrashBinTrashIcon,
-} from '@solar-icons/react/outline';
+} from '@/components/icons';
 import { cn } from '@/lib/utils';
 import type { CategorySemanticColor } from '@/types';
 import type { IconComponent } from '@/types/icon';

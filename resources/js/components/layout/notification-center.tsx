@@ -1,5 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
-import { ChatRoundUnreadIcon, CheckReadIcon } from '@solar-icons/react/outline';
+import { ChatRoundUnreadIcon, CheckReadIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,

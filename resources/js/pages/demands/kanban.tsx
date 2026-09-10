@@ -1,13 +1,13 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
+import { DemandKanban } from '@/components/demands/demand-kanban';
 import {
     AddIcon,
     CloseIcon,
     ListIcon,
     MagnifierIcon,
     ThreeSquaresIcon,
-} from '@solar-icons/react/outline';
-import { useEffect, useRef, useState } from 'react';
-import { DemandKanban } from '@/components/demands/demand-kanban';
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';

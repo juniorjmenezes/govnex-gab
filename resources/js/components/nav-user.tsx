@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { SortVerticalIcon } from '@solar-icons/react/outline';
+import { SortVerticalIcon } from '@/components/icons';
 import {
     DropdownMenu,
     DropdownMenuContent,

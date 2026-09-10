@@ -1,16 +1,18 @@
 import { Head, Link, router } from '@inertiajs/react';
-import {
-    AddIcon,
-    CloseIcon,
-    MagnifierIcon,
-    PenIcon,
-    UsersGroupRoundedIcon,
-} from '@solar-icons/react/outline';
 import { useEffect, useRef, useState } from 'react';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import { TableActionButton } from '@/components/common/table-action-button';
 import { EmptyState } from '@/components/feedback/empty-state';
+import {
+    AddIcon,
+    CloseIcon,
+    HeartBoldIcon,
+    HeartIcon as HeartOutlineIcon,
+    MagnifierIcon,
+    PenIcon,
+    UsersGroupRoundedIcon,
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +29,7 @@ import {
 } from '@/components/ui/table';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { maskPhone } from '@/lib/masks';
+import { preservedListParams } from '@/lib/pagination';
 import { cn } from '@/lib/utils';
 import type { Citizen, Pagination } from '@/types';
 
@@ -51,10 +54,14 @@ export default function CitizensIndex({
         }
 
         const timeout = setTimeout(() => {
-            router.get(tenantUrl('/cidadaos'), query ? { q: query } : {}, {
-                preserveState: true,
-                replace: true,
-            });
+            router.get(
+                tenantUrl('/cidadaos'),
+                { ...(query && { q: query }), ...preservedListParams() },
+                {
+                    preserveState: true,
+                    replace: true,
+                },
+            );
         }, 400);
 
         return () => clearTimeout(timeout);
@@ -116,6 +123,11 @@ export default function CitizensIndex({
                             <Table>
                                 <TableHeader>
                                     <TableRow>
+                                        <TableHead className="w-10">
+                                            <span className="sr-only">
+                                                Eleitor
+                                            </span>
+                                        </TableHead>
                                         <TableHead>Nome</TableHead>
                                         <TableHead>Contato</TableHead>
                                         <TableHead>Bairro</TableHead>
@@ -128,6 +140,33 @@ export default function CitizensIndex({
                                 <TableBody>
                                     {citizens.data.map((citizen) => (
                                         <TableRow key={citizen.id}>
+                                            <TableCell className="w-10">
+                                                <span
+                                                    className="inline-flex"
+                                                    title={
+                                                        citizen.eleitor
+                                                            ? 'Eleitor'
+                                                            : 'Não eleitor'
+                                                    }
+                                                >
+                                                    {citizen.eleitor ? (
+                                                        <HeartBoldIcon
+                                                            className="size-4 text-primary"
+                                                            aria-hidden="true"
+                                                        />
+                                                    ) : (
+                                                        <HeartOutlineIcon
+                                                            className="size-4 text-muted-foreground/50"
+                                                            aria-hidden="true"
+                                                        />
+                                                    )}
+                                                    <span className="sr-only">
+                                                        {citizen.eleitor
+                                                            ? 'Eleitor'
+                                                            : 'Não eleitor'}
+                                                    </span>
+                                                </span>
+                                            </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <Link
@@ -138,17 +177,6 @@ export default function CitizensIndex({
                                                     >
                                                         {citizen.nome}
                                                     </Link>
-                                                    <Badge
-                                                        variant={
-                                                            citizen.eleitor
-                                                                ? 'default'
-                                                                : 'secondary'
-                                                        }
-                                                    >
-                                                        {citizen.eleitor
-                                                            ? 'Eleitor'
-                                                            : 'Não eleitor'}
-                                                    </Badge>
                                                 </div>
                                                 <p className="text-xs text-muted-foreground">
                                                     {citizen.email ??
@@ -211,11 +239,10 @@ export default function CitizensIndex({
                                     ))}
                                 </TableBody>
                             </Table>
-                            <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-                                Exibindo {citizens.from}–{citizens.to} de{' '}
-                                {citizens.total} cidadão(s)
-                            </div>
-                            <PaginationLinks links={citizens.links} />
+                            <PaginationLinks
+                                pagination={citizens}
+                                label="cidadão(s)"
+                            />
                         </>
                     )}
                 </Surface>

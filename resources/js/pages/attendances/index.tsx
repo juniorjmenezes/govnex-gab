@@ -1,17 +1,18 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import {
-    AddIcon,
-    CloseIcon,
-    EyeIcon,
-    HandShakeIcon,
-    MagnifierIcon,
-    PenIcon,
-} from '@solar-icons/react/outline';
 import { useEffect, useRef, useState } from 'react';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import { TableActionButton } from '@/components/common/table-action-button';
 import { EmptyState } from '@/components/feedback/empty-state';
+import {
+    AddIcon,
+    CloseIcon,
+    EyeIcon,
+    HandShakeIcon,
+    HeartBoldIcon,
+    MagnifierIcon,
+    PenIcon,
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
@@ -30,15 +31,11 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
+import { formatShortDateTime } from '@/lib/dates';
 import { hasModule } from '@/lib/modules';
+import { preservedListParams } from '@/lib/pagination';
 import { cn } from '@/lib/utils';
 import type { AttendanceIndexProps, Auth } from '@/types';
-
-const formatDateTime = (value: string) =>
-    new Intl.DateTimeFormat('pt-BR', {
-        dateStyle: 'short',
-        timeStyle: 'short',
-    }).format(new Date(value));
 
 const formatDate = (value: string | null) =>
     value
@@ -82,6 +79,7 @@ export default function AttendancesIndex({
                     ...(from && { de: from }),
                     ...(to && { ate: to }),
                     ...(returnOnly && { retorno: '1' }),
+                    ...preservedListParams(),
                 },
                 { preserveState: true, replace: true },
             );
@@ -209,7 +207,7 @@ export default function AttendancesIndex({
                                     {attendances.data.map((attendance) => (
                                         <TableRow key={attendance.id}>
                                             <TableCell className="whitespace-nowrap">
-                                                {formatDateTime(
+                                                {formatShortDateTime(
                                                     attendance.atendido_em,
                                                 )}
                                                 {attendance.duracao_minutos && (
@@ -222,22 +220,34 @@ export default function AttendancesIndex({
                                                 )}
                                             </TableCell>
                                             <TableCell>
-                                                <Link
-                                                    href={tenantUrl(
-                                                        `/cidadaos/${attendance.cidadao.id}`,
-                                                    )}
-                                                    className="font-normal hover:underline"
-                                                >
-                                                    {attendance.cidadao.nome}
-                                                </Link>
-                                                {attendance.cidadao.eleitor && (
-                                                    <Badge
-                                                        variant="secondary"
-                                                        className="ml-2"
+                                                <span className="inline-flex items-center gap-2">
+                                                    <Link
+                                                        href={tenantUrl(
+                                                            `/cidadaos/${attendance.cidadao.id}`,
+                                                        )}
+                                                        className="font-normal hover:underline"
                                                     >
-                                                        Eleitor
-                                                    </Badge>
-                                                )}
+                                                        {
+                                                            attendance.cidadao
+                                                                .nome
+                                                        }
+                                                    </Link>
+                                                    {attendance.cidadao
+                                                        .eleitor && (
+                                                        <span
+                                                            className="inline-flex"
+                                                            title="Eleitor"
+                                                        >
+                                                            <HeartBoldIcon
+                                                                className="size-4 text-primary"
+                                                                aria-hidden="true"
+                                                            />
+                                                            <span className="sr-only">
+                                                                Eleitor
+                                                            </span>
+                                                        </span>
+                                                    )}
+                                                </span>
                                             </TableCell>
                                             <TableCell>
                                                 <Link
@@ -318,11 +328,10 @@ export default function AttendancesIndex({
                                     ))}
                                 </TableBody>
                             </Table>
-                            <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-                                Exibindo {attendances.from}–{attendances.to} de{' '}
-                                {attendances.total} atendimento(s)
-                            </div>
-                            <PaginationLinks links={attendances.links} />
+                            <PaginationLinks
+                                pagination={attendances}
+                                label="atendimento(s)"
+                            />
                         </>
                     )}
                 </Surface>

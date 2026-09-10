@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { LogoutIcon, SettingsIcon } from '@solar-icons/react/outline';
+import { LogoutIcon, SettingsIcon } from '@/components/icons';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,

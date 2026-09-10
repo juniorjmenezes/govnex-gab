@@ -10,6 +10,7 @@ use App\Models\Bairro;
 use App\Models\Cidadao;
 use App\Services\Citizens\CitizenDuplicateFinder;
 use App\Services\WhatsApp\WhatsAppContactService;
+use App\Support\PerPage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -37,7 +38,7 @@ class CidadaoController extends Controller
                         ->orWhere('email', 'like', "%{$search}%");
                 }))
                 ->latest('cadastrado_em')
-                ->paginate(15)
+                ->paginate(PerPage::resolve($request, 15))
                 ->withQueryString(),
         ]);
     }
@@ -125,7 +126,7 @@ class CidadaoController extends Controller
         ]);
     }
 
-    public function edit(Cidadao $cidadao): Response
+    public function edit(Request $request, Cidadao $cidadao): Response
     {
         $this->authorize('update', $cidadao);
         $contact = $cidadao->whatsappContact()->first();
@@ -133,9 +134,14 @@ class CidadaoController extends Controller
         return Inertia::render('citizens/edit', [
             'citizen' => [
                 ...$cidadao->withoutRelations()->toArray(),
+                // O bairro acompanha o cadastro porque cidadãos antigos, de
+                // antes das colunas próprias de estado/município, só têm essa
+                // referência para preencher a localização no formulário.
+                'bairro' => $cidadao->bairro?->only(['id', 'nome', 'municipio', 'estado']),
                 'whatsapp_consentimento_operacional' => $contact?->isEligible() ?? false,
             ],
             'neighborhoods' => $this->neighborhoodOptions(),
+            'officeLocation' => $this->officeLocation($request),
             'whatsappConsentText' => (string) config('whatsapp.consent.text'),
         ]);
     }

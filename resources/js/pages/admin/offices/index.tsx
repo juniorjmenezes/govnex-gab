@@ -1,4 +1,15 @@
 import { Head, Link, router } from '@inertiajs/react';
+import type { ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import {
+    getOfficeModuleSelectionErrors,
+    OfficeModuleSelector,
+    toggleOfficeModule,
+} from '@/components/admin/office-module-selector';
+import { SyncStatusDot, SyncStatusRow } from '@/components/admin/sync-progress';
+import { PaginationLinks } from '@/components/common/pagination-links';
+import { TableActionButton } from '@/components/common/table-action-button';
+import { AttachmentField } from '@/components/forms/attachment-field';
 import {
     AddIcon,
     BuildingsIcon,
@@ -13,18 +24,7 @@ import {
     RefreshIcon,
     SettingsIcon,
     SquareArrowRightUpIcon,
-} from '@solar-icons/react/outline';
-import type { ReactNode } from 'react';
-import { useEffect, useRef, useState } from 'react';
-import {
-    getOfficeModuleSelectionErrors,
-    OfficeModuleSelector,
-    toggleOfficeModule,
-} from '@/components/admin/office-module-selector';
-import { SyncStatusDot, SyncStatusRow } from '@/components/admin/sync-progress';
-import { PaginationLinks } from '@/components/common/pagination-links';
-import { TableActionButton } from '@/components/common/table-action-button';
-import { AttachmentField } from '@/components/forms/attachment-field';
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
@@ -41,6 +41,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
+import { preservedListParams } from '@/lib/pagination';
 import {
     datasetLabels,
     manualUploadDatasetOptions,
@@ -108,7 +109,12 @@ export default function Offices({
         const timeout = setTimeout(() => {
             router.get(
                 '/admin/gabinetes',
-                { q: query, status, estado: state },
+                {
+                    q: query,
+                    status,
+                    estado: state,
+                    ...preservedListParams(),
+                },
                 { preserveState: true, replace: true },
             );
         }, 400);
@@ -486,11 +492,10 @@ export default function Offices({
                         </div>
                     ) : (
                         <>
-                            <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-                                Exibindo {offices.from}–{offices.to} de{' '}
-                                {offices.total} gabinete(s)
-                            </div>
-                            <PaginationLinks links={offices.links} />
+                            <PaginationLinks
+                                pagination={offices}
+                                label="gabinete(s)"
+                            />
                         </>
                     )}
                 </Surface>

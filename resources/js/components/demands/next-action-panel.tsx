@@ -1,22 +1,23 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, router, usePage } from '@inertiajs/react';
-import {
-    CalendarAddIcon,
-    CalendarMarkIcon,
-    CheckCircleIcon,
-    PenIcon,
-} from '@solar-icons/react/outline';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { TableActionButton } from '@/components/common/table-action-button';
 import { DatePicker } from '@/components/forms/date-picker';
 import { FieldError } from '@/components/forms/field-error';
+import {
+    CalendarAddIcon,
+    CalendarMarkIcon,
+    CheckCircleIcon,
+    PenIcon,
+} from '@/components/icons';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
+import { formatDayMonthYear } from '@/lib/dates';
 import { hasModule } from '@/lib/modules';
 import type { Auth, Demand, DemandMember } from '@/types';
 
@@ -27,13 +28,6 @@ const schema = z.object({
 });
 
 type Values = z.infer<typeof schema>;
-
-const formatDate = (date: string) =>
-    new Intl.DateTimeFormat('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-    }).format(new Date(`${date.slice(0, 10)}T12:00:00`));
 
 /**
  * "Próxima ação" é um único slot (descrição + data + responsável), não uma
@@ -126,7 +120,7 @@ export function NextActionPanel({
                             }
                         >
                             <CalendarMarkIcon className="size-3.5" />
-                            {formatDate(demand.proxima_acao_data)}
+                            {formatDayMonthYear(demand.proxima_acao_data)}
                             {demand.proxima_acao_atrasada && ' · atrasada'}
                         </p>
                     )}

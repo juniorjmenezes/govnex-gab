@@ -10,6 +10,7 @@ use App\Http\Requests\Events\EventRequest;
 use App\Models\Cidadao;
 use App\Models\Evento;
 use App\Models\User;
+use App\Support\PerPage;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -36,7 +37,7 @@ class EventoController extends Controller
             'ate' => $request->string('ate')->toString(),
             'per_page' => $request->integer('per_page', 15),
         ];
-        $perPage = in_array($filters['per_page'], [15, 30, 50], true) ? $filters['per_page'] : 15;
+        $perPage = PerPage::resolve($request, 15);
 
         $events = Evento::query()
             ->select([

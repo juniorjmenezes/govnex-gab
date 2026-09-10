@@ -1,4 +1,6 @@
 import { Head, router } from '@inertiajs/react';
+import { useState } from 'react';
+import { AttachmentField } from '@/components/forms/attachment-field';
 import {
     CheckCircleIcon,
     CloseCircleIcon,
@@ -7,9 +9,7 @@ import {
     DatabaseIcon,
     ServerIcon,
     SsdRoundIcon,
-} from '@solar-icons/react/outline';
-import { useState } from 'react';
-import { AttachmentField } from '@/components/forms/attachment-field';
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';

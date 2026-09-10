@@ -1,16 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Head, router } from '@inertiajs/react';
-import {
-    Buildings2Icon,
-    Buildings3Icon,
-    BuildingsIcon,
-    DangerCircleIcon,
-} from '@solar-icons/react/outline';
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { AddressFields } from '@/components/forms/address-fields';
 import { FieldError } from '@/components/forms/field-error';
+import {
+    Buildings2Icon,
+    Buildings3Icon,
+    BuildingsIcon,
+    DangerCircleIcon,
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';

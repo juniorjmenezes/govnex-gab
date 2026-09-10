@@ -1,12 +1,4 @@
 import { Head, router } from '@inertiajs/react';
-import {
-    AddIcon,
-    CloseIcon,
-    MagnifierIcon,
-    PenIcon,
-    PresentationGraphIcon,
-    TrashBinTrashIcon,
-} from '@solar-icons/react/outline';
 import { useEffect, useRef, useState } from 'react';
 import { PollCandidateRows } from '@/components/admin/poll-candidate-rows';
 import { PaginationLinks } from '@/components/common/pagination-links';
@@ -17,6 +9,14 @@ import {
     ScrollableDialogHeader,
 } from '@/components/common/scrollable-dialog';
 import { TableActionButton } from '@/components/common/table-action-button';
+import {
+    AddIcon,
+    CloseIcon,
+    MagnifierIcon,
+    PenIcon,
+    PresentationGraphIcon,
+    TrashBinTrashIcon,
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
@@ -35,6 +35,7 @@ import { Label } from '@/components/ui/label';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
 import { Textarea } from '@/components/ui/textarea';
 import { usePollCandidateOptions } from '@/hooks/use-poll-candidate-options';
+import { preservedListParams } from '@/lib/pagination';
 import {
     CARGO_OPTIONS,
     CENARIO_LABELS,
@@ -71,7 +72,13 @@ export default function PollCuration({
         const timeout = setTimeout(() => {
             router.get(
                 '/admin/pesquisas-eleitorais',
-                { eleicao_id: eleicaoId, cargo, uf, q },
+                {
+                    eleicao_id: eleicaoId,
+                    cargo,
+                    uf,
+                    q,
+                    ...preservedListParams(),
+                },
                 { preserveState: true, replace: true },
             );
         }, 400);
@@ -196,11 +203,10 @@ export default function PollCuration({
                         </div>
                     ) : (
                         <>
-                            <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-                                Exibindo {pesquisas.from}–{pesquisas.to} de{' '}
-                                {pesquisas.total} pesquisa(s)
-                            </div>
-                            <PaginationLinks links={pesquisas.links} />
+                            <PaginationLinks
+                                pagination={pesquisas}
+                                label="pesquisa(s)"
+                            />
                         </>
                     )}
                 </Surface>

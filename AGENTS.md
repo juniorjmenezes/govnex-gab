@@ -25,6 +25,8 @@ GOVNEX GAB é um SaaS multi-tenant para gestão de demandas, agenda e operação
 - Preserve Laravel, React, Inertia, TypeScript, Tailwind e o preset shadcn existente.
 - Não adicione Bootstrap, jQuery ou outro design system.
 - Reutilize `components/ui`; mantenha componentes de negócio fora desse diretório.
+- Campos de formulário seguem o padrão do cadastro de demandas — `h-10 rounded-md border border-input bg-muted px-3` — e não o traço inferior sem fundo do preset. Ao trazer um componente novo pelo CLI do shadcn, alinhe o controle a `input.tsx`/`input-group.tsx` antes de usá-lo, e confira se o CLI não sobrescreveu `button.tsx`, `label.tsx` ou `separator.tsx`.
+- Ícones vêm de `components/icons`, nunca da biblioteca direto: é essa ponte que permitiu avaliar Phosphor e Lucide trocando um arquivo só. A escolha vigente é `@solar-icons/react`. Ao trazer um componente do CLI do shadcn, troque o import de `lucide-react` por `@/components/icons` — os nomes que ele usa (`ChevronDownIcon`, `CheckIcon`, `MoreHorizontalIcon`…) já estão mapeados lá.
 - Preserve temas claro/escuro, responsividade, teclado, foco e nomes acessíveis.
 - Valide autorização no backend e mantenha isolamento completo entre gabinetes.
 - Arquivos privados não podem depender apenas de ocultação na interface.

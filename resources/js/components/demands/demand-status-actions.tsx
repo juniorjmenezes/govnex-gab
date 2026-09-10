@@ -1,4 +1,7 @@
 import { Link, router } from '@inertiajs/react';
+import { REGEXP_ONLY_DIGITS } from 'input-otp';
+import { useState } from 'react';
+import { FieldError } from '@/components/forms/field-error';
 import {
     ArrowRightIcon,
     ChecklistIcon,
@@ -8,10 +11,7 @@ import {
     PenIcon,
     RestartIcon,
     TrashBinTrashIcon,
-} from '@solar-icons/react/outline';
-import { REGEXP_ONLY_DIGITS } from 'input-otp';
-import { useState } from 'react';
-import { FieldError } from '@/components/forms/field-error';
+} from '@/components/icons';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import {

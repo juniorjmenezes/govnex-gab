@@ -1,4 +1,4 @@
-import { AddIcon, TrashBinTrashIcon } from '@solar-icons/react/outline';
+import { AddIcon, TrashBinTrashIcon } from '@/components/icons';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

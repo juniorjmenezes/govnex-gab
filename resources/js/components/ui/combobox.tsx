@@ -11,7 +11,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group"
-import { ArrowDownIcon, CloseIcon, UnreadIcon } from "@solar-icons/react/outline"
+import { ArrowDownIcon, CloseIcon, UnreadIcon } from "@/components/icons"
 
 const Combobox = ComboboxPrimitive.Root
 

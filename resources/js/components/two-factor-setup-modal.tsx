@@ -1,12 +1,8 @@
 import { Form } from '@inertiajs/react';
-import {
-    CheckCircleIcon,
-    CodeScanIcon,
-    CopyIcon,
-} from '@solar-icons/react/outline';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AlertError from '@/components/alert-error';
+import { CheckCircleIcon, CodeScanIcon, CopyIcon } from '@/components/icons';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {

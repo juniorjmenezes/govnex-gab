@@ -1,6 +1,6 @@
 import { Link, router } from '@inertiajs/react';
-import { MagnifierIcon } from '@solar-icons/react/outline';
 import { useMemo, useState } from 'react';
+import { MagnifierIcon } from '@/components/icons';
 import {
     Popover,
     PopoverAnchor,

@@ -20,6 +20,7 @@ use App\Models\SincronizacaoTse;
 use App\Models\User;
 use App\Models\VotacaoCandidatoMunicipio;
 use App\Services\Politics\Polls\MediaCalculator;
+use App\Support\PerPage;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -87,7 +88,7 @@ class PoliticalPanelController extends Controller
             ->orderByDesc('is_favorite')
             ->orderBy('cargo')
             ->orderBy('nome_urna')
-            ->paginate(18)
+            ->paginate(PerPage::resolve($request, 18))
             ->withQueryString();
         $partyColors = PartidoCor::colorMap();
         $candidates->getCollection()->each(function (CandidatoPolitico $candidate) use ($partyColors): void {

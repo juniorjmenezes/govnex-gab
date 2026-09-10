@@ -1,13 +1,13 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent, ReactNode } from 'react';
+import { DropZone } from '@/components/forms/drop-zone';
 import {
     CameraIcon,
     CloseIcon,
     CloudUploadIcon,
     FileIcon,
     PaperclipIcon,
-} from '@solar-icons/react/outline';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent, ReactNode } from 'react';
-import { DropZone } from '@/components/forms/drop-zone';
+} from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 

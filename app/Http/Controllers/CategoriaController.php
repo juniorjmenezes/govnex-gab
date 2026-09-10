@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Categories\StoreCategoryRequest;
 use App\Http\Requests\Categories\UpdateCategoryRequest;
 use App\Models\Categoria;
+use App\Support\PerPage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,7 +22,8 @@ class CategoriaController extends Controller
             'categories' => Categoria::query()
                 ->select(['id', 'nome', 'descricao', 'icone', 'cor_semantica', 'ativo'])
                 ->orderBy('nome')
-                ->paginate(20),
+                ->paginate(PerPage::resolve($request, 20))
+                ->withQueryString(),
         ]);
     }
 

@@ -1,8 +1,9 @@
+import { AttachmentList } from '@/components/demands/attachment-list';
 import {
     AddIcon,
     CalendarMarkIcon,
-    ChatSquareIcon,
     ChatSquareArrowIcon,
+    ChatSquareIcon,
     ChecklistIcon,
     ClipboardCheckIcon,
     ClockCircleIcon,
@@ -11,9 +12,9 @@ import {
     Pen2Icon,
     RestartIcon,
     UserCheckRoundedIcon,
-} from '@solar-icons/react/outline';
-import { AttachmentList } from '@/components/demands/attachment-list';
+} from '@/components/icons';
 import { Badge } from '@/components/ui/badge';
+import { formatDayMonthYear } from '@/lib/dates';
 import { cn } from '@/lib/utils';
 import type { DemandEvent, DemandEventType } from '@/types';
 
@@ -31,13 +32,6 @@ const formatDateTime = (date: string) => {
 
     return `${day}, ${time}`;
 };
-
-const formatDate = (date: string) =>
-    new Intl.DateTimeFormat('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-    }).format(new Date(`${date.slice(0, 10)}T12:00:00`));
 
 const icons: Record<DemandEventType, typeof AddIcon> = {
     demanda_criada: AddIcon,
@@ -145,7 +139,7 @@ const eventTitle = (event: DemandEvent) => {
         const date = nextActionDate(event);
 
         return date
-            ? `${event.descricao} - até ${formatDate(date)}`
+            ? `${event.descricao} - até ${formatDayMonthYear(date)}`
             : titles[event.tipo];
     }
 
@@ -161,7 +155,7 @@ const eventMeta = (event: DemandEvent) => {
     const parts = [
         event.setor,
         event.prazo_esperado
-            ? `Prazo: ${formatDate(event.prazo_esperado)}`
+            ? `Prazo: ${formatDayMonthYear(event.prazo_esperado)}`
             : null,
     ].filter(Boolean);
 

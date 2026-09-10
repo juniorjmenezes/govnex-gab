@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
-import { BoxIcon, WidgetIcon } from '@solar-icons/react/outline';
 import { EmptyState } from '@/components/feedback/empty-state';
+import { BoxIcon, WidgetIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { Button } from '@/components/ui/button';
 import { Surface } from '@/components/ui/surface';

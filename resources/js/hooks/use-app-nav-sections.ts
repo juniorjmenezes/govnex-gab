@@ -1,5 +1,4 @@
 import { usePage } from '@inertiajs/react';
-import { PresentationGraphIcon } from '@solar-icons/react/linear';
 import {
     Buildings2Icon,
     BuildingsIcon,
@@ -12,13 +11,14 @@ import {
     MapIcon,
     PaletteIcon,
     PlugCircleIcon,
+    PresentationGraphIcon,
     RadarIcon,
     ServerIcon,
     ShieldCheckIcon,
     StructureIcon,
     UsersGroupRoundedIcon,
     WidgetIcon,
-} from '@solar-icons/react/outline';
+} from '@/components/icons';
 import { contextualUrl } from '@/lib/entity-context';
 import { hasModule } from '@/lib/modules';
 import type { Auth, GabineteModuleCode, NavItem } from '@/types';

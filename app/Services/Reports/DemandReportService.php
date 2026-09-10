@@ -11,6 +11,7 @@ use App\Models\Categoria;
 use App\Models\Demanda;
 use App\Models\DemandaEvento;
 use App\Models\User;
+use App\Support\PerPage;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -296,7 +297,7 @@ class DemandReportService
     {
         return $this->demandQuery($query)
             ->orderByDesc('aberta_em')
-            ->paginate(15)
+            ->paginate(PerPage::resolve(request(), 15))
             ->withQueryString()
             ->through(fn (Demanda $demand): array => $this->demandRow($demand));
     }

@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { CloseIcon, DownloadIcon, FileIcon } from '@solar-icons/react/outline';
+import { CloseIcon, DownloadIcon, FileIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { DemandAttachment } from '@/types';

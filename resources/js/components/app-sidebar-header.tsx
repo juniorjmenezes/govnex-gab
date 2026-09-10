@@ -47,8 +47,12 @@ export function AppSidebarHeader({
                 </header>
                 {hasMenubar && <AppMenubar items={managementItems} />}
             </div>
+            {/* Compensa o cabeçalho fixo. A altura vem da variável definida no
+                layout, a mesma que os mapas descontam de 100svh — assim as
+                duas medidas não têm como divergir. */}
             <div
-                className={cn('shrink-0', hasMenubar ? 'h-24' : 'h-14')}
+                className="shrink-0"
+                style={{ height: 'var(--app-shell-height, 3.5rem)' }}
                 aria-hidden="true"
             />
         </>

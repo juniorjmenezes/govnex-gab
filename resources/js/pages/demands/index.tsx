@@ -1,19 +1,21 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { HeartIcon as HeartBoldIcon } from '@solar-icons/react/bold';
+import { useEffect, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
+import { PaginationLinks } from '@/components/common/pagination-links';
+import { PriorityBadge } from '@/components/demands/priority-badge';
+import { StatusBadge } from '@/components/demands/status-badge';
+import { EmptyState } from '@/components/feedback/empty-state';
+import { DateFilter, FilterSelect } from '@/components/forms/list-filters';
 import {
     AddIcon,
     ChecklistIcon,
     CloseIcon,
     FilterIcon,
+    HeartBoldIcon,
     HeartIcon as HeartOutlineIcon,
     MagnifierIcon,
     ThreeSquaresIcon,
-} from '@solar-icons/react/outline';
-import { useEffect, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
-import { PriorityBadge } from '@/components/demands/priority-badge';
-import { StatusBadge } from '@/components/demands/status-badge';
-import { EmptyState } from '@/components/feedback/empty-state';
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
@@ -331,19 +333,6 @@ export default function DemandsIndex({
                                         setFilter('aberta_ate', value)
                                     }
                                 />
-                                <FilterSelect
-                                    label="Registros por página"
-                                    value={filterState.per_page}
-                                    onChange={(value) =>
-                                        setFilter('per_page', value)
-                                    }
-                                    clearable={false}
-                                    options={[
-                                        { value: '15', label: '15 registros' },
-                                        { value: '30', label: '30 registros' },
-                                        { value: '50', label: '50 registros' },
-                                    ]}
-                                />
                             </div>
                             <div className="flex items-center justify-between gap-3 border bg-background p-3">
                                 <div className="min-w-0">
@@ -402,10 +391,10 @@ export default function DemandsIndex({
                                     />
                                 ))}
                             </div>
-                            <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-                                Exibindo {demands.from}–{demands.to} de{' '}
-                                {demands.total} demanda(s)
-                            </div>
+                            <PaginationLinks
+                                pagination={demands}
+                                label="demanda(s)"
+                            />
                         </>
                     )}
                 </Surface>
@@ -498,54 +487,6 @@ function DemandRow({ demand }: { demand: Demand }) {
                 </div>
             </Link>
         </div>
-    );
-}
-
-function FilterSelect({
-    label,
-    value,
-    options,
-    onChange,
-    clearable = true,
-}: {
-    label: string;
-    value: string;
-    options: Array<{ value: string; label: string }>;
-    onChange: (value: string) => void;
-    clearable?: boolean;
-}) {
-    return (
-        <Label className="grid gap-1">
-            <span>{label}</span>
-            <AppSelect
-                value={value}
-                onValueChange={onChange}
-                options={options}
-                emptyLabel={clearable ? 'Todos' : undefined}
-                clearable={clearable}
-            />
-        </Label>
-    );
-}
-
-function DateFilter({
-    label,
-    value,
-    onChange,
-}: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-}) {
-    return (
-        <Label className="grid gap-1">
-            <span>{label}</span>
-            <Input
-                type="date"
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-            />
-        </Label>
     );
 }
 

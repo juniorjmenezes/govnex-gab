@@ -1,4 +1,4 @@
-import { MoonIcon, SunIcon } from '@solar-icons/react/outline';
+import { MoonIcon, SunIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { useAppearance } from '@/hooks/use-appearance';
 import { useIsHydrated } from '@/hooks/use-is-hydrated';

@@ -1,4 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
+import { PaginationLinks } from '@/components/common/pagination-links';
+import { EmptyState } from '@/components/feedback/empty-state';
 import {
     AddIcon,
     AltArrowRightIcon,
@@ -6,16 +9,14 @@ import {
     BuildingsIcon,
     CloseIcon,
     MagnifierIcon,
-} from '@solar-icons/react/outline';
-import { useEffect, useRef, useState } from 'react';
-import { PaginationLinks } from '@/components/common/pagination-links';
-import { EmptyState } from '@/components/feedback/empty-state';
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
+import { preservedListParams } from '@/lib/pagination';
 import { cn } from '@/lib/utils';
 import type { Pagination } from '@/types';
 
@@ -59,11 +60,15 @@ export default function Entidades({
         }
 
         const timeout = setTimeout(() => {
-            router.get('/entidades', query ? { q: query } : {}, {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            });
+            router.get(
+                '/entidades',
+                { ...(query && { q: query }), ...preservedListParams() },
+                {
+                    preserveState: true,
+                    preserveScroll: true,
+                    replace: true,
+                },
+            );
         }, 400);
 
         return () => clearTimeout(timeout);
@@ -217,12 +222,10 @@ export default function Entidades({
                                 </Surface>
                             ))}
                         </div>
-
-                        <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-                            Exibindo {entidades.from}–{entidades.to} de{' '}
-                            {entidades.total} entidade(s)
-                        </div>
-                        <PaginationLinks links={entidades.links} />
+                        <PaginationLinks
+                            pagination={entidades}
+                            label="entidade(s)"
+                        />
                     </Surface>
                 )}
             </PageContainer>

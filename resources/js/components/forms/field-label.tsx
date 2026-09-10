@@ -1,5 +1,5 @@
-import { QuestionCircleIcon } from '@solar-icons/react/outline';
 import type { ComponentProps, ReactNode } from 'react';
+import { QuestionCircleIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {

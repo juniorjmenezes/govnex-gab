@@ -21,6 +21,7 @@ import {
 import type { Oklch } from '@/lib/electoral-heatmap-scale';
 import type { MapMetric } from '@/lib/electoral-map-metrics';
 import { mapMetrics } from '@/lib/electoral-map-metrics';
+import { emptyMapView, fitOptions } from '@/lib/map-viewport';
 import type { ElectoralMapPoint } from '@/types';
 import 'leaflet/dist/leaflet.css';
 // Precisa vir depois de leaflet.css para sobrescrever o balão padrão do
@@ -95,12 +96,19 @@ function HeatLayer({
     return null;
 }
 
-function MapViewport({ points }: { points: ElectoralMapPoint[] }) {
+function MapViewport({
+    points,
+    state,
+}: {
+    points: ElectoralMapPoint[];
+    state?: string | null;
+}) {
     const map = useMap();
 
     useEffect(() => {
         if (points.length === 0) {
-            map.setView([-14.235, -51.9253], 4);
+            const view = emptyMapView(state);
+            map.setView(view.center, view.zoom);
 
             return;
         }
@@ -115,9 +123,9 @@ function MapViewport({ points }: { points: ElectoralMapPoint[] }) {
             new LatLngBounds(
                 points.map((point) => [point.latitude, point.longitude]),
             ),
-            { padding: [48, 48], maxZoom: 16 },
+            fitOptions(),
         );
-    }, [map, points]);
+    }, [map, points, state]);
 
     return null;
 }
@@ -187,6 +195,7 @@ export default function ElectoralHeatmapCanvas({
     maxValue,
     totalVotes,
     candidateName,
+    state,
 }: {
     points: ElectoralMapPoint[];
     selectedId: number | null;
@@ -203,6 +212,7 @@ export default function ElectoralHeatmapCanvas({
     maxValue: number;
     totalVotes: number;
     candidateName: string;
+    state?: string | null;
 }) {
     const markersRef = useRef(new Map<number, L.CircleMarker>());
     // Lida uma vez por montagem: pega a cor institucional do gabinete
@@ -210,6 +220,7 @@ export default function ElectoralHeatmapCanvas({
     // senão o teal padrão do tema (claro/escuro) — sem reconsultar o CSS a
     // cada marcador.
     const primary = useMemo(() => readPrimaryOklch(), []);
+    const initialView = emptyMapView(state);
     const decoratedPoints = useMemo(() => {
         const getValue = mapMetrics[metric].getValue;
 
@@ -228,8 +239,8 @@ export default function ElectoralHeatmapCanvas({
 
     return (
         <MapContainer
-            center={[-14.235, -51.9253]}
-            zoom={4}
+            center={initialView.center}
+            zoom={initialView.zoom}
             zoomControl={false}
             preferCanvas
             className="h-full w-full"
@@ -246,7 +257,7 @@ export default function ElectoralHeatmapCanvas({
             />
             <ZoomControl position="bottomright" />
             <ScaleControl position="bottomleft" imperial={false} />
-            <MapViewport points={points} />
+            <MapViewport points={points} state={state} />
             <FocusHandler
                 focusRequest={focusRequest}
                 points={points}

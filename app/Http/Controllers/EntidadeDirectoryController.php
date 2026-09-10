@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\EntidadeType;
 use App\Models\Entidade;
 use App\Models\User;
+use App\Support\PerPage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -51,7 +52,7 @@ class EntidadeDirectoryController extends Controller
         }
 
         $entidades = $query
-            ->paginate(8)
+            ->paginate(PerPage::resolve($request, 8))
             ->withQueryString()
             ->through(fn (Entidade $entidade): array => [
                 'id' => $entidade->id,

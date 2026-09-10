@@ -1,6 +1,6 @@
-import { EyeClosedIcon, EyeIcon } from '@solar-icons/react/outline';
 import type { ComponentProps, Ref } from 'react';
 import { useState } from 'react';
+import { EyeClosedIcon, EyeIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';

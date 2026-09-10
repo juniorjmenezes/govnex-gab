@@ -1,11 +1,11 @@
+import { useEffect, useState } from 'react';
+import AlertError from '@/components/alert-error';
+import { EmptyState } from '@/components/feedback/empty-state';
 import {
     AltArrowLeftIcon,
     AltArrowRightIcon,
     FeedIcon,
-} from '@solar-icons/react/outline';
-import { useEffect, useState } from 'react';
-import AlertError from '@/components/alert-error';
-import { EmptyState } from '@/components/feedback/empty-state';
+} from '@/components/icons';
 import { OfficeBadge } from '@/components/politics/office-badge';
 import { PartyBadge } from '@/components/politics/party-badge';
 import { Button } from '@/components/ui/button';

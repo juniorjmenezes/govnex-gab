@@ -1,16 +1,4 @@
 import { Head, router } from '@inertiajs/react';
-import { HeartIcon as HeartBoldIcon } from '@solar-icons/react/bold';
-import {
-    CalendarMarkIcon,
-    ChatSquareArrowIcon,
-    ChatSquareIcon,
-    ClipboardCheckIcon,
-    CloseIcon,
-    HeartIcon as HeartOutlineIcon,
-    MapPointIcon,
-    UserCheckRoundedIcon,
-    UserCircleIcon,
-} from '@solar-icons/react/outline';
 import { useState } from 'react';
 import { DemandStatusActions } from '@/components/demands/demand-status-actions';
 import { DemandTimeline } from '@/components/demands/demand-timeline';
@@ -20,6 +8,18 @@ import { ReferralForm } from '@/components/demands/referral-form';
 import { ReferralResponseForm } from '@/components/demands/referral-response-form';
 import { StatusBadge } from '@/components/demands/status-badge';
 import { UpdateForm } from '@/components/demands/update-form';
+import {
+    CalendarMarkIcon,
+    ChatSquareArrowIcon,
+    ChatSquareIcon,
+    ClipboardCheckIcon,
+    CloseIcon,
+    HeartBoldIcon,
+    HeartIcon as HeartOutlineIcon,
+    MapPointIcon,
+    UserCheckRoundedIcon,
+    UserCircleIcon,
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';

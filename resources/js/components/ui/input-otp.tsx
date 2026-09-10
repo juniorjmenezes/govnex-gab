@@ -4,7 +4,7 @@ import * as React from "react"
 import { OTPInput, OTPInputContext } from "input-otp"
 
 import { cn } from "@/lib/utils"
-import { MinusIcon } from "@solar-icons/react/outline"
+import { MinusIcon } from "@/components/icons"
 
 function InputOTP({
   className,
@@ -32,7 +32,7 @@ function InputOTPGroup({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="input-otp-group"
       className={cn(
-        "flex items-center gap-1 rounded-md has-aria-invalid:border-b-destructive dark:has-aria-invalid:border-b-destructive/50",
+        "flex items-center gap-1 rounded-md has-aria-invalid:border-destructive dark:has-aria-invalid:border-destructive/50",
         className
       )}
       {...props}

@@ -1,17 +1,17 @@
+import { lazy, Suspense, useCallback, useState } from 'react';
 import {
     AltArrowDownIcon,
     CloseIcon,
     MagnifierIcon,
     MapPointIcon,
-} from '@solar-icons/react/outline';
-import { LoaderCircle } from 'lucide-react';
-import { lazy, Suspense, useCallback, useState } from 'react';
+} from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import {
     Collapsible,
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { Spinner } from '@/components/ui/spinner';
 import { Surface } from '@/components/ui/surface';
 import { useIsHydrated } from '@/hooks/use-is-hydrated';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
@@ -25,6 +25,7 @@ type Coordinates = {
 type AddressParts = {
     street: string;
     number: string;
+    postalCode?: string;
     neighborhood: string;
     city: string;
     state: string;
@@ -103,6 +104,7 @@ export function CitizenLocationPicker({
                 bairro: address.neighborhood,
                 municipio: address.city,
                 estado: address.state,
+                ...(address.postalCode ? { cep: address.postalCode } : {}),
             });
             const response = await fetch(
                 tenantUrl(`/cidadaos/localizacao/buscar?${query.toString()}`),
@@ -194,10 +196,7 @@ export function CitizenLocationPicker({
                             onClick={searchAddress}
                         >
                             {loading ? (
-                                <LoaderCircle
-                                    className="animate-spin"
-                                    data-icon="inline-start"
-                                />
+                                <Spinner data-icon="inline-start" />
                             ) : (
                                 <MagnifierIcon data-icon="inline-start" />
                             )}

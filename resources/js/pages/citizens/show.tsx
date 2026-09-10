@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { lazy, Suspense } from 'react';
 import {
     CalendarMarkIcon,
     ChatRoundIcon,
@@ -8,8 +9,7 @@ import {
     MapPointIcon,
     PenIcon,
     PhoneIcon,
-} from '@solar-icons/react/outline';
-import { lazy, Suspense } from 'react';
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';

@@ -1,7 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowRightIcon, RefreshCircleIcon } from '@solar-icons/react/outline';
 import type { FormEvent } from 'react';
 import { PaginationLinks } from '@/components/common/pagination-links';
+import { ArrowRightIcon, RefreshCircleIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
@@ -165,11 +165,10 @@ export default function EntidadeTransfersIndex({
                                     </Link>
                                 ))}
                             </div>
-                            <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-                                Exibindo {transfers.from}–{transfers.to} de{' '}
-                                {transfers.total} transferência(s)
-                            </div>
-                            <PaginationLinks links={transfers.links} />
+                            <PaginationLinks
+                                pagination={transfers}
+                                label="transferência(s)"
+                            />
                         </>
                     )}
                 </Surface>

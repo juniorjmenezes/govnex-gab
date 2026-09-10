@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { StatCard } from '@/components/common/stat-card';
 import {
     BuildingsIcon,
     CalendarMarkIcon,
@@ -6,8 +7,7 @@ import {
     PulseIcon,
     ShieldWarningIcon,
     UsersGroupRoundedIcon,
-} from '@solar-icons/react/outline';
-import { StatCard } from '@/components/common/stat-card';
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';

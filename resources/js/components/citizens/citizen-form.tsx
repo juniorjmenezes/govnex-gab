@@ -79,14 +79,23 @@ export function CitizenForm({
             whatsapp: applyMask(citizen?.whatsapp, 'phone'),
             email: text(citizen?.email),
             data_nascimento: text(citizen?.data_nascimento),
-            estado: text(citizen?.bairro?.estado ?? officeLocation?.estado),
+            // O cidadão tem estado, município e CEP próprios; o bairro e o
+            // gabinete só entram como origem quando o cadastro é novo ou
+            // veio de antes dessas colunas existirem.
+            estado: text(
+                citizen?.estado ??
+                    citizen?.bairro?.estado ??
+                    officeLocation?.estado,
+            ),
             municipio: text(
-                citizen?.bairro?.municipio ?? officeLocation?.municipio,
+                citizen?.municipio ??
+                    citizen?.bairro?.municipio ??
+                    officeLocation?.municipio,
             ),
             bairro_id: citizen?.bairro_id?.toString() ?? '',
             endereco: text(citizen?.endereco),
             numero: text(citizen?.numero),
-            cep: '',
+            cep: applyMask(citizen?.cep, 'cep'),
             complemento: text(citizen?.complemento),
             ponto_referencia: text(citizen?.ponto_referencia),
             latitude: coordinate(citizen?.latitude),
@@ -104,6 +113,9 @@ export function CitizenForm({
         bairroId,
         endereco,
         numero,
+        cep,
+        estado,
+        municipio,
         latitude,
         longitude,
         locationSource,
@@ -114,6 +126,9 @@ export function CitizenForm({
             'bairro_id',
             'endereco',
             'numero',
+            'cep',
+            'estado',
+            'municipio',
             'latitude',
             'longitude',
             'localizacao_origem',
@@ -122,12 +137,16 @@ export function CitizenForm({
     const neighborhood = neighborhoods.find(
         (item) => item.id.toString() === bairroId,
     );
+    // Município e UF vêm dos próprios campos do endereço; o bairro só
+    // completa o que estiver em branco. Amarrar a busca ao bairro deixava o
+    // botão inerte enquanto nenhum bairro estivesse selecionado.
     const locationSearchAddress = {
         street: endereco,
         number: numero,
+        postalCode: cep,
         neighborhood: neighborhood?.nome ?? '',
-        city: neighborhood?.municipio ?? '',
-        state: neighborhood?.estado ?? '',
+        city: municipio || (neighborhood?.municipio ?? ''),
+        state: estado || (neighborhood?.estado ?? ''),
     };
     const coordinates =
         latitude !== null && longitude !== null

@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import {
     CalendarMarkIcon,
     ClockCircleIcon,
@@ -6,8 +7,7 @@ import {
     PenIcon,
     UserRoundedIcon,
     UsersGroupRoundedIcon,
-} from '@solar-icons/react/outline';
-import { DeleteRecordButton } from '@/components/common/delete-record-button';
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';

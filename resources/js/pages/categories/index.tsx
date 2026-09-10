@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Head, router } from '@inertiajs/react';
-import { PowerIcon } from '@solar-icons/react/outline';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import {
@@ -12,7 +11,9 @@ import {
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import { TableActionButton } from '@/components/common/table-action-button';
+import { EmptyState } from '@/components/feedback/empty-state';
 import { FieldError } from '@/components/forms/field-error';
+import { PowerIcon, TagIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
@@ -22,6 +23,14 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { surfaceClasses } from '@/components/ui/surface';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
@@ -84,85 +93,110 @@ export default function Categories({
                     description="Organize as futuras demandas por tema, cor e situação."
                 />
                 <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-                    <Card className="gap-0 py-0">
-                        <div className="divide-y">
-                            {categories.data.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="flex items-start justify-between gap-4 p-4"
-                                >
-                                    <div className="flex min-w-0 items-start gap-3">
-                                        <CategoryIconBadge
-                                            name={item.icone}
-                                            color={item.cor_semantica}
-                                        />
-                                        <div className="min-w-0">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <h2 className="font-medium">
-                                                    {item.nome}
-                                                </h2>
-                                                <Badge
-                                                    variant={
-                                                        item.ativo
-                                                            ? 'default'
-                                                            : 'secondary'
-                                                    }
-                                                >
-                                                    {item.ativo
-                                                        ? 'Ativa'
-                                                        : 'Inativa'}
-                                                </Badge>
-                                            </div>
-                                            <p className="mt-1 text-sm text-muted-foreground">
-                                                {item.descricao ||
-                                                    'Sem descrição'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    {canManage && (
-                                        <div className="ml-auto flex justify-end gap-2">
-                                            <TableActionButton
-                                                label={`${item.ativo ? 'Desativar' : 'Ativar'} ${item.nome}`}
-                                                variant={
-                                                    item.ativo
-                                                        ? 'destructive'
-                                                        : 'outline'
-                                                }
-                                                onClick={() =>
-                                                    router.put(
-                                                        tenantUrl(
-                                                            `/categorias/${item.id}`,
-                                                        ),
-                                                        {
-                                                            ...item,
-                                                            ativo: !item.ativo,
-                                                        },
-                                                        {
-                                                            preserveScroll: true,
-                                                        },
-                                                    )
-                                                }
-                                            >
-                                                <PowerIcon aria-hidden="true" />
-                                            </TableActionButton>
-                                            <DeleteRecordButton
-                                                url={tenantUrl(
-                                                    `/categorias/${item.id}`,
+                    <Card className="gap-0 overflow-hidden py-0">
+                        {categories.data.length === 0 ? (
+                            <EmptyState
+                                icon={TagIcon}
+                                title="Nenhuma categoria cadastrada"
+                                description="Cadastre a primeira categoria para organizar as demandas por tema."
+                            />
+                        ) : (
+                            <>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Nome</TableHead>
+                                            <TableHead>Situação</TableHead>
+                                            {canManage && (
+                                                <TableHead className="text-right">
+                                                    Ações
+                                                </TableHead>
+                                            )}
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {categories.data.map((item) => (
+                                            <TableRow key={item.id}>
+                                                <TableCell>
+                                                    <span className="flex items-start gap-3">
+                                                        <CategoryIconBadge
+                                                            name={item.icone}
+                                                            color={
+                                                                item.cor_semantica
+                                                            }
+                                                        />
+                                                        <span className="min-w-0">
+                                                            <span className="block">
+                                                                {item.nome}
+                                                            </span>
+                                                            <span className="block text-xs text-muted-foreground">
+                                                                {item.descricao ||
+                                                                    'Sem descrição'}
+                                                            </span>
+                                                        </span>
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant={
+                                                            item.ativo
+                                                                ? 'default'
+                                                                : 'secondary'
+                                                        }
+                                                    >
+                                                        {item.ativo
+                                                            ? 'Ativa'
+                                                            : 'Inativa'}
+                                                    </Badge>
+                                                </TableCell>
+                                                {canManage && (
+                                                    <TableCell>
+                                                        <div className="flex justify-end gap-2">
+                                                            <TableActionButton
+                                                                label={`${item.ativo ? 'Desativar' : 'Ativar'} ${item.nome}`}
+                                                                variant={
+                                                                    item.ativo
+                                                                        ? 'destructive'
+                                                                        : 'outline'
+                                                                }
+                                                                onClick={() =>
+                                                                    router.put(
+                                                                        tenantUrl(
+                                                                            `/categorias/${item.id}`,
+                                                                        ),
+                                                                        {
+                                                                            ...item,
+                                                                            ativo: !item.ativo,
+                                                                        },
+                                                                        {
+                                                                            preserveScroll: true,
+                                                                        },
+                                                                    )
+                                                                }
+                                                            >
+                                                                <PowerIcon aria-hidden="true" />
+                                                            </TableActionButton>
+                                                            <DeleteRecordButton
+                                                                url={tenantUrl(
+                                                                    `/categorias/${item.id}`,
+                                                                )}
+                                                                label={`Excluir ${item.nome}`}
+                                                                title="Excluir categoria?"
+                                                                description="O registro deixará de aparecer nos novos cadastros. Os vínculos históricos serão preservados."
+                                                            />
+                                                        </div>
+                                                    </TableCell>
                                                 )}
-                                                label={`Excluir ${item.nome}`}
-                                                title="Excluir categoria?"
-                                                description="O registro deixará de aparecer nos novos cadastros. Os vínculos históricos serão preservados."
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                        <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-                            Exibindo {categories.from}–{categories.to} de{' '}
-                            {categories.total} categoria(s)
-                        </div>
-                        <PaginationLinks links={categories.links} />
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                <PaginationLinks
+                                    pagination={categories}
+                                    label="categoria(s)"
+                                />
+                            </>
+                        )}
                     </Card>
                     {canManage && (
                         <form

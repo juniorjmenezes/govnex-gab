@@ -7,6 +7,7 @@ export type Pagination<T> = {
     data: T[];
     links: PaginationLink[];
     current_page: number;
+    per_page: number;
     last_page: number;
     total: number;
     from: number | null;
@@ -43,6 +44,9 @@ export type Citizen = {
     data_nascimento: string | null;
     bairro_id: number | null;
     bairro?: Neighborhood | null;
+    estado: string | null;
+    municipio: string | null;
+    cep: string | null;
     endereco: string | null;
     numero: string | null;
     complemento: string | null;

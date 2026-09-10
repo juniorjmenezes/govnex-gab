@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { CheckCircleIcon, CloseCircleIcon } from '@solar-icons/react/outline';
 import type { FormEvent } from 'react';
+import { CheckCircleIcon, CloseCircleIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';

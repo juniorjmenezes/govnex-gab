@@ -22,6 +22,9 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Link, router } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { PriorityBadge } from '@/components/demands/priority-badge';
 import {
     CalendarMarkIcon,
     MapPointIcon,
@@ -29,10 +32,7 @@ import {
     ReorderIcon,
     UserCircleIcon,
     UserRoundedIcon,
-} from '@solar-icons/react/outline';
-import { useMemo, useState } from 'react';
-import { toast } from 'sonner';
-import { PriorityBadge } from '@/components/demands/priority-badge';
+} from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
 import { useTenantUrl } from '@/hooks/use-tenant-url';

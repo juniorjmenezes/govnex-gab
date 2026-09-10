@@ -1,12 +1,12 @@
 import { Form } from '@inertiajs/react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import AlertError from '@/components/alert-error';
 import {
     EyeClosedIcon,
     EyeIcon,
     LockKeyholeIcon,
     RefreshIcon,
-} from '@solar-icons/react/outline';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import AlertError from '@/components/alert-error';
+} from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import {
     Card,

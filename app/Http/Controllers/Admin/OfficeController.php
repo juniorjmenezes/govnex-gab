@@ -28,6 +28,7 @@ use App\Services\Modules\GabineteModuleManager;
 use App\Services\Politics\OfficeHolderCandidateResolver;
 use App\Services\Politics\Tse\TseDatasetUrlBuilder;
 use App\Services\Politics\TsePoliticalDataSyncService;
+use App\Support\PerPage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -182,7 +183,7 @@ class OfficeController extends Controller
                     ->whereColumn('candidato_politico_id', 'gabinetes.candidato_titular_id'),
             ])
             ->latest()
-            ->paginate(15)
+            ->paginate(PerPage::resolve($request, 15))
             ->withQueryString();
 
         $syncsByOffice = SincronizacaoTse::query()
@@ -323,6 +324,7 @@ class OfficeController extends Controller
             'data' => $officeData,
             'links' => $paginator->linkCollection()->all(),
             'current_page' => $paginator->currentPage(),
+            'per_page' => $paginator->perPage(),
             'last_page' => $paginator->lastPage(),
             'total' => $paginator->total(),
             'from' => $paginator->firstItem(),

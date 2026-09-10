@@ -10,7 +10,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { AltArrowLeftIcon, AltArrowRightIcon, AltArrowDownIcon } from "@solar-icons/react/outline"
+import { AltArrowLeftIcon, AltArrowRightIcon, AltArrowDownIcon } from "@/components/icons"
 
 function Calendar({
   className,

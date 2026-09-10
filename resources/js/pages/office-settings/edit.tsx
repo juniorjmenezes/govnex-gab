@@ -1,18 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Head, router, usePage } from '@inertiajs/react';
-import {
-    DangerTriangleIcon,
-    GalleryIcon,
-    PaletteIcon,
-    RestartIcon,
-    ShieldCheckIcon,
-} from '@solar-icons/react/outline';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { AddressFields } from '@/components/forms/address-fields';
 import { AttachmentField } from '@/components/forms/attachment-field';
 import { ColorPicker } from '@/components/forms/color-picker';
 import { FieldError } from '@/components/forms/field-error';
+import {
+    DangerTriangleIcon,
+    GalleryIcon,
+    PaletteIcon,
+    RestartIcon,
+    ShieldCheckIcon,
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';

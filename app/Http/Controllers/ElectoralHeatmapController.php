@@ -26,6 +26,7 @@ class ElectoralHeatmapController extends Controller
         if ($candidate === null) {
             return Inertia::render('voters/electoral-map', [
                 'points' => [],
+                'officeState' => $office->estado,
                 'summary' => [
                     'configured' => false,
                     // Diferencia "admin nunca cadastrou o número" de "número
@@ -87,6 +88,7 @@ class ElectoralHeatmapController extends Controller
 
         return Inertia::render('voters/electoral-map', [
             'points' => $points,
+            'officeState' => $office->estado,
             'summary' => [
                 'configured' => true,
                 'reason' => null,

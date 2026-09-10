@@ -21,6 +21,7 @@ class CitizenLocationController extends Controller
             'bairro' => ['nullable', 'string', 'max:120'],
             'municipio' => ['required', 'string', 'max:120'],
             'estado' => ['required', 'string', 'size:2'],
+            'cep' => ['nullable', 'string', 'max:9'],
         ]);
 
         try {
@@ -31,6 +32,7 @@ class CitizenLocationController extends Controller
                     neighborhood: $validated['bairro'] ?? null,
                     city: $validated['municipio'],
                     state: $validated['estado'],
+                    postalCode: $validated['cep'] ?? null,
                 ),
             ]);
         } catch (ConnectionException|RequestException $exception) {

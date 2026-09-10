@@ -5,7 +5,7 @@ import {
     SettingsIcon,
     ShieldUserIcon,
     TagHorizontalIcon,
-} from '@solar-icons/react/outline';
+} from '@/components/icons';
 import { contextualUrl } from '@/lib/entity-context';
 import { hasModule } from '@/lib/modules';
 import type { Auth, GabineteModuleCode, NavItem } from '@/types';

@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from '@inertiajs/react';
-import { AddIcon, CloseIcon, MagnifierIcon } from '@solar-icons/react/outline';
 import { useEffect, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import type {
@@ -11,6 +10,7 @@ import type {
 import { z } from 'zod';
 import { FieldError } from '@/components/forms/field-error';
 import { FieldLabel } from '@/components/forms/field-label';
+import { AddIcon, CloseIcon, MagnifierIcon } from '@/components/icons';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';

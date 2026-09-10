@@ -1,15 +1,4 @@
 import { Head, Link, router } from '@inertiajs/react';
-import {
-    ChartIcon,
-    CheckCircleIcon,
-    ClockCircleIcon,
-    CloseIcon,
-    DangerTriangleIcon,
-    DocumentTextIcon,
-    DownloadIcon,
-    PresentationGraphIcon,
-    RefreshIcon,
-} from '@solar-icons/react/outline';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useEffect, useRef, useState } from 'react';
@@ -28,9 +17,20 @@ import { TableActionButton } from '@/components/common/table-action-button';
 import { PriorityBadge } from '@/components/demands/priority-badge';
 import { StatusBadge } from '@/components/demands/status-badge';
 import { EmptyState } from '@/components/feedback/empty-state';
+import { FilterSelect } from '@/components/forms/list-filters';
+import {
+    ChartIcon,
+    CheckCircleIcon,
+    ClockCircleIcon,
+    CloseIcon,
+    DangerTriangleIcon,
+    DocumentTextIcon,
+    DownloadIcon,
+    PresentationGraphIcon,
+    RefreshIcon,
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
-import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
+import { preservedListParams } from '@/lib/pagination';
 import { cn } from '@/lib/utils';
 import type { DashboardDatum, ReportExport, ReportPageProps } from '@/types';
 
@@ -245,6 +246,7 @@ export default function ReportsIndex({
         bairro_id: form.bairro_id || undefined,
         responsavel_id: form.responsavel_id || undefined,
         atrasadas: form.atrasadas ? 1 : undefined,
+        ...preservedListParams(),
     });
 
     const isFirstRender = useRef(true);
@@ -655,11 +657,10 @@ export default function ReportsIndex({
                                     </Link>
                                 ))}
                             </div>
-                            <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-                                Exibindo {demands.from}–{demands.to} de{' '}
-                                {demands.total} demanda(s)
-                            </div>
-                            <PaginationLinks links={demands.links} />
+                            <PaginationLinks
+                                pagination={demands}
+                                label="demanda(s)"
+                            />
                         </>
                     )}
                 </Surface>
@@ -1042,30 +1043,6 @@ export default function ReportsIndex({
                 </Surface>
             </PageContainer>
         </>
-    );
-}
-
-function FilterSelect({
-    label,
-    value,
-    onChange,
-    options,
-}: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    options: Array<{ value: string; label: string }>;
-}) {
-    return (
-        <Label className="grid gap-1">
-            {label}
-            <AppSelect
-                value={value}
-                onValueChange={onChange}
-                options={options}
-                emptyLabel="Todos"
-            />
-        </Label>
     );
 }
 

@@ -1,16 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Head, router } from '@inertiajs/react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { FieldError } from '@/components/forms/field-error';
 import {
     CheckCircleIcon,
     DangerCircleIcon,
     KeyIcon,
     PlugCircleIcon,
     RefreshIcon,
-} from '@solar-icons/react/outline';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { FieldError } from '@/components/forms/field-error';
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';

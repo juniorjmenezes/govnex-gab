@@ -8,6 +8,7 @@ use App\Models\Bairro;
 use App\Models\Entidade;
 use App\Models\EntidadeBairro;
 use App\Models\Gabinete;
+use App\Support\PerPage;
 use App\Tenancy\EntidadeContext;
 use App\Tenancy\GabineteContext;
 use Illuminate\Http\RedirectResponse;
@@ -30,7 +31,8 @@ class BairroController extends Controller
             'neighborhoods' => Bairro::query()
                 ->select(['id', 'entidade_bairro_id', 'nome', 'municipio', 'estado', 'ativo'])
                 ->orderBy('nome')
-                ->paginate(20),
+                ->paginate(PerPage::resolve($request, 20))
+                ->withQueryString(),
             'sharedNeighborhoods' => $entidade->bairros()
                 ->where('ativo', true)
                 ->whereDoesntHave('bairrosLocais', fn ($query) => $query

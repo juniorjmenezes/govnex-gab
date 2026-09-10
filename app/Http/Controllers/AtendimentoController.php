@@ -10,6 +10,7 @@ use App\Models\Cidadao;
 use App\Models\Demanda;
 use App\Models\User;
 use App\Services\Modules\GabineteModuleManager;
+use App\Support\PerPage;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -67,7 +68,7 @@ class AtendimentoController extends Controller
             ->when($filters['retorno'], fn (Builder $query) => $query
                 ->where('requer_retorno', true))
             ->latest('atendido_em')
-            ->paginate(15)
+            ->paginate(PerPage::resolve($request, 15))
             ->withQueryString();
 
         return Inertia::render('attendances/index', [

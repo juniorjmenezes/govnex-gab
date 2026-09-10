@@ -1,4 +1,4 @@
-import { MonitorIcon, MoonIcon, SunIcon } from '@solar-icons/react/outline';
+import { MonitorIcon, MoonIcon, SunIcon } from '@/components/icons';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { Appearance } from '@/hooks/use-appearance';
 import { useAppearance } from '@/hooks/use-appearance';

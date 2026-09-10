@@ -63,9 +63,10 @@ class BasicRegistrationsTest extends TestCase
         Http::fake([
             '*' => Http::response([
                 [
-                    'display_name' => 'Rua Exemplo, Fortaleza, Ceará, Brasil',
+                    'display_name' => 'Rua Exemplo, 123, Fortaleza, Ceará, Brasil',
                     'lat' => '-3.7318620',
                     'lon' => '-38.5266690',
+                    'address' => ['house_number' => '123'],
                 ],
             ]),
         ]);
@@ -82,7 +83,7 @@ class BasicRegistrationsTest extends TestCase
             ->assertExactJson([
                 'results' => [
                     [
-                        'label' => 'Rua Exemplo, Fortaleza, Ceará, Brasil',
+                        'label' => 'Rua Exemplo, 123, Fortaleza, Ceará, Brasil',
                         'latitude' => -3.731862,
                         'longitude' => -38.526669,
                         'precision' => 'address',
@@ -104,6 +105,7 @@ class BasicRegistrationsTest extends TestCase
 
         Http::fakeSequence()
             ->push([], 200)
+            ->push([], 200)
             ->push([
                 [
                     'display_name' => 'Rua Exemplo, Centro, Fortaleza, Ceará, Brasil',
@@ -122,10 +124,71 @@ class BasicRegistrationsTest extends TestCase
 
         $this->assertSame('street', $results[0]['precision']);
         $this->assertSame(-3.731862, $results[0]['latitude']);
-        Http::assertSentCount(2);
+        Http::assertSentCount(3);
         Http::assertSent(fn ($request): bool => ($request['street'] ?? null) === 'Rua Exemplo'
             && ($request['city'] ?? null) === 'Fortaleza'
             && ! isset($request['q']));
+    }
+
+    /**
+     * O Nominatim responde com o logradouro inteiro quando não conhece a
+     * numeração. O ponto é aproveitável, mas precisa chegar como
+     * "logradouro" — rotulá-lo de "endereço" fazia o cadastro afirmar uma
+     * exatidão que o marcador não tinha.
+     */
+    public function test_result_without_house_number_is_reported_as_street(): void
+    {
+        config(['services.geocoding.minimum_interval_ms' => 0]);
+        Http::fake([
+            '*' => Http::response([
+                [
+                    'display_name' => 'Rua Exemplo, Centro, Fortaleza, Ceará, Brasil',
+                    'lat' => '-3.7318620',
+                    'lon' => '-38.5266690',
+                    'address' => ['road' => 'Rua Exemplo'],
+                ],
+            ], 200),
+        ]);
+
+        $results = app(GeocodingService::class)->search(
+            street: 'Rua Exemplo',
+            number: '9999',
+            neighborhood: 'Centro',
+            city: 'Fortaleza',
+            state: 'CE',
+        );
+
+        $this->assertSame('street', $results[0]['precision']);
+    }
+
+    /** O CEP é a consulta com maior chance de cravar o número no Brasil. */
+    public function test_postal_code_is_used_before_the_city_and_state_query(): void
+    {
+        config(['services.geocoding.minimum_interval_ms' => 0]);
+        Http::fake([
+            '*' => Http::response([
+                [
+                    'display_name' => 'Rua Exemplo, 123, Fortaleza, Ceará, Brasil',
+                    'lat' => '-3.7318620',
+                    'lon' => '-38.5266690',
+                    'address' => ['house_number' => '123'],
+                ],
+            ], 200),
+        ]);
+
+        $results = app(GeocodingService::class)->search(
+            street: 'Rua Exemplo',
+            number: '123',
+            neighborhood: 'Centro',
+            city: 'Fortaleza',
+            state: 'CE',
+            postalCode: '60000-000',
+        );
+
+        $this->assertSame('address', $results[0]['precision']);
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($request): bool => ($request['postalcode'] ?? null) === '60000000'
+            && ($request['street'] ?? null) === '123 Rua Exemplo');
     }
 
     public function test_geocoding_does_not_cache_empty_results(): void
@@ -151,7 +214,7 @@ class BasicRegistrationsTest extends TestCase
 
         $this->assertSame([], $firstResults);
         $this->assertSame([], $secondResults);
-        Http::assertSentCount(8);
+        Http::assertSentCount(10);
     }
 
     public function test_citizen_location_requires_both_coordinates(): void

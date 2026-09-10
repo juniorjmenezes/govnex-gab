@@ -11,6 +11,7 @@ import {
     ZoomControl,
 } from 'react-leaflet';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
+import { emptyMapView, fitOptions } from '@/lib/map-viewport';
 import type { VoterMapMarker } from '@/types';
 import 'leaflet/dist/leaflet.css';
 // Precisa vir depois de leaflet.css para sobrescrever o balão padrão do
@@ -20,9 +21,11 @@ import '../../../css/leaflet-popup.css';
 function MapViewport({
     markers,
     selectedId,
+    state,
 }: {
     markers: VoterMapMarker[];
     selectedId: number | null;
+    state?: string | null;
 }) {
     const map = useMap();
 
@@ -38,7 +41,8 @@ function MapViewport({
         }
 
         if (markers.length === 0) {
-            map.setView([-14.235, -51.9253], 4);
+            const view = emptyMapView(state);
+            map.setView(view.center, view.zoom);
 
             return;
         }
@@ -53,9 +57,9 @@ function MapViewport({
             new LatLngBounds(
                 markers.map((marker) => [marker.latitude, marker.longitude]),
             ),
-            { padding: [48, 48], maxZoom: 16 },
+            fitOptions(),
         );
-    }, [map, markers, selectedId]);
+    }, [map, markers, selectedId, state]);
 
     return null;
 }
@@ -64,17 +68,20 @@ export default function ProspectingMapCanvas({
     markers,
     selectedId,
     onSelect,
+    state,
 }: {
     markers: VoterMapMarker[];
     selectedId: number | null;
     onSelect: (id: number) => void;
+    state?: string | null;
 }) {
     const tenantUrl = useTenantUrl();
+    const initialView = emptyMapView(state);
 
     return (
         <MapContainer
-            center={[-14.235, -51.9253]}
-            zoom={4}
+            center={initialView.center}
+            zoom={initialView.zoom}
             zoomControl={false}
             preferCanvas
             className="h-full w-full"
@@ -91,7 +98,11 @@ export default function ProspectingMapCanvas({
             />
             <ZoomControl position="bottomright" />
             <ScaleControl position="bottomleft" imperial={false} />
-            <MapViewport markers={markers} selectedId={selectedId} />
+            <MapViewport
+                markers={markers}
+                selectedId={selectedId}
+                state={state}
+            />
             {markers.map((marker) => {
                 const selected = marker.id === selectedId;
 

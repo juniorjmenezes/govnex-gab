@@ -1,21 +1,29 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Head, router } from '@inertiajs/react';
-import { KeyIcon, PowerIcon } from '@solar-icons/react/outline';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { ActivityMark } from '@/components/common/activity-mark';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import { TableActionButton } from '@/components/common/table-action-button';
 import { FieldError } from '@/components/forms/field-error';
 import { FieldLabel } from '@/components/forms/field-label';
+import { KeyIcon, PowerIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { surfaceClasses } from '@/components/ui/surface';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 type Member = {
@@ -121,78 +129,98 @@ export default function Team({
                     description="Gerencie acessos, funções e situação dos integrantes do gabinete."
                 />
                 <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
-                    <Card className="gap-0 py-0">
-                        <div className="divide-y">
-                            {members.map((member) => (
-                                <article
-                                    key={member.id}
-                                    className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                    <div>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <h2 className="font-medium">
-                                                {member.name}
-                                            </h2>
-                                            <Badge
-                                                variant={
-                                                    member.is_active
-                                                        ? 'default'
-                                                        : 'secondary'
-                                                }
-                                            >
-                                                {member.is_active
-                                                    ? 'Ativo'
-                                                    : 'Inativo'}
-                                            </Badge>
-                                        </div>
-                                        <p className="text-sm text-muted-foreground">
-                                            {member.email} ·{' '}
-                                            {roleLabels[member.role]}
-                                        </p>
-                                        <p className="mt-1 text-xs text-muted-foreground">
-                                            Último acesso:{' '}
-                                            {member.last_login_at
-                                                ? new Date(
-                                                      member.last_login_at,
-                                                  ).toLocaleString('pt-BR')
-                                                : 'ainda não acessou'}
-                                        </p>
-                                    </div>
-                                    {canManage && manageable(member) && (
-                                        <div className="ml-auto flex justify-end gap-2">
-                                            <TableActionButton
-                                                label={`Redefinir senha de ${member.name}`}
-                                                variant="outline"
-                                                onClick={() =>
-                                                    resetPassword(member)
-                                                }
-                                            >
-                                                <KeyIcon aria-hidden="true" />
-                                            </TableActionButton>
-                                            <TableActionButton
-                                                label={`${member.is_active ? 'Desativar' : 'Ativar'} ${member.name}`}
-                                                variant={
-                                                    member.is_active
-                                                        ? 'destructive'
-                                                        : 'outline'
-                                                }
-                                                onClick={() => toggle(member)}
-                                            >
-                                                <PowerIcon aria-hidden="true" />
-                                            </TableActionButton>
-                                            <DeleteRecordButton
-                                                url={tenantUrl(
-                                                    `/equipe/${member.id}`,
-                                                )}
-                                                label={`Excluir ${member.name}`}
-                                                title="Excluir integrante?"
-                                                description="O acesso será removido e o integrante deixará de aparecer na equipe. O histórico de atividades será preservado."
-                                            />
-                                        </div>
+                    <Card className="gap-0 overflow-hidden py-0">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-10">
+                                        <span className="sr-only">
+                                            Situação
+                                        </span>
+                                    </TableHead>
+                                    <TableHead>Nome</TableHead>
+                                    <TableHead>Função</TableHead>
+                                    {canManage && (
+                                        <TableHead className="text-right">
+                                            Ações
+                                        </TableHead>
                                     )}
-                                </article>
-                            ))}
-                        </div>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {members.map((member) => (
+                                    <TableRow key={member.id}>
+                                        <TableCell className="w-10">
+                                            <ActivityMark
+                                                active={member.is_active}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="block">
+                                                {member.name}
+                                            </span>
+                                            <span className="block text-xs text-muted-foreground">
+                                                {member.email}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="block">
+                                                {roleLabels[member.role]}
+                                            </span>
+                                            <span className="block text-xs text-muted-foreground">
+                                                {member.last_login_at
+                                                    ? `Último acesso: ${new Date(
+                                                          member.last_login_at,
+                                                      ).toLocaleString(
+                                                          'pt-BR',
+                                                      )}`
+                                                    : 'Ainda não acessou'}
+                                            </span>
+                                        </TableCell>
+                                        {canManage && (
+                                            <TableCell>
+                                                {manageable(member) && (
+                                                    <div className="flex justify-end gap-2">
+                                                        <TableActionButton
+                                                            label={`Redefinir senha de ${member.name}`}
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                resetPassword(
+                                                                    member,
+                                                                )
+                                                            }
+                                                        >
+                                                            <KeyIcon aria-hidden="true" />
+                                                        </TableActionButton>
+                                                        <TableActionButton
+                                                            label={`${member.is_active ? 'Desativar' : 'Ativar'} ${member.name}`}
+                                                            variant={
+                                                                member.is_active
+                                                                    ? 'destructive'
+                                                                    : 'outline'
+                                                            }
+                                                            onClick={() =>
+                                                                toggle(member)
+                                                            }
+                                                        >
+                                                            <PowerIcon aria-hidden="true" />
+                                                        </TableActionButton>
+                                                        <DeleteRecordButton
+                                                            url={tenantUrl(
+                                                                `/equipe/${member.id}`,
+                                                            )}
+                                                            label={`Excluir ${member.name}`}
+                                                            title="Excluir integrante?"
+                                                            description="O acesso será removido e o integrante deixará de aparecer na equipe. O histórico de atividades será preservado."
+                                                        />
+                                                    </div>
+                                                )}
+                                            </TableCell>
+                                        )}
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     </Card>
                     {canManage && (
                         <form

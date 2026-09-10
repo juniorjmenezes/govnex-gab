@@ -14,6 +14,7 @@ class VoterProspectingMapController extends Controller
     public function __invoke(Request $request): Response
     {
         $this->authorize('viewAny', Cidadao::class);
+        $office = $request->user()?->gabinete;
 
         $voters = Cidadao::query()->where('eleitor', true);
         $locatedVoters = (clone $voters)
@@ -51,6 +52,7 @@ class VoterProspectingMapController extends Controller
 
         return Inertia::render('voters/prospecting-map', [
             'markers' => $markers,
+            'officeState' => $office?->estado,
             'summary' => [
                 'totalVoters' => (clone $voters)->count(),
                 'locatedVoters' => $locatedCount,

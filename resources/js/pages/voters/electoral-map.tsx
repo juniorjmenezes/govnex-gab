@@ -1,5 +1,14 @@
 import { Head, Link } from '@inertiajs/react';
 import {
+    lazy,
+    Suspense,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
+import {
     AltArrowUpIcon,
     CloseIcon,
     FlameIcon,
@@ -9,16 +18,7 @@ import {
     MinimizeIcon,
     RecordIcon,
     SettingsIcon,
-} from '@solar-icons/react/outline';
-import {
-    lazy,
-    Suspense,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+} from '@/components/icons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -62,9 +62,11 @@ const formatCoverage = (value: number) =>
 export default function ElectoralMap({
     points,
     summary,
+    officeState,
 }: {
     points: ElectoralMapPoint[];
     summary: ElectoralMapSummary;
+    officeState: string | null;
 }) {
     const tenantUrl = useTenantUrl();
     const [query, setQuery] = useState('');
@@ -210,7 +212,7 @@ export default function ElectoralMap({
             <Head title="Mapa de eleitores" />
             <div
                 ref={mapShellRef}
-                className="relative isolate z-0 h-[calc(100dvh-3.5rem)] min-h-[32rem] overflow-hidden bg-muted"
+                className="relative isolate z-0 h-[calc(100svh-var(--app-shell-height,3.5rem))] overflow-hidden bg-muted"
             >
                 {!summary.configured ? (
                     <div className="grid h-full place-items-center p-6">
@@ -273,6 +275,7 @@ export default function ElectoralMap({
                                     candidateName={
                                         summary.candidate?.name ?? 'candidato'
                                     }
+                                    state={officeState}
                                 />
                             </Suspense>
                         ) : (

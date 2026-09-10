@@ -1,4 +1,11 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
+import { DeleteRecordButton } from '@/components/common/delete-record-button';
+import { PaginationLinks } from '@/components/common/pagination-links';
+import { TableActionButton } from '@/components/common/table-action-button';
+import { EmptyState } from '@/components/feedback/empty-state';
+import { DateFilter, FilterSelect } from '@/components/forms/list-filters';
 import {
     AddIcon,
     CalendarDateIcon,
@@ -9,13 +16,7 @@ import {
     MapPointIcon,
     PenIcon,
     SettingsIcon,
-} from '@solar-icons/react/outline';
-import { useEffect, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
-import { DeleteRecordButton } from '@/components/common/delete-record-button';
-import { PaginationLinks } from '@/components/common/pagination-links';
-import { TableActionButton } from '@/components/common/table-action-button';
-import { EmptyState } from '@/components/feedback/empty-state';
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
@@ -30,7 +31,6 @@ import {
     DrawerTitle,
 } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
 import {
     Table,
@@ -41,6 +41,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
+import { formatShortDateTime } from '@/lib/dates';
 import { cn } from '@/lib/utils';
 import type { EventIndexProps, EventStatus, EventType } from '@/types';
 
@@ -55,11 +56,6 @@ const statusVariants: Record<
     cancelado: 'destructive',
 };
 
-const formatDateTime = (value: string) =>
-    new Intl.DateTimeFormat('pt-BR', {
-        dateStyle: 'short',
-        timeStyle: 'short',
-    }).format(new Date(value));
 const formatDate = (value: string) =>
     new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(
         new Date(value),
@@ -337,21 +333,7 @@ export default function EventsIndex({
                                 <CloseIcon aria-hidden="true" />
                             </DrawerClose>
                         </DrawerHeader>
-                        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-                            <FilterSelect
-                                label="Registros por página"
-                                value={filterState.per_page}
-                                onChange={(value) =>
-                                    setFilter('per_page', value)
-                                }
-                                clearable={false}
-                                options={[
-                                    { value: '15', label: '15 registros' },
-                                    { value: '30', label: '30 registros' },
-                                    { value: '50', label: '50 registros' },
-                                ]}
-                            />
-                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto p-4"></div>
                         <DrawerFooter className="flex-row justify-end border-t p-4">
                             <Button
                                 type="button"
@@ -434,7 +416,7 @@ export default function EventsIndex({
                                                 ) : (
                                                     <>
                                                         <span className="block">
-                                                            {formatDateTime(
+                                                            {formatShortDateTime(
                                                                 event.inicio_em,
                                                             )}
                                                         </span>
@@ -507,64 +489,15 @@ export default function EventsIndex({
                                     ))}
                                 </TableBody>
                             </Table>
-                            <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-                                Exibindo {events.from}–{events.to} de{' '}
-                                {events.total} evento(s)
-                            </div>
-                            <PaginationLinks links={events.links} />
+                            <PaginationLinks
+                                pagination={events}
+                                label="evento(s)"
+                            />
                         </>
                     )}
                 </Surface>
             </PageContainer>
         </>
-    );
-}
-
-function FilterSelect({
-    label,
-    value,
-    options,
-    onChange,
-    clearable = true,
-}: {
-    label: string;
-    value: string;
-    options: Array<{ value: string; label: string }>;
-    onChange: (value: string) => void;
-    clearable?: boolean;
-}) {
-    return (
-        <Label className="grid gap-1">
-            <span>{label}</span>
-            <AppSelect
-                value={value}
-                onValueChange={onChange}
-                options={options}
-                emptyLabel={clearable ? 'Todos' : undefined}
-                clearable={clearable}
-            />
-        </Label>
-    );
-}
-
-function DateFilter({
-    label,
-    value,
-    onChange,
-}: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-}) {
-    return (
-        <Label className="grid gap-1">
-            <span>{label}</span>
-            <Input
-                type="date"
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-            />
-        </Label>
     );
 }
 

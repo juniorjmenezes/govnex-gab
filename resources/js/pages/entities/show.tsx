@@ -1,4 +1,8 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import type { FormEvent } from 'react';
+import { useMemo, useState } from 'react';
+import { AttachmentField } from '@/components/forms/attachment-field';
+import { ColorPicker } from '@/components/forms/color-picker';
 import {
     AddIcon,
     AltArrowLeftIcon,
@@ -14,11 +18,7 @@ import {
     ShieldIcon,
     ShieldWarningIcon,
     TransferHorizontalIcon,
-} from '@solar-icons/react/outline';
-import type { FormEvent } from 'react';
-import { useMemo, useState } from 'react';
-import { AttachmentField } from '@/components/forms/attachment-field';
-import { ColorPicker } from '@/components/forms/color-picker';
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';

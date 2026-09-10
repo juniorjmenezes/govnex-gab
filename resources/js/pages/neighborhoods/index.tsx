@@ -1,20 +1,29 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Head, router, usePage } from '@inertiajs/react';
-import { AddIcon, PowerIcon } from '@solar-icons/react/outline';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { ActivityMark } from '@/components/common/activity-mark';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import { TableActionButton } from '@/components/common/table-action-button';
+import { EmptyState } from '@/components/feedback/empty-state';
 import { FieldError } from '@/components/forms/field-error';
+import { AddIcon, MapPointIcon, PowerIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { contextualUrl } from '@/lib/entity-context';
 import { cn } from '@/lib/utils';
 import type { Auth, Neighborhood, Pagination } from '@/types';
@@ -72,78 +81,95 @@ export default function Neighborhoods({
                     description="Mantenha a área territorial usada nos cadastros e relatórios."
                 />
                 <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-                    <Card className="gap-0 py-0">
-                        <div className="divide-y">
-                            {neighborhoods.data.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="flex items-center justify-between gap-4 p-4"
-                                >
-                                    <div className="min-w-0">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <h2 className="font-medium">
-                                                {item.nome}
-                                            </h2>
-                                            <Badge
-                                                variant={
-                                                    item.ativo
-                                                        ? 'default'
-                                                        : 'secondary'
-                                                }
-                                            >
-                                                {item.ativo
-                                                    ? 'Ativo'
-                                                    : 'Inativo'}
-                                            </Badge>
-                                        </div>
-                                        <p className="text-sm text-muted-foreground">
-                                            {item.municipio}/{item.estado}
-                                        </p>
-                                    </div>
-                                    {canManage && (
-                                        <div className="ml-auto flex justify-end gap-2">
-                                            <TableActionButton
-                                                label={`${item.ativo ? 'Desativar' : 'Ativar'} ${item.nome}`}
-                                                variant={
-                                                    item.ativo
-                                                        ? 'destructive'
-                                                        : 'outline'
-                                                }
-                                                onClick={() =>
-                                                    router.put(
-                                                        tenantUrl(
-                                                            `/bairros/${item.id}`,
-                                                        ),
-                                                        {
-                                                            ...item,
-                                                            ativo: !item.ativo,
-                                                        },
-                                                        {
-                                                            preserveScroll: true,
-                                                        },
-                                                    )
-                                                }
-                                            >
-                                                <PowerIcon aria-hidden="true" />
-                                            </TableActionButton>
-                                            <DeleteRecordButton
-                                                url={tenantUrl(
-                                                    `/bairros/${item.id}`,
+                    <Card className="gap-0 overflow-hidden py-0">
+                        {neighborhoods.data.length === 0 ? (
+                            <EmptyState
+                                icon={MapPointIcon}
+                                title="Nenhum bairro cadastrado"
+                                description="Cadastre o primeiro bairro ou traga uma referência já mantida pela entidade."
+                            />
+                        ) : (
+                            <>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-10">
+                                                <span className="sr-only">
+                                                    Situação
+                                                </span>
+                                            </TableHead>
+                                            <TableHead>Nome</TableHead>
+                                            <TableHead>Município/UF</TableHead>
+                                            {canManage && (
+                                                <TableHead className="text-right">
+                                                    Ações
+                                                </TableHead>
+                                            )}
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {neighborhoods.data.map((item) => (
+                                            <TableRow key={item.id}>
+                                                <TableCell className="w-10">
+                                                    <ActivityMark
+                                                        active={item.ativo}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    {item.nome}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {item.municipio}/
+                                                    {item.estado}
+                                                </TableCell>
+                                                {canManage && (
+                                                    <TableCell>
+                                                        <div className="flex justify-end gap-2">
+                                                            <TableActionButton
+                                                                label={`${item.ativo ? 'Desativar' : 'Ativar'} ${item.nome}`}
+                                                                variant={
+                                                                    item.ativo
+                                                                        ? 'destructive'
+                                                                        : 'outline'
+                                                                }
+                                                                onClick={() =>
+                                                                    router.put(
+                                                                        tenantUrl(
+                                                                            `/bairros/${item.id}`,
+                                                                        ),
+                                                                        {
+                                                                            ...item,
+                                                                            ativo: !item.ativo,
+                                                                        },
+                                                                        {
+                                                                            preserveScroll: true,
+                                                                        },
+                                                                    )
+                                                                }
+                                                            >
+                                                                <PowerIcon aria-hidden="true" />
+                                                            </TableActionButton>
+                                                            <DeleteRecordButton
+                                                                url={tenantUrl(
+                                                                    `/bairros/${item.id}`,
+                                                                )}
+                                                                label={`Excluir ${item.nome}`}
+                                                                title="Excluir bairro?"
+                                                                description="O registro deixará de aparecer nos novos cadastros. Os vínculos históricos serão preservados."
+                                                            />
+                                                        </div>
+                                                    </TableCell>
                                                 )}
-                                                label={`Excluir ${item.nome}`}
-                                                title="Excluir bairro?"
-                                                description="O registro deixará de aparecer nos novos cadastros. Os vínculos históricos serão preservados."
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                        <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-                            Exibindo {neighborhoods.from}–{neighborhoods.to} de{' '}
-                            {neighborhoods.total} bairro(s)
-                        </div>
-                        <PaginationLinks links={neighborhoods.links} />
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                <PaginationLinks
+                                    pagination={neighborhoods}
+                                    label="bairro(s)"
+                                />
+                            </>
+                        )}
                     </Card>
                     {canManage && (
                         <div className="space-y-6">

@@ -1,7 +1,7 @@
 import { Form } from '@inertiajs/react';
-import { ShieldCheckIcon } from '@solar-icons/react/outline';
 import { useEffect, useRef, useState } from 'react';
 import Heading from '@/components/heading';
+import { ShieldCheckIcon } from '@/components/icons';
 import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes';
 import TwoFactorSetupModal from '@/components/two-factor-setup-modal';
 import { Button } from '@/components/ui/button';

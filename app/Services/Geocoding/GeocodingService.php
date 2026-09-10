@@ -16,22 +16,48 @@ class GeocodingService
         ?string $neighborhood,
         string $city,
         string $state,
+        ?string $postalCode = null,
     ): array {
         $street = $this->normalize($street);
         $number = $number ? $this->normalize($number) : null;
         $neighborhood = $neighborhood ? $this->normalize($neighborhood) : null;
         $city = $this->normalize($city);
         $state = mb_strtoupper($this->normalize($state));
+        $postalCode = $postalCode ? preg_replace('/\D+/', '', $postalCode) : null;
+        $postalCode = $postalCode !== null && strlen($postalCode) === 8 ? $postalCode : null;
 
+        $numberedStreet = trim(implode(' ', array_filter([$number, $street])));
         $attempts = [
+            // O CEP é o que mais aumenta a chance de o Nominatim cravar o
+            // número no Brasil — sem ele a consulta cai no logradouro inteiro.
+            ...($postalCode !== null && $number !== null ? [[
+                'precision' => 'address',
+                'query' => [
+                    'street' => $numberedStreet,
+                    'postalcode' => $postalCode,
+                    'country' => 'Brasil',
+                ],
+            ]] : []),
             [
                 'precision' => 'address',
                 'query' => [
-                    'street' => trim(implode(' ', array_filter([$number, $street]))),
+                    'street' => $numberedStreet,
                     'city' => $city,
                     'state' => $state,
                 ],
             ],
+            ...($number !== null ? [[
+                'precision' => 'address',
+                'query' => [
+                    'q' => implode(', ', array_filter([
+                        $numberedStreet,
+                        $neighborhood,
+                        $city,
+                        $state,
+                        'Brasil',
+                    ])),
+                ],
+            ]] : []),
             [
                 'precision' => 'street',
                 'query' => [
@@ -61,6 +87,12 @@ class GeocodingService
             ],
         ];
 
+        // Guarda o melhor resultado impreciso enquanto ainda houver tentativa
+        // capaz de cravar o número: o Nominatim responde com o logradouro
+        // inteiro quando não conhece a numeração, e antes disso o serviço
+        // devolvia esse ponto rotulado como "endereço exato".
+        $fallback = [];
+
         foreach ($attempts as $index => $attempt) {
             if ($index > 0) {
                 usleep(((int) config('services.geocoding.minimum_interval_ms', 1100)) * 1000);
@@ -68,12 +100,20 @@ class GeocodingService
 
             $results = $this->searchAttempt($attempt['query'], $attempt['precision']);
 
-            if ($results !== []) {
+            if ($results === []) {
+                continue;
+            }
+
+            if ($results[0]['precision'] === $attempt['precision']) {
                 return $results;
+            }
+
+            if ($fallback === []) {
+                $fallback = $results;
             }
         }
 
-        return [];
+        return $fallback;
     }
 
     /**
@@ -131,7 +171,7 @@ class GeocodingService
                 'label' => (string) ($item['display_name'] ?? implode(', ', $query)),
                 'latitude' => (float) $item['lat'],
                 'longitude' => (float) $item['lon'],
-                'precision' => $precision,
+                'precision' => $this->resolvePrecision($precision, $item),
             ];
         }
 
@@ -140,6 +180,27 @@ class GeocodingService
         }
 
         return $results;
+    }
+
+    /**
+     * A precisão pedida é só a intenção da tentativa. Sem `house_number` na
+     * resposta, o ponto é o logradouro — dizer "endereço" ali faria o mapa
+     * afirmar uma exatidão que o dado não tem.
+     *
+     * @param  'address'|'street'|'municipality'  $intended
+     * @param  array<string, mixed>  $item
+     * @return 'address'|'street'|'municipality'
+     */
+    private function resolvePrecision(string $intended, array $item): string
+    {
+        if ($intended !== 'address') {
+            return $intended;
+        }
+
+        $address = $item['address'] ?? null;
+        $houseNumber = is_array($address) ? ($address['house_number'] ?? null) : null;
+
+        return $houseNumber === null || $houseNumber === '' ? 'street' : 'address';
     }
 
     /**

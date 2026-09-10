@@ -1,5 +1,5 @@
-import { KeyIcon, TrashBinTrashIcon } from '@solar-icons/react/outline';
 import { useState } from 'react';
+import { KeyIcon, TrashBinTrashIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,

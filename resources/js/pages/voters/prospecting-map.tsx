@@ -1,14 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
 import {
-    CloseIcon,
-    MagnifierIcon,
-    MapPointIcon,
-    MaximizeIcon,
-    MinimizeIcon,
-    UserRoundedIcon,
-    UsersGroupRoundedIcon,
-} from '@solar-icons/react/outline';
-import {
     lazy,
     Suspense,
     useCallback,
@@ -17,6 +8,15 @@ import {
     useRef,
     useState,
 } from 'react';
+import {
+    CloseIcon,
+    MagnifierIcon,
+    MapPointIcon,
+    MaximizeIcon,
+    MinimizeIcon,
+    UserRoundedIcon,
+    UsersGroupRoundedIcon,
+} from '@/components/icons';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,9 +39,11 @@ const normalize = (value: string) =>
 export default function ProspectingMap({
     markers,
     summary,
+    officeState,
 }: {
     markers: VoterMapMarker[];
     summary: VoterMapSummary;
+    officeState: string | null;
 }) {
     const tenantUrl = useTenantUrl();
     const [query, setQuery] = useState('');
@@ -124,7 +126,7 @@ export default function ProspectingMap({
             <Head title="Mapa de prospecção" />
             <div
                 ref={mapShellRef}
-                className="relative isolate z-0 h-[calc(100dvh-3.5rem)] min-h-[32rem] overflow-hidden bg-muted"
+                className="relative isolate z-0 h-[calc(100svh-var(--app-shell-height,3.5rem))] overflow-hidden bg-muted"
             >
                 {isHydrated ? (
                     <Suspense
@@ -138,6 +140,7 @@ export default function ProspectingMap({
                             markers={visibleMarkers}
                             selectedId={visibleSelectedId}
                             onSelect={setSelectedId}
+                            state={officeState}
                         />
                     </Suspense>
                 ) : (

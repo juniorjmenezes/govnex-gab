@@ -23,9 +23,9 @@ Aplicação SaaS para organizar demandas recebidas por gabinetes parlamentares. 
 - PHP 8.4.1+ e Laravel 13
 - MariaDB 12 / MySQL compatível
 - Inertia.js 3, React 19 e TypeScript estrito
-- Vite 8, Tailwind CSS 4 e Geist Variable / Geist Mono Variable
+- Vite 8, Tailwind CSS 4 e Inter Tight Variable / DM Mono
 - shadcn/ui com preset oficial `b7D49K45A` (`radix-sera`, base `stone`)
-- React Hook Form, Zod, TanStack Table, Recharts e date-fns
+- React Hook Form, Zod, Recharts e date-fns
 - DomPDF e OpenSpout para exportações PDF e XLSX
 - Pest, Laravel Pint e Larastan/PHPStan
 

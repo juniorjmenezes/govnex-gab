@@ -1,7 +1,7 @@
-import { CalendarIcon } from '@solar-icons/react/outline';
 import { format, isValid, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useEffect, useRef, useState } from 'react';
+import { CalendarIcon } from '@/components/icons';
 import { Calendar } from '@/components/ui/calendar';
 import {
     InputGroup,

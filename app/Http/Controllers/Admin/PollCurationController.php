@@ -12,6 +12,7 @@ use App\Models\PesquisaEleitoral;
 use App\Models\PesquisaFonte;
 use App\Services\Politics\Polls\ResultadoColeta;
 use App\Services\Politics\Polls\ResultResolver;
+use App\Support\PerPage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -78,7 +79,7 @@ class PollCurationController extends Controller
             })
             ->orderByDesc('publicada_em')
             ->orderByDesc('id')
-            ->paginate(20)
+            ->paginate(PerPage::resolve($request, 20))
             ->withQueryString();
 
         $pesquisas = $paginator->getCollection()
@@ -96,6 +97,7 @@ class PollCurationController extends Controller
                 'data' => $pesquisas,
                 'links' => $paginator->linkCollection()->all(),
                 'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
                 'last_page' => $paginator->lastPage(),
                 'total' => $paginator->total(),
                 'from' => $paginator->firstItem(),

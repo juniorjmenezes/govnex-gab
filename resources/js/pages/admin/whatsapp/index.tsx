@@ -1,4 +1,10 @@
 import { Head, router, useForm } from '@inertiajs/react';
+import { useState } from 'react';
+import {
+    TableActionButton,
+    tableButtonOutlineHoverClass,
+} from '@/components/common/table-action-button';
+import { EmptyState } from '@/components/feedback/empty-state';
 import {
     AddIcon,
     BuildingsIcon,
@@ -10,13 +16,7 @@ import {
     SendSquareIcon,
     UnlinkIcon,
     UsersGroupRoundedIcon,
-} from '@solar-icons/react/outline';
-import { useState } from 'react';
-import {
-    TableActionButton,
-    tableButtonOutlineHoverClass,
-} from '@/components/common/table-action-button';
-import { EmptyState } from '@/components/feedback/empty-state';
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';

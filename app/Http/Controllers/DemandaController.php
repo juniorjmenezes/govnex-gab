@@ -30,6 +30,7 @@ use App\Models\Cidadao;
 use App\Models\Demanda;
 use App\Models\DemandaEvento;
 use App\Models\User;
+use App\Support\PerPage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -81,7 +82,7 @@ class DemandaController extends Controller
         ];
         $sort = $sorts[$filters['sort']] ?? 'ultima_atividade_em';
         $direction = $filters['direction'] === 'asc' ? 'asc' : 'desc';
-        $perPage = in_array($filters['per_page'], [15, 30, 50], true) ? $filters['per_page'] : 15;
+        $perPage = PerPage::resolve($request, 15);
 
         $demands = $this->baseQuery()
             ->tap(fn (Builder $query) => $this->applyTab($query, $tab, $user))

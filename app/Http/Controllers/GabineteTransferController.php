@@ -11,6 +11,7 @@ use App\Models\GabineteTransferencia;
 use App\Models\GabineteTransferenciaEvento;
 use App\Models\User;
 use App\Services\Entidades\GabineteTransferService;
+use App\Support\PerPage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -35,7 +36,7 @@ class GabineteTransferController extends Controller
             })
             ->with(['gabinete', 'entidadeOrigem', 'entidadeDestino'])
             ->latest()
-            ->paginate(30)
+            ->paginate(PerPage::resolve($request, 30))
             ->withQueryString()
             ->through(fn (GabineteTransferencia $transfer): array => $this->serializeTransfer($transfer));
 

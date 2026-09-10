@@ -1,7 +1,7 @@
 import { router } from '@inertiajs/react';
-import { TrashBinTrashIcon } from '@solar-icons/react/outline';
 import { useState } from 'react';
 import { TableActionButton } from '@/components/common/table-action-button';
+import { TrashBinTrashIcon } from '@/components/icons';
 import {
     AlertDialog,
     AlertDialogAction,

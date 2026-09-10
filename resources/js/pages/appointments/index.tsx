@@ -1,17 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import {
-    AddIcon,
-    AltArrowLeftIcon,
-    AltArrowRightIcon,
-    CalendarDateIcon,
-    CalendarIcon,
-    ChatRoundDotsIcon,
-    ClockCircleIcon,
-    MapPointIcon,
-    RestartIcon,
-    UsersGroupRoundedIcon,
-} from '@solar-icons/react/outline';
-import {
     addDays,
     addMonths,
     addWeeks,
@@ -38,6 +26,18 @@ import {
     ScrollableDialogHeader,
 } from '@/components/common/scrollable-dialog';
 import { DateTimeFieldPair } from '@/components/forms/date-time-field-pair';
+import {
+    AddIcon,
+    AltArrowLeftIcon,
+    AltArrowRightIcon,
+    CalendarDateIcon,
+    CalendarIcon,
+    ChatRoundDotsIcon,
+    ClockCircleIcon,
+    MapPointIcon,
+    RestartIcon,
+    UsersGroupRoundedIcon,
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';

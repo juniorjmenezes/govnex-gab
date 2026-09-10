@@ -1,5 +1,9 @@
 import { Head, router } from '@inertiajs/react';
-import { HeartIcon as HeartBoldIcon } from '@solar-icons/react/bold';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { PaginationLinks } from '@/components/common/pagination-links';
+import { StatCard } from '@/components/common/stat-card';
+import { EmptyState } from '@/components/feedback/empty-state';
 import {
     Buildings2Icon,
     CalendarMarkIcon,
@@ -8,6 +12,7 @@ import {
     CloseIcon,
     DatabaseIcon,
     HeartIcon,
+    HeartBoldIcon,
     HeartIcon as HeartOutlineIcon,
     InfoCircleIcon,
     MagnifierIcon,
@@ -16,12 +21,7 @@ import {
     SquareArrowRightUpIcon,
     UsersGroupRoundedIcon,
     VerifiedCheckIcon,
-} from '@solar-icons/react/outline';
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
-import { PaginationLinks } from '@/components/common/pagination-links';
-import { StatCard } from '@/components/common/stat-card';
-import { EmptyState } from '@/components/feedback/empty-state';
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { CandidateNewsDialog } from '@/components/politics/candidate-news-dialog';
@@ -41,7 +41,16 @@ import {
 } from '@/components/ui/sheet';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
 import { Switch } from '@/components/ui/switch';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
+import { preservedListParams } from '@/lib/pagination';
 import { cn } from '@/lib/utils';
 import type {
     PoliticalCandidate,
@@ -153,9 +162,7 @@ function CandidateRow({
     onOpenNews: (candidate: PoliticalCandidate) => void;
 }) {
     const tenantUrl = useTenantUrl();
-    // Só o favorito abre o modal, então só ele vira botão; os demais
-    // seguem como div, sem alvo de clique nem parada de foco.
-    const Body = candidate.is_favorite ? 'button' : 'div';
+    const displayName = candidate.nome_urna || candidate.nome;
 
     const toggleFavorite = () => {
         const url = tenantUrl(`/painel-politico/favoritos/${candidate.id}`);
@@ -180,84 +187,82 @@ function CandidateRow({
     };
 
     return (
-        <div className="group flex items-center transition-colors hover:bg-muted/40">
-            <button
-                type="button"
-                onClick={toggleFavorite}
-                disabled={!canFavorite}
-                aria-pressed={candidate.is_favorite}
-                aria-label={
-                    candidate.is_favorite
-                        ? `Remover ${candidate.nome_urna} dos favoritos`
-                        : `Adicionar ${candidate.nome_urna} aos favoritos`
-                }
-                title={
-                    canFavorite
-                        ? undefined
-                        : 'Somente o vereador pode alterar os favoritos'
-                }
-                className={cn(
-                    'shrink-0 py-3 pr-3 pl-5 text-muted-foreground/50 transition-colors hover:text-amber-500 focus-visible:text-amber-500 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
-                    candidate.is_favorite && 'text-amber-500',
-                )}
-            >
-                {candidate.is_favorite ? (
-                    <HeartBoldIcon className="size-4" />
-                ) : (
-                    <HeartOutlineIcon className="size-4" />
-                )}
-            </button>
-            <Body
-                {...(candidate.is_favorite
-                    ? {
-                          type: 'button' as const,
-                          onClick: () => onOpenNews(candidate),
-                          'aria-label': `Ver notícias de ${candidate.nome_urna || candidate.nome}`,
-                      }
-                    : {})}
-                className={cn(
-                    'flex min-w-0 flex-1 items-center gap-3 py-3 pr-5 text-left',
-                    candidate.is_favorite && 'cursor-pointer',
-                )}
-            >
-                <div className="shrink-0">
-                    <OfficeBadge office={candidate.cargo} />
-                </div>
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {candidate.nome_urna || candidate.nome}
-                </span>
-                {candidate.nome_urna &&
-                    candidate.nome_urna !== candidate.nome && (
-                        <span className="hidden shrink-0 truncate text-xs text-muted-foreground sm:inline">
-                            {candidate.nome}
-                        </span>
+        <TableRow>
+            <TableCell className="w-10">
+                <button
+                    type="button"
+                    onClick={toggleFavorite}
+                    disabled={!canFavorite}
+                    aria-pressed={candidate.is_favorite}
+                    aria-label={
+                        candidate.is_favorite
+                            ? `Remover ${displayName} dos favoritos`
+                            : `Adicionar ${displayName} aos favoritos`
+                    }
+                    title={
+                        canFavorite
+                            ? undefined
+                            : 'Somente o vereador pode alterar os favoritos'
+                    }
+                    className={cn(
+                        'flex text-muted-foreground/50 transition-colors hover:text-amber-500 focus-visible:text-amber-500 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+                        candidate.is_favorite && 'text-amber-500',
                     )}
-                <div className="hidden shrink-0 sm:block">
-                    {candidate.partido_sigla ? (
-                        <PartyBadge
-                            party={candidate.partido_sigla}
-                            color={candidate.party_color}
-                        />
+                >
+                    {candidate.is_favorite ? (
+                        <HeartBoldIcon className="size-4" />
                     ) : (
-                        <span className="text-xs whitespace-nowrap text-muted-foreground">
-                            Sem partido
-                        </span>
+                        <HeartOutlineIcon className="size-4" />
                     )}
-                </div>
-                {candidate.numero && (
-                    <span className="shrink-0 font-heading text-sm font-semibold tabular-nums">
-                        {candidate.numero}
+                </button>
+            </TableCell>
+            <TableCell>
+                {/* Só o favorito tem notícias coletadas, então só ele abre o
+                    modal; os demais ficam como texto, sem parada de foco. */}
+                {candidate.is_favorite ? (
+                    <button
+                        type="button"
+                        onClick={() => onOpenNews(candidate)}
+                        aria-label={`Ver notícias de ${displayName}`}
+                        className="text-left hover:underline"
+                    >
+                        {displayName}
+                    </button>
+                ) : (
+                    displayName
+                )}
+            </TableCell>
+            <TableCell className="font-mono tabular-nums">
+                {candidate.numero ?? '—'}
+            </TableCell>
+            <TableCell>
+                {candidate.partido_sigla ? (
+                    <PartyBadge
+                        party={candidate.partido_sigla}
+                        color={candidate.party_color}
+                    />
+                ) : (
+                    <span className="whitespace-nowrap text-muted-foreground">
+                        Sem partido
                     </span>
                 )}
-                {displaySituacao(candidate.situacao) && (
-                    <div className="hidden shrink-0 sm:block">
-                        <Badge variant="outline">
-                            {displaySituacao(candidate.situacao)}
-                        </Badge>
-                    </div>
+            </TableCell>
+            <TableCell>
+                <OfficeBadge office={candidate.cargo} />
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+                {candidate.nome}
+            </TableCell>
+            <TableCell>
+                {displaySituacao(candidate.situacao) ? (
+                    <Badge variant="outline">
+                        {displaySituacao(candidate.situacao)}
+                    </Badge>
+                ) : (
+                    <span className="text-muted-foreground">—</span>
                 )}
-            </Body>
-        </div>
+            </TableCell>
+        </TableRow>
     );
 }
 
@@ -869,6 +874,7 @@ export default function PoliticalPanel({
                 ...(office && { cargo: office }),
                 ...(party && { partido: party }),
                 ...(favoritesOnly && { favoritos: true }),
+                ...preservedListParams(),
                 ...values,
             },
             { preserveState: true, preserveScroll: true, replace: true },
@@ -1156,21 +1162,37 @@ export default function PoliticalPanel({
                             />
                         ) : (
                             <>
-                                <div className="divide-y">
-                                    {candidates.data.map((candidate) => (
-                                        <CandidateRow
-                                            key={candidate.id}
-                                            candidate={candidate}
-                                            canFavorite={canFavorite}
-                                            onOpenNews={setNewsCandidate}
-                                        />
-                                    ))}
-                                </div>
-                                <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-                                    Exibindo {candidates.from}–{candidates.to}{' '}
-                                    de {candidates.total} candidato(s)
-                                </div>
-                                <PaginationLinks links={candidates.links} />
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-10">
+                                                <span className="sr-only">
+                                                    Favorito
+                                                </span>
+                                            </TableHead>
+                                            <TableHead>Nome de urna</TableHead>
+                                            <TableHead>Número</TableHead>
+                                            <TableHead>Partido</TableHead>
+                                            <TableHead>Cargo</TableHead>
+                                            <TableHead>Nome completo</TableHead>
+                                            <TableHead>Situação</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {candidates.data.map((candidate) => (
+                                            <CandidateRow
+                                                key={candidate.id}
+                                                candidate={candidate}
+                                                canFavorite={canFavorite}
+                                                onOpenNews={setNewsCandidate}
+                                            />
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                <PaginationLinks
+                                    pagination={candidates}
+                                    label="candidato(s)"
+                                />
                             </>
                         )}
                     </Surface>

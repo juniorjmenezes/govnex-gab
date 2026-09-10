@@ -1,18 +1,4 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import {
-    AddIcon,
-    CalendarIcon,
-    CalendarMarkIcon,
-    CheckCircleIcon,
-    ClipboardListIcon,
-    ClockCircleIcon,
-    DangerTriangleIcon,
-    GraphUpIcon,
-    HistoryIcon,
-    InboxIcon,
-    PieChartIcon,
-    UsersGroupRoundedIcon,
-} from '@solar-icons/react/outline';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -32,6 +18,20 @@ import { StatCard } from '@/components/common/stat-card';
 import { PriorityBadge } from '@/components/demands/priority-badge';
 import { StatusBadge } from '@/components/demands/status-badge';
 import { EmptyState } from '@/components/feedback/empty-state';
+import {
+    AddIcon,
+    CalendarIcon,
+    CalendarMarkIcon,
+    CheckCircleIcon,
+    ClipboardListIcon,
+    ClockCircleIcon,
+    DangerTriangleIcon,
+    GraphUpIcon,
+    HistoryIcon,
+    InboxIcon,
+    PieChartIcon,
+    UsersGroupRoundedIcon,
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
