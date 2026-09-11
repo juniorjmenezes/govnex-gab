@@ -74,109 +74,98 @@ export function syncStatusDetail(sync: PoliticalDataSync): string {
     }
 }
 
-export type SyncTask = 'pollingdata_polls';
+export type ElectionType = 'municipal' | 'geral';
 
-export type SyncOption = {
-    value: SyncTask;
+export type ElectionOption = {
+    year: number;
+    type: ElectionType;
     label: string;
-    description: string;
 };
 
-export const pollingDataSyncOptions: SyncOption[] = [
-    {
-        value: 'pollingdata_polls',
-        label: 'Pesquisas de Presidente (PollingData)',
-        description:
-            'Importa pesquisas nacionais de intenção de voto para presidente. Não cobre governador, Senado ou prefeito.',
-    },
-];
-
-export const syncOptions: SyncOption[] = pollingDataSyncOptions;
-
-export type ManualUploadDataset =
-    | 'municipalities'
-    | 'candidates'
-    | 'turnout'
-    | 'candidate_votes'
-    | 'polling_locations'
-    | 'section_votes'
-    | 'poll_registry';
-
-export type ManualUploadOption = {
-    value: ManualUploadDataset;
-    requiresYear: boolean;
-    requiresUf: boolean;
+export type GovnexDatasetOption = {
+    value: PoliticalDataSync['dataset'];
     description: string;
+    /**
+     * Eleição a que o dataset se aplica: `null` para a base permanente (sem
+     * ano), `any` para qualquer eleição cadastrada.
+     */
+    election: ElectionType | 'any' | null;
 };
 
-export const manualUploadDatasetOptions: ManualUploadOption[] = [
+/**
+ * Datasets do TSE na ordem em que dependem uns dos outros: a base de
+ * municípios vincula tudo, as candidaturas resolvem o titular de cada
+ * gabinete e a votação por seção só grava os votos desse titular.
+ */
+export const govnexDatasetGroups: {
+    title: string;
+    options: GovnexDatasetOption[];
+}[] = [
     {
-        value: 'municipalities',
-        requiresYear: false,
-        requiresUf: false,
-        description:
-            'Base permanente da relação TSE/IBGE; importe uma vez e somente atualize quando o TSE publicar uma nova versão.',
+        title: 'Base permanente',
+        options: [
+            {
+                value: 'municipalities',
+                election: null,
+                description:
+                    'Correspondência entre os códigos de município do TSE e do IBGE. Vincula cada gabinete ao seu município eleitoral — sincronize primeiro.',
+            },
+        ],
     },
     {
-        value: 'candidates',
-        requiresYear: true,
-        requiresUf: false,
-        description:
-            'Candidaturas da eleição selecionada. Aceita qualquer eleição já cadastrada (2024 ou 2026).',
+        title: 'Eleitorado e candidaturas',
+        options: [
+            {
+                value: 'electorate',
+                election: 'any',
+                description:
+                    'Perfil do eleitorado por município. Publicado um dataset por UF; entram as UFs já disponíveis na GOVNEX API.',
+            },
+            {
+                value: 'candidates',
+                election: 'any',
+                description:
+                    'Candidaturas do Brasil inteiro. Resolve o titular de cada gabinete.',
+            },
+        ],
     },
     {
-        value: 'turnout',
-        requiresYear: true,
-        requiresUf: false,
-        description:
-            'Comparecimento e abstenção por município e zona. Aceita qualquer eleição cadastrada (2024 ou 2026); só existe a partir do dia da votação.',
+        title: 'Resultados',
+        options: [
+            {
+                value: 'turnout',
+                election: 'any',
+                description:
+                    'Comparecimento e abstenção por município. Só existe a partir do dia da votação.',
+            },
+            {
+                value: 'candidate_votes',
+                election: 'municipal',
+                description:
+                    'Votos nominais de cada candidato a vereador por município.',
+            },
+            {
+                value: 'polling_locations',
+                election: 'municipal',
+                description: 'Endereços e seções dos locais de votação.',
+            },
+            {
+                value: 'section_votes',
+                election: 'municipal',
+                description:
+                    'Votos do titular em cada seção, para o mapa eleitoral. Um dataset por UF; entram as UFs com gabinete e titular resolvido.',
+            },
+        ],
     },
     {
-        value: 'candidate_votes',
-        requiresYear: true,
-        requiresUf: false,
-        description:
-            'Votação nominal por município e zona. Somente eleição municipal — hoje, 2024. Não se aplica a 2026.',
-    },
-    {
-        value: 'polling_locations',
-        requiresYear: true,
-        requiresUf: false,
-        description:
-            'Endereços dos locais de votação. O ZIP de 2024 contém um único CSV nacional. Somente eleição municipal — hoje, 2024.',
-    },
-    {
-        value: 'section_votes',
-        requiresYear: true,
-        requiresUf: true,
-        description:
-            'Um ZIP separado por UF. Só aparecem UFs com gabinete ativo, município vinculado e titular localizado no TSE. Somente eleição municipal — hoje, 2024.',
-    },
-    {
-        value: 'poll_registry',
-        requiresYear: true,
-        requiresUf: false,
-        description:
-            'Registro oficial das pesquisas eleitorais. Somente eleição geral — hoje, 2026. Não se aplica a 2024.',
+        title: 'Pesquisas',
+        options: [
+            {
+                value: 'poll_registry',
+                election: 'geral',
+                description:
+                    'Número de registro oficial das pesquisas já sincronizadas. Não cria pesquisas nem resultados.',
+            },
+        ],
     },
 ];
-
-export function resolveTseSourceUrl(
-    template: string | undefined,
-    year: string,
-    uf: string,
-): string | null {
-    if (!template) {
-        return null;
-    }
-
-    if (template.includes('{year}') && !/^\d{4}$/.test(year)) {
-        return null;
-    }
-
-    if (template.includes('{uf}') && !/^[A-Z]{2}$/.test(uf)) {
-        return null;
-    }
-
-    return template.replaceAll('{year}', year).replaceAll('{uf}', uf);
-}

@@ -8,12 +8,15 @@ use App\Services\Modules\GabineteModuleManager;
 use App\Services\Politics\TsePoliticalDataSyncService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
 
-class ProcessUploadedTseDataset implements ShouldQueue
+/**
+ * Sincroniza um dataset do TSE pela GOVNEX API. Qual dataset roda vem da
+ * própria `SincronizacaoTse` (ver TsePoliticalDataSyncService::DATASETS).
+ */
+class SyncDatasetFromGovnexApi implements ShouldQueue
 {
     use Queueable;
 
@@ -23,8 +26,6 @@ class ProcessUploadedTseDataset implements ShouldQueue
 
     public function __construct(
         public readonly int $runId,
-        public readonly string $archivePath,
-        public readonly ?string $uf = null,
     ) {
         $this->onConnection((string) config('services.tse.queue_connection', 'database'));
         $this->onQueue('tse');
@@ -44,8 +45,6 @@ class ProcessUploadedTseDataset implements ShouldQueue
         $run = SincronizacaoTse::query()->find($this->runId);
 
         if (! $run || in_array($run->situacao, ['concluida', 'cancelada'], true)) {
-            File::delete($this->archivePath);
-
             return;
         }
 
@@ -57,16 +56,11 @@ class ProcessUploadedTseDataset implements ShouldQueue
                 'erro' => 'O módulo Inteligência política foi desativado antes do processamento.',
                 'concluida_em' => now(),
             ]);
-            File::delete($this->archivePath);
 
             return;
         }
 
-        // syncUploadedDataset() já é dono do próprio try/catch/finally
-        // (situacao, checksum, limpeza do arquivo) — não duplicamos nada
-        // aqui, só deixamos a exceção propagar pro failed() abaixo cobrir
-        // o caso do job falhar fora desse try/catch (ex.: erro fatal).
-        $service->syncUploadedDataset($run, $this->archivePath, $this->uf);
+        $service->syncFromGovnexApi($run);
     }
 
     public function failed(?Throwable $exception): void
@@ -77,15 +71,13 @@ class ProcessUploadedTseDataset implements ShouldQueue
             ->update([
                 'situacao' => 'falhou',
                 'erro' => Str::limit(
-                    $exception?->getMessage() ?? 'Falha inesperada ao processar o dataset enviado.',
+                    $exception?->getMessage() ?? 'Falha inesperada ao sincronizar o dataset pela GOVNEX API.',
                     10000,
                 ),
                 'concluida_em' => now(),
             ]);
 
-        File::delete($this->archivePath);
-
-        Log::warning('Falha ao processar dataset do TSE enviado manualmente.', [
+        Log::warning('Falha ao sincronizar um dataset pela GOVNEX API.', [
             'sincronizacao_tse_id' => $this->runId,
             'exception' => $exception,
         ]);

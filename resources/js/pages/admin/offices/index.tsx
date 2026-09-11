@@ -6,24 +6,21 @@ import {
     OfficeModuleSelector,
     toggleOfficeModule,
 } from '@/components/admin/office-module-selector';
-import { SyncStatusDot, SyncStatusRow } from '@/components/admin/sync-progress';
+import { SyncStatusDot } from '@/components/admin/sync-progress';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import { TableActionButton } from '@/components/common/table-action-button';
-import { AttachmentField } from '@/components/forms/attachment-field';
 import {
     AddIcon,
     BuildingsIcon,
     CheckCircleIcon,
     CloseCircleIcon,
     CloseIcon,
-    DangerTriangleIcon,
     EyeIcon,
     MagnifierIcon,
     PenIcon,
     PowerIcon,
     RefreshIcon,
     SettingsIcon,
-    SquareArrowRightUpIcon,
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
@@ -39,24 +36,19 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
 import { preservedListParams } from '@/lib/pagination';
 import {
     datasetLabels,
-    manualUploadDatasetOptions,
-    resolveTseSourceUrl,
     syncStatusDetail,
     syncStatusLabels,
 } from '@/lib/political-sync';
-import type { ManualUploadDataset } from '@/lib/political-sync';
 import { cn } from '@/lib/utils';
 import type {
     AdminOffice,
     GabineteModuleCode,
     GabineteModuleDefinition,
     OfficePagination,
-    PoliticalDataSync,
 } from '@/types';
 
 type Option = { value: string; label: string };
@@ -65,11 +57,6 @@ type Props = {
     offices: OfficePagination;
     filters: Filters;
     statuses: Option[];
-    globalSyncs: PoliticalDataSync[];
-    politicsAvailable: boolean;
-    manualTseUploadMaxMegabytes: number;
-    manualTseSourceTemplates: Record<ManualUploadDataset, string>;
-    availableUfs: string[];
     moduleCatalog: GabineteModuleDefinition[];
 };
 
@@ -77,11 +64,6 @@ export default function Offices({
     offices,
     filters,
     statuses,
-    globalSyncs,
-    politicsAvailable,
-    manualTseUploadMaxMegabytes,
-    manualTseSourceTemplates,
-    availableUfs,
     moduleCatalog,
 }: Props) {
     const [statusTarget, setStatusTarget] = useState<AdminOffice | null>(null);
@@ -125,15 +107,11 @@ export default function Offices({
     // Enquanto houver algum processamento pendente, atualiza os dados para que o
     // status visível nesta lista reflita o progresso real sem precisar de
     // um F5 manual.
-    const hasActiveSyncs =
-        offices.data.some((office) =>
-            office.political_syncs.some((sync) =>
-                ['pendente', 'processando'].includes(sync.status),
-            ),
-        ) ||
-        globalSyncs.some((sync) =>
+    const hasActiveSyncs = offices.data.some((office) =>
+        office.political_syncs.some((sync) =>
             ['pendente', 'processando'].includes(sync.status),
-        );
+        ),
+    );
 
     useEffect(() => {
         if (!hasActiveSyncs) {
@@ -141,7 +119,7 @@ export default function Offices({
         }
 
         const { stop } = router.poll(4000, {
-            only: ['offices', 'globalSyncs'],
+            only: ['offices'],
         });
 
         return stop;
@@ -227,18 +205,6 @@ export default function Offices({
                         </div>
                     }
                 />
-
-                {politicsAvailable && (
-                    <>
-                        <ElectorateGovnexApiCard syncs={globalSyncs} />
-                        <ManualTseUploadCard
-                            syncs={globalSyncs}
-                            maxMegabytes={manualTseUploadMaxMegabytes}
-                            sourceTemplates={manualTseSourceTemplates}
-                            availableUfs={availableUfs}
-                        />
-                    </>
-                )}
 
                 <form
                     onSubmit={(event) => event.preventDefault()}
@@ -850,11 +816,9 @@ function OfficeDetailsDialog({
                 <DialogFooter>
                     {office?.modules.includes('POLITICA') && (
                         <Button variant="outline" asChild>
-                            <Link
-                                href={`/admin/gabinetes/${office.id}/sincronizacoes-tse`}
-                            >
+                            <Link href="/admin/sincronizacao-politica">
                                 <RefreshIcon aria-hidden="true" />
-                                Sincronizações políticas
+                                Sincronização política
                             </Link>
                         </Button>
                     )}
@@ -884,474 +848,6 @@ function OfficeDetail({
                 <dd className="text-xs text-muted-foreground">{secondary}</dd>
             )}
         </div>
-    );
-}
-
-/**
- * Eleitorado deixou de ser um upload manual/download automático do TSE —
- * vem direto da GOVNEX API (um dataset "Perfil eleitorado" por UF, ver
- * TsePoliticalDataSyncService::importElectorate()). Este card é o único
- * ponto de disparo dele na tela, por isso fica fora de ManualTseUploadCard
- * (que agora só lida com datasets baseados em arquivo).
- */
-function ElectorateGovnexApiCard({ syncs }: { syncs: PoliticalDataSync[] }) {
-    const currentYear = new Date().getFullYear();
-    const [year, setYear] = useState(String(currentYear));
-    const [submitting, setSubmitting] = useState(false);
-    const [cancellingId, setCancellingId] = useState<number | null>(null);
-    const [error, setError] = useState('');
-
-    const latestSync = syncs.find(
-        (sync) => sync.dataset === 'electorate' && sync.year === Number(year),
-    );
-    const activeSync =
-        latestSync?.status === 'pendente' ||
-        latestSync?.status === 'processando';
-
-    const submit = () => {
-        if (!/^\d{4}$/.test(year)) {
-            setError('Informe um ano válido antes de sincronizar.');
-
-            return;
-        }
-
-        setError('');
-        setSubmitting(true);
-        router.post(
-            '/admin/sincronizacoes-tse-globais/eleitorado/govnex-api',
-            { ano: year },
-            {
-                preserveScroll: true,
-                onError: (errors) =>
-                    setError(
-                        Object.values(errors)[0] ??
-                            'Não foi possível iniciar a sincronização.',
-                    ),
-                onFinish: () => setSubmitting(false),
-            },
-        );
-    };
-
-    const cancelSync = (syncId: number) => {
-        setCancellingId(syncId);
-        router.post(
-            `/admin/sincronizacoes-tse-globais/${syncId}/cancelar`,
-            {},
-            { preserveScroll: true, onFinish: () => setCancellingId(null) },
-        );
-    };
-
-    return (
-        <Surface as="section" className="overflow-hidden">
-            <div className="border-b p-4">
-                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                    Eleitorado — GOVNEX API
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                    Perfil do eleitorado do ano selecionado, consultado
-                    diretamente na GOVNEX API (um dataset por UF já publicado
-                    lá). Não precisa de upload nem de baixar nada do TSE.
-                </p>
-            </div>
-            <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end sm:justify-between">
-                <div className="w-24">
-                    <Label className="mb-1 block text-muted-foreground">
-                        Ano
-                    </Label>
-                    <Input
-                        value={year}
-                        onChange={(event) => setYear(event.target.value)}
-                        inputMode="numeric"
-                        maxLength={4}
-                    />
-                </div>
-                <Button
-                    type="button"
-                    variant="outline"
-                    className="shrink-0"
-                    disabled={submitting || activeSync}
-                    onClick={submit}
-                >
-                    <RefreshIcon
-                        className={submitting ? 'animate-spin' : ''}
-                        aria-hidden="true"
-                    />
-                    {submitting
-                        ? 'Adicionando à fila…'
-                        : 'Sincronizar via GOVNEX API'}
-                </Button>
-            </div>
-            {error && (
-                <p className="px-4 pb-4 text-xs text-destructive">{error}</p>
-            )}
-            {latestSync && (
-                <div className="space-y-2 border-t p-4">
-                    <SyncStatusRow sync={latestSync} />
-                    {activeSync && (
-                        <div className="flex justify-end">
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={cancellingId === latestSync.id}
-                                onClick={() => cancelSync(latestSync.id)}
-                            >
-                                <CloseIcon aria-hidden="true" />
-                                {cancellingId === latestSync.id
-                                    ? 'Cancelando…'
-                                    : 'Travou? Cancelar'}
-                            </Button>
-                        </div>
-                    )}
-                </div>
-            )}
-        </Surface>
-    );
-}
-
-function ManualTseUploadCard({
-    syncs,
-    maxMegabytes,
-    sourceTemplates,
-    availableUfs,
-}: {
-    syncs: PoliticalDataSync[];
-    maxMegabytes: number;
-    sourceTemplates: Record<ManualUploadDataset, string>;
-    availableUfs: string[];
-}) {
-    const currentYear = new Date().getFullYear();
-    const [dataset, setDataset] = useState<ManualUploadDataset>(
-        manualUploadDatasetOptions[0].value,
-    );
-    const [year, setYear] = useState(String(currentYear));
-    // Quando existe uma única UF pronta para votação por seção, ela já vem
-    // selecionada e o campo fica travado — nada para o admin digitar.
-    const [uf, setUf] = useState(() =>
-        availableUfs.length === 1 ? availableUfs[0] : '',
-    );
-    const [files, setFiles] = useState<File[]>([]);
-    const [progress, setProgress] = useState<number | null>(null);
-    const [automaticSubmitting, setAutomaticSubmitting] = useState(false);
-    const [cancellingId, setCancellingId] = useState<number | null>(null);
-    const [error, setError] = useState('');
-    const file = files[0] ?? null;
-
-    const option = manualUploadDatasetOptions.find(
-        (item) => item.value === dataset,
-    );
-    const uploading = progress !== null;
-    const latestSync = syncs.find(
-        (sync) =>
-            sync.dataset === dataset &&
-            (!option?.requiresYear || sync.year === Number(year)) &&
-            (!option?.requiresUf || sync.uf === uf),
-    );
-    const activeSync =
-        latestSync?.status === 'pendente' ||
-        latestSync?.status === 'processando';
-    const officialUrl = resolveTseSourceUrl(sourceTemplates[dataset], year, uf);
-
-    const submit = () => {
-        if (file === null) {
-            setError('Selecione o arquivo ZIP antes de enviar.');
-
-            return;
-        }
-
-        setError('');
-        const data = new FormData();
-        data.append('dataset', dataset);
-
-        if (option?.requiresYear) {
-            data.append('ano', year);
-        }
-
-        if (option?.requiresUf) {
-            data.append('uf', uf.toUpperCase());
-        }
-
-        data.append('arquivo', file);
-
-        setProgress(0);
-        router.post('/admin/sincronizacoes-tse-globais/upload', data, {
-            forceFormData: true,
-            preserveScroll: true,
-            onProgress: (event) => setProgress(event?.percentage ?? 0),
-            onError: (errors) => {
-                setError(
-                    Object.values(errors)[0] ??
-                        'Não foi possível enviar o arquivo.',
-                );
-                setProgress(null);
-            },
-            onSuccess: () => {
-                setFiles([]);
-                setProgress(null);
-            },
-            onFinish: () => setProgress(null),
-        });
-    };
-
-    const triggerAutomaticFallback = () => {
-        if (option?.requiresYear && !/^\d{4}$/.test(year)) {
-            setError(
-                'Informe um ano válido antes de tentar o download automático.',
-            );
-
-            return;
-        }
-
-        if (option?.requiresUf && !/^[A-Z]{2}$/.test(uf)) {
-            setError('Selecione a UF antes de tentar o download automático.');
-
-            return;
-        }
-
-        setError('');
-        setAutomaticSubmitting(true);
-        router.post(
-            '/admin/sincronizacoes-tse-globais/fallback-automatico',
-            {
-                dataset,
-                ...(option?.requiresYear ? { ano: year } : {}),
-                ...(option?.requiresUf ? { uf } : {}),
-            },
-            {
-                preserveScroll: true,
-                onError: (errors) =>
-                    setError(
-                        Object.values(errors)[0] ??
-                            'Não foi possível iniciar o fallback automático.',
-                    ),
-                onFinish: () => setAutomaticSubmitting(false),
-            },
-        );
-    };
-
-    const cancelSync = (syncId: number) => {
-        setCancellingId(syncId);
-        router.post(
-            `/admin/sincronizacoes-tse-globais/${syncId}/cancelar`,
-            {},
-            { preserveScroll: true, onFinish: () => setCancellingId(null) },
-        );
-    };
-
-    return (
-        <>
-            <Surface as="section" className="overflow-hidden">
-                <div className="border-b p-4">
-                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                        Importação manual de dados do TSE
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        Escolha o conjunto, informe o ano somente quando ele
-                        fizer parte da publicação, baixe o ZIP no link oficial e
-                        envie o arquivo abaixo. Este é o fluxo recomendado.
-                    </p>
-                </div>
-                <div className="flex flex-col gap-3 border-b bg-muted/30 p-4">
-                    <div className="min-w-0">
-                        <p className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                            {option?.requiresYear
-                                ? 'Dados por ano ou eleição'
-                                : 'Base permanente — sem ano'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                            {option?.description}
-                        </p>
-                        {!officialUrl && (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                                {option?.requiresUf &&
-                                availableUfs.length === 0 ? (
-                                    'Vincule o município e o titular do TSE em um gabinete ativo para liberar a UF.'
-                                ) : (
-                                    <>
-                                        {option?.requiresYear &&
-                                            'Informe um ano válido'}
-                                        {option?.requiresUf &&
-                                            ' e selecione a UF'}{' '}
-                                        para gerar o link oficial.
-                                    </>
-                                )}
-                            </p>
-                        )}
-                    </div>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-                        <div className="flex flex-wrap items-end gap-3">
-                            <div className="w-full sm:w-64">
-                                <Label className="mb-1 block text-muted-foreground">
-                                    Dataset
-                                </Label>
-                                <AppSelect
-                                    value={dataset}
-                                    onValueChange={(value) =>
-                                        setDataset(value as ManualUploadDataset)
-                                    }
-                                    options={manualUploadDatasetOptions.map(
-                                        (item) => ({
-                                            value: item.value,
-                                            label:
-                                                datasetLabels[item.value] ??
-                                                item.value,
-                                        }),
-                                    )}
-                                    aria-label="Dataset do TSE"
-                                />
-                            </div>
-                            {option?.requiresYear && (
-                                <div className="w-24">
-                                    <Label className="mb-1 block text-muted-foreground">
-                                        Ano
-                                    </Label>
-                                    <Input
-                                        value={year}
-                                        onChange={(event) =>
-                                            setYear(event.target.value)
-                                        }
-                                        inputMode="numeric"
-                                        maxLength={4}
-                                    />
-                                </div>
-                            )}
-                            {option?.requiresUf && (
-                                <div className="w-32">
-                                    <Label className="mb-1 block text-muted-foreground">
-                                        UF
-                                    </Label>
-                                    <AppSelect
-                                        value={uf}
-                                        onValueChange={setUf}
-                                        options={availableUfs.map((item) => ({
-                                            value: item,
-                                            label: item,
-                                        }))}
-                                        placeholder={
-                                            availableUfs.length === 0
-                                                ? 'Nenhuma UF cadastrada'
-                                                : 'Selecione'
-                                        }
-                                        disabled={availableUfs.length <= 1}
-                                        clearable={false}
-                                        aria-label="UF"
-                                    />
-                                </div>
-                            )}
-                        </div>
-                        {officialUrl && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full shrink-0 sm:w-auto"
-                                asChild
-                            >
-                                <a
-                                    href={officialUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    Baixar ZIP oficial
-                                    <SquareArrowRightUpIcon aria-hidden="true" />
-                                </a>
-                            </Button>
-                        )}
-                    </div>
-                </div>
-                <div className="flex flex-col gap-3 p-4">
-                    <AttachmentField
-                        title="Arquivo ZIP"
-                        files={files}
-                        onFilesChange={setFiles}
-                        maxFiles={1}
-                        maxSizeMb={maxMegabytes}
-                        accept=".zip"
-                        allowedExtensions={['zip']}
-                        disabled={uploading || activeSync}
-                        dropzoneLabel="Clique ou arraste o ZIP aqui"
-                        selectLabel="Selecionar ZIP"
-                        error={error || undefined}
-                        trailingAction={
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={uploading || activeSync}
-                                onClick={submit}
-                                className="flex-1 rounded-none first:rounded-l-md last:rounded-r-md focus-visible:z-10"
-                            >
-                                {uploading
-                                    ? `Enviando… ${progress ?? 0}%`
-                                    : 'Enviar e processar'}
-                            </Button>
-                        }
-                    />
-                </div>
-                {latestSync && (
-                    <div className="space-y-2 border-t p-4">
-                        <SyncStatusRow sync={latestSync} />
-                        {(latestSync.status === 'pendente' ||
-                            latestSync.status === 'processando') && (
-                            <div className="flex justify-end">
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={cancellingId === latestSync.id}
-                                    onClick={() => cancelSync(latestSync.id)}
-                                >
-                                    <CloseIcon aria-hidden="true" />
-                                    {cancellingId === latestSync.id
-                                        ? 'Cancelando…'
-                                        : 'Travou? Cancelar'}
-                                </Button>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </Surface>
-
-            <Surface as="section" className="overflow-hidden">
-                <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-                    <div className="flex min-w-0 gap-2">
-                        <DangerTriangleIcon
-                            className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400"
-                            aria-hidden="true"
-                        />
-                        <div>
-                            <p className="text-sm font-medium">
-                                Fallback: download automático
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                Use somente se não puder baixar e enviar o ZIP.
-                                O TSE pode bloquear requisições automatizadas
-                                com HTTP 403; nesse caso, volte ao upload manual
-                                acima.
-                            </p>
-                        </div>
-                    </div>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="shrink-0 sm:ml-auto"
-                        disabled={
-                            uploading || automaticSubmitting || activeSync
-                        }
-                        onClick={triggerAutomaticFallback}
-                    >
-                        <RefreshIcon
-                            className={
-                                automaticSubmitting ? 'animate-spin' : ''
-                            }
-                            aria-hidden="true"
-                        />
-                        {automaticSubmitting
-                            ? 'Adicionando à fila…'
-                            : 'Tentar download automático'}
-                    </Button>
-                </div>
-            </Surface>
-        </>
     );
 }
 

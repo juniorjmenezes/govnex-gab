@@ -83,11 +83,8 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (PostTooLargeException $exception, Request $request) {
-            $maximum = max(
-                1,
-                (int) config('services.tse.manual_upload_max_megabytes', 500),
-            );
-            $message = "O arquivo enviado excede o limite de {$maximum} MB para upload pelo navegador.";
+            $maximum = (string) ini_get('post_max_size');
+            $message = "O conteúdo enviado excede o limite de {$maximum} aceito pelo servidor.";
 
             // ValidatePostSize roda no grupo de middlewares globais, antes de
             // o StartSession do grupo "web" sequer começar — não existe

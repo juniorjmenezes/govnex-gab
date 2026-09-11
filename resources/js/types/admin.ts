@@ -114,18 +114,12 @@ export type PoliticalDataSync = {
 
 export type OfficePagination = Pagination<AdminOffice>;
 
-export type SyncTaskDefinition = {
-    dataset: PoliticalDataSync['dataset'];
-    year: number;
-};
-
-export type PoliticalSyncOffice = {
+/** Linha da tabela de PollingData na tela de sincronização política. */
+export type PollingDataOffice = {
     id: number;
     name: string;
-    councilor_name: string;
+    entidade: string | null;
     city: string;
     state: string;
-    municipality_linked: boolean;
-    municipality_tse_code: string | null;
-    electorate_count: number | null;
+    latest_sync: PoliticalDataSync | null;
 };

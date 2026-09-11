@@ -8,7 +8,7 @@ use App\Enums\GabineteStatus;
 use App\Enums\GabineteType;
 use App\Enums\UserRole;
 use App\Jobs\PrepareOfficePoliticalData;
-use App\Jobs\SyncOfficePoliticalDataFromRetainedArchives;
+use App\Jobs\SyncOfficeSectionVotesFromGovnexApi;
 use App\Models\CandidatoPolitico;
 use App\Models\Demanda;
 use App\Models\Eleicao;
@@ -213,8 +213,8 @@ class PlatformAdministrationTest extends TestCase
 
         $office = Gabinete::withoutGlobalScopes()->where('nome', 'Gabinete Cidadão')->firstOrFail();
         Queue::assertPushed(
-            SyncOfficePoliticalDataFromRetainedArchives::class,
-            fn (SyncOfficePoliticalDataFromRetainedArchives $job): bool => $job->officeId === $office->id,
+            SyncOfficeSectionVotesFromGovnexApi::class,
+            fn (SyncOfficeSectionVotesFromGovnexApi $job): bool => $job->officeId === $office->id,
         );
     }
 
@@ -245,29 +245,30 @@ class PlatformAdministrationTest extends TestCase
         $office = Gabinete::factory()->create();
         SincronizacaoTse::query()->create([
             'gabinete_id' => $office->id,
-            'dataset' => 'municipalities',
-            'ano' => now()->year,
-            'fonte_url' => 'https://cdn.tse.jus.br/municipio_tse_ibge/municipio_tse_ibge.zip',
+            'dataset' => 'pollingdata_polls',
+            'ano' => 2026,
+            'fonte_url' => 'https://flex.pollingdata.com.br/',
             'situacao' => 'concluida',
-            'registros_processados' => 1,
+            'registros_processados' => 12,
             'iniciada_em' => now(),
             'concluida_em' => now(),
         ]);
 
         $this->actingAs($admin)
-            ->get(route('admin.offices.political-sync.show', $office))
+            ->get(route('admin.political-sync.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('admin/offices/political-sync')
-                ->where('office.id', $office->id)
-                ->where('office.name', $office->nome)
-                ->has('politicalSyncs', 1)
-                ->where('politicalSyncs.0.dataset', 'municipalities')
-                ->where('politicalSyncs.0.status', 'concluida')
-                ->has('syncTaskDefinitions'));
+                ->component('admin/political-sync/index')
+                ->where('politicsAvailable', true)
+                ->where('pollingData.year', 2026)
+                ->has('pollingData.offices', 1)
+                ->where('pollingData.offices.0.id', $office->id)
+                ->where('pollingData.offices.0.name', $office->nome)
+                ->where('pollingData.offices.0.latest_sync.dataset', 'pollingdata_polls')
+                ->where('pollingData.offices.0.latest_sync.status', 'concluida'));
     }
 
-    public function test_political_sync_page_redirects_when_politics_module_is_disabled(): void
+    public function test_political_sync_page_lists_only_offices_with_politics_active(): void
     {
         $admin = User::factory()->root()->create();
         $office = Gabinete::factory()->create();
@@ -281,12 +282,12 @@ class PlatformAdministrationTest extends TestCase
         );
 
         $this->actingAs($admin)
-            ->get(route('admin.offices.political-sync.show', $office))
-            ->assertRedirect(route('admin.offices.index'))
-            ->assertInertiaFlash('toast', [
-                'type' => 'error',
-                'message' => 'O módulo Inteligência política está desativado para este gabinete.',
-            ]);
+            ->get(route('admin.political-sync.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/political-sync/index')
+                ->where('politicsAvailable', false)
+                ->has('pollingData.offices', 0));
     }
 
     public function test_tenant_user_cannot_view_the_political_sync_page(): void
@@ -295,7 +296,7 @@ class PlatformAdministrationTest extends TestCase
         $tenantUser = User::factory()->forGabinete($office)->councilor()->create();
 
         $this->actingAs($tenantUser)
-            ->get(route('admin.offices.political-sync.show', $office))
+            ->get(route('admin.political-sync.index'))
             ->assertForbidden();
     }
 
@@ -662,7 +663,7 @@ class PlatformAdministrationTest extends TestCase
         Queue::assertNotPushed(PrepareOfficePoliticalData::class);
     }
 
-    public function test_office_index_exposes_global_tse_syncs_not_tied_to_an_office(): void
+    public function test_political_sync_page_exposes_global_tse_syncs_not_tied_to_an_office(): void
     {
         $admin = User::factory()->root()->create();
         SincronizacaoTse::query()->create([
@@ -678,32 +679,31 @@ class PlatformAdministrationTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get(route('admin.offices.index'))
+            ->get(route('admin.political-sync.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('admin/offices/index')
+                ->component('admin/political-sync/index')
                 ->has('globalSyncs', 1)
                 ->where('politicsAvailable', false)
-                ->where('manualTseUploadMaxMegabytes', 1024)
                 ->where('globalSyncs.0.dataset', 'polling_locations')
                 ->where('globalSyncs.0.status', 'falhou'));
     }
 
-    public function test_office_index_exposes_manual_tse_controls_when_politics_is_active(): void
+    public function test_political_sync_page_exposes_the_govnex_api_catalog_when_politics_is_active(): void
     {
         $admin = User::factory()->root()->create();
         Gabinete::factory()->create();
 
         $this->actingAs($admin)
-            ->get(route('admin.offices.index'))
+            ->get(route('admin.political-sync.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('admin/offices/index')
+                ->component('admin/political-sync/index')
                 ->where('politicsAvailable', true)
-                ->where(
-                    'manualTseSourceTemplates.section_votes',
-                    'https://cdn.tse.jus.br/estatistica/sead/odsele/votacao_secao/votacao_secao_{year}_{uf}.zip',
-                ));
+                ->where('datasetSlugPatterns.section_votes', 'votacao-secao-{ano}-{uf}')
+                ->where('datasetSlugPatterns.municipalities', 'municipio-tse-ibge')
+                ->where('elections.0.year', 2026)
+                ->where('elections.0.type', 'geral'));
     }
 
     public function test_responsible_email_must_be_unique(): void
@@ -774,8 +774,8 @@ class PlatformAdministrationTest extends TestCase
 
         $this->assertSame($fortalezaSp->id, $office->fresh()->municipio_eleitoral_id);
         Queue::assertPushed(
-            SyncOfficePoliticalDataFromRetainedArchives::class,
-            fn (SyncOfficePoliticalDataFromRetainedArchives $job): bool => $job->officeId === $office->id,
+            SyncOfficeSectionVotesFromGovnexApi::class,
+            fn (SyncOfficeSectionVotesFromGovnexApi $job): bool => $job->officeId === $office->id,
         );
     }
 

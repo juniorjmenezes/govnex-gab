@@ -109,7 +109,7 @@ class OfficePoliticalDataSyncDispatcher
         }
 
         if ($run->dataset !== 'pollingdata_polls') {
-            throw new RuntimeException('Sincronizações do TSE agora são feitas exclusivamente por upload manual.');
+            throw new RuntimeException('Só o PollingData é reiniciado por gabinete; os dados do TSE são sincronizados pela GOVNEX API.');
         }
 
         if ($run->situacao === 'processando') {

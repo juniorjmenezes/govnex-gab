@@ -53,7 +53,7 @@ class PrepareOfficePoliticalData implements ShouldBeUnique, ShouldQueue
             if ($run->dataset !== 'pollingdata_polls' || $run->gabinete_id === null) {
                 $run->forceFill([
                     'situacao' => 'cancelada',
-                    'erro' => 'O download automático do TSE foi desativado. Use o upload manual do arquivo oficial.',
+                    'erro' => 'Os dados do TSE são sincronizados pela GOVNEX API, na tela de sincronização política.',
                     'concluida_em' => now(),
                 ])->save();
 

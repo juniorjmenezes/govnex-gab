@@ -143,9 +143,9 @@ Não reinicie banco, Traefik ou aplicações vizinhas sem necessidade. Rotas do 
 
 ## 6. Processos contínuos
 
-A produção supervisiona os seis serviços Compose. `worker-default` processa `default`, `worker-tse` processa os uploads manuais do TSE e o PollingData na fila `tse`, `worker-whatsapp` processa somente `whatsapp` e `scheduler` executa `schedule:work`. Não combine esse scheduler com cron HTTP ou outro `schedule:run`.
+A produção supervisiona os seis serviços Compose. `worker-default` processa `default`, `worker-tse` processa as sincronizações do TSE pela GOVNEX API e o PollingData na fila `tse`, `worker-whatsapp` processa somente `whatsapp` e `scheduler` executa `schedule:work`. Não combine esse scheduler com cron HTTP ou outro `schedule:run`.
 
-O TSE não possui download nem agendamento automático. Depois da implantação, valide um upload controlado pelo painel administrativo e confira o worker:
+Os dados do TSE vêm da GOVNEX API, sem agendamento automático. Depois da implantação, dispare uma sincronização controlada em Sincronização política e confira o worker:
 
 ```bash
 scripts/test-gabnex-tse.sh

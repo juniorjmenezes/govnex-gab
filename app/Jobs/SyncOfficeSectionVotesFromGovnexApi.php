@@ -11,13 +11,12 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Reprocessa a votação por seção retida (se houver, pra UF do gabinete)
- * assim que o titular de um gabinete recém-criado ou recém-relinkado é
- * resolvido — sem exigir que o admin reenvie o ZIP de novo manualmente.
- * Os demais datasets do TSE já cobrem o Brasil inteiro independente de
- * gabinete cadastrado, então não precisam desse reprocessamento.
+ * Importa a votação por seção de um gabinete recém-criado ou recém-relinkado
+ * assim que o titular dele é resolvido — ver
+ * TsePoliticalDataSyncService::syncOfficeSectionVotes(). Os demais datasets
+ * do TSE já cobrem o Brasil inteiro independente de gabinete cadastrado.
  */
-class SyncOfficePoliticalDataFromRetainedArchives implements ShouldQueue
+class SyncOfficeSectionVotesFromGovnexApi implements ShouldQueue
 {
     use Queueable;
 
@@ -45,9 +44,9 @@ class SyncOfficePoliticalDataFromRetainedArchives implements ShouldQueue
             return;
         }
 
-        $results = $service->syncOfficeFromRetainedArchives($office);
+        $results = $service->syncOfficeSectionVotes($office);
 
-        Log::info('Dados políticos ressincronizados a partir de arquivos retidos.', [
+        Log::info('Votação por seção do gabinete importada pela GOVNEX API.', [
             'gabinete_id' => $office->id,
             'resultados' => $results,
         ]);

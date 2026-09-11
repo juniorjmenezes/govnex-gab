@@ -25,7 +25,7 @@ class PostTooLargeExceptionHandlingTest extends TestCase
 
         $response = $this->actingAs($admin)->call(
             'POST',
-            '/admin/sincronizacoes-tse-globais/upload',
+            '/admin/sincronizacoes-tse-globais/govnex-api',
             server: [
                 'CONTENT_LENGTH' => 5 * 1024 * 1024 * 1024,
                 'HTTP_X_INERTIA' => 'true',
@@ -35,7 +35,7 @@ class PostTooLargeExceptionHandlingTest extends TestCase
         $response->assertStatus(413);
         $this->assertNull($response->headers->get('X-Inertia'));
         $this->assertStringNotContainsString('application/json', (string) $response->headers->get('Content-Type'));
-        $response->assertSeeText('O arquivo enviado excede o limite de 1024 MB para upload pelo navegador.');
+        $response->assertSeeText('O conteúdo enviado excede o limite de '.ini_get('post_max_size').' aceito pelo servidor.');
     }
 
     public function test_plain_json_api_client_still_gets_a_json_error(): void
@@ -44,7 +44,7 @@ class PostTooLargeExceptionHandlingTest extends TestCase
 
         $response = $this->actingAs($admin)->call(
             'POST',
-            '/admin/sincronizacoes-tse-globais/upload',
+            '/admin/sincronizacoes-tse-globais/govnex-api',
             server: [
                 'CONTENT_LENGTH' => 5 * 1024 * 1024 * 1024,
                 'HTTP_ACCEPT' => 'application/json',

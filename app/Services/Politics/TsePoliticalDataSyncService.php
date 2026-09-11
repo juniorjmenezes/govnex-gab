@@ -21,45 +21,29 @@ use App\Models\VotoSecaoCandidato;
 use App\Services\Geocoding\GeocodingService;
 use App\Services\Modules\GabineteModuleManager;
 use App\Services\Politics\Tse\GovnexApiClient;
+use App\Services\Politics\Tse\GovnexApiDatasetCatalog;
 use App\Services\Politics\Tse\GovnexApiSettings;
-use App\Services\Politics\Tse\TseDatasetArchiveContract;
-use App\Services\Politics\Tse\TseDatasetUrlBuilder;
-use App\Services\Politics\Tse\TseUploadedArchiveValidator;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
-use ZipArchive;
 
 class TsePoliticalDataSyncService
 {
     /**
-     * Datasets oficiais aceitos pelo fluxo manual e pelo fallback automático.
+     * Datasets do TSE que a plataforma sincroniza — todos pela GOVNEX API,
+     * localizados pela convenção de nome de GovnexApiDatasetCatalog.
      *
      * @var list<string>
      */
-    public const UPLOADABLE_DATASETS = [
+    public const DATASETS = [
         'municipalities', 'electorate', 'candidates', 'turnout', 'candidate_votes',
         'polling_locations', 'section_votes', 'poll_registry',
     ];
-
-    /**
-     * Datasets de UPLOADABLE_DATASETS que já não são obtidos por upload
-     * manual nem por download automático do TSE — vêm direto da GOVNEX API
-     * (ver GovnexApiClient e importElectorate()). Continuam em
-     * UPLOADABLE_DATASETS (histórico global, datasetHistoryKey etc.), mas
-     * são excluídos das telas/validações que ainda pedem um arquivo.
-     *
-     * @var list<string>
-     */
-    public const GOVNEX_API_DATASETS = ['electorate'];
 
     /**
      * Bases de referência cuja publicação não é vinculada a um ano eleitoral.
@@ -67,12 +51,6 @@ class TsePoliticalDataSyncService
      * @var list<string>
      */
     public const YEARLESS_DATASETS = ['municipalities'];
-
-    /** @return list<string> UPLOADABLE_DATASETS sem os datasets da GOVNEX_API_DATASETS. */
-    public static function fileBasedDatasets(): array
-    {
-        return array_values(array_diff(self::UPLOADABLE_DATASETS, self::GOVNEX_API_DATASETS));
-    }
 
     public static function datasetRequiresYear(string $dataset): bool
     {
@@ -85,12 +63,12 @@ class TsePoliticalDataSyncService
 
         // Datasets sem UF continuam com uma chave só; datasets por UF (ex.:
         // eleitorado, votação por seção) precisam de uma entrada de
-        // histórico por estado, senão o upload de um estado esconde o do
+        // histórico por estado, senão a sincronização de um estado esconde a do
         // outro no resumo mais recente.
         return $uf !== null && $uf !== '' ? "{$key}:".mb_strtoupper($uf) : $key;
     }
 
-    public function assertDatasetPrerequisites(string $dataset, int $year, ?string $uf = null): void
+    public function assertDatasetPrerequisites(string $dataset, int $year): void
     {
         $requiredElectionType = match ($dataset) {
             'candidate_votes', 'polling_locations', 'section_votes' => ElectionType::Municipal,
@@ -115,14 +93,10 @@ class TsePoliticalDataSyncService
             );
         }
 
-        if ($dataset === 'section_votes') {
-            $normalizedUf = mb_strtoupper((string) $uf);
-
-            if ($normalizedUf === '' || ! in_array($normalizedUf, $this->registeredUfs(), true)) {
-                throw new RuntimeException(
-                    "Nenhum gabinete ativo com o módulo Política possui município e titular do TSE resolvidos na UF {$normalizedUf}.",
-                );
-            }
+        if ($dataset === 'section_votes' && $this->registeredUfs() === []) {
+            throw new RuntimeException(
+                'Nenhum gabinete ativo com o módulo Política tem município e titular do TSE resolvidos — a votação por seção só é importada para os titulares.',
+            );
         }
     }
 
@@ -130,37 +104,73 @@ class TsePoliticalDataSyncService
         private readonly OfficeHolderCandidateResolver $holderResolver,
         private readonly GeocodingService $geocoding,
         private readonly GabineteModuleManager $modules,
-        private readonly TseDatasetUrlBuilder $urlBuilder,
-        private readonly TseDatasetArchiveContract $archiveContract,
-        private readonly TseUploadedArchiveValidator $uploadedArchiveValidator,
         private readonly GovnexApiClient $govnexApi,
     ) {}
 
-    public function importMunicipalities(string $archivePath, ?int $officeId = null): int
+    /**
+     * Base TSE/IBGE: um dataset único, sem recorte por ano nem por UF. É o
+     * pré-requisito de todo o resto — vincula cada gabinete ao seu
+     * município eleitoral e é a referência de plausibilidade do eleitorado.
+     */
+    public function importMunicipalities(?SincronizacaoTse $run = null): int
     {
+        $located = $this->locateDataset('municipalities');
         $rows = [];
+
+        $this->eachGovnexRecord($located, function (array $row) use (&$rows): void {
+            $municipality = $this->municipalityRow($row);
+
+            if ($municipality !== null) {
+                $rows[] = $municipality;
+            }
+        }, $run);
+
+        if ($rows === []) {
+            throw new RuntimeException(
+                "O dataset {$located['slug']} da GOVNEX API não devolveu nenhum município válido.",
+            );
+        }
+
+        return $this->storeMunicipalities($rows);
+    }
+
+    /**
+     * Normaliza uma linha da base de municípios (cabeçalho oficial do TSE,
+     * como publicado na GOVNEX API).
+     *
+     * @param  array<string, string>  $row
+     * @return array<string, mixed>|null
+     */
+    private function municipalityRow(array $row): ?array
+    {
+        $tseCode = $this->value($row, 'CD_MUNICIPIO_TSE');
+        $ibgeCode = $this->value($row, 'CD_MUNICIPIO_IBGE');
+        $name = $this->value($row, 'NM_MUNICIPIO_TSE', 'NM_MUNICIPIO_IBGE');
+        $state = mb_strtoupper($this->value($row, 'SG_UF'));
+
+        if ($tseCode === '' || $ibgeCode === '' || $name === '' || $state === '') {
+            return null;
+        }
+
         $now = now();
 
-        $this->readCsvArchive($archivePath, function (array $row) use (&$rows, $now): void {
-            $tseCode = $this->value($row, 'CD_MUNICIPIO_TSE');
-            $ibgeCode = $this->value($row, 'CD_MUNICIPIO_IBGE');
-            $name = $this->value($row, 'NM_MUNICIPIO_TSE', 'NM_MUNICIPIO_IBGE');
-            $state = mb_strtoupper($this->value($row, 'SG_UF'));
+        return [
+            'codigo_tse' => str_pad($tseCode, 5, '0', STR_PAD_LEFT),
+            'codigo_ibge' => $ibgeCode,
+            'nome' => Str::squish($name),
+            'uf' => $state,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+    }
 
-            if ($tseCode === '' || $ibgeCode === '' || $name === '' || $state === '') {
-                return;
-            }
-
-            $rows[] = [
-                'codigo_tse' => str_pad($tseCode, 5, '0', STR_PAD_LEFT),
-                'codigo_ibge' => $ibgeCode,
-                'nome' => Str::squish($name),
-                'uf' => $state,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-        });
-
+    /**
+     * Grava a base e vincula gabinetes ainda sem município eleitoral.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     */
+    private function storeMunicipalities(array $rows): int
+    {
         MunicipioEleitoral::query()->upsert(
             $rows,
             ['codigo_tse'],
@@ -176,7 +186,6 @@ class TsePoliticalDataSyncService
 
         Gabinete::withoutGlobalScopes()
             ->whereNull('municipio_eleitoral_id')
-            ->when($officeId !== null, fn ($query) => $query->whereKey($officeId))
             ->get(['id', 'municipio', 'estado'])
             ->each(function (Gabinete $office) use ($municipalities): void {
                 $municipality = $municipalities->get($this->municipalityKey(
@@ -200,23 +209,20 @@ class TsePoliticalDataSyncService
      * passo à parte (resolvido na hora do cadastro/edição), não uma
      * condição para os dados já estarem disponíveis quando ele chegar.
      *
-     * A fonte deixou de ser o ZIP oficial do TSE — os dados vêm da GOVNEX
-     * API, que publica um dataset "Perfil eleitorado" por UF (ver
-     * GovnexApiClient::electorateDatasets()). Só entram as UFs que a
-     * GOVNEX API já tem prontas (metadata.uf marcado + import concluído) —
+     * Os dados vêm da GOVNEX API, que publica um dataset "Perfil eleitorado" por UF (ver
+     * GovnexApiClient::locateByUf()). Só entram as UFs que a GOVNEX API já
+     * tem prontas (slug no padrão da convenção + import concluído) —
      * cresce sozinho conforme mais estados forem subidos lá, sem exigir o
      * Brasil inteiro de uma vez (ver histórico desta função: uma versão
      * anterior travava com uma faixa fixa de ~5.570 municípios, que fazia
      * sentido pro ZIP único do TSE mas rejeitava qualquer cobertura
-     * parcial legítima). Acionado por syncElectorateFromGovnexApi(), não
-     * mais pelo fluxo de upload/download de arquivo (ver
-     * GOVNEX_API_DATASETS).
+     * parcial legítima). Acionado por syncFromGovnexApi().
      */
     public function importElectorate(
         int $year,
         ?SincronizacaoTse $run = null,
     ): int {
-        $datasetsByUf = $this->govnexApi->electorateDatasets($year);
+        $datasetsByUf = $this->govnexApi->locateByUf('electorate', $year);
 
         if ($datasetsByUf === []) {
             throw new RuntimeException(
@@ -241,14 +247,14 @@ class TsePoliticalDataSyncService
         $referenceDates = [];
         $ufIndex = 0;
 
-        foreach ($datasetsByUf as $uf => $datasetSlug) {
+        foreach ($datasetsByUf as $uf => $located) {
             $this->ensureRunIsActive($run);
             $ufIndex++;
 
             $municipalityCodesForUf = [];
             $unexpectedUfs = [];
 
-            $this->govnexApi->eachRecord($datasetSlug, function (array $row) use (
+            $this->govnexApi->eachRecord($located['source'], $located['slug'], function (array $row) use (
                 $year,
                 $uf,
                 &$totals,
@@ -265,10 +271,10 @@ class TsePoliticalDataSyncService
                     return;
                 }
 
-                // O dataset foi catalogado como UF única (metadata.uf) na
-                // GOVNEX API, mas não confiamos cegamente nisso — se uma
-                // linha trouxer outra UF, é sinal de que o CSV importado lá
-                // misturou estados, e a marcação automática errou.
+                // A UF vem do sufixo do slug do dataset na GOVNEX API,
+                // mas não confiamos cegamente nisso — se uma linha trouxer
+                // outra UF, é sinal de que o CSV importado lá misturou
+                // estados, ou de que o cadastro usou o sufixo errado.
                 if ($rowUf !== $uf) {
                     $unexpectedUfs[$rowUf] = true;
 
@@ -294,7 +300,7 @@ class TsePoliticalDataSyncService
             if ($unexpectedUfs !== []) {
                 throw new RuntimeException(sprintf(
                     'O dataset %s está catalogado como %s na GOVNEX API, mas trouxe linhas de outra UF (%s) — confira o metadata desse dataset antes de reprocessar.',
-                    $datasetSlug,
+                    $located['slug'],
                     $uf,
                     implode(', ', array_keys($unexpectedUfs)),
                 ));
@@ -318,13 +324,13 @@ class TsePoliticalDataSyncService
                         $uf,
                         $actualMunicipalities,
                         $expectedMunicipalities,
-                        $datasetSlug,
+                        $located['slug'],
                     ));
                 }
             } else {
                 Log::warning('Sem base de municípios local pra validar a plausibilidade do eleitorado desta UF — checagem pulada.', [
                     'uf' => $uf,
-                    'dataset' => $datasetSlug,
+                    'dataset' => $located['slug'],
                     'municipios_encontrados' => $actualMunicipalities,
                 ]);
             }
@@ -359,8 +365,7 @@ class TsePoliticalDataSyncService
             ->whereIn('codigo_tse', array_keys($totals))
             ->pluck('id', 'codigo_tse');
 
-        // Proveniência real do snapshot: o catálogo da GOVNEX API, não a URL
-        // oficial do TSE recebida em $sourceUrl (ver docblock do método).
+        // Proveniência do snapshot: o catálogo da GOVNEX API.
         $govnexSourceUrl = app(GovnexApiSettings::class)->url().'/sources/tse/datasets';
         $snapshotRows = [];
 
@@ -398,100 +403,125 @@ class TsePoliticalDataSyncService
     }
 
     /**
-     * Importa as candidaturas do Brasil inteiro pra eleição do ano — não
-     * restringe mais às UFs/municípios com gabinete já cadastrado, então o
-     * dado já está disponível assim que qualquer gabinete daquele
-     * município aparecer.
-     *
-     * Lê só o agregado nacional do ZIP (nationalAggregateCsvEntry) —
-     * candidaturas de abrangência nacional (Presidente) não têm UF
-     * própria e só existem nesse agregado, então ler os CSVs por UF em
-     * vez dele perderia essas candidaturas.
+     * Candidaturas da eleição do ano, do Brasil inteiro — não restringe às
+     * UFs/municípios com gabinete já cadastrado, então o dado já está
+     * disponível assim que qualquer gabinete daquele município aparecer. O
+     * dataset é o consulta_cand nacional, que inclui as candidaturas sem UF
+     * própria (Presidente).
      */
-    public function importCandidates(string $archivePath, int $year, ?SincronizacaoTse $run = null): int
+    public function importCandidates(int $year, ?SincronizacaoTse $run = null): int
     {
         $election = Eleicao::query()->where('ano', $year)->firstOrFail();
+        $located = $this->locateDataset('candidates', $year);
         $municipalityIdsByCode = MunicipioEleitoral::query()->pluck('id', 'codigo_tse');
         $rows = [];
         $processedIds = [];
 
         // Grava tudo numa única transação — os lotes de 500 linhas já
-        // evitam o padrão de 1 query por linha, mas sem isso cada lote
-        // ainda seria um commit (fsync) separado, o que pesa quando o
-        // dataset cobre candidatos do Brasil inteiro.
-        DB::transaction(function () use ($archivePath, $election, $municipalityIdsByCode, &$rows, &$processedIds, $run): void {
-            $this->readCsvArchive($archivePath, function (array $row) use (
-                $election,
-                $municipalityIdsByCode,
-                &$rows,
-                &$processedIds,
-            ): void {
-                $candidateId = $this->value($row, 'SQ_CANDIDATO');
-                $office = Str::squish($this->value($row, 'DS_CARGO'));
-                $uf = mb_strtoupper($this->value($row, 'SG_UF'));
-
-                if ($candidateId === '' || $office === '') {
-                    return;
-                }
-
-                $scope = $this->candidateScope($election->tipo, $office);
-
-                if ($scope === null) {
-                    return;
-                }
-
-                $municipalityCode = $scope === CandidateScope::Municipal
-                    ? str_pad(
-                        $this->value($row, 'SG_UE', 'CD_MUNICIPIO'),
-                        5,
-                        '0',
-                        STR_PAD_LEFT,
-                    )
-                    : null;
-                $municipalityId = $municipalityCode !== null
-                    ? $municipalityIdsByCode->get($municipalityCode)
-                    : null;
-
-                if ($scope === CandidateScope::Municipal && $municipalityId === null) {
-                    return;
-                }
-
-                $sourceUpdatedAt = $this->sourceDateTime(
-                    $this->value($row, 'DT_GERACAO'),
-                    $this->value($row, 'HH_GERACAO'),
-                );
-                $now = now();
-                $rows[] = [
-                    'eleicao_id' => $election->id,
-                    'sq_candidato' => $candidateId,
-                    'abrangencia' => $scope->value,
-                    'municipio_eleitoral_id' => $municipalityId,
-                    'uf' => $scope === CandidateScope::National ? null : $uf,
-                    'cargo' => $office,
-                    'nome' => Str::squish($this->value($row, 'NM_CANDIDATO')),
-                    'nome_urna' => Str::squish($this->value($row, 'NM_URNA_CANDIDATO')),
-                    'numero' => $this->nullable($this->value($row, 'NR_CANDIDATO')),
-                    'partido_sigla' => $this->nullable($this->value($row, 'SG_PARTIDO')),
-                    'partido_nome' => $this->nullable($this->value($row, 'NM_PARTIDO')),
-                    'situacao' => $this->nullable($this->value($row, 'DS_SITUACAO_CANDIDATURA')),
-                    'situacao_detalhada' => $this->nullable($this->value($row, 'DS_DETALHE_SITUACAO_CAND')),
-                    'fonte_atualizada_em' => $sourceUpdatedAt,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
-                $processedIds[$candidateId] = true;
-
-                if (count($rows) >= 500) {
-                    $this->upsertCandidates($rows);
-                    $rows = [];
-                }
-            }, entryFilter: $this->nationalAggregateCsvEntry(...), run: $run);
+        // evitam uma query por linha, mas sem isso cada lote ainda seria um
+        // commit separado, o que pesa com candidaturas do Brasil inteiro.
+        DB::transaction(function () use ($located, $election, $municipalityIdsByCode, &$rows, &$processedIds, $run): void {
+            $this->eachGovnexRecord(
+                $located,
+                function (array $row) use ($election, $municipalityIdsByCode, &$rows, &$processedIds): void {
+                    $this->collectCandidateRow($row, $election, $municipalityIdsByCode, $rows, $processedIds);
+                },
+                $run,
+            );
 
             if ($rows !== []) {
                 $this->upsertCandidates($rows);
             }
         });
 
+        return $this->finishCandidatesImport($election, $processedIds);
+    }
+
+    /**
+     * Converte uma linha do cabecalho oficial do TSE numa candidatura e
+     * acumula em lotes de 500.
+     *
+     * @param  array<string, string>  $row
+     * @param  Collection<string, int>  $municipalityIdsByCode
+     * @param  list<array<string, mixed>>  $rows
+     * @param  array<string, true>  $processedIds
+     */
+    private function collectCandidateRow(
+        array $row,
+        Eleicao $election,
+        Collection $municipalityIdsByCode,
+        array &$rows,
+        array &$processedIds,
+    ): void {
+        $candidateId = $this->value($row, 'SQ_CANDIDATO');
+        $office = Str::squish($this->value($row, 'DS_CARGO'));
+        $uf = mb_strtoupper($this->value($row, 'SG_UF'));
+
+        if ($candidateId === '' || $office === '') {
+            return;
+        }
+
+        $scope = $this->candidateScope($election->tipo, $office);
+
+        if ($scope === null) {
+            return;
+        }
+
+        $municipalityCode = $scope === CandidateScope::Municipal
+            ? str_pad(
+                $this->value($row, 'SG_UE', 'CD_MUNICIPIO'),
+                5,
+                '0',
+                STR_PAD_LEFT,
+            )
+            : null;
+        $municipalityId = $municipalityCode !== null
+            ? $municipalityIdsByCode->get($municipalityCode)
+            : null;
+
+        if ($scope === CandidateScope::Municipal && $municipalityId === null) {
+            return;
+        }
+
+        $sourceUpdatedAt = $this->sourceDateTime(
+            $this->value($row, 'DT_GERACAO'),
+            $this->value($row, 'HH_GERACAO'),
+        );
+        $now = now();
+        $rows[] = [
+            'eleicao_id' => $election->id,
+            'sq_candidato' => $candidateId,
+            'abrangencia' => $scope->value,
+            'municipio_eleitoral_id' => $municipalityId,
+            'uf' => $scope === CandidateScope::National ? null : $uf,
+            'cargo' => $office,
+            'nome' => Str::squish($this->value($row, 'NM_CANDIDATO')),
+            'nome_urna' => Str::squish($this->value($row, 'NM_URNA_CANDIDATO')),
+            'numero' => $this->nullable($this->value($row, 'NR_CANDIDATO')),
+            'partido_sigla' => $this->nullable($this->value($row, 'SG_PARTIDO')),
+            'partido_nome' => $this->nullable($this->value($row, 'NM_PARTIDO')),
+            'situacao' => $this->nullable($this->value($row, 'DS_SITUACAO_CANDIDATURA')),
+            'situacao_detalhada' => $this->nullable($this->value($row, 'DS_DETALHE_SITUACAO_CAND')),
+            'fonte_atualizada_em' => $sourceUpdatedAt,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+        $processedIds[$candidateId] = true;
+
+        if (count($rows) >= 500) {
+            $this->upsertCandidates($rows);
+            $rows = [];
+        }
+    }
+
+    /**
+     * Encerramento da importação: limpa cargos fora do recorte,
+     * marca a eleicao como atualizada e reresolve o titular dos gabinetes.
+     *
+     * @param  array<string, true>  $processedIds
+     */
+    private function finishCandidatesImport(Eleicao $election, array $processedIds): int
+    {
         if ($election->tipo === ElectionType::General) {
             CandidatoPolitico::query()
                 ->where('eleicao_id', $election->id)
@@ -513,19 +543,17 @@ class TsePoliticalDataSyncService
      * municípios com gabinete já cadastrado (mesmo racional de
      * importElectorate).
      */
-    public function importTurnout(
-        string $archivePath,
-        int $year,
-        string $sourceUrl,
-        ?SincronizacaoTse $run = null,
-    ): int {
+    public function importTurnout(int $year, ?SincronizacaoTse $run = null): int
+    {
+        $located = $this->locateDataset('turnout', $year);
+        $sourceUrl = $this->datasetUrl($located);
         $municipalitiesByCode = MunicipioEleitoral::query()
             ->get(['id', 'codigo_tse'])
             ->keyBy('codigo_tse');
         $aggregates = [];
 
-        $this->readCsvArchive(
-            $archivePath,
+        $this->eachGovnexRecord(
+            $located,
             function (array $row) use (
                 $year,
                 &$aggregates,
@@ -591,8 +619,7 @@ class TsePoliticalDataSyncService
                     'abstentions' => max($currentZone['abstentions'], (int) $abstentions),
                 ];
             },
-            entryFilter: $this->nationalAggregateCsvEntry(...),
-            run: $run,
+            $run,
         );
 
         if ($aggregates === []) {
@@ -602,7 +629,7 @@ class TsePoliticalDataSyncService
         $election = Eleicao::query()->where('ano', $year)->first();
         $now = now();
 
-        // Municípios que aparecem no arquivo mas ainda não existem na
+        // Municípios que aparecem no dataset mas ainda não existem na
         // tabela (caso raro — importMunicipalities deveria cobrir todos)
         // entram num lote único, em vez de um updateOrCreate() por linha.
         $missingMunicipalities = collect($aggregates)
@@ -674,25 +701,19 @@ class TsePoliticalDataSyncService
      * Importa a votação nominal do Brasil inteiro, sem restringir aos
      * municípios com gabinete já cadastrado (mesmo racional de
      * importElectorate).
+     *
+     * Grava um estado por vez em vez do Brasil inteiro de uma tacada só — o
+     * dataset nacional chega a ~400 mil candidaturas a vereador (município ×
+     * turno × candidato), cada uma carregando objetos de data; acumular tudo
+     * em memória antes de gravar estoura o memory_limit do PHP (reproduzido:
+     * "Allowed memory size... exhausted" com 512M). O CSV do TSE vem agrupado
+     * por UF e a GOVNEX API preserva a ordem das linhas, então os agregados
+     * de uma UF são gravados assim que a próxima começa. Se uma UF já gravada
+     * reaparecer, a soma por zona sairia partida em duas — a importação falha
+     * em vez de gravar votação errada.
      */
-    /**
-     * Processa um estado por vez em vez do Brasil inteiro de uma tacada só
-     * — o agregado nacional ("..._BRASIL.csv") chega a ~400 mil
-     * candidaturas a vereador (município × turno × candidato), cada uma
-     * carregando objetos de data; acumular tudo isso em memória antes de
-     * gravar qualquer coisa no banco estoura o memory_limit padrão do PHP
-     * (reproduzido: "Allowed memory size... exhausted" com 512M). Lendo e
-     * gravando um estado por vez, o pico de memória fica limitado ao maior
-     * estado (SP) em vez do país inteiro — a mesma robustez de cobertura do
-     * agregado nacional (nenhum município fica de fora só por não ter
-     * gabinete cadastrado), sem o custo de memória de fazer tudo de uma vez.
-     */
-    public function importCandidateVotes(
-        string $archivePath,
-        int $year,
-        string $sourceUrl,
-        ?SincronizacaoTse $run = null,
-    ): int {
+    public function importCandidateVotes(int $year, ?SincronizacaoTse $run = null): int
+    {
         $election = Eleicao::query()
             ->where('ano', $year)
             ->where('tipo', ElectionType::Municipal)
@@ -702,128 +723,155 @@ class TsePoliticalDataSyncService
             throw new RuntimeException("Eleição municipal de {$year} não cadastrada.");
         }
 
+        $located = $this->locateDataset('candidate_votes', $year);
+        $sourceUrl = $this->datasetUrl($located);
         $municipalitiesByCode = MunicipioEleitoral::query()
             ->get(['id', 'codigo_tse'])
             ->keyBy('codigo_tse');
-        $stateEntries = $this->csvEntrySizes($archivePath, $this->stateCsvEntry(...));
-
-        if ($stateEntries === []) {
-            return 0;
-        }
-
-        $totalBytes = array_sum(array_column($stateEntries, 'size'));
-        $processedBytes = 0;
         $now = now();
+        $aggregates = [];
+        $currentState = null;
+        $finishedStates = [];
         $totalProcessed = 0;
 
-        foreach ($stateEntries as $entry) {
-            $aggregates = [];
+        $this->eachGovnexRecord(
+            $located,
+            function (array $row) use (
+                $year,
+                $located,
+                $election,
+                $municipalitiesByCode,
+                $sourceUrl,
+                $now,
+                $run,
+                &$aggregates,
+                &$currentState,
+                &$finishedStates,
+                &$totalProcessed,
+            ): void {
+                $state = mb_strtoupper($this->value($row, 'SG_UF'));
 
-            $this->readCsvArchive(
-                $archivePath,
-                function (array $row) use (
-                    $year,
-                    &$aggregates,
-                ): void {
-                    $state = mb_strtoupper($this->value($row, 'SG_UF'));
-                    $municipalityName = $this->value($row, 'NM_MUNICIPIO', 'NM_UE');
-                    $municipalityCode = str_pad(
-                        $this->value($row, 'CD_MUNICIPIO', 'SG_UE'),
-                        5,
-                        '0',
-                        STR_PAD_LEFT,
-                    );
-                    $office = Str::ascii(mb_strtoupper($this->value($row, 'DS_CARGO')));
-                    $votes = $this->value($row, 'QT_VOTOS_NOMINAIS');
-                    $validVotes = $this->value($row, 'QT_VOTOS_NOMINAIS_VALIDOS');
-
-                    if (
-                        (int) $this->value($row, 'ANO_ELEICAO') !== $year
-                        || ($this->value($row, 'CD_TIPO_ELEICAO') !== ''
-                            && $this->value($row, 'CD_TIPO_ELEICAO') !== '2')
-                        || $this->value($row, 'ST_VOTO_EM_TRANSITO') === 'S'
-                        || $office !== 'VEREADOR'
-                        || ! is_numeric($votes)
-                        || ! is_numeric($validVotes)
-                    ) {
-                        return;
+                if ($state !== $currentState) {
+                    if (isset($finishedStates[$state])) {
+                        throw new RuntimeException(sprintf(
+                            'O dataset %s não está agrupado por UF: %s reapareceu depois de outra UF. A votação nominal é gravada um estado por vez — reimporte na GOVNEX API o CSV do TSE na ordem original.',
+                            $located['slug'],
+                            $state,
+                        ));
                     }
 
-                    $candidateSequence = $this->value($row, 'SQ_CANDIDATO');
-                    $electionCode = $this->value($row, 'CD_ELEICAO');
-                    $round = (int) $this->value($row, 'NR_TURNO');
-                    $zone = $this->value($row, 'NR_ZONA');
-
-                    if (
-                        $candidateSequence === ''
-                        || $electionCode === ''
-                        || $round < 1
-                        || $zone === ''
-                    ) {
-                        return;
-                    }
-
-                    $aggregateKey = "{$municipalityCode}:{$electionCode}:{$round}:{$candidateSequence}";
-                    $aggregates[$aggregateKey] ??= [
-                        'municipality_code' => $municipalityCode,
-                        'municipality_name' => Str::squish($municipalityName),
-                        'state' => $state,
-                        'election_code' => $electionCode,
-                        'round' => $round,
-                        'election_date' => $this->sourceDate(
-                            $this->value($row, 'DT_ELEICAO'),
+                    if ($aggregates !== []) {
+                        $totalProcessed += $this->flushCandidateVoteAggregates(
+                            $aggregates,
+                            $election,
+                            $municipalitiesByCode,
+                            $sourceUrl,
                             $year,
-                        ),
-                        'candidate_sequence' => $candidateSequence,
-                        'candidate_number' => $this->nullable($this->value($row, 'NR_CANDIDATO')),
-                        'candidate_name' => Str::squish($this->value($row, 'NM_CANDIDATO')),
-                        'candidate_ballot_name' => Str::squish($this->value($row, 'NM_URNA_CANDIDATO')),
-                        'party_abbreviation' => $this->nullable($this->value($row, 'SG_PARTIDO')),
-                        'party_name' => $this->nullable($this->value($row, 'NM_PARTIDO')),
-                        'candidate_status' => $this->nullable($this->value(
-                            $row,
-                            'DS_SITUACAO_JULGAMENTO',
-                            'DS_SITUACAO_CANDIDATURA',
-                        )),
-                        'candidate_status_detail' => $this->nullable($this->value(
-                            $row,
-                            'DS_DETALHE_SITUACAO_CAND',
-                        )),
-                        'result_status' => $this->nullable($this->value($row, 'DS_SIT_TOT_TURNO')),
-                        'source_generated_at' => $this->sourceDateTime(
-                            $this->value($row, 'DT_GERACAO'),
-                            $this->value($row, 'HH_GERACAO'),
-                        ),
-                        'zones' => [],
-                    ];
-                    $currentZone = $aggregates[$aggregateKey]['zones'][$zone] ?? [
-                        'votes' => 0,
-                        'valid_votes' => 0,
-                    ];
-                    $aggregates[$aggregateKey]['zones'][$zone] = [
-                        'votes' => max($currentZone['votes'], (int) $votes),
-                        'valid_votes' => max($currentZone['valid_votes'], (int) $validVotes),
-                    ];
-                },
-                entryFilter: fn (string $name): bool => $name === $entry['name'],
-                run: $run,
-                progressOffsetBytes: $processedBytes,
-                progressTotalBytes: $totalBytes,
-            );
+                            $now,
+                            $run,
+                        );
+                        $aggregates = [];
+                    }
 
-            $processedBytes += $entry['size'];
+                    if ($currentState !== null) {
+                        $finishedStates[$currentState] = true;
+                    }
 
-            if ($aggregates !== []) {
-                $totalProcessed += $this->flushCandidateVoteAggregates(
-                    $aggregates,
-                    $election,
-                    $municipalitiesByCode,
-                    $sourceUrl,
-                    $year,
-                    $now,
-                    $run,
+                    $currentState = $state;
+                }
+
+                $municipalityName = $this->value($row, 'NM_MUNICIPIO', 'NM_UE');
+                $municipalityCode = str_pad(
+                    $this->value($row, 'CD_MUNICIPIO', 'SG_UE'),
+                    5,
+                    '0',
+                    STR_PAD_LEFT,
                 );
-            }
+                $office = Str::ascii(mb_strtoupper($this->value($row, 'DS_CARGO')));
+                $votes = $this->value($row, 'QT_VOTOS_NOMINAIS');
+                $validVotes = $this->value($row, 'QT_VOTOS_NOMINAIS_VALIDOS');
+
+                if (
+                    (int) $this->value($row, 'ANO_ELEICAO') !== $year
+                    || ($this->value($row, 'CD_TIPO_ELEICAO') !== ''
+                        && $this->value($row, 'CD_TIPO_ELEICAO') !== '2')
+                    || $this->value($row, 'ST_VOTO_EM_TRANSITO') === 'S'
+                    || $office !== 'VEREADOR'
+                    || ! is_numeric($votes)
+                    || ! is_numeric($validVotes)
+                ) {
+                    return;
+                }
+
+                $candidateSequence = $this->value($row, 'SQ_CANDIDATO');
+                $electionCode = $this->value($row, 'CD_ELEICAO');
+                $round = (int) $this->value($row, 'NR_TURNO');
+                $zone = $this->value($row, 'NR_ZONA');
+
+                if (
+                    $candidateSequence === ''
+                    || $electionCode === ''
+                    || $round < 1
+                    || $zone === ''
+                ) {
+                    return;
+                }
+
+                $aggregateKey = "{$municipalityCode}:{$electionCode}:{$round}:{$candidateSequence}";
+                $aggregates[$aggregateKey] ??= [
+                    'municipality_code' => $municipalityCode,
+                    'municipality_name' => Str::squish($municipalityName),
+                    'state' => $state,
+                    'election_code' => $electionCode,
+                    'round' => $round,
+                    'election_date' => $this->sourceDate(
+                        $this->value($row, 'DT_ELEICAO'),
+                        $year,
+                    ),
+                    'candidate_sequence' => $candidateSequence,
+                    'candidate_number' => $this->nullable($this->value($row, 'NR_CANDIDATO')),
+                    'candidate_name' => Str::squish($this->value($row, 'NM_CANDIDATO')),
+                    'candidate_ballot_name' => Str::squish($this->value($row, 'NM_URNA_CANDIDATO')),
+                    'party_abbreviation' => $this->nullable($this->value($row, 'SG_PARTIDO')),
+                    'party_name' => $this->nullable($this->value($row, 'NM_PARTIDO')),
+                    'candidate_status' => $this->nullable($this->value(
+                        $row,
+                        'DS_SITUACAO_JULGAMENTO',
+                        'DS_SITUACAO_CANDIDATURA',
+                    )),
+                    'candidate_status_detail' => $this->nullable($this->value(
+                        $row,
+                        'DS_DETALHE_SITUACAO_CAND',
+                    )),
+                    'result_status' => $this->nullable($this->value($row, 'DS_SIT_TOT_TURNO')),
+                    'source_generated_at' => $this->sourceDateTime(
+                        $this->value($row, 'DT_GERACAO'),
+                        $this->value($row, 'HH_GERACAO'),
+                    ),
+                    'zones' => [],
+                ];
+                $currentZone = $aggregates[$aggregateKey]['zones'][$zone] ?? [
+                    'votes' => 0,
+                    'valid_votes' => 0,
+                ];
+                $aggregates[$aggregateKey]['zones'][$zone] = [
+                    'votes' => max($currentZone['votes'], (int) $votes),
+                    'valid_votes' => max($currentZone['valid_votes'], (int) $validVotes),
+                ];
+            },
+            $run,
+        );
+
+        if ($aggregates !== []) {
+            $totalProcessed += $this->flushCandidateVoteAggregates(
+                $aggregates,
+                $election,
+                $municipalitiesByCode,
+                $sourceUrl,
+                $year,
+                $now,
+                $run,
+            );
         }
 
         $this->holderResolver->resolve();
@@ -868,7 +916,7 @@ class TsePoliticalDataSyncService
         CarbonImmutable $now,
         ?SincronizacaoTse $run,
     ): int {
-        // Municípios que aparecem no arquivo mas ainda não existem na
+        // Municípios que aparecem no dataset mas ainda não existem na
         // tabela (caso raro) entram num lote único.
         $missingMunicipalities = collect($aggregates)
             ->reject(fn (array $aggregate): bool => $municipalitiesByCode->has($aggregate['municipality_code']))
@@ -1012,18 +1060,14 @@ class TsePoliticalDataSyncService
     /**
      * Importa os locais de votação do Brasil inteiro, sem restringir aos
      * municípios com gabinete já cadastrado (mesmo racional de
-     * importElectorate) — processando um estado por vez, pelo mesmo motivo
-     * de importCandidateVotes(): o agregado nacional cobre ~90 mil locais de
-     * votação e ~470 mil seções, e acumular tudo isso em memória antes de
-     * gravar qualquer coisa no banco corre o mesmo risco de estourar o
-     * memory_limit padrão do PHP.
+     * importElectorate). O dataset nacional cobre ~90 mil locais e ~470 mil
+     * seções: a leitura grava em lotes de seções em vez de acumular tudo em
+     * memória antes de gravar qualquer coisa. Cada linha traz o local
+     * completo, então um lote nunca fica com seção apontando para local de
+     * um lote anterior.
      */
-    public function importPollingLocations(
-        string $archivePath,
-        int $year,
-        string $sourceUrl,
-        ?SincronizacaoTse $run = null,
-    ): int {
+    public function importPollingLocations(int $year, ?SincronizacaoTse $run = null): int
+    {
         $election = Eleicao::query()
             ->where('ano', $year)
             ->where('tipo', ElectionType::Municipal)
@@ -1033,139 +1077,121 @@ class TsePoliticalDataSyncService
             throw new RuntimeException("Eleição municipal de {$year} não cadastrada.");
         }
 
+        $located = $this->locateDataset('polling_locations', $year);
+        $sourceUrl = $this->datasetUrl($located);
         $municipalitiesByCode = MunicipioEleitoral::query()
             ->get(['id', 'codigo_tse'])
             ->keyBy('codigo_tse');
-        $entries = $this->csvEntrySizes(
-            $archivePath,
-            fn (string $name): bool => $this->archiveContract->entryMatches('polling_locations', $name),
-        );
-
-        if ($entries === []) {
-            return 0;
-        }
-
-        $totalBytes = array_sum(array_column($entries, 'size'));
-        $processedBytes = 0;
         $now = now();
         $totalProcessed = 0;
         $chunkSize = max(1000, (int) config('services.tse.polling_locations_chunk_size', 25000));
-
-        foreach ($entries as $entry) {
-            $locations = [];
-            $sections = [];
-            // Recebe os buffers por argumento em vez de capturá-los por
-            // referência: quem acumula é quem esvazia, e o descarregamento
-            // vira função pura da sua entrada.
-            $flush = fn (array $pendingLocations, array $pendingSections): int => $pendingLocations === []
-                ? 0
-                : $this->flushPollingLocations(
-                    $pendingLocations,
-                    $pendingSections,
-                    $election,
-                    $sourceUrl,
-                    $now,
-                    $run,
-                );
-
-            $this->readCsvArchive(
-                $archivePath,
-                function (array $row) use (
-                    $year,
-                    $municipalitiesByCode,
-                    &$locations,
-                    &$sections,
-                    &$totalProcessed,
-                    $chunkSize,
-                    $flush,
-                ): void {
-                    if ((int) $this->value($row, 'AA_ELEICAO') !== $year) {
-                        return;
-                    }
-
-                    $municipalityCode = str_pad(
-                        $this->value($row, 'CD_MUNICIPIO'),
-                        5,
-                        '0',
-                        STR_PAD_LEFT,
-                    );
-                    $municipality = $municipalitiesByCode->get($municipalityCode);
-
-                    if (! $municipality instanceof MunicipioEleitoral) {
-                        return;
-                    }
-
-                    $zone = $this->value($row, 'NR_ZONA');
-                    $section = $this->value($row, 'NR_SECAO');
-                    $pollingLocation = $this->value($row, 'NR_LOCAL_VOTACAO');
-
-                    if ($zone === '' || $section === '' || $pollingLocation === '') {
-                        return;
-                    }
-
-                    $locationKey = "{$municipalityCode}:{$zone}:{$pollingLocation}";
-                    $latitude = $this->coordinate($this->value($row, 'NR_LATITUDE'));
-                    $longitude = $this->coordinate($this->value($row, 'NR_LONGITUDE'));
-
-                    $locationAttributes = [
-                        'municipio_eleitoral_id' => $municipality->id,
-                        'nr_zona' => $zone,
-                        'nr_local_votacao' => $pollingLocation,
-                        'nome' => Str::squish($this->value($row, 'NM_LOCAL_VOTACAO')),
-                        'tipo_local' => $this->nullable($this->value($row, 'DS_TIPO_LOCAL')),
-                        'endereco' => $this->nullable(Str::squish($this->value($row, 'DS_ENDERECO'))),
-                        'bairro' => $this->nullable(Str::squish($this->value($row, 'NM_BAIRRO'))),
-                        'cep' => $this->nullable($this->value($row, 'NR_CEP')),
-                        'latitude' => $latitude,
-                        'longitude' => $longitude,
-                        'latitude_fonte' => $latitude !== null && $longitude !== null ? 'tse' : null,
-                        'fonte_gerada_em' => $this->sourceDateTime(
-                            $this->value($row, 'DT_GERACAO'),
-                            $this->value($row, 'HH_GERACAO'),
-                        ),
-                    ];
-
-                    // Algumas publicações repetem o local em uma linha por
-                    // seção. Se a primeira vier sem coordenadas e outra as
-                    // trouxer, não desperdiçamos a informação oficial.
-                    if (
-                        ! isset($locations[$locationKey])
-                        || ($locations[$locationKey]['latitude'] === null && $latitude !== null && $longitude !== null)
-                    ) {
-                        $locations[$locationKey] = $locationAttributes;
-                    }
-
-                    $sectionKey = "{$municipalityCode}:{$zone}:{$section}";
-                    $eligible = $this->value($row, 'QT_ELEITOR_SECAO');
-                    $currentEligible = $sections[$sectionKey]['eleitores_secao'] ?? 0;
-
-                    $sections[$sectionKey] = [
-                        'municipio_eleitoral_id' => $municipality->id,
-                        'nr_zona' => $zone,
-                        'nr_secao' => $section,
-                        'location_key' => $locationKey,
-                        'eleitores_secao' => is_numeric($eligible)
-                            ? max($currentEligible, (int) $eligible)
-                            : $currentEligible,
-                    ];
-
-                    if (count($sections) >= $chunkSize) {
-                        $totalProcessed += $flush($locations, $sections);
-                        $locations = [];
-                        $sections = [];
-                    }
-                },
-                entryFilter: fn (string $name): bool => $name === $entry['name'],
-                run: $run,
-                progressOffsetBytes: $processedBytes,
-                progressTotalBytes: $totalBytes,
+        $locations = [];
+        $sections = [];
+        // Recebe os buffers por argumento em vez de capturá-los por
+        // referência: quem acumula é quem esvazia, e o descarregamento
+        // vira função pura da sua entrada.
+        $flush = fn (array $pendingLocations, array $pendingSections): int => $pendingLocations === []
+            ? 0
+            : $this->flushPollingLocations(
+                $pendingLocations,
+                $pendingSections,
+                $election,
+                $sourceUrl,
+                $now,
+                $run,
             );
 
-            $processedBytes += $entry['size'];
-            $totalProcessed += $flush($locations, $sections);
-        }
+        $this->eachGovnexRecord(
+            $located,
+            function (array $row) use (
+                $year,
+                $municipalitiesByCode,
+                &$locations,
+                &$sections,
+                &$totalProcessed,
+                $chunkSize,
+                $flush,
+            ): void {
+                if ((int) $this->value($row, 'AA_ELEICAO') !== $year) {
+                    return;
+                }
 
-        return $totalProcessed;
+                $municipalityCode = str_pad(
+                    $this->value($row, 'CD_MUNICIPIO'),
+                    5,
+                    '0',
+                    STR_PAD_LEFT,
+                );
+                $municipality = $municipalitiesByCode->get($municipalityCode);
+
+                if (! $municipality instanceof MunicipioEleitoral) {
+                    return;
+                }
+
+                $zone = $this->value($row, 'NR_ZONA');
+                $section = $this->value($row, 'NR_SECAO');
+                $pollingLocation = $this->value($row, 'NR_LOCAL_VOTACAO');
+
+                if ($zone === '' || $section === '' || $pollingLocation === '') {
+                    return;
+                }
+
+                $locationKey = "{$municipalityCode}:{$zone}:{$pollingLocation}";
+                $latitude = $this->coordinate($this->value($row, 'NR_LATITUDE'));
+                $longitude = $this->coordinate($this->value($row, 'NR_LONGITUDE'));
+
+                $locationAttributes = [
+                    'municipio_eleitoral_id' => $municipality->id,
+                    'nr_zona' => $zone,
+                    'nr_local_votacao' => $pollingLocation,
+                    'nome' => Str::squish($this->value($row, 'NM_LOCAL_VOTACAO')),
+                    'tipo_local' => $this->nullable($this->value($row, 'DS_TIPO_LOCAL')),
+                    'endereco' => $this->nullable(Str::squish($this->value($row, 'DS_ENDERECO'))),
+                    'bairro' => $this->nullable(Str::squish($this->value($row, 'NM_BAIRRO'))),
+                    'cep' => $this->nullable($this->value($row, 'NR_CEP')),
+                    'latitude' => $latitude,
+                    'longitude' => $longitude,
+                    'latitude_fonte' => $latitude !== null && $longitude !== null ? 'tse' : null,
+                    'fonte_gerada_em' => $this->sourceDateTime(
+                        $this->value($row, 'DT_GERACAO'),
+                        $this->value($row, 'HH_GERACAO'),
+                    ),
+                ];
+
+                // Algumas publicações repetem o local em uma linha por
+                // seção. Se a primeira vier sem coordenadas e outra as
+                // trouxer, não desperdiçamos a informação oficial.
+                if (
+                    ! isset($locations[$locationKey])
+                    || ($locations[$locationKey]['latitude'] === null && $latitude !== null && $longitude !== null)
+                ) {
+                    $locations[$locationKey] = $locationAttributes;
+                }
+
+                $sectionKey = "{$municipalityCode}:{$zone}:{$section}";
+                $eligible = $this->value($row, 'QT_ELEITOR_SECAO');
+                $currentEligible = $sections[$sectionKey]['eleitores_secao'] ?? 0;
+
+                $sections[$sectionKey] = [
+                    'municipio_eleitoral_id' => $municipality->id,
+                    'nr_zona' => $zone,
+                    'nr_secao' => $section,
+                    'location_key' => $locationKey,
+                    'eleitores_secao' => is_numeric($eligible)
+                        ? max($currentEligible, (int) $eligible)
+                        : $currentEligible,
+                ];
+
+                if (count($sections) >= $chunkSize) {
+                    $totalProcessed += $flush($locations, $sections);
+                    $locations = [];
+                    $sections = [];
+                }
+            },
+            $run,
+        );
+
+        return $totalProcessed + $flush($locations, $sections);
     }
 
     /**
@@ -1227,7 +1253,7 @@ class TsePoliticalDataSyncService
 
         // Coordenadas oficiais substituem um eventual fallback geocodificado.
         // Quando o TSE não informa coordenadas, preservamos o fallback já
-        // existente em vez de apagá-lo com NULL num novo upload.
+        // existente em vez de apagá-lo com NULL numa nova sincronização.
         $this->batchUpsert(
             LocalVotacaoEleitoral::class,
             $withOfficialCoordinates->map(fn (array $attributes): array => [
@@ -1305,7 +1331,7 @@ class TsePoliticalDataSyncService
 
     /**
      * Preenche latitude/longitude dos locais de votação que vieram sem
-     * coordenada no arquivo do TSE, usando o serviço de geocodificação por
+     * coordenada no dataset do TSE, usando o serviço de geocodificação por
      * endereço. Executado explicitamente pelo comando de console
      * `tse:geocode-locais-votacao` depois da importação dos locais.
      */
@@ -1349,18 +1375,20 @@ class TsePoliticalDataSyncService
         return $resolved;
     }
 
-    /** Processa o ZIP de votação por seção enviado para uma única UF. */
+    /**
+     * Votação por seção só dos titulares dos gabinetes ativos com o módulo
+     * Política — o dataset traz todo candidato a vereador do estado
+     * (tipicamente ~1,5 milhão de linhas por UF), dos quais só os titulares
+     * interessam. A GOVNEX API publica um dataset por UF
+     * (votacao-secao-{ano}-{uf}); entram as UFs que têm gabinete com titular
+     * resolvido e dataset já publicado. Com $officeId, restringe a um
+     * gabinete (ver syncOfficeSectionVotes()).
+     */
     public function importSectionVotes(
         int $year,
         ?int $officeId = null,
         ?SincronizacaoTse $run = null,
-        ?string $uploadedArchivePath = null,
-        ?string $uploadedUf = null,
     ): int {
-        if ($uploadedArchivePath === null || $uploadedUf === null || $uploadedUf === '') {
-            throw new RuntimeException('Informe o arquivo ZIP e a UF para processar votação por seção.');
-        }
-
         $election = Eleicao::query()
             ->where('ano', $year)
             ->where('tipo', ElectionType::Municipal)
@@ -1409,49 +1437,78 @@ class TsePoliticalDataSyncService
             return 0;
         }
 
-        $uf = mb_strtoupper($uploadedUf);
+        $published = array_intersect_key($this->govnexApi->locateByUf('section_votes', $year), $ufs);
 
-        if (! isset($ufs[$uf])) {
-            return 0;
+        if ($published === []) {
+            if ($officeId !== null) {
+                return 0;
+            }
+
+            ksort($ufs);
+
+            throw new RuntimeException(sprintf(
+                'Nenhum dataset de votação por seção publicado na GOVNEX API para %d nas UFs com gabinete (%s).',
+                $year,
+                implode(', ', array_keys($ufs)),
+            ));
         }
 
-        $sourceUrl = $this->sourceUrl('section_votes', $year, $uf);
-        $processed = $this->importSectionVotesArchive(
-            $uploadedArchivePath,
-            $year,
-            $sourceUrl,
-            $election,
-            $sqCandidatoByMunicipalityCode,
-            $run,
-        );
-        $run?->update([
-            'registros_processados' => $processed,
-            'fonte_url' => $sourceUrl,
-        ]);
+        $total = $run !== null
+            ? array_sum(array_map(
+                fn (array $located): int => $this->govnexApi->count($located['source'], $located['slug']),
+                $published,
+            ))
+            : 0;
+        $read = 0;
+        $processed = 0;
+
+        foreach ($published as $located) {
+            $result = $this->importSectionVotesDataset(
+                $located,
+                $year,
+                $election,
+                $sqCandidatoByMunicipalityCode,
+                $run,
+                $read,
+                $total,
+            );
+            $processed += $result['processed'];
+            $read += $result['read'];
+        }
 
         return $processed;
     }
 
-    /** @param array<string, list<string>> $sqCandidatoByMunicipalityCode */
-    private function importSectionVotesArchive(
-        string $archivePath,
+    /**
+     * @param  array{source: string, slug: string}  $located
+     * @param  array<string, list<string>>  $sqCandidatoByMunicipalityCode
+     * @return array{processed: int, read: int}
+     */
+    private function importSectionVotesDataset(
+        array $located,
         int $year,
-        string $sourceUrl,
         Eleicao $election,
         array $sqCandidatoByMunicipalityCode,
-        ?SincronizacaoTse $run = null,
-    ): int {
+        ?SincronizacaoTse $run,
+        int $progressOffset,
+        int $progressTotal,
+    ): array {
+        $sourceUrl = $this->datasetUrl($located);
         $votes = [];
-        // O arquivo do TSE traz TODO candidato a vereador do estado inteiro
-        // (tipicamente ~1,5 milhão de linhas por UF) — só os titulares dos
-        // gabinetes interessam, uma fração mínima disso. sq_candidato é
-        // único por eleição (não por município), então um conjunto achatado
-        // já filtra corretamente sem perder o escopo por município abaixo.
+        // sq_candidato é único por eleição (não por município), então um
+        // conjunto achatado já descarta de cara as linhas dos demais
+        // candidatos, sem perder o escopo por município abaixo.
         $relevantSequences = array_flip(array_merge([], ...array_values($sqCandidatoByMunicipalityCode)));
 
-        $this->readCsvArchive(
-            $archivePath,
-            function (array $row) use ($year, $sqCandidatoByMunicipalityCode, &$votes): void {
+        $read = $this->eachGovnexRecord(
+            $located,
+            function (array $row) use ($year, $sqCandidatoByMunicipalityCode, $relevantSequences, &$votes): void {
+                $candidateSequence = $this->value($row, 'SQ_CANDIDATO');
+
+                if (! isset($relevantSequences[$candidateSequence])) {
+                    return;
+                }
+
                 if (
                     (int) $this->value($row, 'ANO_ELEICAO') !== $year
                     || (int) $this->value($row, 'NR_TURNO') !== 1
@@ -1466,7 +1523,6 @@ class TsePoliticalDataSyncService
                     '0',
                     STR_PAD_LEFT,
                 );
-                $candidateSequence = $this->value($row, 'SQ_CANDIDATO');
                 $titulars = $sqCandidatoByMunicipalityCode[$municipalityCode] ?? [];
 
                 if ($titulars === [] || ! in_array($candidateSequence, $titulars, true)) {
@@ -1500,25 +1556,13 @@ class TsePoliticalDataSyncService
                     ),
                 ];
             },
-            null,
-            function (array $values, array $header) use ($relevantSequences): bool {
-                static $index = null;
-
-                if ($index === null) {
-                    $index = array_search('SQ_CANDIDATO', $header, true);
-                }
-
-                if ($index === false) {
-                    return true;
-                }
-
-                return isset($relevantSequences[trim($values[$index] ?? '')]);
-            },
             $run,
+            $progressOffset,
+            $progressTotal,
         );
 
         if ($votes === []) {
-            return 0;
+            return ['processed' => 0, 'read' => $read];
         }
 
         $municipalitiesByCode = MunicipioEleitoral::query()
@@ -1589,7 +1633,7 @@ class TsePoliticalDataSyncService
             $processed++;
         }
 
-        return $processed;
+        return ['processed' => $processed, 'read' => $read];
     }
 
     /**
@@ -1606,9 +1650,9 @@ class TsePoliticalDataSyncService
      * partir do registro.
      */
     public function importElectionSurveyRegistry(
-        string $archivePath,
         int $year,
         ?int $officeId = null,
+        ?SincronizacaoTse $run = null,
     ): int {
         $election = Eleicao::query()
             ->where('ano', $year)
@@ -1653,8 +1697,8 @@ class TsePoliticalDataSyncService
         );
         $updated = 0;
 
-        $this->readCsvArchive(
-            $archivePath,
+        $this->eachGovnexRecord(
+            $this->locateDataset('poll_registry', $year),
             function (array $row) use ($grouped, $states, &$updated): void {
                 $protocol = $this->value($row, 'NR_PROTOCOLO_REGISTRO');
                 $publishedAt = $this->parseRegistryDate($this->value($row, 'DT_DIVULGACAO'));
@@ -1698,9 +1742,7 @@ class TsePoliticalDataSyncService
                     $updated++;
                 }
             },
-            fn (string $name): bool => $states->contains(
-                fn (string $state): bool => str_ends_with(mb_strtoupper($name), "_{$state}.CSV"),
-            ) || str_ends_with(mb_strtoupper($name), '_BRASIL.CSV'),
+            $run,
         );
 
         return $updated;
@@ -1790,39 +1832,14 @@ class TsePoliticalDataSyncService
     }
 
     /**
-     * Valida um ZIP recém-enviado pelo admin antes de criar qualquer
-     * `SincronizacaoTse`/despachar o job — feedback imediato na própria
-     * requisição de upload, sem sujar o histórico com uma execução fadada a
-     * falhar.
+     * Executa a sincronização de um dataset, registrando início, conclusão e
+     * falha na própria `SincronizacaoTse` — é o que a tela de sincronização
+     * política acompanha.
      */
-    public function assertUploadedArchiveIsValid(
-        string $path,
-        string $dataset,
-        int $year,
-        ?string $uf = null,
-    ): void {
-        $this->uploadedArchiveValidator->assertValid($path, $dataset, $year, $uf);
-    }
-
-    /**
-     * Processa um `SincronizacaoTse` criado a partir de upload manual.
-     */
-    public function syncUploadedDataset(SincronizacaoTse $run, string $archivePath, ?string $uf = null): int
+    public function syncFromGovnexApi(SincronizacaoTse $run): int
     {
-        return $this->processUploadedDataset($run, $archivePath, $uf);
-    }
-
-    /**
-     * Fallback sob demanda: baixa o ZIP oficial e reutiliza o mesmo pipeline
-     * de validação e importação empregado pelo upload manual.
-     */
-    public function syncFromOfficialSource(SincronizacaoTse $run, ?string $uf = null): int
-    {
-        $sourceUrl = $this->sourceUrl($run->dataset, $run->ano, $uf);
-        $archivePath = null;
-
         $run->update([
-            'fonte_url' => $sourceUrl,
+            'fonte_url' => $this->datasetPatternUrl($run->dataset, $run->ano),
             'situacao' => 'processando',
             'iniciada_em' => now(),
             'concluida_em' => null,
@@ -1830,62 +1847,26 @@ class TsePoliticalDataSyncService
         ]);
 
         try {
-            $archivePath = $this->download($sourceUrl, $run->dataset, $run->ano);
-            $this->assertUploadedArchiveIsValid(
-                $archivePath,
-                $run->dataset,
-                $run->ano,
-                $uf,
-            );
-
-            return $this->processUploadedDataset($run, $archivePath, $uf);
-        } catch (Throwable $exception) {
-            if ($archivePath !== null) {
-                File::delete($archivePath);
-            }
-
-            $message = $exception instanceof RequestException
-                && $exception->response->status() === 403
-                    ? 'O TSE bloqueou o download automático (HTTP 403). Baixe o ZIP pelo link oficial e use o upload manual.'
-                    : $exception->getMessage();
-
-            $run->update([
-                'situacao' => 'falhou',
-                'erro' => Str::limit($message, 10000),
-                'concluida_em' => now(),
-            ]);
-
-            if ($message !== $exception->getMessage()) {
-                throw new RuntimeException($message, previous: $exception);
-            }
-
-            throw $exception;
-        }
-    }
-
-    /**
-     * Sincroniza o eleitorado a partir da GOVNEX API — o único dataset em
-     * GOVNEX_API_DATASETS. Diferente de processUploadedDataset(), não lê
-     * nem espera nenhum arquivo: gerencia o ciclo de vida do $run
-     * (processando/concluída/falhou) em torno de importElectorate(), do
-     * mesmo jeito que syncFromOfficialSource() faz para os datasets
-     * baseados em arquivo.
-     */
-    public function syncElectorateFromGovnexApi(SincronizacaoTse $run): int
-    {
-        $sourceUrl = app(GovnexApiSettings::class)->url().'/sources/tse/datasets';
-        $run->update([
-            'fonte_url' => $sourceUrl,
-            'situacao' => 'processando',
-            'iniciada_em' => now(),
-            'concluida_em' => null,
-            'erro' => null,
-        ]);
-
-        try {
-            $processed = $this->importElectorate($run->ano, $run);
+            $processed = match ($run->dataset) {
+                'municipalities' => $this->importMunicipalities($run),
+                'electorate' => $this->importElectorate($run->ano, $run),
+                'candidates' => $this->importCandidates($run->ano, $run),
+                'turnout' => $this->importTurnout($run->ano, $run),
+                'candidate_votes' => $this->importCandidateVotes($run->ano, $run),
+                'polling_locations' => $this->importPollingLocations($run->ano, $run),
+                'section_votes' => $this->importSectionVotes($run->ano, null, $run),
+                'poll_registry' => $this->importElectionSurveyRegistry($run->ano, null, $run),
+                default => throw new RuntimeException("Dataset do TSE não suportado: {$run->dataset}."),
+            };
             $this->ensureRunIsActive($run);
-            $this->assertSomethingProcessed($processed, 'electorate', $run->ano, null);
+
+            // poll_registry só enriquece pesquisas já sincronizadas por outro
+            // provider com o número de registro oficial do TSE; não ter
+            // nenhuma pesquisa local pendente de vínculo é o estado normal de
+            // sucesso, não uma falha de sincronização.
+            if ($run->dataset !== 'poll_registry') {
+                $this->assertSomethingProcessed($processed, $run->dataset, $run->ano);
+            }
 
             $run->update([
                 'situacao' => 'concluida',
@@ -1914,23 +1895,104 @@ class TsePoliticalDataSyncService
     }
 
     /**
-     * Reprocessa, escopado a um único gabinete, cada dataset do TSE cujo
-     * último ZIP de votação por seção bem-sucedido ainda está retido em
-     * disco, pra UF do gabinete — usado pra "ativar" automaticamente o
-     * mapa eleitoral de um gabinete recém-criado ou recém-relinkado, sem
-     * exigir um novo upload manual.
+     * @return array{source: string, slug: string}
+     */
+    private function locateDataset(string $dataset, ?int $year = null): array
+    {
+        $located = $this->govnexApi->locate($dataset, $year);
+
+        if ($located === null) {
+            throw new RuntimeException($this->govnexApi->unavailableMessage($dataset, $year));
+        }
+
+        return $located;
+    }
+
+    /** @param array{source: string, slug: string} $located */
+    private function datasetUrl(array $located): string
+    {
+        return app(GovnexApiSettings::class)->url()."/sources/{$located['source']}/datasets/{$located['slug']}";
+    }
+
+    /**
+     * Proveniência gravada na execução antes de localizar o dataset: o slug
+     * esperado no catálogo, com `*` onde a fonte e a UF variam.
+     */
+    private function datasetPatternUrl(string $dataset, int $year): string
+    {
+        $slug = GovnexApiDatasetCatalog::isUfScoped($dataset)
+            ? GovnexApiDatasetCatalog::ufPrefix($dataset, $year).'*'
+            : GovnexApiDatasetCatalog::slug($dataset, $year);
+
+        return app(GovnexApiSettings::class)->url().'/sources/*/datasets/'.$slug;
+    }
+
+    /**
+     * Percorre um dataset da GOVNEX API linha a linha. A cada 5.000 linhas
+     * confere se a execução foi cancelada e atualiza o percentual de
+     * leitura, calculado sobre o total publicado. Quando o chamador lê
+     * vários datasets em sequência (votação por seção, uma UF por vez),
+     * $progressOffset e $progressTotal fazem o percentual cobrir a leitura
+     * inteira, em vez de voltar a 0% a cada dataset.
      *
-     * Só `section_votes` precisa disso: os demais datasets (eleitorado,
-     * candidatos, comparecimento, votação nominal, locais de votação) já
-     * são importados pro Brasil inteiro, independente de gabinete
-     * cadastrado — o dado já está no banco assim que qualquer
-     * sincronização rodar, não precisa reprocessar por gabinete. O vínculo
-     * de município e o titular também já são resolvidos de forma síncrona
-     * no cadastro/edição do gabinete (ver OfficeController).
+     * @param  array{source: string, slug: string}  $located
+     * @param  callable(array<string, string>): void  $callback
+     * @return int linhas lidas
+     *
+     * @param-immediately-invoked-callable $callback
+     */
+    private function eachGovnexRecord(
+        array $located,
+        callable $callback,
+        ?SincronizacaoTse $run = null,
+        int $progressOffset = 0,
+        ?int $progressTotal = null,
+    ): int {
+        $total = $progressTotal
+            ?? ($run !== null ? $this->govnexApi->count($located['source'], $located['slug']) : 0);
+        $read = 0;
+
+        $this->govnexApi->eachRecord(
+            $located['source'],
+            $located['slug'],
+            function (array $row) use (&$read, $total, $run, $progressOffset, $callback): void {
+                $read++;
+
+                if ($run !== null && $read % 5000 === 0) {
+                    $this->ensureRunIsActive($run);
+
+                    if ($total > 0) {
+                        $this->touchProgress(
+                            $run,
+                            'lendo_govnex_api',
+                            (int) round(min($progressOffset + $read, $total) / $total * 100),
+                        );
+                    }
+                }
+
+                $callback($row);
+            },
+        );
+
+        return $read;
+    }
+
+    /**
+     * Importa a votação por seção de um gabinete recém-criado ou
+     * recém-relinkado, assim que o titular dele é resolvido — sem esperar o
+     * administrador sincronizar a votação por seção de novo. Só roda para o
+     * último ano que já tem uma sincronização de votação por seção
+     * concluída: se esse dataset nunca foi sincronizado, um gabinete novo não
+     * dispara a importação sozinho.
+     *
+     * Os demais datasets já cobrem o Brasil inteiro, independente de gabinete
+     * cadastrado; só a votação por seção é filtrada pelos titulares. O
+     * vínculo de município e o titular são resolvidos de forma síncrona no
+     * cadastro/edição do gabinete (ver OfficeController).
      *
      * @return array<string, int> registros processados por dataset
      */
-    public function syncOfficeFromRetainedArchives(Gabinete $office): array
+    public function syncOfficeSectionVotes(Gabinete $office): array
     {
         if (
             ! $office->isActive()
@@ -1940,31 +2002,23 @@ class TsePoliticalDataSyncService
             return [];
         }
 
-        $run = SincronizacaoTse::query()
+        $year = SincronizacaoTse::query()
+            ->whereNull('gabinete_id')
             ->where('dataset', 'section_votes')
-            ->where('uf', mb_strtoupper($office->estado))
-            ->whereNotNull('arquivo_retido_path')
-            ->latest('ano')
-            ->first();
+            ->where('situacao', 'concluida')
+            ->max('ano');
 
-        if (! $run instanceof SincronizacaoTse
-            || ! is_string($run->arquivo_retido_path)
-            || ! File::exists($run->arquivo_retido_path)) {
+        if ($year === null) {
             return [];
         }
 
         try {
-            $processed = $this->importSectionVotes(
-                $run->ano,
-                $office->id,
-                uploadedArchivePath: $run->arquivo_retido_path,
-                uploadedUf: $run->uf,
-            );
+            $processed = $this->importSectionVotes((int) $year, $office->id);
         } catch (Throwable $exception) {
-            Log::warning('Falha ao ressincronizar votação por seção retida para um gabinete.', [
+            Log::warning('Falha ao importar a votação por seção de um gabinete pela GOVNEX API.', [
                 'gabinete_id' => $office->id,
-                'ano' => $run->ano,
-                'uf' => $run->uf,
+                'ano' => $year,
+                'uf' => $office->estado,
                 'exception' => $exception->getMessage(),
             ]);
 
@@ -1974,387 +2028,20 @@ class TsePoliticalDataSyncService
         return ['section_votes' => $processed];
     }
 
-    private function processUploadedDataset(
-        SincronizacaoTse $run,
-        string $uploadedArchivePath,
-        ?string $uploadedUf = null,
-    ): int {
-        $year = $run->ano;
-        $dataset = $run->dataset;
-        $officeId = $run->gabinete_id;
-
-        // electorate saiu daqui — não é mais obtido por upload nem por
-        // download automático do TSE (ver GOVNEX_API_DATASETS e
-        // syncElectorateFromGovnexApi()).
-        if (! in_array($dataset, self::fileBasedDatasets(), true)) {
-            throw new RuntimeException("Dataset do TSE não suportado: {$dataset}.");
-        }
-
-        $sourceUrl = $this->sourceUrl($dataset, $year, $uploadedUf);
-        $run->update([
-            'fonte_url' => $sourceUrl,
-            'situacao' => 'processando',
-            'iniciada_em' => now(),
-            'concluida_em' => null,
-            'erro' => null,
-        ]);
-        $archivePath = $uploadedArchivePath;
-
-        try {
-            $checksum = hash_file('sha256', $archivePath);
-
-            if (! is_string($checksum)) {
-                throw new RuntimeException('Não foi possível calcular o checksum do arquivo enviado.');
-            }
-
-            $run->update(['checksum_sha256' => $checksum]);
-
-            if ($dataset === 'section_votes') {
-                $processed = $this->importSectionVotes($year, $officeId, $run, $uploadedArchivePath, $uploadedUf);
-                $this->ensureRunIsActive($run);
-                $this->assertSomethingProcessed($processed, $dataset, $year, $officeId);
-                $run->update([
-                    'situacao' => 'concluida',
-                    'registros_processados' => $processed,
-                    'progresso_etapa' => null,
-                    'progresso_percentual' => null,
-                    'concluida_em' => now(),
-                ]);
-
-                return $processed;
-            }
-
-            $processed = match ($dataset) {
-                'municipalities' => $this->importMunicipalities($archivePath, $officeId),
-                'candidates' => $this->importCandidates($archivePath, $year, $run),
-                'turnout' => $this->importTurnout($archivePath, $year, $sourceUrl, $run),
-                'candidate_votes' => $this->importCandidateVotes($archivePath, $year, $sourceUrl, $run),
-                'polling_locations' => $this->importPollingLocations($archivePath, $year, $sourceUrl, $run),
-                'poll_registry' => $this->importElectionSurveyRegistry($archivePath, $year, $officeId),
-            };
-
-            // poll_registry só enriquece pesquisas já sincronizadas por outro
-            // provider (ex.: ElectioLab) com o número de registro oficial do
-            // TSE; não ter nenhuma pesquisa local pendente de vínculo é o
-            // estado normal de sucesso, não uma falha de sincronização.
-            if ($dataset !== 'poll_registry') {
-                $this->assertSomethingProcessed($processed, $dataset, $year, $officeId);
-            }
-
-            $this->ensureRunIsActive($run);
-
-            $run->update([
-                'situacao' => 'concluida',
-                'registros_processados' => $processed,
-                'progresso_etapa' => null,
-                'progresso_percentual' => null,
-                'concluida_em' => now(),
-            ]);
-
-            return $processed;
-        } catch (TseSyncCancelledException) {
-            $run->refresh();
-
-            return 0;
-        } catch (Throwable $exception) {
-            $run->update([
-                'situacao' => 'falhou',
-                'erro' => Str::limit($exception->getMessage(), 10000),
-                'progresso_etapa' => null,
-                'progresso_percentual' => null,
-                'concluida_em' => now(),
-            ]);
-
-            throw $exception;
-        } finally {
-            // Só `section_votes` é reprocessado a partir do arquivo retido
-            // (ver syncOfficeFromRetainedArchives) — os demais datasets já
-            // cobrem o Brasil inteiro assim que importados, então guardar o
-            // ZIP deles não serve a nada, só ocupa disco.
-            if ($run->situacao === 'concluida' && $dataset === 'section_votes') {
-                $this->retainProcessedArchive($run, $archivePath);
-            } elseif (File::exists($archivePath)) {
-                File::delete($archivePath);
-            }
-        }
-    }
-
-    /**
-     * Guarda o ZIP de uma sincronização bem-sucedida de votação por seção
-     * para reprocessamento futuro (ex.: um gabinete novo cadastrado depois)
-     * sem exigir novo upload. Só o mais recente por ano/UF é mantido — o
-     * retido anterior dessa mesma combinação é descartado.
-     */
-    private function retainProcessedArchive(SincronizacaoTse $run, string $archivePath): void
-    {
-        $directory = storage_path('app/private/tse-retido');
-        File::ensureDirectoryExists($directory);
-
-        $previous = SincronizacaoTse::query()
-            ->where('dataset', $run->dataset)
-            ->where('ano', $run->ano)
-            ->where('uf', $run->uf)
-            ->whereKeyNot($run->id)
-            ->whereNotNull('arquivo_retido_path')
-            ->get();
-
-        foreach ($previous as $old) {
-            if ($old->arquivo_retido_path !== null) {
-                File::delete($old->arquivo_retido_path);
-            }
-            $old->forceFill(['arquivo_retido_path' => null])->save();
-        }
-
-        $suffix = $run->uf !== null ? "{$run->dataset}-{$run->ano}-{$run->uf}" : "{$run->dataset}-{$run->ano}";
-        $destination = $directory.DIRECTORY_SEPARATOR."{$suffix}.zip";
-        File::move($archivePath, $destination);
-        $run->forceFill(['arquivo_retido_path' => $destination])->save();
-    }
-
-    private function assertSomethingProcessed(int $processed, string $dataset, int $year, ?int $officeId): void
+    private function assertSomethingProcessed(int $processed, string $dataset, int $year): void
     {
         if ($processed > 0) {
             return;
         }
 
-        Log::warning('Sincronização do TSE processou 0 registros. Verifique se o layout do arquivo do TSE mudou.', [
+        Log::warning('Sincronização da GOVNEX API processou 0 registros. Verifique se as colunas do dataset mudaram.', [
             'dataset' => $dataset,
             'ano' => $year,
-            'gabinete_id' => $officeId,
         ]);
 
         throw new RuntimeException(
-            "A sincronização do dataset {$dataset} do TSE para {$year} não processou registros. Verifique os pré-requisitos do gabinete e o layout publicado pelo TSE.",
+            "A sincronização do dataset {$dataset} para {$year} não processou registros. Verifique os pré-requisitos e as colunas do dataset publicado na GOVNEX API.",
         );
-    }
-
-    private function download(string $url, string $dataset, int $year): string
-    {
-        $directory = storage_path('app/private/tse');
-        File::ensureDirectoryExists($directory);
-        $path = $directory.DIRECTORY_SEPARATOR."{$dataset}-{$year}-".Str::uuid().'.zip';
-
-        try {
-            Http::withHeaders([
-                'Accept' => 'application/zip, application/octet-stream;q=0.9, */*;q=0.8',
-                'Accept-Language' => 'pt-BR,pt;q=0.9,en;q=0.7',
-                'Referer' => 'https://dadosabertos.tse.jus.br/',
-            ])
-                ->withUserAgent((string) config('services.tse.user_agent'))
-                ->connectTimeout((int) config('services.tse.connect_timeout', 30))
-                ->timeout((int) config('services.tse.timeout', 600))
-                ->retry(3, 2000)
-                ->withOptions(['sink' => $path])
-                ->get($url)
-                ->throw();
-
-            if (! File::exists($path) || File::size($path) === 0) {
-                throw new RuntimeException('O TSE retornou um arquivo vazio. Use o upload manual.');
-            }
-
-            $maximumBytes = max(
-                1,
-                (int) config('services.tse.max_download_megabytes', 2048),
-            ) * 1024 * 1024;
-
-            if (File::size($path) > $maximumBytes) {
-                throw new RuntimeException('O arquivo retornado pelo TSE excede o limite configurado para download.');
-            }
-
-            return $path;
-        } catch (Throwable $exception) {
-            File::delete($path);
-
-            throw $exception;
-        }
-    }
-
-    /**
-     * Muitos ZIPs do TSE empacotam, junto de um CSV por UF (ex.:
-     * "..._CE.csv"), um agregado nacional com o Brasil inteiro de novo
-     * (ex.: "..._BRASIL.csv") — cobrindo os mesmos municípios/candidatos
-     * das entradas por UF. A tentativa anterior era o inverso disto (ler
-     * as UFs, descartar o BRASIL), mas isso é frágil: alguns registros só
-     * existem no agregado nacional (ex.: candidato a Presidente não tem
-     * UF própria), então excluí-lo arriscava perder dado de verdade em vez
-     * de só evitar duplicata.
-     *
-     * A regra mais simples e robusta é a oposta: ler só o agregado
-     * nacional — por definição já é o Brasil inteiro em um único arquivo,
-     * então nunca falta nada e nunca duplica nada, sem precisar entender
-     * a cobertura exata de cada UF por dataset.
-     */
-    private function nationalAggregateCsvEntry(string $name): bool
-    {
-        return preg_match('/_brasil\.csv$/i', $name) === 1;
-    }
-
-    /**
-     * Entrada de UF do ZIP (ex.: "..._CE.csv"), nunca o agregado nacional
-     * "..._BRASIL.csv" — usado por importCandidateVotes(), que precisa
-     * processar um estado por vez em vez do Brasil inteiro de uma tacada
-     * só (ver csvEntrySizes()).
-     */
-    private function stateCsvEntry(string $name): bool
-    {
-        return ! $this->nationalAggregateCsvEntry($name)
-            && preg_match('/_[a-z]{2}\.csv$/i', $name) === 1;
-    }
-
-    /**
-     * Lista nome e tamanho descomprimido (statName, sem descompactar) de
-     * cada entrada CSV do ZIP que casa com $entryFilter — usado pra
-     * calcular um percentual de progresso que cubra várias chamadas de
-     * readCsvArchive() (uma por UF) como se fossem uma leitura só.
-     *
-     * @return list<array{name: string, size: int}>
-     */
-    private function csvEntrySizes(string $path, callable $entryFilter): array
-    {
-        $zip = new ZipArchive;
-
-        if ($zip->open($path) !== true) {
-            throw new RuntimeException('Não foi possível abrir o arquivo ZIP do TSE.');
-        }
-
-        try {
-            $entries = [];
-
-            for ($index = 0; $index < $zip->numFiles; $index++) {
-                $name = $zip->getNameIndex($index);
-
-                if (
-                    ! is_string($name)
-                    || ! str_ends_with(mb_strtolower($name), '.csv')
-                    || ! $entryFilter($name)
-                ) {
-                    continue;
-                }
-
-                $stats = $zip->statName($name);
-                $entries[] = ['name' => $name, 'size' => is_array($stats) ? (int) $stats['size'] : 0];
-            }
-
-            return $entries;
-        } finally {
-            $zip->close();
-        }
-    }
-
-    /**
-     * Os três callbacks rodam durante a própria chamada, linha a linha, e
-     * nunca são guardados para depois. Sem marcá-los como imediatos, a
-     * análise estática assume que um `use (&$var)` do chamador jamais é
-     * executado e passa a tratar os acumuladores como sempre vazios.
-     *
-     * @param  callable(array<string, string>): void  $callback
-     * @param  (callable(string): bool)|null  $entryFilter
-     * @param  (callable(list<string>, list<string>): bool)|null  $rowFilter  Filtro barato aplicado nos valores BRUTOS de cada linha (ainda em Windows-1252, na mesma ordem do cabeçalho já convertido) antes de combiná-la com o cabeçalho em array_combine(). Alguns datasets do TSE têm milhões de linhas das quais só uma fração mínima interessa (ex.: votação por seção tem todo candidato a vereador do estado, não só o titular do gabinete) — filtrar antes evita gastar até a conversão de charset (adiada pra value(), ver utf8()) em colunas que vão ser descartadas de qualquer forma. Deve ser conservador: só retornar false quando tiver certeza de que a linha completa (após combinar) também seria descartada.
-     *
-     * @param-immediately-invoked-callable $callback
-     * @param-immediately-invoked-callable $entryFilter
-     * @param-immediately-invoked-callable $rowFilter
-     */
-    private function readCsvArchive(
-        string $path,
-        callable $callback,
-        ?callable $entryFilter = null,
-        ?callable $rowFilter = null,
-        ?SincronizacaoTse $run = null,
-        ?int $progressOffsetBytes = null,
-        ?int $progressTotalBytes = null,
-    ): void {
-        $zip = new ZipArchive;
-
-        if ($zip->open($path) !== true) {
-            throw new RuntimeException('Não foi possível abrir o arquivo ZIP do TSE.');
-        }
-
-        try {
-            for ($index = 0; $index < $zip->numFiles; $index++) {
-                $name = $zip->getNameIndex($index);
-
-                if (
-                    ! is_string($name)
-                    || ! str_ends_with(mb_strtolower($name), '.csv')
-                    || ($entryFilter !== null && ! $entryFilter($name))
-                ) {
-                    continue;
-                }
-
-                // Tamanho descomprimido da entrada — junto com ftell() do
-                // stream (que também reflete o offset descomprimido), dá um
-                // percentual real de leitura sem precisar contar linhas do
-                // arquivo inteiro antes de começar.
-                $stats = $zip->statName($name);
-                $totalBytes = is_array($stats) ? (int) $stats['size'] : 0;
-                $stream = $zip->getStream($name);
-
-                if ($stream === false) {
-                    continue;
-                }
-
-                try {
-                    $header = fgetcsv($stream, null, ';', '"', '');
-
-                    if (! is_array($header)) {
-                        continue;
-                    }
-
-                    $header = array_map(
-                        fn ($value): string => mb_strtoupper(trim(ltrim(
-                            $this->utf8((string) $value),
-                            "\xEF\xBB\xBF",
-                        ))),
-                        $header,
-                    );
-                    $rowsRead = 0;
-
-                    while (($values = fgetcsv($stream, null, ';', '"', '')) !== false) {
-                        $rowsRead++;
-
-                        if ($run !== null && $totalBytes > 0 && $rowsRead % 5000 === 0) {
-                            $this->ensureRunIsActive($run);
-                            $position = ftell($stream);
-
-                            if (is_int($position)) {
-                                // Quando o chamador processa o arquivo em
-                                // partes (ex.: um estado por vez, ver
-                                // importCandidateVotes), o percentual
-                                // precisa refletir o total do processamento
-                                // inteiro, não só da parte atual — senão a
-                                // barra de progresso volta pra 0% a cada
-                                // nova parte.
-                                $percent = $progressOffsetBytes !== null && $progressTotalBytes !== null && $progressTotalBytes > 0
-                                    ? ($progressOffsetBytes + min($position, $totalBytes)) / $progressTotalBytes * 100
-                                    : min($position, $totalBytes) / $totalBytes * 100;
-
-                                $this->touchProgress($run, 'lendo_arquivo', (int) round($percent));
-                            }
-                        }
-
-                        if (count($header) !== count($values)) {
-                            continue;
-                        }
-
-                        if ($rowFilter !== null && ! $rowFilter($values, $header)) {
-                            continue;
-                        }
-
-                        // A conversão de codificação (Windows-1252 -> UTF-8)
-                        // é adiada pra dentro de value() — só as colunas que
-                        // o importer efetivamente lê pagam esse custo, em
-                        // vez de todas as colunas de toda linha, incluindo
-                        // as descartadas por filtro logo depois no callback.
-                        $callback(array_combine($header, $values));
-                    }
-                } finally {
-                    fclose($stream);
-                }
-            }
-        } finally {
-            $zip->close();
-        }
     }
 
     /**
@@ -2483,12 +2170,6 @@ class TsePoliticalDataSyncService
             'DEPUTADO DISTRITAL' => CandidateScope::State,
             default => null,
         };
-    }
-
-    /** URL oficial indicada ao administrador para baixar o ZIP manualmente. */
-    public function sourceUrl(string $dataset, int $year, ?string $uf = null): string
-    {
-        return $this->urlBuilder->official($dataset, $year, $uf);
     }
 
     /** @return list<string> UFs prontas para processar votação por seção. */

@@ -13,6 +13,7 @@ import {
     PlugCircleIcon,
     PresentationGraphIcon,
     RadarIcon,
+    RefreshCircleIcon,
     ServerIcon,
     ShieldCheckIcon,
     StructureIcon,
@@ -129,6 +130,11 @@ export function useAppNavSections(): NavSection[] {
                       title: 'Gerenciar gabinetes',
                       href: '/admin/gabinetes',
                       icon: BuildingsIcon,
+                  },
+                  {
+                      title: 'Sincronização política',
+                      href: '/admin/sincronizacao-politica',
+                      icon: RefreshCircleIcon,
                   },
                   {
                       title: 'Pesquisas eleitorais',

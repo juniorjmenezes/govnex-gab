@@ -49,32 +49,24 @@ return [
     ],
 
     'tse' => [
-        'cdn_url' => env('TSE_CDN_URL', 'https://cdn.tse.jus.br/estatistica/sead/odsele'),
-        'user_agent' => env('TSE_USER_AGENT', 'GovnexGab/1.0 ('.env('APP_URL', 'http://localhost').')'),
-        'connect_timeout' => env('TSE_CONNECT_TIMEOUT', 30),
+        // Tempo máximo de cada requisição à GOVNEX API (ver GovnexApiClient).
         'timeout' => env('TSE_TIMEOUT', 600),
-        'max_download_megabytes' => env('TSE_MAX_DOWNLOAD_MEGABYTES', 2048),
-        'manual_upload_max_megabytes' => env('TSE_MANUAL_UPLOAD_MAX_MEGABYTES', 1024),
-        'max_uncompressed_megabytes' => env('TSE_MAX_UNCOMPRESSED_MEGABYTES', 16384),
-        'max_compression_ratio' => env('TSE_MAX_COMPRESSION_RATIO', 200),
-        'max_archive_entries' => env('TSE_MAX_ARCHIVE_ENTRIES', 500),
         'polling_locations_chunk_size' => env('TSE_POLLING_LOCATIONS_CHUNK_SIZE', 25000),
         'queue_connection' => env('TSE_QUEUE_CONNECTION', 'database'),
-        // Aplicado via ini_set() dentro do próprio job (ProcessUploadedTseDataset/
-        // DownloadAndProcessTseDataset) — não basta configurar -d memory_limit=
-        // na invocação de `queue:listen`: ele só ajusta a memória do processo
-        // listener, não dos workers `queue:work --once` que ele cria pra
-        // processar cada job (Listener::createCommand() não repassa flags -d
-        // pro subprocesso). ini_set() dentro do job funciona não importa como o
-        // worker foi iniciado. São Paulo sozinho (maior estado) já passa de
-        // 700MB pra agregar seus candidatos a vereador em importCandidateVotes().
+        // Aplicado via ini_set() dentro do próprio job (SyncDatasetFromGovnexApi)
+        // — não basta configurar -d memory_limit= na invocação de
+        // `queue:listen`: ele só ajusta a memória do processo listener, não
+        // dos workers `queue:work --once` que ele cria pra processar cada job
+        // (Listener::createCommand() não repassa flags -d pro subprocesso).
+        // ini_set() dentro do job funciona não importa como o worker foi
+        // iniciado. São Paulo sozinho (maior estado) já passa de 700MB pra
+        // agregar seus candidatos a vereador em importCandidateVotes().
         'worker_memory_limit' => env('TSE_WORKER_MEMORY_LIMIT', '2048M'),
     ],
 
-    // GOVNEX API — fonte do dataset "Perfil eleitorado" (ver
-    // GovnexApiClient e TsePoliticalDataSyncService::importElectorate()).
-    // Sem GOVNEX_API_KEY, a API ainda responde, só com o rate limit e o
-    // per_page mais baixos do consumidor anônimo.
+    // GOVNEX API — fonte de todos os datasets do TSE (ver GovnexApiClient e
+    // GovnexApiDatasetCatalog). Sem GOVNEX_API_KEY, a API ainda responde, só
+    // com o rate limit e o per_page mais baixos do consumidor anônimo.
     'govnex_api' => [
         'url' => env('GOVNEX_API_URL', 'http://127.0.0.1:8020/api/v1'),
         'key' => env('GOVNEX_API_KEY'),

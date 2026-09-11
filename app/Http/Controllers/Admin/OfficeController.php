@@ -14,7 +14,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\OfficeRequest;
 use App\Http\Requests\Admin\UpdateOfficeModulesRequest;
 use App\Http\Requests\Admin\UpdateOfficeStatusRequest;
-use App\Jobs\SyncOfficePoliticalDataFromRetainedArchives;
+use App\Jobs\SyncOfficeSectionVotesFromGovnexApi;
 use App\Models\Entidade;
 use App\Models\Gabinete;
 use App\Models\GabineteMembro;
@@ -26,7 +26,6 @@ use App\Services\Entidades\EntidadeMembershipService;
 use App\Services\Modules\GabineteModuleCatalog;
 use App\Services\Modules\GabineteModuleManager;
 use App\Services\Politics\OfficeHolderCandidateResolver;
-use App\Services\Politics\Tse\TseDatasetUrlBuilder;
 use App\Services\Politics\TsePoliticalDataSyncService;
 use App\Support\PerPage;
 use Illuminate\Database\Eloquent\Builder;
@@ -100,9 +99,6 @@ class OfficeController extends Controller
     public function index(
         Request $request,
         GabineteModuleCatalog $moduleCatalog,
-        GabineteModuleManager $modules,
-        TseDatasetUrlBuilder $tseUrls,
-        TsePoliticalDataSyncService $tseSync,
     ): Response {
         $this->authorize('viewAny', Gabinete::class);
         abort_unless($request->user()->isRoot(), 403);
@@ -191,21 +187,6 @@ class OfficeController extends Controller
             ->latest('id')
             ->get()
             ->groupBy('gabinete_id');
-        $globalSyncs = SincronizacaoTse::query()
-            ->whereNull('gabinete_id')
-            ->whereIn('dataset', TsePoliticalDataSyncService::UPLOADABLE_DATASETS)
-            ->latest('id')
-            ->get()
-            ->unique(fn (SincronizacaoTse $sync): string => TsePoliticalDataSyncService::datasetHistoryKey(
-                $sync->dataset,
-                $sync->ano,
-                $sync->uf,
-            ))
-            ->take(10)
-            ->map(fn (SincronizacaoTse $sync): array => $sync->toSummary())
-            ->values()
-            ->all();
-
         $officeData = $paginator->getCollection()
             ->map(fn (Gabinete $office): array => [
                 'id' => $office->id,
@@ -341,18 +322,6 @@ class OfficeController extends Controller
                 ],
                 GabineteStatus::cases(),
             ),
-            'globalSyncs' => $globalSyncs,
-            'politicsAvailable' => $modules->anyActiveOffice(GabineteModule::Politics),
-            'manualTseUploadMaxMegabytes' => max(
-                1,
-                (int) config('services.tse.manual_upload_max_megabytes', 500),
-            ),
-            'manualTseSourceTemplates' => collect(TsePoliticalDataSyncService::fileBasedDatasets())
-                ->mapWithKeys(fn (string $dataset): array => [
-                    $dataset => $tseUrls->officialTemplate($dataset),
-                ])
-                ->all(),
-            'availableUfs' => $tseSync->registeredUfs(),
             'moduleCatalog' => array_values($moduleCatalog->definitions()),
         ]);
     }
@@ -446,7 +415,7 @@ class OfficeController extends Controller
         $holderResolver->resolveOffice($office);
 
         if ($modules->isActive($office, GabineteModule::Politics)) {
-            SyncOfficePoliticalDataFromRetainedArchives::dispatch($office->id);
+            SyncOfficeSectionVotesFromGovnexApi::dispatch($office->id);
         }
 
         Inertia::flash('toast', [
@@ -539,7 +508,7 @@ class OfficeController extends Controller
         $holderResolver->resolveOffice($office);
 
         if ($municipalityChanged && $modules->isActive($office, GabineteModule::Politics)) {
-            SyncOfficePoliticalDataFromRetainedArchives::dispatch($office->id);
+            SyncOfficeSectionVotesFromGovnexApi::dispatch($office->id);
         }
 
         Log::info('Gabinete atualizado pela administração da plataforma.', [

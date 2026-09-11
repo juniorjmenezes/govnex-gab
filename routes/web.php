@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\GovnexApiIntegrationController;
 use App\Http\Controllers\Admin\OfficeController;
 use App\Http\Controllers\Admin\OfficePoliticalDataSyncController;
 use App\Http\Controllers\Admin\PartyColorController;
+use App\Http\Controllers\Admin\PoliticalDataSyncController;
 use App\Http\Controllers\Admin\PollCurationController;
 use App\Http\Controllers\Admin\RootUserController;
 use App\Http\Controllers\Admin\RssSourceController;
@@ -49,8 +50,6 @@ Route::middleware(['auth', 'verified', 'user.active'])->group(function () {
             ->name('offices.modules.update');
         Route::patch('gabinetes/{office}/status', [OfficeController::class, 'updateStatus'])
             ->name('offices.status');
-        Route::get('gabinetes/{office}/sincronizacoes-tse', [OfficePoliticalDataSyncController::class, 'show'])
-            ->name('offices.political-sync.show');
         Route::post('gabinetes/{office}/sincronizacoes-tse', [OfficePoliticalDataSyncController::class, 'store'])
             ->name('offices.political-sync.store');
         Route::post(
@@ -61,14 +60,12 @@ Route::middleware(['auth', 'verified', 'user.active'])->group(function () {
             'gabinetes/{office}/sincronizacoes-tse/{sync}/cancelar',
             [OfficePoliticalDataSyncController::class, 'cancel'],
         )->name('offices.political-sync.cancel');
-        Route::post('sincronizacoes-tse-globais/upload', [GlobalPoliticalDataSyncController::class, 'upload'])
-            ->name('global-political-sync.upload');
+        Route::get('sincronizacao-politica', [PoliticalDataSyncController::class, 'index'])
+            ->name('political-sync.index');
         Route::post(
-            'sincronizacoes-tse-globais/eleitorado/govnex-api',
-            [GlobalPoliticalDataSyncController::class, 'syncElectorateFromGovnexApi'],
-        )->name('global-political-sync.electorate-govnex-api');
-        Route::post('sincronizacoes-tse-globais/fallback-automatico', [GlobalPoliticalDataSyncController::class, 'fallback'])
-            ->name('global-political-sync.fallback');
+            'sincronizacoes-tse-globais/govnex-api',
+            [GlobalPoliticalDataSyncController::class, 'syncFromGovnexApi'],
+        )->name('global-political-sync.govnex-api');
         Route::post(
             'sincronizacoes-tse-globais/{sync}/cancelar',
             [GlobalPoliticalDataSyncController::class, 'cancel'],

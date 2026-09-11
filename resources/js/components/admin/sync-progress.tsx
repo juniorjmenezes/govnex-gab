@@ -73,7 +73,7 @@ export function SyncProgress({
  * Linha padrão de status de sincronização: dot colorido à esquerda, detalhe
  * (horário/contagem/percentual) alinhado à direita, barra de progresso real
  * embaixo. Usada em todo lugar que hoje mostraria um badge + progresso —
- * upload manual do TSE, fallback automático e sincronizações de pesquisas.
+ * datasets do TSE pela GOVNEX API e pesquisas do PollingData.
  */
 export function SyncStatusRow({
     sync,
@@ -82,6 +82,14 @@ export function SyncStatusRow({
     sync: PoliticalDataSync;
     className?: string;
 }) {
+    // O erro de uma sincronização é uma frase inteira (o que houve e o que
+    // fazer): vai numa linha própria, quebrando dentro da coluna, em vez de
+    // espremido à direita do status.
+    const failure =
+        (sync.status === 'falhou' || sync.status === 'cancelada') && sync.error
+            ? sync.error
+            : null;
+
     return (
         <div className={cn('space-y-1.5', className)}>
             <div className="flex items-center justify-between gap-3 text-xs">
@@ -91,11 +99,25 @@ export function SyncStatusRow({
                         {syncStatusLabels[sync.status] ?? sync.status}
                     </span>
                 </span>
-                <span className="shrink-0 text-right text-muted-foreground">
-                    {syncStatusDetail(sync)}
-                </span>
+                {failure === null && (
+                    <span className="shrink-0 text-right text-muted-foreground">
+                        {syncStatusDetail(sync)}
+                    </span>
+                )}
             </div>
             <SyncProgress sync={sync} />
+            {failure !== null && (
+                <p
+                    className={cn(
+                        'text-xs break-words whitespace-normal',
+                        sync.status === 'falhou'
+                            ? 'text-destructive'
+                            : 'text-muted-foreground',
+                    )}
+                >
+                    {failure}
+                </p>
+            )}
         </div>
     );
 }
