@@ -52,6 +52,15 @@ class TsePoliticalDataSyncService
      */
     public const YEARLESS_DATASETS = ['municipalities'];
 
+    /**
+     * Cargos da votação nominal municipal. Vice-prefeito não entra porque não
+     * recebe voto próprio — a chapa é votada no prefeito, e o vice só existe
+     * na base de candidaturas (consulta-cand).
+     *
+     * @var list<string>
+     */
+    private const MUNICIPAL_OFFICES = ['PREFEITO', 'VEREADOR'];
+
     public static function datasetRequiresYear(string $dataset): bool
     {
         return ! in_array($dataset, self::YEARLESS_DATASETS, true);
@@ -700,17 +709,18 @@ class TsePoliticalDataSyncService
     /**
      * Importa a votação nominal do Brasil inteiro, sem restringir aos
      * municípios com gabinete já cadastrado (mesmo racional de
-     * importElectorate).
+     * importElectorate). Entram prefeito e vereador — ver MUNICIPAL_OFFICES.
      *
-     * Grava um estado por vez em vez do Brasil inteiro de uma tacada só — o
-     * dataset nacional chega a ~400 mil candidaturas a vereador (município ×
-     * turno × candidato), cada uma carregando objetos de data; acumular tudo
-     * em memória antes de gravar estoura o memory_limit do PHP (reproduzido:
-     * "Allowed memory size... exhausted" com 512M). O CSV do TSE vem agrupado
-     * por UF e a GOVNEX API preserva a ordem das linhas, então os agregados
-     * de uma UF são gravados assim que a próxima começa. Se uma UF já gravada
-     * reaparecer, a soma por zona sairia partida em duas — a importação falha
-     * em vez de gravar votação errada.
+     * Grava um estado por vez em vez do Brasil inteiro de uma tacada só: o
+     * dataset nacional passa de 700 mil linhas, cada agregado carregando
+     * objetos de data, e acumular tudo antes de gravar estoura o memory_limit
+     * do PHP (reproduzido: "Allowed memory size... exhausted" com 512M).
+     *
+     * O corte por estado vem de uma consulta filtrada por UF, não da ordem das
+     * linhas: o dataset publicado traz as UFs intercaladas (medido no dataset
+     * de 2024: 897 trocas de UF nas primeiras 4 mil linhas), então confiar na
+     * ordem gravaria a soma de uma UF partida em duas gravações. Por isso o
+     * dataset precisa declarar SG_UF como filtrável na GOVNEX API.
      */
     public function importCandidateVotes(int $year, ?SincronizacaoTse $run = null): int
     {
@@ -724,153 +734,138 @@ class TsePoliticalDataSyncService
         }
 
         $located = $this->locateDataset('candidate_votes', $year);
+
+        if (! in_array('SG_UF', $located['filterable'], true)) {
+            throw new RuntimeException(sprintf(
+                'O dataset %s precisa declarar SG_UF como campo filtrável na GOVNEX API: a votação nominal é lida um estado por vez, e as UFs vêm intercaladas no arquivo.',
+                $located['slug'],
+            ));
+        }
+
         $sourceUrl = $this->datasetUrl($located);
         $municipalitiesByCode = MunicipioEleitoral::query()
             ->get(['id', 'codigo_tse'])
             ->keyBy('codigo_tse');
+        // As UFs saem da base de municípios já importada — é a lista de
+        // estados que a própria plataforma reconhece.
+        $states = MunicipioEleitoral::query()
+            ->distinct()
+            ->orderBy('uf')
+            ->pluck('uf')
+            ->all();
         $now = now();
-        $aggregates = [];
-        $currentState = null;
-        $finishedStates = [];
         $totalProcessed = 0;
+        $stateIndex = 0;
 
-        $this->eachGovnexRecord(
-            $located,
-            function (array $row) use (
-                $year,
+        foreach ($states as $state) {
+            $stateIndex++;
+            $aggregates = [];
+
+            $this->eachGovnexRecord(
                 $located,
-                $election,
-                $municipalitiesByCode,
-                $sourceUrl,
-                $now,
-                $run,
-                &$aggregates,
-                &$currentState,
-                &$finishedStates,
-                &$totalProcessed,
-            ): void {
-                $state = mb_strtoupper($this->value($row, 'SG_UF'));
+                function (array $row) use ($year, &$aggregates): void {
+                    $rowState = mb_strtoupper($this->value($row, 'SG_UF'));
+                    $municipalityName = $this->value($row, 'NM_MUNICIPIO', 'NM_UE');
+                    $municipalityCode = str_pad(
+                        $this->value($row, 'CD_MUNICIPIO', 'SG_UE'),
+                        5,
+                        '0',
+                        STR_PAD_LEFT,
+                    );
+                    $office = Str::ascii(mb_strtoupper($this->value($row, 'DS_CARGO')));
+                    $votes = $this->value($row, 'QT_VOTOS_NOMINAIS');
+                    $validVotes = $this->value($row, 'QT_VOTOS_NOMINAIS_VALIDOS');
 
-                if ($state !== $currentState) {
-                    if (isset($finishedStates[$state])) {
-                        throw new RuntimeException(sprintf(
-                            'O dataset %s não está agrupado por UF: %s reapareceu depois de outra UF. A votação nominal é gravada um estado por vez — reimporte na GOVNEX API o CSV do TSE na ordem original.',
-                            $located['slug'],
-                            $state,
-                        ));
+                    if (
+                        (int) $this->value($row, 'ANO_ELEICAO') !== $year
+                        || ($this->value($row, 'CD_TIPO_ELEICAO') !== ''
+                            && $this->value($row, 'CD_TIPO_ELEICAO') !== '2')
+                        || $this->value($row, 'ST_VOTO_EM_TRANSITO') === 'S'
+                        || ! in_array($office, self::MUNICIPAL_OFFICES, true)
+                        || ! is_numeric($votes)
+                        || ! is_numeric($validVotes)
+                    ) {
+                        return;
                     }
 
-                    if ($aggregates !== []) {
-                        $totalProcessed += $this->flushCandidateVoteAggregates(
-                            $aggregates,
-                            $election,
-                            $municipalitiesByCode,
-                            $sourceUrl,
+                    $candidateSequence = $this->value($row, 'SQ_CANDIDATO');
+                    $electionCode = $this->value($row, 'CD_ELEICAO');
+                    $round = (int) $this->value($row, 'NR_TURNO');
+                    $zone = $this->value($row, 'NR_ZONA');
+
+                    if (
+                        $candidateSequence === ''
+                        || $electionCode === ''
+                        || $round < 1
+                        || $zone === ''
+                    ) {
+                        return;
+                    }
+
+                    $aggregateKey = "{$municipalityCode}:{$electionCode}:{$round}:{$candidateSequence}";
+                    $aggregates[$aggregateKey] ??= [
+                        'municipality_code' => $municipalityCode,
+                        'municipality_name' => Str::squish($municipalityName),
+                        'state' => $rowState,
+                        'election_code' => $electionCode,
+                        'round' => $round,
+                        'election_date' => $this->sourceDate(
+                            $this->value($row, 'DT_ELEICAO'),
                             $year,
-                            $now,
-                            $run,
-                        );
-                        $aggregates = [];
-                    }
-
-                    if ($currentState !== null) {
-                        $finishedStates[$currentState] = true;
-                    }
-
-                    $currentState = $state;
-                }
-
-                $municipalityName = $this->value($row, 'NM_MUNICIPIO', 'NM_UE');
-                $municipalityCode = str_pad(
-                    $this->value($row, 'CD_MUNICIPIO', 'SG_UE'),
-                    5,
-                    '0',
-                    STR_PAD_LEFT,
-                );
-                $office = Str::ascii(mb_strtoupper($this->value($row, 'DS_CARGO')));
-                $votes = $this->value($row, 'QT_VOTOS_NOMINAIS');
-                $validVotes = $this->value($row, 'QT_VOTOS_NOMINAIS_VALIDOS');
-
-                if (
-                    (int) $this->value($row, 'ANO_ELEICAO') !== $year
-                    || ($this->value($row, 'CD_TIPO_ELEICAO') !== ''
-                        && $this->value($row, 'CD_TIPO_ELEICAO') !== '2')
-                    || $this->value($row, 'ST_VOTO_EM_TRANSITO') === 'S'
-                    || $office !== 'VEREADOR'
-                    || ! is_numeric($votes)
-                    || ! is_numeric($validVotes)
-                ) {
-                    return;
-                }
-
-                $candidateSequence = $this->value($row, 'SQ_CANDIDATO');
-                $electionCode = $this->value($row, 'CD_ELEICAO');
-                $round = (int) $this->value($row, 'NR_TURNO');
-                $zone = $this->value($row, 'NR_ZONA');
-
-                if (
-                    $candidateSequence === ''
-                    || $electionCode === ''
-                    || $round < 1
-                    || $zone === ''
-                ) {
-                    return;
-                }
-
-                $aggregateKey = "{$municipalityCode}:{$electionCode}:{$round}:{$candidateSequence}";
-                $aggregates[$aggregateKey] ??= [
-                    'municipality_code' => $municipalityCode,
-                    'municipality_name' => Str::squish($municipalityName),
-                    'state' => $state,
-                    'election_code' => $electionCode,
-                    'round' => $round,
-                    'election_date' => $this->sourceDate(
-                        $this->value($row, 'DT_ELEICAO'),
-                        $year,
-                    ),
-                    'candidate_sequence' => $candidateSequence,
-                    'candidate_number' => $this->nullable($this->value($row, 'NR_CANDIDATO')),
-                    'candidate_name' => Str::squish($this->value($row, 'NM_CANDIDATO')),
-                    'candidate_ballot_name' => Str::squish($this->value($row, 'NM_URNA_CANDIDATO')),
-                    'party_abbreviation' => $this->nullable($this->value($row, 'SG_PARTIDO')),
-                    'party_name' => $this->nullable($this->value($row, 'NM_PARTIDO')),
-                    'candidate_status' => $this->nullable($this->value(
-                        $row,
-                        'DS_SITUACAO_JULGAMENTO',
-                        'DS_SITUACAO_CANDIDATURA',
-                    )),
-                    'candidate_status_detail' => $this->nullable($this->value(
-                        $row,
-                        'DS_DETALHE_SITUACAO_CAND',
-                    )),
-                    'result_status' => $this->nullable($this->value($row, 'DS_SIT_TOT_TURNO')),
-                    'source_generated_at' => $this->sourceDateTime(
-                        $this->value($row, 'DT_GERACAO'),
-                        $this->value($row, 'HH_GERACAO'),
-                    ),
-                    'zones' => [],
-                ];
-                $currentZone = $aggregates[$aggregateKey]['zones'][$zone] ?? [
-                    'votes' => 0,
-                    'valid_votes' => 0,
-                ];
-                $aggregates[$aggregateKey]['zones'][$zone] = [
-                    'votes' => max($currentZone['votes'], (int) $votes),
-                    'valid_votes' => max($currentZone['valid_votes'], (int) $validVotes),
-                ];
-            },
-            $run,
-        );
-
-        if ($aggregates !== []) {
-            $totalProcessed += $this->flushCandidateVoteAggregates(
-                $aggregates,
-                $election,
-                $municipalitiesByCode,
-                $sourceUrl,
-                $year,
-                $now,
+                        ),
+                        'office' => Str::squish($this->value($row, 'DS_CARGO')),
+                        'candidate_sequence' => $candidateSequence,
+                        'candidate_number' => $this->nullable($this->value($row, 'NR_CANDIDATO')),
+                        'candidate_name' => Str::squish($this->value($row, 'NM_CANDIDATO')),
+                        'candidate_ballot_name' => Str::squish($this->value($row, 'NM_URNA_CANDIDATO')),
+                        'party_abbreviation' => $this->nullable($this->value($row, 'SG_PARTIDO')),
+                        'party_name' => $this->nullable($this->value($row, 'NM_PARTIDO')),
+                        'candidate_status' => $this->nullable($this->value(
+                            $row,
+                            'DS_SITUACAO_JULGAMENTO',
+                            'DS_SITUACAO_CANDIDATURA',
+                        )),
+                        'candidate_status_detail' => $this->nullable($this->value(
+                            $row,
+                            'DS_DETALHE_SITUACAO_CAND',
+                        )),
+                        'result_status' => $this->nullable($this->value($row, 'DS_SIT_TOT_TURNO')),
+                        'source_generated_at' => $this->sourceDateTime(
+                            $this->value($row, 'DT_GERACAO'),
+                            $this->value($row, 'HH_GERACAO'),
+                        ),
+                        'zones' => [],
+                    ];
+                    $currentZone = $aggregates[$aggregateKey]['zones'][$zone] ?? [
+                        'votes' => 0,
+                        'valid_votes' => 0,
+                    ];
+                    $aggregates[$aggregateKey]['zones'][$zone] = [
+                        'votes' => max($currentZone['votes'], (int) $votes),
+                        'valid_votes' => max($currentZone['valid_votes'], (int) $validVotes),
+                    ];
+                },
                 $run,
+                progressTotal: 0,
+                filters: ['SG_UF' => $state],
+            );
+
+            if ($aggregates !== []) {
+                $totalProcessed += $this->flushCandidateVoteAggregates(
+                    $aggregates,
+                    $election,
+                    $municipalitiesByCode,
+                    $sourceUrl,
+                    $year,
+                    $now,
+                    $run,
+                );
+            }
+
+            $this->touchProgress(
+                $run,
+                'lendo_govnex_api',
+                (int) round($stateIndex / max(1, count($states)) * 100),
             );
         }
 
@@ -890,6 +885,7 @@ class TsePoliticalDataSyncService
      *     municipality_code: string,
      *     municipality_name: string,
      *     state: string,
+     *     office: string,
      *     election_code: string,
      *     round: int,
      *     election_date: CarbonImmutable,
@@ -963,7 +959,7 @@ class TsePoliticalDataSyncService
                 'abrangencia' => CandidateScope::Municipal->value,
                 'municipio_eleitoral_id' => $municipalitiesByCode->get($aggregate['municipality_code'])?->id,
                 'uf' => $aggregate['state'],
-                'cargo' => 'Vereador',
+                'cargo' => $aggregate['office'],
                 'nome' => $aggregate['candidate_name'],
                 'nome_urna' => $aggregate['candidate_ballot_name'],
                 'numero' => $aggregate['candidate_number'],
@@ -1453,10 +1449,16 @@ class TsePoliticalDataSyncService
             ));
         }
 
-        $total = $run !== null
+        // Só os datasets lidos por inteiro entram no total do progresso: os
+        // que aceitam filtro por candidato leem umas poucas linhas cada.
+        $wholeReads = array_filter(
+            $published,
+            fn (array $located): bool => ! in_array('SQ_CANDIDATO', $located['filterable'], true),
+        );
+        $total = $run !== null && $wholeReads !== []
             ? array_sum(array_map(
                 fn (array $located): int => $this->govnexApi->count($located['source'], $located['slug']),
-                $published,
+                $wholeReads,
             ))
             : 0;
         $read = 0;
@@ -1480,7 +1482,7 @@ class TsePoliticalDataSyncService
     }
 
     /**
-     * @param  array{source: string, slug: string}  $located
+     * @param  array{source: string, slug: string, filterable: list<string>}  $located
      * @param  array<string, list<string>>  $sqCandidatoByMunicipalityCode
      * @return array{processed: int, read: int}
      */
@@ -1500,66 +1502,89 @@ class TsePoliticalDataSyncService
         // candidatos, sem perder o escopo por município abaixo.
         $relevantSequences = array_flip(array_merge([], ...array_values($sqCandidatoByMunicipalityCode)));
 
-        $read = $this->eachGovnexRecord(
-            $located,
-            function (array $row) use ($year, $sqCandidatoByMunicipalityCode, $relevantSequences, &$votes): void {
-                $candidateSequence = $this->value($row, 'SQ_CANDIDATO');
+        $collect = function (array $row) use ($year, $sqCandidatoByMunicipalityCode, $relevantSequences, &$votes): void {
+            $candidateSequence = $this->value($row, 'SQ_CANDIDATO');
 
-                if (! isset($relevantSequences[$candidateSequence])) {
-                    return;
-                }
+            if (! isset($relevantSequences[$candidateSequence])) {
+                return;
+            }
 
-                if (
-                    (int) $this->value($row, 'ANO_ELEICAO') !== $year
-                    || (int) $this->value($row, 'NR_TURNO') !== 1
-                    || Str::squish($this->value($row, 'DS_CARGO')) !== 'Vereador'
-                ) {
-                    return;
-                }
+            if (
+                (int) $this->value($row, 'ANO_ELEICAO') !== $year
+                || (int) $this->value($row, 'NR_TURNO') !== 1
+                || Str::squish($this->value($row, 'DS_CARGO')) !== 'Vereador'
+            ) {
+                return;
+            }
 
-                $municipalityCode = str_pad(
-                    $this->value($row, 'CD_MUNICIPIO'),
-                    5,
-                    '0',
-                    STR_PAD_LEFT,
+            $municipalityCode = str_pad(
+                $this->value($row, 'CD_MUNICIPIO'),
+                5,
+                '0',
+                STR_PAD_LEFT,
+            );
+            $titulars = $sqCandidatoByMunicipalityCode[$municipalityCode] ?? [];
+
+            if ($titulars === [] || ! in_array($candidateSequence, $titulars, true)) {
+                return;
+            }
+
+            $votesQuantity = $this->value($row, 'QT_VOTOS');
+            $zone = $this->value($row, 'NR_ZONA');
+            $section = $this->value($row, 'NR_SECAO');
+            $pollingLocation = $this->value($row, 'NR_LOCAL_VOTACAO');
+
+            if (! is_numeric($votesQuantity) || $zone === '' || $section === '') {
+                return;
+            }
+
+            $key = "{$municipalityCode}:{$zone}:{$section}:{$candidateSequence}";
+            $votes[$key] = [
+                'municipality_code' => $municipalityCode,
+                'nr_zona' => $zone,
+                'nr_secao' => $section,
+                'nr_local_votacao' => $pollingLocation,
+                'nm_local_votacao' => Str::squish($this->value($row, 'NM_LOCAL_VOTACAO')),
+                'endereco' => $this->nullable(Str::squish(
+                    $this->value($row, 'DS_LOCAL_VOTACAO_ENDERECO'),
+                )),
+                'candidate_sequence' => $candidateSequence,
+                'votes' => (int) $votesQuantity,
+                'source_generated_at' => $this->sourceDateTime(
+                    $this->value($row, 'DT_GERACAO'),
+                    $this->value($row, 'HH_GERACAO'),
+                ),
+            ];
+        };
+
+        // O dataset de uma UF traz todo candidato a vereador do estado
+        // (~1,5 milhão de linhas), das quais só as dezenas do titular de cada
+        // gabinete interessam. Quando a GOVNEX API declara SQ_CANDIDATO como
+        // filtrável, pedimos uma consulta por titular e lemos só essas
+        // linhas; sem isso, não há como escapar de ler o dataset inteiro.
+        if (in_array('SQ_CANDIDATO', $located['filterable'], true)) {
+            $read = 0;
+            $sequences = array_keys($relevantSequences);
+            $index = 0;
+
+            foreach ($sequences as $sequence) {
+                $index++;
+                $read += $this->eachGovnexRecord(
+                    $located,
+                    $collect,
+                    $run,
+                    progressTotal: 0,
+                    filters: ['SQ_CANDIDATO' => (string) $sequence],
                 );
-                $titulars = $sqCandidatoByMunicipalityCode[$municipalityCode] ?? [];
-
-                if ($titulars === [] || ! in_array($candidateSequence, $titulars, true)) {
-                    return;
-                }
-
-                $votesQuantity = $this->value($row, 'QT_VOTOS');
-                $zone = $this->value($row, 'NR_ZONA');
-                $section = $this->value($row, 'NR_SECAO');
-                $pollingLocation = $this->value($row, 'NR_LOCAL_VOTACAO');
-
-                if (! is_numeric($votesQuantity) || $zone === '' || $section === '') {
-                    return;
-                }
-
-                $key = "{$municipalityCode}:{$zone}:{$section}:{$candidateSequence}";
-                $votes[$key] = [
-                    'municipality_code' => $municipalityCode,
-                    'nr_zona' => $zone,
-                    'nr_secao' => $section,
-                    'nr_local_votacao' => $pollingLocation,
-                    'nm_local_votacao' => Str::squish($this->value($row, 'NM_LOCAL_VOTACAO')),
-                    'endereco' => $this->nullable(Str::squish(
-                        $this->value($row, 'DS_LOCAL_VOTACAO_ENDERECO'),
-                    )),
-                    'candidate_sequence' => $candidateSequence,
-                    'votes' => (int) $votesQuantity,
-                    'source_generated_at' => $this->sourceDateTime(
-                        $this->value($row, 'DT_GERACAO'),
-                        $this->value($row, 'HH_GERACAO'),
-                    ),
-                ];
-            },
-            $run,
-            $progressOffset,
-            $progressTotal,
-        );
+                $this->touchProgress(
+                    $run,
+                    'lendo_govnex_api',
+                    (int) round($index / count($sequences) * 100),
+                );
+            }
+        } else {
+            $read = $this->eachGovnexRecord($located, $collect, $run, $progressOffset, $progressTotal);
+        }
 
         if ($votes === []) {
             return ['processed' => 0, 'read' => $read];
@@ -1895,7 +1920,7 @@ class TsePoliticalDataSyncService
     }
 
     /**
-     * @return array{source: string, slug: string}
+     * @return array{source: string, slug: string, filterable: list<string>}
      */
     private function locateDataset(string $dataset, ?int $year = null): array
     {
@@ -1908,7 +1933,7 @@ class TsePoliticalDataSyncService
         return $located;
     }
 
-    /** @param array{source: string, slug: string} $located */
+    /** @param array{source: string, slug: string, filterable: list<string>} $located */
     private function datasetUrl(array $located): string
     {
         return app(GovnexApiSettings::class)->url()."/sources/{$located['source']}/datasets/{$located['slug']}";
@@ -1935,8 +1960,9 @@ class TsePoliticalDataSyncService
      * $progressOffset e $progressTotal fazem o percentual cobrir a leitura
      * inteira, em vez de voltar a 0% a cada dataset.
      *
-     * @param  array{source: string, slug: string}  $located
+     * @param  array{source: string, slug: string, filterable: list<string>}  $located
      * @param  callable(array<string, string>): void  $callback
+     * @param  array<string, string>  $filters  ver GovnexApiClient::eachRecord()
      * @return int linhas lidas
      *
      * @param-immediately-invoked-callable $callback
@@ -1947,9 +1973,10 @@ class TsePoliticalDataSyncService
         ?SincronizacaoTse $run = null,
         int $progressOffset = 0,
         ?int $progressTotal = null,
+        array $filters = [],
     ): int {
         $total = $progressTotal
-            ?? ($run !== null ? $this->govnexApi->count($located['source'], $located['slug']) : 0);
+            ?? ($run !== null ? $this->govnexApi->count($located['source'], $located['slug'], $filters) : 0);
         $read = 0;
 
         $this->govnexApi->eachRecord(
@@ -1972,6 +1999,7 @@ class TsePoliticalDataSyncService
 
                 $callback($row);
             },
+            filters: $filters,
         );
 
         return $read;

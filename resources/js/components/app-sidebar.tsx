@@ -1,4 +1,4 @@
-import { AppLogoMark } from '@/components/app-logo-mark';
+import { AppLogoMark, AppWordmark } from '@/components/app-logo-mark';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -20,9 +20,7 @@ export function AppSidebar() {
                         className="h-8 w-auto shrink-0"
                         aria-hidden="true"
                     />
-                    <span className="truncate text-xs font-medium tracking-tight group-data-[collapsible=icon]:hidden">
-                        GOVNEX.GAB
-                    </span>
+                    <AppWordmark />
                 </div>
             </SidebarHeader>
             <SidebarContent className="min-h-0 overflow-y-auto py-2">

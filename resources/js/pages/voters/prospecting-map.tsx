@@ -9,12 +9,9 @@ import {
     useState,
 } from 'react';
 import {
-    CloseIcon,
     MagnifierIcon,
-    MapPointIcon,
     MaximizeIcon,
     MinimizeIcon,
-    UserRoundedIcon,
     UsersGroupRoundedIcon,
 } from '@/components/icons';
 import { AppSelect } from '@/components/ui/app-select';
@@ -22,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { MapPanelTitle } from '@/components/voters/map-panel-title';
 import { useIsHydrated } from '@/hooks/use-is-hydrated';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { VoterMapMarker, VoterMapSummary } from '@/types';
@@ -150,17 +148,10 @@ export default function ProspectingMap({
                 )}
 
                 <Card className="absolute top-4 left-4 z-[500] max-h-[calc(100%-2rem)] w-[calc(100%-5.5rem)] max-w-sm gap-4 overflow-y-auto bg-card/95 p-4 backdrop-blur">
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <MapPointIcon className="size-5 text-primary" />
-                            <h1 className="font-semibold">
-                                Mapa de prospecção
-                            </h1>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                            Distribuição residencial dos eleitores cadastrados.
-                        </p>
-                    </div>
+                    <MapPanelTitle
+                        title="Mapa de prospecção"
+                        description="Distribuição residencial dos eleitores cadastrados."
+                    />
 
                     <div className="grid grid-cols-3 gap-2 text-center">
                         <Metric value={summary.totalVoters} label="Eleitores" />
@@ -196,62 +187,53 @@ export default function ProspectingMap({
                         />
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 text-xs">
-                        <span className="text-muted-foreground">
-                            {visibleMarkers.length}{' '}
-                            {visibleMarkers.length === 1
-                                ? 'eleitor visível'
-                                : 'eleitores visíveis'}
-                        </span>
-                        {(query || neighborhoodId) && (
-                            <Button
+                    {/* Contagem e refinamento no rodapé da lista, como no
+                        mapa de eleitores. A lista aparece mesmo vazia, para a
+                        contagem e o limpar filtros não sumirem. */}
+                    <div className="divide-y overflow-hidden rounded-md border">
+                        {visibleMarkers.slice(0, 8).map((marker) => (
+                            <button
+                                key={marker.id}
                                 type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={() => {
-                                    setQuery('');
-                                    setNeighborhoodId('');
-                                    setSelectedId(null);
-                                }}
-                                aria-label="Limpar filtros"
+                                className="flex w-full cursor-pointer items-center gap-2 px-2 py-2.5 text-left transition-colors hover:bg-muted"
+                                onClick={() => setSelectedId(marker.id)}
                             >
-                                <CloseIcon />
-                            </Button>
-                        )}
-                    </div>
-
-                    {visibleMarkers.length > 0 && (
-                        <div className="space-y-1 border-t pt-3">
-                            {visibleMarkers.slice(0, 8).map((marker) => (
-                                <button
-                                    key={marker.id}
-                                    type="button"
-                                    className="flex w-full items-start gap-2 rounded-lg p-2 text-left transition-colors hover:bg-muted"
-                                    onClick={() => setSelectedId(marker.id)}
-                                >
-                                    <UserRoundedIcon className="mt-0.5 size-4 shrink-0 text-primary" />
-                                    <span className="min-w-0">
-                                        <strong className="block truncate text-sm">
-                                            {marker.name}
-                                        </strong>
-                                        <span className="block truncate text-xs text-muted-foreground">
-                                            {[
-                                                marker.address,
-                                                marker.neighborhood,
-                                            ]
-                                                .filter(Boolean)
-                                                .join(' — ')}
-                                        </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-xs font-medium uppercase">
+                                        {marker.name}
                                     </span>
+                                    <span className="block truncate text-[11px] text-muted-foreground uppercase">
+                                        {[marker.address, marker.neighborhood]
+                                            .filter(Boolean)
+                                            .join(' · ')}
+                                    </span>
+                                </span>
+                            </button>
+                        ))}
+                        <div className="flex items-center justify-between gap-3 px-2 py-2.5 text-xs text-muted-foreground">
+                            <p>
+                                {visibleMarkers.length}{' '}
+                                {visibleMarkers.length === 1
+                                    ? 'eleitor visível'
+                                    : 'eleitores visíveis'}
+                                {visibleMarkers.length > 8 &&
+                                    ' · refine a busca para ver outros resultados.'}
+                            </p>
+                            {(query || neighborhoodId) && (
+                                <button
+                                    type="button"
+                                    className="shrink-0 cursor-pointer font-medium text-primary hover:underline"
+                                    onClick={() => {
+                                        setQuery('');
+                                        setNeighborhoodId('');
+                                        setSelectedId(null);
+                                    }}
+                                >
+                                    Limpar filtros
                                 </button>
-                            ))}
-                            {visibleMarkers.length > 8 && (
-                                <p className="px-2 pt-1 text-xs text-muted-foreground">
-                                    Refine a busca para ver outros resultados.
-                                </p>
                             )}
                         </div>
-                    )}
+                    </div>
 
                     {summary.truncated && (
                         <Badge variant="outline">
@@ -289,7 +271,9 @@ export default function ProspectingMap({
 function Metric({ value, label }: { value: number; label: string }) {
     return (
         <div className="rounded-lg bg-muted p-2">
-            <strong className="block text-lg">{value}</strong>
+            <strong className="block font-mono text-lg font-bold tabular-nums">
+                {value}
+            </strong>
             <span className="text-[11px] text-muted-foreground">{label}</span>
         </div>
     );

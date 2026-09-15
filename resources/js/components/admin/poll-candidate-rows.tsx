@@ -1,9 +1,8 @@
-import { AddIcon, TrashBinTrashIcon } from '@/components/icons';
+import { TableActionButton } from '@/components/common/table-action-button';
+import { TrashBinTrashIcon } from '@/components/icons';
 import { AppSelect } from '@/components/ui/app-select';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { emptyCandidateRow } from '@/lib/poll-curation';
 import type { CandidateRowInput } from '@/lib/poll-curation';
 import type { PollCurationCandidateOption } from '@/types';
 
@@ -30,9 +29,6 @@ export function PollCandidateRows({
     const removeRow = (key: string) => {
         onChange(rows.filter((row) => row.key !== key));
     };
-    const addRow = () => {
-        onChange([...rows, emptyCandidateRow()]);
-    };
     const candidateSelectOptions = candidateOptions.map((option) => ({
         value: String(option.id),
         label: `${option.name}${option.party ? ` (${option.party})` : ''}${
@@ -42,18 +38,6 @@ export function PollCandidateRows({
 
     return (
         <div className="space-y-3">
-            <div className="flex items-center justify-between">
-                <Label>Candidatos e percentuais</Label>
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={addRow}
-                >
-                    <AddIcon className="size-4" aria-hidden="true" />
-                    Adicionar candidato
-                </Button>
-            </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="space-y-3">
                 {rows.map((row) => (
@@ -134,18 +118,18 @@ export function PollCandidateRows({
                             />
                         </div>
                         <div className="flex justify-end">
-                            <Button
+                            <TableActionButton
                                 type="button"
-                                variant="ghost"
-                                size="icon"
+                                variant="destructive"
+                                label={
+                                    row.nome.trim()
+                                        ? `Remover ${row.nome.trim()}`
+                                        : 'Remover candidato'
+                                }
                                 onClick={() => removeRow(row.key)}
-                                aria-label="Remover candidato"
                             >
-                                <TrashBinTrashIcon
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                            </Button>
+                                <TrashBinTrashIcon aria-hidden="true" />
+                            </TableActionButton>
                         </div>
                     </div>
                 ))}

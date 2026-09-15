@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MaskedInput } from '@/components/ui/masked-input';
+import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
@@ -206,11 +207,9 @@ export function CitizenForm({
     return (
         <form onSubmit={handleSubmit(submit)} className="space-y-6">
             <Card className="gap-0 py-0">
-                <div className="border-b p-4">
-                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                        Dados pessoais
-                    </h2>
-                </div>
+                <SurfaceHeader>
+                    <SurfaceTitle>Dados pessoais</SurfaceTitle>
+                </SurfaceHeader>
                 <div className="grid gap-5 p-5 md:grid-cols-2">
                     {field('nome', 'Nome completo')}{' '}
                     {field('cpf', 'CPF (opcional)', 'text', 'cpf')}{' '}
@@ -221,11 +220,9 @@ export function CitizenForm({
                 </div>
             </Card>
             <Card className="gap-0 py-0">
-                <div className="border-b p-4">
-                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                        Endereço
-                    </h2>
-                </div>
+                <SurfaceHeader>
+                    <SurfaceTitle>Endereço</SurfaceTitle>
+                </SurfaceHeader>
                 <div className="space-y-5 p-5">
                     <AddressFields
                         control={control}
@@ -267,11 +264,9 @@ export function CitizenForm({
                 </div>
             </Card>
             <Card className="gap-0 py-0">
-                <div className="border-b p-4">
-                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                        Observações e consentimentos
-                    </h2>
-                </div>
+                <SurfaceHeader>
+                    <SurfaceTitle>Observações e consentimentos</SurfaceTitle>
+                </SurfaceHeader>
                 <div className="space-y-5 p-5">
                     <div className="space-y-1">
                         <Label htmlFor="observacoes">Observações</Label>

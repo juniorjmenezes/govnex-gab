@@ -23,7 +23,7 @@ Aplicação SaaS para organizar demandas recebidas por gabinetes parlamentares. 
 - PHP 8.4.1+ e Laravel 13
 - MariaDB 12 / MySQL compatível
 - Inertia.js 3, React 19 e TypeScript estrito
-- Vite 8, Tailwind CSS 4 e Inter Tight Variable / DM Mono
+- Vite 8, Tailwind CSS 4 e Inter Tight Variable / Fira Code Variable
 - shadcn/ui com preset oficial `b7D49K45A` (`radix-sera`, base `stone`)
 - React Hook Form, Zod, Recharts e date-fns
 - DomPDF e OpenSpout para exportações PDF e XLSX
@@ -80,6 +80,10 @@ O GAB encontra cada dataset pelo **nome com que ele foi cadastrado na GOVNEX API
 | Locais de votação | `eleitorado-local-votacao-{ano}` | `eleitorado-local-votacao-2024` |
 | Votação por seção | `votacao-secao-{ano}-{uf}` | `votacao-secao-2024-sp` |
 | Registro de pesquisas | `pesquisa-eleitoral-{ano}` | `pesquisa-eleitoral-2024` |
+
+Nos datasets de votação por seção, declare `SQ_CANDIDATO` como campo filtrável na GOVNEX API. Com isso o GAB pede só as linhas do titular de cada gabinete — uma consulta por gabinete, algumas dezenas de linhas — em vez de ler o estado inteiro, que passa de 1,5 milhão de linhas. Sem a declaração a importação continua funcionando, só que lendo tudo. A GOVNEX API cria sozinha o índice de cada campo filtrável.
+
+Em desenvolvimento, sirva a GOVNEX API por um servidor web de verdade, não pelo `php artisan serve`: ele entrega respostas grandes cortadas no Windows (medido: 11 de 16 requisições de ~700KB ficaram ~19s penduradas e vieram incompletas), o que derruba a leitura de qualquer dataset grande. Servida pelo Apache local, a mesma requisição responde em ~0,6s, 16 de 16 completas. `GOVNEX_API_URL` aponta para esse endereço.
 
 Módulos desativados somem da navegação, retornam HTTP 403 em acesso direto e impedem novos jobs ou efeitos externos. Os dados existentes não são apagados e voltam a ficar disponíveis após reativação. Dependências são validadas em bloco, sem ativação silenciosa. Consulte [`govnexgabmodulos.md`](govnexgabmodulos.md) para o catálogo e [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para os limites técnicos.
 

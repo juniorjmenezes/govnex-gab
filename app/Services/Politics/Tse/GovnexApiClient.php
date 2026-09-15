@@ -7,6 +7,7 @@ use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
@@ -31,6 +32,28 @@ class GovnexApiClient
     /** Status de importação da GOVNEX API enquanto o arquivo ainda está sendo processado. */
     private const IMPORTING_STATUSES = ['pending', 'downloading', 'downloaded', 'extracting', 'importing'];
 
+    /**
+     * Linhas por página. A GOVNEX API corta o per_page em 2.000 para cliente
+     * identificado (header X-Api-Key) e em 100 para anônimo, sem avisar —
+     * pedir acima do teto só geraria mais requisições, e requisição a mais é
+     * o que encosta no limite por minuto.
+     *
+     * Ficamos abaixo do teto porque um `artisan serve` do outro lado entrega
+     * respostas cortadas de vez em quando. Medido contra a votação por seção
+     * do CE: acontece de ~90KB pra cima, em torno de 1 a cada 3 páginas, sem
+     * depender do tamanho exato (1.000, 500, 400 e 125 linhas falharam na
+     * mesma proporção; só respostas de poucos KB nunca falharam). Quem
+     * repete a página é fetchPage(); páginas maiores só significam menos
+     * páginas. Atrás de um servidor web de verdade dá pra subir em
+     * `services.tse.records_per_page`.
+     */
+    private const IDENTIFIED_PER_PAGE = 1000;
+
+    private const ANONYMOUS_PER_PAGE = 100;
+
+    /** Releituras de uma página que chegou cortada, antes de desistir. */
+    private const TRUNCATED_PAGE_ATTEMPTS = 3;
+
     private readonly string $baseUrl;
 
     private readonly ?string $apiKey;
@@ -53,7 +76,7 @@ class GovnexApiClient
      * no catálogo sem dado nenhum ainda, ou com o último import falho. Quando
      * não acha, unavailableMessage() explica o motivo.
      *
-     * @return array{source: string, slug: string}|null
+     * @return array{source: string, slug: string, filterable: list<string>}|null
      */
     public function locate(string $dataset, ?int $year = null, ?string $uf = null): ?array
     {
@@ -62,7 +85,7 @@ class GovnexApiClient
         foreach ($this->searchOrder() as $source) {
             foreach ($this->datasetsOf($source) as $candidate) {
                 if (($candidate['slug'] ?? null) === $slug && $this->isImported($candidate)) {
-                    return ['source' => $source, 'slug' => $slug];
+                    return $this->located($source, $slug, $candidate);
                 }
             }
         }
@@ -76,7 +99,7 @@ class GovnexApiClient
      * estados forem subidos na GOVNEX API, sem mudar código nem
      * configuração aqui — e sem exigir o Brasil inteiro de uma vez.
      *
-     * @return array<string, array{source: string, slug: string}> UF => localização
+     * @return array<string, array{source: string, slug: string, filterable: list<string>}> UF => localização
      */
     public function locateByUf(string $dataset, int $year): array
     {
@@ -93,7 +116,7 @@ class GovnexApiClient
                 $uf = GovnexApiDatasetCatalog::ufFromSlug($dataset, $year, $slug);
 
                 if ($uf !== null && ! isset($found[$uf])) {
-                    $found[$uf] = ['source' => $source, 'slug' => $slug];
+                    $found[$uf] = $this->located($source, $slug, $candidate);
                 }
             }
         }
@@ -135,6 +158,29 @@ class GovnexApiClient
             in_array($status, self::IMPORTING_STATUSES, true) => "O dataset {$slug} ainda está sendo importado na GOVNEX API. Aguarde a importação terminar e sincronize de novo.",
             default => "O dataset {$slug} não pôde ser lido na GOVNEX API. Sincronize de novo; se o problema continuar, confira o dataset por lá.",
         };
+    }
+
+    /**
+     * Localização de um dataset junto dos campos que ele aceita como filtro.
+     * É o que permite pedir só as linhas que interessam em vez de ler o
+     * dataset inteiro (ver
+     * TsePoliticalDataSyncService::importSectionVotesDataset()); a GOVNEX API
+     * recusa filtro em coluna não declarada.
+     *
+     * @param  array<string, mixed>  $dataset
+     * @return array{source: string, slug: string, filterable: list<string>}
+     */
+    private function located(string $source, string $slug, array $dataset): array
+    {
+        $filterable = $dataset['filterable_fields'] ?? [];
+
+        return [
+            'source' => $source,
+            'slug' => $slug,
+            'filterable' => is_array($filterable)
+                ? array_values(array_filter($filterable, 'is_string'))
+                : [],
+        ];
     }
 
     /**
@@ -218,11 +264,16 @@ class GovnexApiClient
      * meta.total_records) pedindo uma linha só — o modo cursor de
      * eachRecord() não informa total. Serve só ao percentual de progresso:
      * devolve 0 quando a API não informar.
+     *
+     * @param  array<string, string>  $filters  ver eachRecord()
      */
-    public function count(string $source, string $datasetSlug): int
+    public function count(string $source, string $datasetSlug, array $filters = []): int
     {
         $response = $this->ensureSuccessful(
-            $this->send("{$this->baseUrl}/sources/{$source}/datasets/{$datasetSlug}/records", ['per_page' => 1]),
+            $this->send(
+                "{$this->baseUrl}/sources/{$source}/datasets/{$datasetSlug}/records",
+                ['per_page' => 1, ...$filters],
+            ),
             $datasetSlug,
         );
 
@@ -230,12 +281,6 @@ class GovnexApiClient
     }
 
     /**
-     * O tamanho de página é conservador de propósito: contra um `artisan
-     * serve` (API em desenvolvimento), respostas acima de ~500KB penduram o
-     * cliente HTTP do Laravel por minutos — 500 linhas por página mantêm a
-     * resposta na casa dos 125KB e o sync inteiro em segundos. Atrás de um
-     * servidor web de verdade dá pra subir esse número.
-     *
      * Percorre todas as páginas de um dataset via paginação por cursor
      * (?paginate=cursor), chamando $callback pra cada linha — evita carregar
      * o dataset inteiro (centenas de milhares de linhas por UF) em memória
@@ -243,6 +288,13 @@ class GovnexApiClient
      * paga a cada requisição do lado da GOVNEX API.
      *
      * @param  callable(array<string, string>): void  $callback
+     * @param  array<string, string>  $filters  Coluna => valor, só de colunas
+     *                                          que o dataset declara como
+     *                                          filtráveis (ver locate()); a
+     *                                          GOVNEX API recusa qualquer
+     *                                          outra. O link da próxima
+     *                                          página já volta com o filtro
+     *                                          embutido.
      *
      * @param-immediately-invoked-callable $callback
      */
@@ -250,28 +302,55 @@ class GovnexApiClient
         string $source,
         string $datasetSlug,
         callable $callback,
-        int $perPage = 500,
+        ?int $perPage = null,
+        array $filters = [],
     ): void {
         $url = "{$this->baseUrl}/sources/{$source}/datasets/{$datasetSlug}/records";
-        $query = ['paginate' => 'cursor', 'per_page' => $perPage];
+        $query = ['paginate' => 'cursor', 'per_page' => $perPage ?? $this->recordsPerPage(), ...$filters];
 
         while ($url !== null) {
             // Só a 1ª chamada leva $query: a partir da 2ª, $url já vem com a
             // query inteira embutida (inclusive o cursor) no link 'next' da
             // resposta anterior — ver send().
-            $response = $this->ensureSuccessful($this->send($url, $query), $datasetSlug);
-            $payload = $response->json();
+            $page = $this->fetchPage($url, $query, $datasetSlug);
 
-            if (! is_array($payload['data'] ?? null)) {
-                throw new RuntimeException("A GOVNEX API respondeu num formato inesperado ao ler o dataset {$datasetSlug}.");
-            }
-
-            foreach ($payload['data'] as $row) {
+            foreach ($page['rows'] as $row) {
                 $callback($row);
             }
 
-            $url = $payload['links']['next'] ?? null;
+            $url = $page['next'];
             $query = null;
+        }
+    }
+
+    /**
+     * Uma página de registros já validada. Corpo que não fecha como JSON é
+     * tratado como falha de transporte, não como formato inválido: contra um
+     * `artisan serve` a resposta chega cortada de vez em quando (ver
+     * IDENTIFIED_PER_PAGE), e reler a mesma página resolve. Desistir de cara
+     * derrubaria um sync de centenas de páginas por um soluço do servidor.
+     *
+     * @param  array<string, mixed>|null  $query
+     * @return array{rows: array<int, mixed>, next: string|null}
+     */
+    private function fetchPage(string $url, ?array $query, string $datasetSlug): array
+    {
+        for ($attempt = 1; ; $attempt++) {
+            $payload = $this->ensureSuccessful($this->send($url, $query), $datasetSlug)->json();
+
+            if (is_array($payload) && is_array($payload['data'] ?? null)) {
+                $next = $payload['links']['next'] ?? null;
+
+                return ['rows' => $payload['data'], 'next' => is_string($next) ? $next : null];
+            }
+
+            if ($attempt >= self::TRUNCATED_PAGE_ATTEMPTS) {
+                throw new RuntimeException(
+                    "A GOVNEX API respondeu num formato inesperado ao ler o dataset {$datasetSlug}: a resposta chegou incompleta {$attempt} vezes seguidas.",
+                );
+            }
+
+            Sleep::for(2)->seconds();
         }
     }
 
@@ -335,17 +414,43 @@ class GovnexApiClient
         return "O dataset {$slug} está cadastrado na GOVNEX API, mas ainda não tem nenhum arquivo importado. Importe nele o arquivo do TSE e sincronize de novo.";
     }
 
+    /** Ver IDENTIFIED_PER_PAGE: o teto depende de a API reconhecer a chave. */
+    private function recordsPerPage(): int
+    {
+        $configured = config('services.tse.records_per_page');
+
+        if (filled($configured)) {
+            return max(1, (int) $configured);
+        }
+
+        return filled($this->apiKey) ? self::IDENTIFIED_PER_PAGE : self::ANONYMOUS_PER_PAGE;
+    }
+
     private function request(): PendingRequest
     {
         $request = Http::acceptJson()
             ->timeout((int) config('services.tse.timeout', 600))
-            // Só vale repetir o que pode passar sozinho — queda de conexão e
-            // erro 5xx. Um 404, 409 ou 429 repetido daria a mesma resposta.
+            // Só vale repetir o que pode passar sozinho — queda de conexão,
+            // erro 5xx e o limite por minuto. Um 404 ou 409 repetido daria a
+            // mesma resposta.
             ->retry(
                 3,
-                2000,
+                // Ler um dataset grande encosta no limite por minuto mais de
+                // uma vez: o 429 vem com Retry-After, e esperar o que a API
+                // pediu é o que faz o sync atravessar em vez de falhar no
+                // meio. Nas demais falhas, espera crescente.
+                function (int $attempt, Throwable $exception): int {
+                    $retryAfter = $exception instanceof RequestException
+                        ? (int) $exception->response->header('Retry-After')
+                        : 0;
+
+                    return $retryAfter > 0
+                        ? min($retryAfter, 120) * 1000
+                        : 2000 * $attempt;
+                },
                 fn (Throwable $exception): bool => $exception instanceof ConnectionException
-                    || ($exception instanceof RequestException && $exception->response->serverError()),
+                    || ($exception instanceof RequestException
+                        && ($exception->response->status() === 429 || $exception->response->serverError())),
                 throw: false,
             );
 

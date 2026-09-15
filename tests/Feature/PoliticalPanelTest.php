@@ -17,6 +17,7 @@ use App\Models\ResultadoPesquisaEleitoral;
 use App\Models\SincronizacaoTse;
 use App\Models\User;
 use App\Models\VotacaoCandidatoMunicipio;
+use App\Services\Politics\OfficeHolderCandidateResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -24,6 +25,172 @@ use Tests\TestCase;
 class PoliticalPanelTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * Eleição municipal já realizada: o painel troca a pesquisa de intenção
+     * de voto pela apuração — depois do resultado, é ele que importa.
+     */
+    public function test_selecting_a_past_municipal_election_shows_its_result_instead_of_polls(): void
+    {
+        $municipality = MunicipioEleitoral::query()->create([
+            'codigo_tse' => '15890',
+            'nome' => 'Cruz',
+            'uf' => 'CE',
+        ]);
+        $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
+        $holder = $this->municipalCandidate($election, $municipality, '11555', 'MARCOS', 'PP');
+        $winner = $this->municipalCandidate($election, $municipality, '22222', 'ANA', 'PT');
+        $loser = $this->municipalCandidate($election, $municipality, '33333', 'JOAO', 'PT');
+        $office = Gabinete::factory()->create([
+            'municipio' => 'Cruz',
+            'estado' => 'CE',
+            'municipio_eleitoral_id' => $municipality->id,
+            'numero_eleitoral' => '11555',
+            'candidato_titular_id' => $holder->id,
+        ]);
+        $user = User::factory()->advisor()->forGabinete($office)->create();
+        ComparecimentoEleitoralMunicipio::query()->create([
+            'municipio_eleitoral_id' => $municipality->id,
+            'eleicao_id' => $election->id,
+            'codigo_eleicao_tse' => '619',
+            'ano' => 2024,
+            'turno' => 1,
+            'data_eleicao' => '2024-10-06',
+            'eleitores_aptos' => 1_000,
+            'comparecimento' => 800,
+            'abstencoes' => 200,
+            'fonte_url' => 'https://dadosabertos.tse.jus.br/',
+        ]);
+        PartidoCor::query()->create(['sigla' => 'PT', 'cor' => '#FF0000']);
+        $mayor = $this->municipalCandidate($election, $municipality, '15', 'MARIA', 'MDB', 'Prefeito');
+        $defeatedMayor = $this->municipalCandidate($election, $municipality, '45', 'CARLOS', 'PSDB', 'Prefeito');
+        $this->municipalVote($election, $municipality, $winner, 1_200, true);
+        $this->municipalVote($election, $municipality, $holder, 776, true);
+        $this->municipalVote($election, $municipality, $loser, 100, false);
+        $this->municipalVote($election, $municipality, $mayor, 4_200, true);
+        $this->municipalVote($election, $municipality, $defeatedMayor, 3_100, false);
+
+        $geral = Eleicao::query()->where('ano', 2026)->firstOrFail();
+
+        $this->actingAs($user)
+            ->get(route('politics.index', ['eleicao_id' => $election->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('politics/index')
+                ->where('municipalElection.election.year', 2024)
+                ->where('municipalElection.candidates', 3)
+                ->where('municipalElection.seats', 2)
+                ->where('municipalElection.turnout.eligible', 1_000)
+                ->where('municipalElection.turnout.voted', 800)
+                ->where('municipalElection.turnout.percentage', 80)
+                ->where('municipalElection.holder.votes', 776)
+                ->where('municipalElection.holder.position', 2)
+                ->where('municipalElection.holder.elected', true)
+                ->has('municipalElection.elected', 2)
+                ->where('municipalElection.elected.0.name', 'ANA')
+                ->where('municipalElection.elected.0.is_holder', false)
+                ->where('municipalElection.elected.1.name', 'MARCOS')
+                ->where('municipalElection.elected.1.is_holder', true)
+                ->where('municipalElection.parties.0.party', 'PT')
+                ->where('municipalElection.parties.0.seats', 1)
+                // A cadeira e a linha do candidato levam a cor cadastrada.
+                ->where('municipalElection.parties.0.color', '#FF0000')
+                ->where('municipalElection.elected.0.party_color', '#FF0000')
+                ->where('municipalElection.runners_up.0.party_color', '#FF0000')
+                // Partido sem cor cadastrada não inventa uma.
+                ->where('municipalElection.mayor.candidates.0.party_color', null)
+                // Prefeito é disputa à parte: entra com eleito e derrotado, e
+                // não polui a contagem da proporcional.
+                ->has('municipalElection.mayor.candidates', 2)
+                ->where('municipalElection.mayor.candidates.0.name', 'MARIA')
+                ->where('municipalElection.mayor.candidates.0.elected', true)
+                ->where('municipalElection.mayor.candidates.1.name', 'CARLOS')
+                ->where('municipalElection.mayor.candidates.1.elected', false)
+                ->has('municipalElection.runners_up', 1)
+                ->where('municipalElection.runners_up.0.name', 'JOAO')
+                // Pesquisa de eleição apurada sai do painel.
+                ->where('polls', null));
+
+        // Eleição que ainda vai acontecer segue no comportamento de sempre:
+        // pesquisas à vista, sem apuração.
+        $this->actingAs($user)
+            ->get(route('politics.index', ['eleicao_id' => $geral->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('politics/index')
+                ->where('municipalElection', null)
+                ->has('polls'));
+    }
+
+    /** Sem votação nominal daquele município, não há apuração a mostrar. */
+    public function test_the_municipal_result_is_absent_without_nominal_votes(): void
+    {
+        $municipality = MunicipioEleitoral::query()->create([
+            'codigo_tse' => '15890',
+            'nome' => 'Cruz',
+            'uf' => 'CE',
+        ]);
+        $office = Gabinete::factory()->create([
+            'municipio' => 'Cruz',
+            'estado' => 'CE',
+            'municipio_eleitoral_id' => $municipality->id,
+        ]);
+        $user = User::factory()->advisor()->forGabinete($office)->create();
+
+        $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
+
+        $this->actingAs($user)
+            ->get(route('politics.index', ['eleicao_id' => $election->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('politics/index')
+                ->where('municipalElection', null));
+    }
+
+    private function municipalCandidate(
+        Eleicao $election,
+        MunicipioEleitoral $municipality,
+        string $number,
+        string $ballotName,
+        string $party,
+        string $cargo = 'Vereador',
+    ): CandidatoPolitico {
+        return CandidatoPolitico::query()->create([
+            'eleicao_id' => $election->id,
+            'sq_candidato' => "6000{$number}",
+            'abrangencia' => CandidateScope::Municipal->value,
+            'municipio_eleitoral_id' => $municipality->id,
+            'uf' => 'CE',
+            'cargo' => $cargo,
+            'nome' => "Nome {$number}",
+            'nome_urna' => $ballotName,
+            'numero' => $number,
+            'partido_sigla' => $party,
+        ]);
+    }
+
+    private function municipalVote(
+        Eleicao $election,
+        MunicipioEleitoral $municipality,
+        CandidatoPolitico $candidate,
+        int $votes,
+        bool $elected,
+    ): VotacaoCandidatoMunicipio {
+        return VotacaoCandidatoMunicipio::query()->create([
+            'candidato_politico_id' => $candidate->id,
+            'municipio_eleitoral_id' => $municipality->id,
+            'eleicao_id' => $election->id,
+            'codigo_eleicao_tse' => '619',
+            'ano' => 2024,
+            'turno' => 1,
+            'data_eleicao' => '2024-10-06',
+            'votos_nominais' => $votes,
+            'votos_nominais_validos' => $votes,
+            'situacao_totalizacao' => $elected ? 'ELEITO' : 'NÃO ELEITO',
+            'eleito' => $elected,
+            'fonte_url' => 'https://dadosabertos.tse.jus.br/',
+        ]);
+    }
 
     public function test_panel_separates_official_electorate_from_internal_voters(): void
     {
@@ -203,6 +370,75 @@ class PoliticalPanelTest extends TestCase
             ->where('candidates.data.0.id', $visible[1]->id)
             ->where('candidates.data.1.id', $visible[0]->id)
             ->where('candidates.data.2.id', $visible[2]->id));
+    }
+
+    /**
+     * O titular é o candidato que o gabinete acompanha por definição: entra
+     * nos favoritos sozinho, assim que é resolvido, sem depender de alguém
+     * marcar.
+     */
+    public function test_resolving_a_titular_favorites_it_for_the_office(): void
+    {
+        $municipality = MunicipioEleitoral::query()->create([
+            'codigo_tse' => '15890',
+            'nome' => 'Cruz',
+            'uf' => 'CE',
+        ]);
+        $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
+        $titular = $this->municipalCandidate($election, $municipality, '11555', 'MARCOS', 'PP');
+        $office = Gabinete::factory()->create([
+            'municipio' => 'Cruz',
+            'estado' => 'CE',
+            'municipio_eleitoral_id' => $municipality->id,
+            'numero_eleitoral' => '11555',
+            'candidato_titular_id' => null,
+        ]);
+
+        app(OfficeHolderCandidateResolver::class)->resolveOffice($office);
+
+        $this->assertSame($titular->id, $office->fresh()->candidato_titular_id);
+        $this->assertDatabaseHas('candidatos_favoritos', [
+            'gabinete_id' => $office->id,
+            'candidato_politico_id' => $titular->id,
+            'escolhido_por_id' => null,
+        ]);
+    }
+
+    /** Desmarcar o titular desligaria notícias e destaque do próprio gabinete. */
+    public function test_the_titular_cannot_be_removed_from_favorites(): void
+    {
+        $municipality = MunicipioEleitoral::query()->create([
+            'codigo_tse' => '15890',
+            'nome' => 'Cruz',
+            'uf' => 'CE',
+        ]);
+        $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
+        $titular = $this->municipalCandidate($election, $municipality, '11555', 'MARCOS', 'PP');
+        $office = Gabinete::factory()->create([
+            'municipio' => 'Cruz',
+            'estado' => 'CE',
+            'municipio_eleitoral_id' => $municipality->id,
+            'numero_eleitoral' => '11555',
+            'candidato_titular_id' => $titular->id,
+        ]);
+        $councilor = User::factory()->councilor()->forGabinete($office)->create();
+        $titular->favoritos()->forceCreate([
+            'gabinete_id' => $office->id,
+            'escolhido_por_id' => null,
+        ]);
+
+        $this->actingAs($councilor)
+            ->delete(route('politics.favorites.destroy', $titular))
+            ->assertSessionHasNoErrors()
+            ->assertInertiaFlash('toast', [
+                'type' => 'error',
+                'message' => 'O titular do gabinete fica sempre nos favoritos.',
+            ]);
+
+        $this->assertDatabaseHas('candidatos_favoritos', [
+            'gabinete_id' => $office->id,
+            'candidato_politico_id' => $titular->id,
+        ]);
     }
 
     public function test_panel_lists_favorited_candidates_first(): void
@@ -551,7 +787,12 @@ class PoliticalPanelTest extends TestCase
                 ->where('polls.offices.1.averages.0.percentage', 41.5));
     }
 
-    public function test_panel_exposes_only_mayoral_polls_for_a_municipal_election(): void
+    /**
+     * Pesquisa municipal só tem uso enquanto a eleição não aconteceu; depois
+     * da apuração o painel troca a pesquisa pelo resultado (ver
+     * test_selecting_a_past_municipal_election_shows_its_result_instead_of_polls).
+     */
+    public function test_panel_exposes_only_mayoral_polls_for_an_upcoming_municipal_election(): void
     {
         $municipality = MunicipioEleitoral::query()->create([
             'codigo_tse' => '13692',
@@ -565,6 +806,9 @@ class PoliticalPanelTest extends TestCase
         ]);
         $councilor = User::factory()->councilor()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
+        // A eleição de 2024 já passou; o cenário aqui é o de uma eleição
+        // municipal ainda por vir, que é quando a pesquisa importa.
+        $election->forceFill(['primeiro_turno_em' => today()->addMonths(6)])->save();
         $candidate = $this->candidate(
             $election,
             '40',

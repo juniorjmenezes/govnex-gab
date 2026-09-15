@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\Politics\Tse\GovnexApiClient;
 use App\Services\Politics\TsePoliticalDataSyncService;
+use Carbon\CarbonInterval;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
@@ -80,8 +81,124 @@ class GovnexApiClientTest extends TestCase
         Http::assertSentCount(1);
     }
 
-    public function test_a_rate_limit_asks_to_wait(): void
+    /**
+     * Um sync grande encosta no limite por minuto mais de uma vez: quando a
+     * API manda esperar (Retry-After), o cliente espera e segue lendo, em vez
+     * de derrubar a sincronização inteira.
+     */
+    public function test_a_rate_limit_with_retry_after_is_awaited_and_the_read_continues(): void
     {
+        Sleep::fake();
+        Http::fake([
+            '127.0.0.1:8020/api/v1/sources/tse/datasets/votacao-secao-2024-ce/records*' => Http::sequence()
+                ->push(['message' => 'Too Many Attempts.'], 429, ['Retry-After' => '3'])
+                ->push(['data' => [['SQ_CANDIDATO' => '1']], 'links' => ['next' => null]], 200),
+        ]);
+        $rows = [];
+
+        app(GovnexApiClient::class)->eachRecord(
+            'tse',
+            'votacao-secao-2024-ce',
+            function (array $row) use (&$rows): void {
+                $rows[] = $row;
+            },
+        );
+
+        $this->assertSame([['SQ_CANDIDATO' => '1']], $rows);
+        Sleep::assertSlept(fn (CarbonInterval $duration): bool => (int) $duration->totalMilliseconds === 3000);
+    }
+
+    /**
+     * Contra um `artisan serve`, respostas grandes chegam cortadas de vez em
+     * quando — a página é relida, em vez de derrubar o sync inteiro.
+     */
+    public function test_a_truncated_page_is_read_again(): void
+    {
+        Sleep::fake();
+        Http::fake([
+            '127.0.0.1:8020/api/v1/sources/tse/datasets/votacao-secao-2024-ce/records*' => Http::sequence()
+                ->push('{"data":[{"SQ_CANDIDATO":"1"}', 200)
+                ->push(['data' => [['SQ_CANDIDATO' => '1']], 'links' => ['next' => null]], 200),
+        ]);
+        $rows = [];
+
+        app(GovnexApiClient::class)->eachRecord(
+            'tse',
+            'votacao-secao-2024-ce',
+            function (array $row) use (&$rows): void {
+                $rows[] = $row;
+            },
+        );
+
+        $this->assertSame([['SQ_CANDIDATO' => '1']], $rows);
+        Http::assertSentCount(2);
+    }
+
+    public function test_a_page_that_never_arrives_whole_says_the_response_came_incomplete(): void
+    {
+        Sleep::fake();
+        Http::fake([
+            '127.0.0.1:8020/api/v1/sources/tse/datasets/votacao-secao-2024-ce/records*' => Http::response('{"data":[', 200),
+        ]);
+
+        $message = $this->failureOf(fn () => app(GovnexApiClient::class)->eachRecord(
+            'tse',
+            'votacao-secao-2024-ce',
+            function (array $row): void {},
+        ));
+
+        $this->assertStringContainsString('a resposta chegou incompleta 3 vezes seguidas', $message);
+        Http::assertSentCount(3);
+    }
+
+    /**
+     * O filtro vai junto da consulta: é o que faz a API devolver só as linhas
+     * pedidas, em vez de o GAB ler o dataset inteiro para descartar quase
+     * tudo.
+     */
+    public function test_a_filter_is_sent_to_the_records_endpoint(): void
+    {
+        Http::fake(['*' => Http::response(['data' => [], 'links' => ['next' => null]])]);
+
+        app(GovnexApiClient::class)->eachRecord(
+            'tse',
+            'votacao-secao-2024-ce',
+            function (array $row): void {},
+            filters: ['SQ_CANDIDATO' => '60001945113'],
+        );
+
+        Http::assertSent(fn ($request): bool => str_contains($request->url(), 'SQ_CANDIDATO=60001945113'));
+    }
+
+    /**
+     * A API corta o per_page em 2.000 para quem manda a chave e em 100 para
+     * anônimo — pedir acima do teto só geraria requisições a mais, e é
+     * requisição a mais que estoura o limite por minuto.
+     */
+    public function test_page_size_follows_the_ceiling_of_an_identified_client(): void
+    {
+        config(['services.govnex_api.key' => 'gnx_teste']);
+        Http::fake(['*' => Http::response(['data' => [], 'links' => ['next' => null]])]);
+
+        app(GovnexApiClient::class)->eachRecord('tse', 'municipio-tse-ibge', function (array $row): void {});
+
+        Http::assertSent(fn ($request): bool => str_contains($request->url(), 'per_page=1000'));
+    }
+
+    public function test_page_size_falls_back_to_the_anonymous_ceiling_without_a_key(): void
+    {
+        config(['services.govnex_api.key' => null]);
+        Http::fake(['*' => Http::response(['data' => [], 'links' => ['next' => null]])]);
+
+        app(GovnexApiClient::class)->eachRecord('tse', 'municipio-tse-ibge', function (array $row): void {});
+
+        Http::assertSent(fn ($request): bool => str_contains($request->url(), 'per_page=100'));
+    }
+
+    /** Esgotadas as tentativas, a mensagem diz o que fazer. */
+    public function test_a_rate_limit_that_does_not_pass_asks_to_try_later(): void
+    {
+        Sleep::fake();
         Http::fake(['127.0.0.1:8020/api/v1/sources' => Http::response(['message' => 'Too Many Attempts.'], 429)]);
 
         $message = $this->failureOf(fn () => app(GovnexApiClient::class)->locate('municipalities'));

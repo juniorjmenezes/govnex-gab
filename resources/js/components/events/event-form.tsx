@@ -17,6 +17,7 @@ import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 import { Textarea } from '@/components/ui/textarea';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { DateTimeParts, EventOptions, OfficeEvent } from '@/types';
@@ -185,14 +186,9 @@ export function EventForm({
     return (
         <form onSubmit={handleSubmit(submit)} className="space-y-6">
             <Card className="gap-0 py-0">
-                <div className="border-b p-4">
-                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                        Identificação do evento
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        Classifique o evento e defina sua situação atual.
-                    </p>
-                </div>
+                <SurfaceHeader help="Classifique o evento e defina sua situação atual.">
+                    <SurfaceTitle>Identificação do evento</SurfaceTitle>
+                </SurfaceHeader>
                 <div className="grid gap-5 p-5 md:grid-cols-2">
                     <div className="space-y-1 md:col-span-2">
                         <Label htmlFor="titulo">
@@ -247,15 +243,9 @@ export function EventForm({
             </Card>
 
             <Card className="gap-0 py-0">
-                <div className="border-b p-4">
-                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                        Período
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        Defina um único dia ou um período com horário repetido
-                        diariamente.
-                    </p>
-                </div>
+                <SurfaceHeader help="Defina um único dia ou um período com horário repetido diariamente.">
+                    <SurfaceTitle>Período</SurfaceTitle>
+                </SurfaceHeader>
                 <div className="space-y-5 p-5">
                     <SelectField
                         id="duracao"
@@ -331,14 +321,9 @@ export function EventForm({
             </Card>
 
             <Card className="gap-0 py-0">
-                <div className="border-b p-4">
-                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                        Participantes
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        Selecione integrantes do gabinete e cidadãos convidados.
-                    </p>
-                </div>
+                <SurfaceHeader help="Selecione integrantes do gabinete e cidadãos convidados.">
+                    <SurfaceTitle>Participantes</SurfaceTitle>
+                </SurfaceHeader>
                 <div className="space-y-5 p-5">
                     <InternalParticipantChecklist
                         label="Equipe do gabinete"

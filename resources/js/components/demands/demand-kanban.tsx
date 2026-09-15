@@ -322,13 +322,14 @@ function KanbanCard({
                 <div className="min-w-0 flex-1">
                     <Link
                         href={tenantUrl(`/demandas/${demand.id}`)}
-                        className="font-mono text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+                        className="text-[11px] font-semibold text-muted-foreground tabular-nums hover:text-foreground"
                     >
                         {demand.protocolo}
                     </Link>
                     <Link
                         href={tenantUrl(`/demandas/${demand.id}`)}
                         className="mt-1 line-clamp-2 block text-sm leading-5 font-semibold hover:underline"
+                        title={demand.titulo}
                     >
                         {demand.titulo}
                     </Link>

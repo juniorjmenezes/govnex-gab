@@ -148,7 +148,7 @@ export default function Entidades({
                                 >
                                     <div className="flex items-center justify-between gap-3 border-b p-4">
                                         <div className="min-w-0">
-                                            <h2 className="truncate font-semibold">
+                                            <h2 className="truncate text-sm font-semibold">
                                                 {entidade.name}
                                             </h2>
                                             <p className="truncate text-xs text-muted-foreground">

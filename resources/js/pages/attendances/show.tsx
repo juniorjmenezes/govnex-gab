@@ -2,11 +2,8 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import {
     CalendarMarkIcon,
-    ClipboardListIcon,
     ClockCircleIcon,
-    HandShakeIcon,
     PenIcon,
-    RestartIcon,
     UserRoundedIcon,
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
@@ -14,6 +11,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { maskPhone } from '@/lib/masks';
 import { hasModule } from '@/lib/modules';
@@ -79,35 +77,33 @@ export default function AttendanceShow({
 
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
                     <div className="space-y-6">
-                        <Card className="gap-5 p-5">
-                            <div>
-                                <h2 className="flex items-center gap-2 text-xs font-semibold tracking-wide text-foreground uppercase">
-                                    <HandShakeIcon className="size-4 text-primary" />
+                        <Card className="gap-0 py-0">
+                            <SurfaceHeader>
+                                <SurfaceTitle>
                                     Relato do atendimento
-                                </h2>
-                                <p className="mt-3 text-sm leading-6 whitespace-pre-wrap">
-                                    {attendance.relato}
-                                </p>
-                            </div>
-                            <div className="border-t pt-5">
-                                <h2 className="font-semibold">
+                                </SurfaceTitle>
+                            </SurfaceHeader>
+                            <p className="p-5 text-sm leading-6 whitespace-pre-wrap">
+                                {attendance.relato}
+                            </p>
+                            <SurfaceHeader className="border-t">
+                                <SurfaceTitle>
                                     Providências e orientações
-                                </h2>
-                                <p className="mt-3 text-sm leading-6 whitespace-pre-wrap">
-                                    {attendance.providencias ??
-                                        'Nenhuma providência registrada.'}
-                                </p>
-                            </div>
+                                </SurfaceTitle>
+                            </SurfaceHeader>
+                            <p className="p-5 text-sm leading-6 whitespace-pre-wrap">
+                                {attendance.providencias ??
+                                    'Nenhuma providência registrada.'}
+                            </p>
                         </Card>
 
                         {attendance.demanda && demandsEnabled && (
                             <Card className="gap-0 py-0">
-                                <div className="border-b p-4">
-                                    <h2 className="flex items-center gap-2 text-xs font-semibold tracking-wide text-foreground uppercase">
-                                        <ClipboardListIcon className="size-4 text-primary" />
+                                <SurfaceHeader>
+                                    <SurfaceTitle>
                                         Demanda relacionada
-                                    </h2>
-                                </div>
+                                    </SurfaceTitle>
+                                </SurfaceHeader>
                                 <div className="p-5">
                                     <Link
                                         href={tenantUrl(
@@ -115,10 +111,13 @@ export default function AttendanceShow({
                                         )}
                                         className="rounded-xl border p-4 transition-colors hover:bg-muted"
                                     >
-                                        <span className="font-mono text-xs text-muted-foreground">
+                                        <span className="text-xs text-muted-foreground tabular-nums">
                                             {attendance.demanda.protocolo}
                                         </span>
-                                        <strong className="mt-1 block text-sm">
+                                        <strong
+                                            className="mt-1 line-clamp-2 text-sm"
+                                            title={attendance.demanda.titulo}
+                                        >
                                             {attendance.demanda.titulo}
                                         </strong>
                                     </Link>
@@ -129,11 +128,9 @@ export default function AttendanceShow({
 
                     <aside className="space-y-6">
                         <Card className="gap-0 py-0">
-                            <div className="border-b p-4">
-                                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                    Dados do registro
-                                </h2>
-                            </div>
+                            <SurfaceHeader>
+                                <SurfaceTitle>Dados do registro</SurfaceTitle>
+                            </SurfaceHeader>
                             <dl className="space-y-4 p-5">
                                 <Info
                                     icon={CalendarMarkIcon}
@@ -169,14 +166,15 @@ export default function AttendanceShow({
                         </Card>
 
                         <Card className="gap-0 py-0">
-                            <div className="flex items-center justify-between gap-2 border-b p-4">
-                                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                    Cidadão
-                                </h2>
-                                {attendance.cidadao.eleitor && (
-                                    <Badge>Eleitor</Badge>
-                                )}
-                            </div>
+                            <SurfaceHeader
+                                actions={
+                                    attendance.cidadao.eleitor && (
+                                        <Badge>Eleitor</Badge>
+                                    )
+                                }
+                            >
+                                <SurfaceTitle>Cidadão</SurfaceTitle>
+                            </SurfaceHeader>
                             <div className="p-5">
                                 <Link
                                     href={tenantUrl(
@@ -200,12 +198,11 @@ export default function AttendanceShow({
 
                         {attendance.requer_retorno && (
                             <Card className="gap-0 border-amber-300 bg-amber-50 py-0 text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
-                                <div className="border-b border-amber-300 p-4 dark:border-amber-900">
-                                    <h2 className="flex items-center gap-2 text-xs font-semibold tracking-wide text-foreground uppercase">
-                                        <RestartIcon className="size-4" />
+                                <SurfaceHeader className="border-amber-300 dark:border-amber-900">
+                                    <SurfaceTitle>
                                         Retorno necessário
-                                    </h2>
-                                </div>
+                                    </SurfaceTitle>
+                                </SurfaceHeader>
                                 <p className="p-5 text-sm">
                                     Previsão:{' '}
                                     {formatDate(attendance.retorno_previsto_em)}

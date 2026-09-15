@@ -2,7 +2,7 @@
  * Sobrescreve o balão padrão do Leaflet (cantos quadrados, sombra pesada,
  * fonte do sistema, botão de fechar cru) para acompanhar a aparência do
  * restante do app (mesmos tokens usados por Card/DropdownMenuContent:
- * bg-popover, ring/border sutil, rounded-2xl). Precisa ser importado DEPOIS
+ * bg-popover, sem borda, só a sombra). Precisa ser importado DEPOIS
  * de "leaflet/dist/leaflet.css" no mesmo arquivo para vencer o empate de
  * especificidade — os seletores abaixo têm a mesma especificidade dos
  * originais, então a ordem de importação é quem decide.
@@ -17,7 +17,6 @@
     border-radius: 0.25rem;
     background: var(--popover);
     color: var(--popover-foreground);
-    border: 1px solid var(--border);
     box-shadow:
         0 20px 25px -5px rgb(0 0 0 / 0.15),
         0 8px 10px -6px rgb(0 0 0 / 0.1);
@@ -25,10 +24,12 @@
 
 .leaflet-popup-content {
     margin: 0;
-    /* padding-right maior para o texto não passar por baixo do botão de
-       fechar (24px de largura, 6px de distância da borda). */
-    padding: 0.625rem 1.75rem 0.625rem 0.75rem;
-    min-width: 12rem;
+    /* Sem padding: o conteúdo é montado em blocos (cabeçalho, indicadores,
+       rodapé) com padding próprio — ver components/voters/map-popup.tsx. Só
+       o cabeçalho reserva espaço à direita para o botão de fechar. */
+    padding: 0;
+    overflow: hidden;
+    border-radius: inherit;
     /* .leaflet-container define sua própria font-family (Helvetica Neue) —
        "inherit" pegaria essa, não a fonte do app. Referencia o token direto. */
     font-family: var(--font-sans);

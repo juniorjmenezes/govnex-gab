@@ -62,7 +62,17 @@ function ComboboxInput({
 }) {
   return (
     <ComboboxPrimitive.InputGroup
-      render={<InputGroup className={cn("w-auto", className)} />}
+      // O Combobox do Base UI põe um input oculto logo depois do campo. Num
+      // wrapper space-y-*, esse input vira o último filho e o campo herda a
+      // margem inferior, desalinhando-o dos inputs vizinhos.
+      render={
+        <InputGroup
+          className={cn(
+            "w-auto [&:has(+input[aria-hidden=true])]:mb-0",
+            className
+          )}
+        />
+      }
     >
       <ComboboxPrimitive.Input
         render={<InputGroupInput disabled={disabled} />}

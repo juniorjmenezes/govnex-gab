@@ -49,6 +49,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 import { Textarea } from '@/components/ui/textarea';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
@@ -975,11 +976,11 @@ export default function AppointmentsIndex({
                                     )}
                                 </div>
 
-                                <Card>
-                                    <CardHeader className="border-b">
-                                        <CardTitle>Lembretes</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="grid gap-4">
+                                <Card className="gap-0 py-0">
+                                    <SurfaceHeader>
+                                        <SurfaceTitle>Lembretes</SurfaceTitle>
+                                    </SurfaceHeader>
+                                    <div className="grid gap-4 p-5">
                                         <div className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center">
                                             <Checkbox
                                                 checked={Boolean(
@@ -1141,7 +1142,7 @@ export default function AppointmentsIndex({
                                                 {form.errors.lembretes}
                                             </p>
                                         )}
-                                    </CardContent>
+                                    </div>
                                 </Card>
 
                                 <Field

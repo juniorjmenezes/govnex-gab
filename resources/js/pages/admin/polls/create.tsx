@@ -5,6 +5,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { PollCandidateRows } from '@/components/admin/poll-candidate-rows';
 import { FieldError } from '@/components/forms/field-error';
+import { AddIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 import { Textarea } from '@/components/ui/textarea';
 import { usePollCandidateOptions } from '@/hooks/use-poll-candidate-options';
 import {
@@ -29,29 +31,52 @@ type Props = {
     elections: PollCurationElection[];
 };
 
-const schema = z.object({
-    eleicao_id: z.string().min(1, 'Selecione a eleição.'),
-    cargo: z.string().min(1, 'Selecione o cargo.'),
-    uf: z.string().length(2, 'Selecione a UF.'),
-    municipio: z.string(),
-    turno: z.string().min(1, 'Selecione o turno.'),
-    cenario: z.string().min(1, 'Selecione o cenário.'),
-    instituto: z.string().min(1, 'Informe o instituto.'),
-    publicada_em: z.string().min(1, 'Informe a data de publicação.'),
-    coleta_inicio_em: z.string(),
-    coleta_fim_em: z.string(),
-    tamanho_amostra: z.string(),
-    margem_erro: z.string(),
-    metodologia: z.string(),
-    abrangencia: z.string(),
-    tipo: z.string(),
-    fonte_url: z.url('Informe uma URL válida.'),
-    provider: z
-        .string()
-        .min(1, 'Descreva a fonte (ex.: "AtlasIntel — PDF oficial").'),
-    confidence_score: z.string().min(1, 'Informe a confiança.'),
-    observacao: z.string(),
-});
+const schema = z
+    .object({
+        eleicao_id: z.string().min(1, 'Selecione a eleição.'),
+        cargo: z.string().min(1, 'Selecione o cargo.'),
+        uf: z.string(),
+        municipio: z.string(),
+        turno: z.string().min(1, 'Selecione o turno.'),
+        cenario: z.string().min(1, 'Selecione o cenário.'),
+        instituto: z.string().min(1, 'Informe o instituto.'),
+        publicada_em: z.string().min(1, 'Informe a data de publicação.'),
+        coleta_inicio_em: z.string(),
+        coleta_fim_em: z.string(),
+        tamanho_amostra: z.string(),
+        margem_erro: z.string(),
+        metodologia: z.string(),
+        abrangencia: z.string(),
+        tipo: z.string(),
+        fonte_url: z.url('Informe uma URL válida.'),
+        provider: z
+            .string()
+            .min(1, 'Descreva a fonte (ex.: "AtlasIntel — PDF oficial").'),
+        confidence_score: z.string().min(1, 'Informe a confiança.'),
+        observacao: z.string(),
+    })
+    // UF e município só aparecem para alguns cargos: validá-los sempre
+    // barrava o envio com erro num campo escondido (UF de presidente).
+    .superRefine((values, ctx) => {
+        if (values.cargo !== 'presidente' && values.uf.length !== 2) {
+            ctx.addIssue({
+                code: 'custom',
+                path: ['uf'],
+                message: 'Selecione a UF.',
+            });
+        }
+
+        if (
+            CARGOS_MUNICIPAIS.includes(values.cargo) &&
+            values.municipio.trim() === ''
+        ) {
+            ctx.addIssue({
+                code: 'custom',
+                path: ['municipio'],
+                message: 'Informe o município.',
+            });
+        }
+    });
 type Values = z.infer<typeof schema>;
 
 export default function CreatePoll({ elections }: Props) {
@@ -194,15 +219,15 @@ export default function CreatePoll({ elections }: Props) {
             <PageContainer>
                 <PageHeader
                     title="Nova pesquisa manual"
-                    description="Registre à mão uma pesquisa que o PollingData não cobre (governador, senador, prefeito) — digite os números direto do PDF ou matéria original do instituto."
+                    description="Registre à mão uma pesquisa que o PollingData não cobre"
                 />
                 <form onSubmit={handleSubmit(submit)} className="space-y-6">
                     <Card className="gap-0 py-0">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                        <SurfaceHeader>
+                            <SurfaceTitle>
                                 Identificação da pesquisa
-                            </h2>
-                        </div>
+                            </SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="space-y-5 p-5">
                             <div className="grid gap-5 md:grid-cols-2">
                                 <div className="space-y-1">
@@ -308,19 +333,15 @@ export default function CreatePoll({ elections }: Props) {
                     </Card>
 
                     <Card className="gap-0 py-0">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Proveniência
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                Descreva de onde os números vieram e o quanto
-                                confia neles. Uma confiança menor do que a de
-                                uma fonte já registrada para esta pesquisa não
-                                sobrescreve o resultado atual — fica só como
-                                auditoria.
-                            </p>
-                        </div>
+                        <SurfaceHeader help="Descreva de onde os números vieram e o quanto confia neles.">
+                            <SurfaceTitle>Proveniência</SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="space-y-5 p-5">
+                            <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+                                Uma confiança menor do que a de uma fonte já
+                                registrada para esta pesquisa não sobrescreve o
+                                resultado atual — fica só como auditoria.
+                            </p>
                             <div className="grid gap-5 md:grid-cols-2">
                                 {field(
                                     'provider',
@@ -345,14 +366,42 @@ export default function CreatePoll({ elections }: Props) {
                         </div>
                     </Card>
 
-                    <Card className="p-5">
-                        <PollCandidateRows
-                            rows={candidateRows}
-                            onChange={setCandidateRows}
-                            candidateOptions={candidateOptions}
-                            loadingCandidateOptions={loadingCandidates}
-                            error={candidatesError}
-                        />
+                    <Card className="gap-0 py-0">
+                        <SurfaceHeader
+                            actions={
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="shrink-0"
+                                    onClick={() =>
+                                        setCandidateRows([
+                                            ...candidateRows,
+                                            emptyCandidateRow(),
+                                        ])
+                                    }
+                                >
+                                    <AddIcon
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Adicionar candidato
+                                </Button>
+                            }
+                        >
+                            <SurfaceTitle>
+                                Candidatos e percentuais
+                            </SurfaceTitle>
+                        </SurfaceHeader>
+                        <div className="p-5">
+                            <PollCandidateRows
+                                rows={candidateRows}
+                                onChange={setCandidateRows}
+                                candidateOptions={candidateOptions}
+                                loadingCandidateOptions={loadingCandidates}
+                                error={candidatesError}
+                            />
+                        </div>
                     </Card>
 
                     <div className="flex justify-end gap-3">

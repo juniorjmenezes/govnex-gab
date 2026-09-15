@@ -30,7 +30,12 @@ import {
     DrawerHeader,
     DrawerTitle,
 } from '@/components/ui/drawer';
-import { Surface } from '@/components/ui/surface';
+import {
+    Surface,
+    SurfaceHeader,
+    SurfaceTitle,
+    SurfaceDescription,
+} from '@/components/ui/surface';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { maskPhone } from '@/lib/masks';
 import { cn } from '@/lib/utils';
@@ -94,12 +99,15 @@ export default function DemandShow({
             <PageContainer>
                 <PageHeader
                     title={
-                        <span className="inline-flex items-center gap-2">
-                            {demand.titulo}
+                        // Só o título no topo, numa linha: o protocolo e a
+                        // abertura vão para o balão da solicitação, abaixo.
+                        <span className="flex min-w-0 items-center gap-2">
+                            <span className="truncate" title={demand.titulo}>
+                                {demand.titulo}
+                            </span>
                             <FavoriteButton demand={demand} />
                         </span>
                     }
-                    description={`Protocolo ${demand.protocolo} · aberta em ${formatDateTime(demand.aberta_em)}`}
                     actions={
                         <>
                             <Button onClick={() => setSheet('update')}>
@@ -201,32 +209,42 @@ export default function DemandShow({
                     </dl>
                 </Surface>
 
-                <p className="text-sm leading-6 whitespace-pre-wrap">
-                    {demand.descricao}
-                </p>
+                {/* A solicitação como balão de mensagem: quem abriu a
+                    demanda "fala" com o gabinete. A ponta fica no canto
+                    superior esquerdo, do lado de quem enviou. */}
+                <section
+                    aria-label="Solicitação"
+                    className="max-w-3xl rounded-2xl rounded-tl-sm bg-card px-5 py-4 ring-1 ring-foreground/10"
+                >
+                    <p className="text-xs text-muted-foreground">
+                        <span className="tabular-nums">
+                            Protocolo {demand.protocolo}
+                        </span>{' '}
+                        · aberta em {formatDateTime(demand.aberta_em)}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 whitespace-pre-wrap">
+                        {demand.descricao}
+                    </p>
+                </section>
 
                 <Surface as="section" className="overflow-hidden">
-                    <div className="border-b p-4">
-                        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                            Próxima ação
-                        </h2>
-                        <p className="text-xs text-muted-foreground">
+                    <SurfaceHeader>
+                        <SurfaceTitle>Próxima ação</SurfaceTitle>
+                        <SurfaceDescription>
                             O que precisa acontecer a seguir nesta demanda.
-                        </p>
-                    </div>
+                        </SurfaceDescription>
+                    </SurfaceHeader>
                     <NextActionPanel demand={demand} members={members} />
                 </Surface>
 
                 <Surface as="section" className="overflow-hidden">
-                    <div className="border-b p-4">
-                        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                            Linha do tempo
-                        </h2>
-                        <p className="text-xs text-muted-foreground">
+                    <SurfaceHeader>
+                        <SurfaceTitle>Linha do tempo</SurfaceTitle>
+                        <SurfaceDescription>
                             Tudo que aconteceu nesta demanda, em ordem
                             cronológica.
-                        </p>
-                    </div>
+                        </SurfaceDescription>
+                    </SurfaceHeader>
                     <DemandTimeline
                         demandId={demand.id}
                         events={demand.eventos ?? []}

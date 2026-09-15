@@ -21,6 +21,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MaskedInput } from '@/components/ui/masked-input';
+import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
@@ -208,11 +209,9 @@ export default function OfficeSettings({
                 )}
                 <form onSubmit={handleSubmit(submit)} className="space-y-6">
                     <Card className="gap-0 py-0">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Identificação
-                            </h2>
-                        </div>
+                        <SurfaceHeader>
+                            <SurfaceTitle>Identificação</SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="p-5">
                             <div className="grid gap-5 md:grid-cols-2">
                                 {input('nome', 'Nome do gabinete')}
@@ -298,11 +297,9 @@ export default function OfficeSettings({
                         </div>
                     </Card>
                     <Card className="gap-0 py-0">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Endereço
-                            </h2>
-                        </div>
+                        <SurfaceHeader>
+                            <SurfaceTitle>Endereço</SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="p-5">
                             <AddressFields
                                 control={control}
@@ -314,26 +311,18 @@ export default function OfficeSettings({
                         </div>
                     </Card>
                     <Card className="gap-0 py-0">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Contato
-                            </h2>
-                        </div>
+                        <SurfaceHeader>
+                            <SurfaceTitle>Contato</SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="grid gap-5 p-5 md:grid-cols-2">
                             {input('telefone', 'Telefone', 'text', 'phone')}
                             {input('email', 'E-mail', 'email')}
                         </div>
                     </Card>
                     <Card className="gap-0 py-0">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Identidade visual
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                Personalize a marca do gabinete ou restaure o
-                                padrão do sistema.
-                            </p>
-                        </div>
+                        <SurfaceHeader help="Personalize a marca do gabinete ou restaure o padrão do sistema.">
+                            <SurfaceTitle>Identidade visual</SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="grid gap-4 p-5 lg:grid-cols-2">
                             <section className="rounded-xl border bg-muted/20 p-4">
                                 <div className="flex items-start justify-between gap-4">
@@ -396,7 +385,7 @@ export default function OfficeSettings({
                                                             : 'Cor do sistema'
                                                         : 'Cor personalizada'}
                                                 </p>
-                                                <p className="font-mono text-xs text-muted-foreground">
+                                                <p className="text-xs text-muted-foreground tabular-nums">
                                                     {useDefaultColor
                                                         ? inheritedPrimaryColor
                                                         : 'Definida pelo gabinete'}
@@ -532,11 +521,9 @@ export default function OfficeSettings({
                         </div>
                     </Card>
                     <Card className="gap-0 py-0">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Documentos
-                            </h2>
-                        </div>
+                        <SurfaceHeader>
+                            <SurfaceTitle>Documentos</SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="space-y-5 p-5">
                             {input('formato_protocolo', 'Formato do protocolo')}
                             <div className="space-y-1">

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
@@ -122,15 +123,9 @@ export function AttendanceForm({
     return (
         <form onSubmit={handleSubmit(submit)} className="space-y-6">
             <Card className="gap-0 py-0">
-                <div className="border-b p-4">
-                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                        Identificação
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        Informe quem foi atendido e quem realizou o atendimento
-                        no gabinete.
-                    </p>
-                </div>
+                <SurfaceHeader help="Informe quem foi atendido e quem realizou o atendimento no gabinete.">
+                    <SurfaceTitle>Identificação</SurfaceTitle>
+                </SurfaceHeader>
                 <div className="grid gap-5 p-5 md:grid-cols-2">
                     <SelectField
                         id="cidadao_id"
@@ -208,15 +203,9 @@ export function AttendanceForm({
             </Card>
 
             <Card className="gap-0 py-0">
-                <div className="border-b p-4">
-                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                        Registro do atendimento
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        Registre o motivo da visita, o relato e as providências
-                        adotadas.
-                    </p>
-                </div>
+                <SurfaceHeader help="Registre o motivo da visita, o relato e as providências adotadas.">
+                    <SurfaceTitle>Registro do atendimento</SurfaceTitle>
+                </SurfaceHeader>
                 <div className="space-y-5 p-5">
                     <div className="space-y-1">
                         <Label htmlFor="assunto">

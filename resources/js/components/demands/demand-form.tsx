@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 import { Textarea } from '@/components/ui/textarea';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { Demand, DemandOptions, OfficeLocation } from '@/types';
@@ -169,15 +170,9 @@ export function DemandForm({
     return (
         <form onSubmit={handleSubmit(submit)} className="space-y-6">
             <Card className="gap-0 py-0">
-                <div className="border-b p-4">
-                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                        Solicitação
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        O protocolo e o status inicial serão definidos pelo
-                        sistema.
-                    </p>
-                </div>
+                <SurfaceHeader help="O protocolo e o status inicial serão definidos pelo sistema.">
+                    <SurfaceTitle>Solicitação</SurfaceTitle>
+                </SurfaceHeader>
                 <div className="grid gap-5 p-5 md:grid-cols-2">
                     <div className="space-y-1">
                         <Label htmlFor="cidadao_id">
@@ -319,15 +314,9 @@ export function DemandForm({
             </Card>
 
             <Card className="gap-0 py-0">
-                <div className="border-b p-4">
-                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                        Localização
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        Os dados do cidadão são sugeridos e podem ser ajustados
-                        nesta demanda.
-                    </p>
-                </div>
+                <SurfaceHeader help="Os dados do cidadão são sugeridos e podem ser ajustados nesta demanda.">
+                    <SurfaceTitle>Localização</SurfaceTitle>
+                </SurfaceHeader>
                 <div className="space-y-5 p-5">
                     <AddressFields
                         control={control}

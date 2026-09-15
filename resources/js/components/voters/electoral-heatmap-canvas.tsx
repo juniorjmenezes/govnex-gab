@@ -27,6 +27,7 @@ import 'leaflet/dist/leaflet.css';
 // Precisa vir depois de leaflet.css para sobrescrever o balão padrão do
 // Leaflet com a aparência do app (ver comentário no topo do arquivo).
 import '../../../css/leaflet-popup.css';
+import { PopupHeading, PopupStat } from './map-popup';
 
 export type MapViewMode = 'heat' | 'points';
 export type MapFocusRequest = { id: number; nonce: number } | null;
@@ -323,46 +324,46 @@ export default function ElectoralHeatmapCanvas({
                         }}
                     >
                         <Popup>
-                            <div className="min-w-48 space-y-1.5">
-                                <p className="text-xs font-semibold">
-                                    {point.name}
-                                </p>
-                                <p className="text-[11px] text-muted-foreground">
-                                    {[point.address, point.neighborhood]
-                                        .filter(Boolean)
-                                        .join(' · ') ||
-                                        'Endereço não informado'}
-                                </p>
-                                <div className="flex items-center gap-1.5 border-t pt-2 text-xs font-medium">
-                                    <span
-                                        className="size-2 shrink-0 rounded-full ring-1 ring-black/10"
-                                        style={{
-                                            backgroundColor: intensityColor(
-                                                intensity,
-                                                primary,
-                                            ),
-                                        }}
-                                        aria-hidden="true"
-                                    />
-                                    {point.votes.toLocaleString('pt-BR')}{' '}
-                                    {point.votes === 1 ? 'voto' : 'votos'}
-                                </div>
-                                {totalVotes > 0 && (
-                                    <p className="text-[11px] text-muted-foreground">
-                                        {mapMetrics.percentage.format(
-                                            percentage,
-                                        )}{' '}
-                                        dos votos de {candidateName}
-                                    </p>
-                                )}
-                                {point.sections > 0 && (
-                                    <p className="text-[11px] text-muted-foreground">
-                                        {point.sections}{' '}
-                                        {point.sections === 1
-                                            ? 'seção eleitoral'
-                                            : 'seções eleitorais'}
-                                    </p>
-                                )}
+                            <div className="w-64">
+                                <PopupHeading
+                                    title={point.name}
+                                    subtitle={
+                                        [point.address, point.neighborhood]
+                                            .filter(Boolean)
+                                            .join(' · ') ||
+                                        'Endereço não informado'
+                                    }
+                                />
+                                <dl className="grid auto-cols-fr grid-flow-col divide-x border-t">
+                                    <PopupStat label="Votos">
+                                        <span
+                                            className="size-2 shrink-0 rounded-full ring-1 ring-black/10"
+                                            style={{
+                                                backgroundColor: intensityColor(
+                                                    intensity,
+                                                    primary,
+                                                ),
+                                            }}
+                                            aria-hidden="true"
+                                        />
+                                        {point.votes.toLocaleString('pt-BR')}
+                                    </PopupStat>
+                                    {totalVotes > 0 && (
+                                        <PopupStat
+                                            label="Do total"
+                                            title={`Participação nos votos de ${candidateName}`}
+                                        >
+                                            {mapMetrics.percentage.format(
+                                                percentage,
+                                            )}
+                                        </PopupStat>
+                                    )}
+                                    {point.sections > 0 && (
+                                        <PopupStat label="Seções">
+                                            {point.sections}
+                                        </PopupStat>
+                                    )}
+                                </dl>
                             </div>
                         </Popup>
                     </CircleMarker>

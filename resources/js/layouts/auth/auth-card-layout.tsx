@@ -1,4 +1,4 @@
-import { AppLogoMark } from '@/components/app-logo-mark';
+import { AppLogoMark, AppWordmark } from '@/components/app-logo-mark';
 import { Card, CardContent } from '@/components/ui/card';
 import type { AuthLayoutProps } from '@/types';
 
@@ -45,9 +45,7 @@ export default function AuthCardLayout({ children, title }: AuthLayoutProps) {
                                     className="h-24 w-auto"
                                     aria-hidden="true"
                                 />
-                                <span className="text-sm font-medium tracking-tight">
-                                    GOVNEX.GAB
-                                </span>
+                                <AppWordmark />
                             </div>
                         </div>
                     </CardContent>

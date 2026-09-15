@@ -4,7 +4,6 @@ import {
     CalendarMarkIcon,
     ChatRoundIcon,
     DangerTriangleIcon,
-    HandShakeIcon,
     LetterIcon,
     MapPointIcon,
     PenIcon,
@@ -14,7 +13,12 @@ import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Surface } from '@/components/ui/surface';
+import {
+    Surface,
+    SurfaceHeader,
+    SurfaceTitle,
+    SurfaceDescription,
+} from '@/components/ui/surface';
 import { useIsHydrated } from '@/hooks/use-is-hydrated';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { maskCpf, maskPhone } from '@/lib/masks';
@@ -124,35 +128,36 @@ export default function CitizenShow({
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
                     <div className="space-y-6">
                         <Surface as="section">
-                            <div className="border-b p-4">
-                                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                    Dados pessoais
-                                </h2>
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                    <Badge
-                                        variant={
-                                            citizen.eleitor
-                                                ? 'default'
-                                                : 'secondary'
-                                        }
-                                    >
-                                        {citizen.eleitor
-                                            ? 'Eleitor do vereador'
-                                            : 'Não eleitor'}
-                                    </Badge>
-                                    <Badge
-                                        variant={
-                                            citizen.consentimento_contato
-                                                ? 'default'
-                                                : 'secondary'
-                                        }
-                                    >
-                                        {citizen.consentimento_contato
-                                            ? 'Contato autorizado'
-                                            : 'Sem consentimento'}
-                                    </Badge>
-                                </div>
-                            </div>
+                            <SurfaceHeader
+                                actions={
+                                    <div className="flex shrink-0 flex-wrap gap-2">
+                                        <Badge
+                                            variant={
+                                                citizen.eleitor
+                                                    ? 'default'
+                                                    : 'secondary'
+                                            }
+                                        >
+                                            {citizen.eleitor
+                                                ? 'Eleitor do vereador'
+                                                : 'Não eleitor'}
+                                        </Badge>
+                                        <Badge
+                                            variant={
+                                                citizen.consentimento_contato
+                                                    ? 'default'
+                                                    : 'secondary'
+                                            }
+                                        >
+                                            {citizen.consentimento_contato
+                                                ? 'Contato autorizado'
+                                                : 'Sem consentimento'}
+                                        </Badge>
+                                    </div>
+                                }
+                            >
+                                <SurfaceTitle>Dados pessoais</SurfaceTitle>
+                            </SurfaceHeader>
                             <dl className="grid gap-5 p-5 sm:grid-cols-2">
                                 {contacts.map(
                                     ({ icon: Icon, label, value }) => (
@@ -246,28 +251,32 @@ export default function CitizenShow({
                             )}
                         </Surface>
                         <Surface as="section" className="overflow-hidden">
-                            <div className="flex flex-wrap items-start justify-between gap-3 border-b p-4">
-                                <div>
-                                    <h2 className="flex items-center gap-2 text-xs font-semibold tracking-wide text-foreground uppercase">
-                                        <HandShakeIcon className="size-4 text-primary" />
-                                        Atendimentos presenciais
-                                    </h2>
-                                    <p className="text-xs text-muted-foreground">
-                                        {attendanceSummary.total === 0
-                                            ? 'Nenhuma visita registrada.'
-                                            : `${attendanceSummary.total} atendimento(s) registrado(s).`}
-                                    </p>
-                                </div>
-                                <Button size="sm" asChild>
-                                    <Link
-                                        href={tenantUrl(
-                                            `/atendimentos/create?cidadao_id=${citizen.id}`,
-                                        )}
+                            <SurfaceHeader
+                                actions={
+                                    <Button
+                                        size="sm"
+                                        className="shrink-0"
+                                        asChild
                                     >
-                                        Registrar atendimento
-                                    </Link>
-                                </Button>
-                            </div>
+                                        <Link
+                                            href={tenantUrl(
+                                                `/atendimentos/create?cidadao_id=${citizen.id}`,
+                                            )}
+                                        >
+                                            Registrar atendimento
+                                        </Link>
+                                    </Button>
+                                }
+                            >
+                                <SurfaceTitle>
+                                    Atendimentos presenciais
+                                </SurfaceTitle>
+                                <SurfaceDescription>
+                                    {attendanceSummary.total === 0
+                                        ? 'Nenhuma visita registrada.'
+                                        : `${attendanceSummary.total} atendimento(s) registrado(s).`}
+                                </SurfaceDescription>
+                            </SurfaceHeader>
                             {attendanceSummary.recent.length > 0 && (
                                 <div className="p-5">
                                     <div className="divide-y rounded-xl border">
@@ -316,30 +325,25 @@ export default function CitizenShow({
                         </Surface>
                     </div>
                     <Surface as="aside" className="overflow-hidden">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Resumo de atendimentos
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                Será alimentado pelo módulo de demandas.
-                            </p>
-                        </div>
+                        <SurfaceHeader help="Será alimentado pelo módulo de demandas.">
+                            <SurfaceTitle>Resumo de atendimentos</SurfaceTitle>
+                        </SurfaceHeader>
                         <dl className="grid grid-cols-3 gap-2 p-5 text-center">
                             <div className="rounded-md bg-muted p-3">
                                 <dt className="text-xs">Total</dt>
-                                <dd className="text-xl font-semibold">
+                                <dd className="font-mono text-xl font-semibold tabular-nums">
                                     {serviceSummary.total}
                                 </dd>
                             </div>
                             <div className="rounded-md bg-muted p-3">
                                 <dt className="text-xs">Abertas</dt>
-                                <dd className="text-xl font-semibold">
+                                <dd className="font-mono text-xl font-semibold tabular-nums">
                                     {serviceSummary.open}
                                 </dd>
                             </div>
                             <div className="rounded-md bg-muted p-3">
                                 <dt className="text-xs">Concluídas</dt>
-                                <dd className="text-xl font-semibold">
+                                <dd className="font-mono text-xl font-semibold tabular-nums">
                                     {serviceSummary.completed}
                                 </dd>
                             </div>

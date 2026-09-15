@@ -20,16 +20,11 @@ import { StatusBadge } from '@/components/demands/status-badge';
 import { EmptyState } from '@/components/feedback/empty-state';
 import {
     AddIcon,
-    CalendarIcon,
     CalendarMarkIcon,
     CheckCircleIcon,
     ClipboardListIcon,
     ClockCircleIcon,
-    DangerTriangleIcon,
-    GraphUpIcon,
-    HistoryIcon,
     InboxIcon,
-    PieChartIcon,
     UsersGroupRoundedIcon,
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
@@ -43,7 +38,12 @@ import {
     ChartTooltipContent,
 } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
-import { Surface } from '@/components/ui/surface';
+import {
+    Surface,
+    SurfaceDescription,
+    SurfaceHeader,
+    SurfaceTitle,
+} from '@/components/ui/surface';
 
 import { contextualUrl } from '@/lib/entity-context';
 import type {
@@ -80,13 +80,16 @@ function DemandRow({
             href={contextualUrl(auth, `/demandas/${demand.id}`)}
             className="group flex min-w-0 items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
         >
-            <span className="shrink-0 font-mono text-sm font-normal">
+            <span className="shrink-0 text-sm font-normal tabular-nums">
                 {demand.protocol}
             </span>
             <div className="shrink-0">
                 <PriorityBadge priority={demand.priority} />
             </div>
-            <span className="min-w-0 flex-1 truncate text-sm font-normal">
+            <span
+                className="min-w-0 flex-1 truncate text-sm font-normal"
+                title={demand.title}
+            >
                 {demand.title}
             </span>
             <span className="shrink-0 text-xs whitespace-nowrap text-muted-foreground">
@@ -244,30 +247,27 @@ export default function Dashboard({
                         aria-labelledby="dashboard-agenda-title"
                         className="overflow-hidden"
                     >
-                        <div className="flex items-center justify-between gap-4 border-b p-4">
-                            <div className="flex min-w-0 items-center gap-3">
-                                <span className="grid size-9 shrink-0 place-items-center rounded-sm bg-primary/10 text-primary">
-                                    <CalendarIcon
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                </span>
-                                <div className="min-w-0">
-                                    <h2
-                                        id="dashboard-agenda-title"
-                                        className="text-xs font-semibold tracking-wide text-foreground uppercase"
-                                    >
-                                        Próximos compromissos
-                                    </h2>
-                                    <p className="text-xs text-muted-foreground">
-                                        Agenda de hoje e dos próximos 7 dias
-                                    </p>
-                                </div>
-                            </div>
-                            <Button asChild size="sm" variant="ghost">
-                                <Link href={href('/agenda')}>Abrir agenda</Link>
-                            </Button>
-                        </div>
+                        <SurfaceHeader
+                            actions={
+                                <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="shrink-0"
+                                >
+                                    <Link href={href('/agenda')}>
+                                        Abrir agenda
+                                    </Link>
+                                </Button>
+                            }
+                        >
+                            <SurfaceTitle id="dashboard-agenda-title">
+                                Próximos compromissos
+                            </SurfaceTitle>
+                            <SurfaceDescription>
+                                Agenda de hoje e dos próximos 7 dias
+                            </SurfaceDescription>
+                        </SurfaceHeader>
                         {upcomingAppointments.length === 0 ? (
                             <div className="flex flex-col gap-3 px-5 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                                 <span>Nenhum compromisso próximo.</span>
@@ -335,22 +335,12 @@ export default function Dashboard({
                 {capabilities.demands && (
                     <>
                         <Surface as="section" className="overflow-hidden">
-                            <div className="flex items-center gap-3 border-b p-4">
-                                <span className="grid size-9 shrink-0 place-items-center rounded-sm bg-destructive/10 text-destructive">
-                                    <DangerTriangleIcon
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                </span>
-                                <div>
-                                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                        Atenção imediata
-                                    </h2>
-                                    <p className="text-xs text-muted-foreground">
-                                        Demandas com prazo vencido
-                                    </p>
-                                </div>
-                            </div>
+                            <SurfaceHeader>
+                                <SurfaceTitle>Atenção imediata</SurfaceTitle>
+                                <SurfaceDescription>
+                                    Demandas com prazo vencido
+                                </SurfaceDescription>
+                            </SurfaceHeader>
                             {attentionDemands.length === 0 ? (
                                 <div className="px-5 py-8 text-center text-sm text-muted-foreground">
                                     Nenhuma demanda atrasada.
@@ -369,29 +359,25 @@ export default function Dashboard({
                         </Surface>
 
                         <Surface as="section" className="overflow-hidden">
-                            <div className="flex items-center justify-between gap-4 border-b p-4">
-                                <div className="flex min-w-0 items-center gap-3">
-                                    <span className="grid size-9 shrink-0 place-items-center rounded-sm bg-primary/10 text-primary">
-                                        <HistoryIcon
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                    </span>
-                                    <div>
-                                        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                            Demandas recentes
-                                        </h2>
-                                        <p className="text-xs text-muted-foreground">
-                                            Últimos registros no período
-                                        </p>
-                                    </div>
-                                </div>
-                                <Button asChild size="sm" variant="ghost">
-                                    <Link href={href('/demandas')}>
-                                        Ver todas
-                                    </Link>
-                                </Button>
-                            </div>
+                            <SurfaceHeader
+                                actions={
+                                    <Button
+                                        asChild
+                                        size="sm"
+                                        variant="outline"
+                                        className="shrink-0"
+                                    >
+                                        <Link href={href('/demandas')}>
+                                            Ver todas
+                                        </Link>
+                                    </Button>
+                                }
+                            >
+                                <SurfaceTitle>Demandas recentes</SurfaceTitle>
+                                <SurfaceDescription>
+                                    Últimos registros no período
+                                </SurfaceDescription>
+                            </SurfaceHeader>
                             {recentDemands.length === 0 ? (
                                 <EmptyState
                                     icon={ClipboardListIcon}
@@ -411,22 +397,12 @@ export default function Dashboard({
                         </Surface>
 
                         <Surface as="section" className="overflow-hidden">
-                            <div className="flex items-center gap-3 border-b p-4">
-                                <span className="grid size-9 shrink-0 place-items-center rounded-sm bg-primary/10 text-primary">
-                                    <CalendarMarkIcon
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                </span>
-                                <div>
-                                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                        Próximos prazos
-                                    </h2>
-                                    <p className="text-xs text-muted-foreground">
-                                        Vencem nos próximos 7 dias
-                                    </p>
-                                </div>
-                            </div>
+                            <SurfaceHeader>
+                                <SurfaceTitle>Próximos prazos</SurfaceTitle>
+                                <SurfaceDescription>
+                                    Vencem nos próximos 7 dias
+                                </SurfaceDescription>
+                            </SurfaceHeader>
                             {upcomingDeadlines.length === 0 ? (
                                 <div className="px-5 py-8 text-center text-sm text-muted-foreground">
                                     Nenhum prazo próximo.
@@ -446,23 +422,15 @@ export default function Dashboard({
 
                         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(20rem,0.8fr)]">
                             <Surface as="section" className="overflow-hidden">
-                                <div className="flex items-center gap-3 border-b p-4">
-                                    <span className="grid size-9 shrink-0 place-items-center rounded-sm bg-primary/10 text-primary">
-                                        <GraphUpIcon
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                    </span>
-                                    <div>
-                                        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                            Evolução das entradas
-                                        </h2>
-                                        <p className="text-xs text-muted-foreground">
-                                            Demandas abertas ·{' '}
-                                            {periodLabel.toLowerCase()}
-                                        </p>
-                                    </div>
-                                </div>
+                                <SurfaceHeader>
+                                    <SurfaceTitle>
+                                        Evolução das entradas
+                                    </SurfaceTitle>
+                                    <SurfaceDescription>
+                                        Demandas abertas ·{' '}
+                                        {periodLabel.toLowerCase()}
+                                    </SurfaceDescription>
+                                </SurfaceHeader>
                                 <div
                                     className="h-72 p-4"
                                     aria-label="Gráfico da evolução mensal das demandas"
@@ -555,7 +523,7 @@ export default function Dashboard({
                                                                 <span className="text-muted-foreground">
                                                                     Demandas
                                                                 </span>
-                                                                <span className="ml-auto pl-4 font-mono font-medium tabular-nums">
+                                                                <span className="ml-auto pl-4 font-medium tabular-nums">
                                                                     {datum.total.toLocaleString(
                                                                         'pt-BR',
                                                                     )}
@@ -588,22 +556,12 @@ export default function Dashboard({
                             </Surface>
 
                             <Surface as="section" className="overflow-hidden">
-                                <div className="flex items-center gap-3 border-b p-4">
-                                    <span className="grid size-9 shrink-0 place-items-center rounded-sm bg-primary/10 text-primary">
-                                        <PieChartIcon
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                    </span>
-                                    <div>
-                                        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                            Situação atual
-                                        </h2>
-                                        <p className="text-xs text-muted-foreground">
-                                            Distribuição por status
-                                        </p>
-                                    </div>
-                                </div>
+                                <SurfaceHeader>
+                                    <SurfaceTitle>Situação atual</SurfaceTitle>
+                                    <SurfaceDescription>
+                                        Distribuição por status
+                                    </SurfaceDescription>
+                                </SurfaceHeader>
                                 {statusData.length === 0 ? (
                                     <EmptyState
                                         icon={InboxIcon}

@@ -13,6 +13,11 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import {
+    SurfaceHeader,
+    SurfaceTitle,
+    SurfaceDescription,
+} from '@/components/ui/surface';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { EventStatus, OfficeEvent } from '@/types';
 
@@ -97,49 +102,56 @@ export default function EventShow({
 
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
                     <div className="space-y-6">
-                        <Card className="gap-4 p-5">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <Badge variant={statusVariants[event.status]}>
-                                    {statusLabels[event.status]}
-                                </Badge>
-                                <Badge variant="outline">
-                                    {typeLabels[event.tipo]}
-                                </Badge>
-                                <Badge variant="secondary">
-                                    {event.duracao === 'multiplos_dias'
-                                        ? 'Vários dias'
-                                        : 'Um dia'}
-                                </Badge>
-                            </div>
-                            <div>
-                                <h2 className="font-semibold">Descrição</h2>
-                                <p className="mt-3 text-sm leading-6 whitespace-pre-wrap">
-                                    {event.descricao ??
-                                        'Nenhuma descrição informada.'}
-                                </p>
-                            </div>
+                        <Card className="gap-0 py-0">
+                            <SurfaceHeader
+                                actions={
+                                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                        <Badge
+                                            variant={
+                                                statusVariants[event.status]
+                                            }
+                                        >
+                                            {statusLabels[event.status]}
+                                        </Badge>
+                                        <Badge variant="outline">
+                                            {typeLabels[event.tipo]}
+                                        </Badge>
+                                        <Badge variant="secondary">
+                                            {event.duracao === 'multiplos_dias'
+                                                ? 'Vários dias'
+                                                : 'Um dia'}
+                                        </Badge>
+                                    </div>
+                                }
+                            >
+                                <SurfaceTitle>Descrição</SurfaceTitle>
+                            </SurfaceHeader>
+                            <p className="p-5 text-sm leading-6 whitespace-pre-wrap">
+                                {event.descricao ??
+                                    'Nenhuma descrição informada.'}
+                            </p>
                             {event.observacoes && (
-                                <div className="border-t pt-4">
-                                    <h2 className="font-semibold">
-                                        Observações internas
-                                    </h2>
-                                    <p className="mt-3 text-sm leading-6 whitespace-pre-wrap">
+                                <>
+                                    <SurfaceHeader className="border-t">
+                                        <SurfaceTitle>
+                                            Observações internas
+                                        </SurfaceTitle>
+                                    </SurfaceHeader>
+                                    <p className="p-5 text-sm leading-6 whitespace-pre-wrap">
                                         {event.observacoes}
                                     </p>
-                                </div>
+                                </>
                             )}
                         </Card>
 
                         <Card className="gap-0 py-0">
-                            <div className="border-b p-4">
-                                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                    Participantes
-                                </h2>
-                                <p className="text-xs text-muted-foreground">
+                            <SurfaceHeader>
+                                <SurfaceTitle>Participantes</SurfaceTitle>
+                                <SurfaceDescription>
                                     Equipe do gabinete e cidadãos vinculados ao
                                     evento.
-                                </p>
-                            </div>
+                                </SurfaceDescription>
+                            </SurfaceHeader>
                             <div className="p-5">
                                 {userParticipants.length === 0 &&
                                 citizenParticipants.length === 0 ? (
@@ -199,11 +211,11 @@ export default function EventShow({
 
                     <aside>
                         <Card className="gap-0 py-0">
-                            <div className="border-b p-4">
-                                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                            <SurfaceHeader>
+                                <SurfaceTitle>
                                     Informações do evento
-                                </h2>
-                            </div>
+                                </SurfaceTitle>
+                            </SurfaceHeader>
                             <dl className="space-y-4 p-5">
                                 {event.duracao === 'multiplos_dias' ? (
                                     <Info

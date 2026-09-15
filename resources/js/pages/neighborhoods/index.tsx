@@ -12,10 +12,13 @@ import { AddIcon, MapPointIcon, PowerIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Surface, surfaceClasses } from '@/components/ui/surface';
+import {
+    Surface,
+    SurfaceDescription,
+    SurfaceHeader,
+    SurfaceTitle,
+} from '@/components/ui/surface';
 import {
     Table,
     TableBody,
@@ -25,7 +28,6 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { contextualUrl } from '@/lib/entity-context';
-import { cn } from '@/lib/utils';
 import type { Auth, Neighborhood, Pagination } from '@/types';
 
 const schema = z.object({
@@ -80,193 +82,184 @@ export default function Neighborhoods({
                     title="Bairros"
                     description="Mantenha a área territorial usada nos cadastros e relatórios."
                 />
-                <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-                    <Card className="gap-0 overflow-hidden py-0">
-                        {neighborhoods.data.length === 0 ? (
-                            <EmptyState
-                                icon={MapPointIcon}
-                                title="Nenhum bairro cadastrado"
-                                description="Cadastre o primeiro bairro ou traga uma referência já mantida pela entidade."
-                            />
-                        ) : (
-                            <>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-10">
-                                                <span className="sr-only">
-                                                    Situação
-                                                </span>
+
+                {canManage && (
+                    <Surface as="section" className="overflow-hidden">
+                        {/* O município não é escolhido no cadastro: vem do
+                            gabinete. Como subtítulo do card ele informa sem
+                            ocupar uma caixa própria na linha do formulário. */}
+                        <SurfaceHeader>
+                            <SurfaceTitle>Novo bairro</SurfaceTitle>
+                            <SurfaceDescription>
+                                {officeLocation.municipio}/
+                                {officeLocation.estado}
+                            </SurfaceDescription>
+                        </SurfaceHeader>
+                        <form
+                            onSubmit={handleSubmit(submit)}
+                            className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start"
+                        >
+                            <div className="w-full flex-1 space-y-1">
+                                <Input
+                                    aria-label="Nome do bairro"
+                                    placeholder="Ex.: Centro"
+                                    {...register('nome')}
+                                />
+                                <FieldError message={errors.nome?.message} />
+                            </div>
+                            <Button
+                                className="w-full shrink-0 sm:w-auto"
+                                disabled={isSubmitting}
+                            >
+                                Cadastrar bairro
+                            </Button>
+                        </form>
+                    </Surface>
+                )}
+
+                <Surface as="section" className="overflow-hidden">
+                    {neighborhoods.data.length === 0 ? (
+                        <EmptyState
+                            icon={MapPointIcon}
+                            title="Nenhum bairro cadastrado"
+                            description="Cadastre o primeiro bairro ou traga uma referência já mantida pela entidade."
+                        />
+                    ) : (
+                        <>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-10">
+                                            <span className="sr-only">
+                                                Situação
+                                            </span>
+                                        </TableHead>
+                                        <TableHead>Nome</TableHead>
+                                        <TableHead>Município/UF</TableHead>
+                                        {canManage && (
+                                            <TableHead className="text-right">
+                                                Ações
                                             </TableHead>
-                                            <TableHead>Nome</TableHead>
-                                            <TableHead>Município/UF</TableHead>
+                                        )}
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {neighborhoods.data.map((item) => (
+                                        <TableRow key={item.id}>
+                                            <TableCell className="w-10">
+                                                <ActivityMark
+                                                    active={item.ativo}
+                                                />
+                                            </TableCell>
+                                            <TableCell>{item.nome}</TableCell>
+                                            <TableCell>
+                                                {item.municipio}/{item.estado}
+                                            </TableCell>
                                             {canManage && (
-                                                <TableHead className="text-right">
-                                                    Ações
-                                                </TableHead>
+                                                <TableCell>
+                                                    <div className="flex justify-end gap-2">
+                                                        <TableActionButton
+                                                            label={`${item.ativo ? 'Desativar' : 'Ativar'} ${item.nome}`}
+                                                            variant={
+                                                                item.ativo
+                                                                    ? 'destructive'
+                                                                    : 'outline'
+                                                            }
+                                                            onClick={() =>
+                                                                router.put(
+                                                                    tenantUrl(
+                                                                        `/bairros/${item.id}`,
+                                                                    ),
+                                                                    {
+                                                                        ...item,
+                                                                        ativo: !item.ativo,
+                                                                    },
+                                                                    {
+                                                                        preserveScroll: true,
+                                                                    },
+                                                                )
+                                                            }
+                                                        >
+                                                            <PowerIcon aria-hidden="true" />
+                                                        </TableActionButton>
+                                                        <DeleteRecordButton
+                                                            url={tenantUrl(
+                                                                `/bairros/${item.id}`,
+                                                            )}
+                                                            label={`Excluir ${item.nome}`}
+                                                            title="Excluir bairro?"
+                                                            description="O registro deixará de aparecer nos novos cadastros. Os vínculos históricos serão preservados."
+                                                        />
+                                                    </div>
+                                                </TableCell>
                                             )}
                                         </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {neighborhoods.data.map((item) => (
-                                            <TableRow key={item.id}>
-                                                <TableCell className="w-10">
-                                                    <ActivityMark
-                                                        active={item.ativo}
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
-                                                    {item.nome}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {item.municipio}/
-                                                    {item.estado}
-                                                </TableCell>
-                                                {canManage && (
-                                                    <TableCell>
-                                                        <div className="flex justify-end gap-2">
-                                                            <TableActionButton
-                                                                label={`${item.ativo ? 'Desativar' : 'Ativar'} ${item.nome}`}
-                                                                variant={
-                                                                    item.ativo
-                                                                        ? 'destructive'
-                                                                        : 'outline'
-                                                                }
-                                                                onClick={() =>
-                                                                    router.put(
-                                                                        tenantUrl(
-                                                                            `/bairros/${item.id}`,
-                                                                        ),
-                                                                        {
-                                                                            ...item,
-                                                                            ativo: !item.ativo,
-                                                                        },
-                                                                        {
-                                                                            preserveScroll: true,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            >
-                                                                <PowerIcon aria-hidden="true" />
-                                                            </TableActionButton>
-                                                            <DeleteRecordButton
-                                                                url={tenantUrl(
-                                                                    `/bairros/${item.id}`,
-                                                                )}
-                                                                label={`Excluir ${item.nome}`}
-                                                                title="Excluir bairro?"
-                                                                description="O registro deixará de aparecer nos novos cadastros. Os vínculos históricos serão preservados."
-                                                            />
-                                                        </div>
-                                                    </TableCell>
-                                                )}
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                                <PaginationLinks
-                                    pagination={neighborhoods}
-                                    label="bairro(s)"
-                                />
-                            </>
-                        )}
-                    </Card>
-                    {canManage && (
-                        <div className="space-y-6">
-                            <form
-                                onSubmit={handleSubmit(submit)}
-                                className={cn(surfaceClasses, 'space-y-4 p-5')}
-                            >
-                                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                    Novo bairro
-                                </h2>
-                                <div className="rounded-md bg-muted/50 p-3">
-                                    <p className="text-xs font-medium text-muted-foreground">
-                                        Localização do gabinete
-                                    </p>
-                                    <p className="mt-1 text-sm font-medium">
-                                        {officeLocation.municipio}/
-                                        {officeLocation.estado}
-                                    </p>
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="neighborhood-name">
-                                        Nome
-                                    </Label>
-                                    <Input
-                                        id="neighborhood-name"
-                                        {...register('nome')}
-                                    />
-                                    <FieldError
-                                        message={errors.nome?.message}
-                                    />
-                                </div>
-                                <Button
-                                    className="w-full"
-                                    disabled={isSubmitting}
-                                >
-                                    Cadastrar bairro
-                                </Button>
-                            </form>
-
-                            <Surface as="section" className="p-5">
-                                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                    Referências da entidade
-                                </h2>
-                                <p className="text-xs text-muted-foreground">
-                                    Adicione ao gabinete bairros já mantidos
-                                    pela entidade.
-                                </p>
-                                <div className="mt-4 space-y-2">
-                                    {sharedNeighborhoods.length === 0 ? (
-                                        <p className="text-sm text-muted-foreground">
-                                            Todas as referências ativas já estão
-                                            disponíveis neste gabinete.
-                                        </p>
-                                    ) : (
-                                        sharedNeighborhoods.map((item) => (
-                                            <div
-                                                key={item.id}
-                                                className="flex items-center gap-3 rounded-md border p-3"
-                                            >
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-sm font-medium">
-                                                        {item.name}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {item.city}/{item.state}
-                                                    </p>
-                                                </div>
-                                                <Button
-                                                    type="button"
-                                                    size="icon"
-                                                    variant="outline"
-                                                    title={`Adicionar ${item.name}`}
-                                                    onClick={() =>
-                                                        router.post(
-                                                            tenantUrl(
-                                                                `/bairros/referencias/${item.id}`,
-                                                            ),
-                                                            {},
-                                                            {
-                                                                preserveScroll: true,
-                                                            },
-                                                        )
-                                                    }
-                                                >
-                                                    <AddIcon className="size-4" />
-                                                    <span className="sr-only">
-                                                        Adicionar
-                                                    </span>
-                                                </Button>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </Surface>
-                        </div>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                            <PaginationLinks
+                                pagination={neighborhoods}
+                                label="bairro(s)"
+                            />
+                        </>
                     )}
-                </div>
+                </Surface>
+
+                {canManage && (
+                    <Surface as="section" className="overflow-hidden">
+                        <SurfaceHeader help="Adicione ao gabinete bairros já mantidos pela entidade.">
+                            <SurfaceTitle>Referências da entidade</SurfaceTitle>
+                        </SurfaceHeader>
+                        {sharedNeighborhoods.length === 0 ? (
+                            <p className="p-4 text-sm text-muted-foreground">
+                                Todas as referências ativas já estão disponíveis
+                                neste gabinete.
+                            </p>
+                        ) : (
+                            // Em largura total a pilha vertical deixaria uma
+                            // faixa vazia à direita; a grade acompanha o card.
+                            <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {sharedNeighborhoods.map((item) => (
+                                    <div
+                                        key={item.id}
+                                        className="flex items-center gap-3 rounded-md border p-3"
+                                    >
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-sm font-medium">
+                                                {item.name}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {item.city}/{item.state}
+                                            </p>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="outline"
+                                            title={`Adicionar ${item.name}`}
+                                            onClick={() =>
+                                                router.post(
+                                                    tenantUrl(
+                                                        `/bairros/referencias/${item.id}`,
+                                                    ),
+                                                    {},
+                                                    {
+                                                        preserveScroll: true,
+                                                    },
+                                                )
+                                            }
+                                        >
+                                            <AddIcon className="size-4" />
+                                            <span className="sr-only">
+                                                Adicionar
+                                            </span>
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </Surface>
+                )}
             </PageContainer>
         </>
     );

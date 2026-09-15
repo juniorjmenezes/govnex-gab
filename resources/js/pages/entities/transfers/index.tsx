@@ -8,7 +8,7 @@ import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Surface } from '@/components/ui/surface';
+import { Surface, SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 import type { Pagination } from '@/types';
 
 type Entidade = {
@@ -62,11 +62,9 @@ export default function EntidadeTransfersIndex({
 
                 {canRequest && (
                     <Surface as="section" className="overflow-hidden">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Nova transferência
-                            </h2>
-                        </div>
+                        <SurfaceHeader>
+                            <SurfaceTitle>Nova transferência</SurfaceTitle>
+                        </SurfaceHeader>
                         <form
                             className="grid gap-4 p-4 md:grid-cols-[1fr_1fr_auto]"
                             onSubmit={submit}
@@ -130,12 +128,15 @@ export default function EntidadeTransfersIndex({
                 )}
 
                 <Surface as="section" className="overflow-hidden">
-                    <div className="flex items-center justify-between gap-3 border-b p-4">
-                        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                            Histórico
-                        </h2>
-                        <Badge variant="outline">{transfers.data.length}</Badge>
-                    </div>
+                    <SurfaceHeader
+                        actions={
+                            <Badge variant="outline" className="shrink-0">
+                                {transfers.data.length}
+                            </Badge>
+                        }
+                    >
+                        <SurfaceTitle>Histórico</SurfaceTitle>
+                    </SurfaceHeader>
                     {transfers.data.length === 0 ? (
                         <p className="p-4 text-sm text-muted-foreground">
                             Nenhuma transferência registrada.

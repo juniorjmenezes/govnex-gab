@@ -3,18 +3,25 @@ import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { ActivityMark } from '@/components/common/activity-mark';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
+import { TableActionButton } from '@/components/common/table-action-button';
+import { EmptyState } from '@/components/feedback/empty-state';
 import { FieldError } from '@/components/forms/field-error';
-import { RefreshIcon } from '@/components/icons';
+import { FeedIcon, PowerIcon, RefreshIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { surfaceClasses } from '@/components/ui/surface';
-import { Switch } from '@/components/ui/switch';
-import { cn } from '@/lib/utils';
+import { Surface, SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 
 type RssSource = {
     id: number;
@@ -46,11 +53,11 @@ function SourceRow({ source }: { source: RssSource }) {
     const [pending, setPending] = useState(false);
     const collectedAt = formatDateTime(source.ultima_coleta_em);
 
-    const toggle = (ativo: boolean) => {
+    const toggle = () => {
         setPending(true);
         router.patch(
             `/admin/fontes-rss/${source.id}`,
-            { nome: source.nome, url: source.url, ativo },
+            { nome: source.nome, url: source.url, ativo: !source.ativo },
             { preserveScroll: true, onFinish: () => setPending(false) },
         );
     };
@@ -65,49 +72,63 @@ function SourceRow({ source }: { source: RssSource }) {
     };
 
     return (
-        <div className="flex flex-wrap items-start gap-3 p-4">
-            <div className="min-w-56 flex-1">
-                <p className="text-sm font-medium">{source.nome}</p>
-                <p className="truncate text-xs text-muted-foreground">
+        <TableRow>
+            <TableCell className="w-10">
+                <ActivityMark active={source.ativo} />
+            </TableCell>
+            <TableCell className="min-w-64 whitespace-normal">
+                <p className="font-normal">{source.nome}</p>
+                {/* O endereço e o erro do feed ficam como subtítulo: em coluna
+                    própria, uma URL longa forçaria rolagem horizontal. */}
+                <p className="text-xs break-all text-muted-foreground">
                     {source.url}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                    {collectedAt
-                        ? `Última coleta em ${collectedAt} · ${source.noticias} notícias`
-                        : 'Ainda não coletada'}
-                </p>
                 {source.ultimo_erro && (
-                    <p className="mt-1 text-xs text-destructive">
+                    <p className="mt-1 text-xs break-words text-destructive">
                         {source.ultimo_erro}
                     </p>
                 )}
-            </div>
-            <div className="flex items-center gap-2">
-                <Switch
-                    checked={source.ativo}
-                    onCheckedChange={toggle}
-                    disabled={pending}
-                    aria-label={`Ativar ${source.nome}`}
-                />
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={collect}
-                    disabled={pending}
-                    aria-label={`Coletar ${source.nome} agora`}
-                    title="Coletar agora"
-                >
-                    <RefreshIcon />
-                </Button>
-                <DeleteRecordButton
-                    url={`/admin/fontes-rss/${source.id}`}
-                    label={`Remover ${source.nome}`}
-                    title={`Remover ${source.nome}?`}
-                    description="As notícias já coletadas dessa fonte também são removidas dos painéis."
-                />
-            </div>
-        </div>
+            </TableCell>
+            <TableCell className="whitespace-normal">
+                {collectedAt ? (
+                    <>
+                        <p className="font-normal">{collectedAt}</p>
+                        <p className="text-xs text-muted-foreground">
+                            {source.noticias} notícias
+                        </p>
+                    </>
+                ) : (
+                    <span className="text-xs text-muted-foreground">
+                        Ainda não coletada
+                    </span>
+                )}
+            </TableCell>
+            <TableCell>
+                <div className="flex justify-end gap-2">
+                    <TableActionButton
+                        label={`${source.ativo ? 'Desativar' : 'Ativar'} ${source.nome}`}
+                        variant={source.ativo ? 'destructive' : 'outline'}
+                        disabled={pending}
+                        onClick={toggle}
+                    >
+                        <PowerIcon aria-hidden="true" />
+                    </TableActionButton>
+                    <TableActionButton
+                        label={`Coletar ${source.nome} agora`}
+                        disabled={pending}
+                        onClick={collect}
+                    >
+                        <RefreshIcon aria-hidden="true" />
+                    </TableActionButton>
+                    <DeleteRecordButton
+                        url={`/admin/fontes-rss/${source.id}`}
+                        label={`Remover ${source.nome}`}
+                        title={`Remover ${source.nome}?`}
+                        description="As notícias já coletadas dessa fonte também são removidas dos painéis."
+                    />
+                </div>
+            </TableCell>
+        </TableRow>
     );
 }
 
@@ -144,59 +165,77 @@ export default function RssSources({ sources }: { sources: RssSource[] }) {
                     title="Fontes de notícias"
                     description="Feeds RSS dos portais consultados a cada 15 minutos. As notícias coletadas alimentam o acompanhamento dos candidatos favoritos em todos os gabinetes."
                 />
-                <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
-                    <Card className="gap-0 py-0">
-                        {sources.length === 0 ? (
-                            <p className="p-6 text-sm text-muted-foreground">
-                                Nenhuma fonte cadastrada ainda.
-                            </p>
-                        ) : (
-                            <div className="divide-y">
+
+                {/* Cadastro em linha, no topo: são dois campos, e um card
+                    lateral só para eles empurrava a tabela para metade da
+                    largura. */}
+                <Surface as="section" className="overflow-hidden">
+                    <SurfaceHeader>
+                        <SurfaceTitle>Nova fonte</SurfaceTitle>
+                    </SurfaceHeader>
+                    <form
+                        onSubmit={handleSubmit(submit)}
+                        className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start"
+                    >
+                        <div className="w-full space-y-1 sm:w-64">
+                            <Input
+                                aria-label="Portal"
+                                placeholder="Ex.: G1 Política"
+                                {...register('nome')}
+                            />
+                            <FieldError message={errors.nome?.message} />
+                        </div>
+                        <div className="w-full flex-1 space-y-1">
+                            <Input
+                                aria-label="Endereço do feed"
+                                placeholder="https://exemplo.com.br/rss/politica"
+                                {...register('url')}
+                            />
+                            <FieldError message={errors.url?.message} />
+                        </div>
+                        <Button
+                            className="w-full shrink-0 sm:w-auto"
+                            disabled={isSubmitting}
+                        >
+                            Cadastrar fonte
+                        </Button>
+                    </form>
+                </Surface>
+
+                <Surface as="section" className="overflow-hidden">
+                    {sources.length === 0 ? (
+                        <EmptyState
+                            icon={FeedIcon}
+                            title="Nenhuma fonte cadastrada"
+                            description="Cadastre o primeiro feed acima. A primeira coleta é enfileirada assim que a fonte é salva."
+                        />
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-10">
+                                        <span className="sr-only">
+                                            Situação
+                                        </span>
+                                    </TableHead>
+                                    <TableHead>Portal</TableHead>
+                                    <TableHead>Última coleta</TableHead>
+                                    <TableHead className="text-right">
+                                        Ações
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {sources.map((source) => (
                                     <SourceRow
                                         key={source.id}
                                         source={source}
                                     />
                                 ))}
-                            </div>
-                        )}
-                    </Card>
-                    <form
-                        onSubmit={handleSubmit(submit)}
-                        className={cn(surfaceClasses, 'overflow-hidden')}
-                    >
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Nova fonte
-                            </h2>
-                        </div>
-                        <div className="space-y-4 p-5">
-                            <div className="space-y-1">
-                                <Label htmlFor="rss-nome">Portal</Label>
-                                <Input
-                                    id="rss-nome"
-                                    placeholder="Ex.: G1 Política"
-                                    {...register('nome')}
-                                />
-                                <FieldError message={errors.nome?.message} />
-                            </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="rss-url">
-                                    Endereço do feed
-                                </Label>
-                                <Input
-                                    id="rss-url"
-                                    placeholder="https://exemplo.com.br/rss/politica"
-                                    {...register('url')}
-                                />
-                                <FieldError message={errors.url?.message} />
-                            </div>
-                            <Button className="w-full" disabled={isSubmitting}>
-                                Cadastrar fonte
-                            </Button>
-                        </div>
-                    </form>
-                </div>
+                            </TableBody>
+                        </Table>
+                    )}
+                </Surface>
             </PageContainer>
         </>
     );

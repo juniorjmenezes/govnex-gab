@@ -36,7 +36,12 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Surface, surfaceClasses } from '@/components/ui/surface';
+import {
+    Surface,
+    surfaceClasses,
+    SurfaceHeader,
+    SurfaceTitle,
+} from '@/components/ui/surface';
 import { preservedListParams } from '@/lib/pagination';
 import {
     datasetLabels,
@@ -635,11 +640,11 @@ function OfficeDetailsDialog({
                 {office && (
                     <div className="flex-1 space-y-4 overflow-y-auto">
                         <Surface as="section" className="overflow-hidden">
-                            <div className="border-b p-4">
-                                <h3 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                            <SurfaceHeader>
+                                <SurfaceTitle as="h3">
                                     Pessoas e acesso
-                                </h3>
-                            </div>
+                                </SurfaceTitle>
+                            </SurfaceHeader>
                             <dl className="grid gap-4 p-4 sm:grid-cols-2">
                                 <OfficeDetail
                                     label="Titular"
@@ -671,11 +676,9 @@ function OfficeDetailsDialog({
                         </Surface>
 
                         <Surface as="section" className="overflow-hidden">
-                            <div className="border-b p-4">
-                                <h3 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                    Utilização
-                                </h3>
-                            </div>
+                            <SurfaceHeader>
+                                <SurfaceTitle as="h3">Utilização</SurfaceTitle>
+                            </SurfaceHeader>
                             <dl className="grid gap-4 p-4 sm:grid-cols-3">
                                 <OfficeDetail label="Cidadãos">
                                     {office.citizens_count.toLocaleString(
@@ -696,11 +699,11 @@ function OfficeDetailsDialog({
                         </Surface>
 
                         <Surface as="section" className="overflow-hidden">
-                            <div className="border-b p-4">
-                                <h3 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                            <SurfaceHeader>
+                                <SurfaceTitle as="h3">
                                     Dados políticos
-                                </h3>
-                            </div>
+                                </SurfaceTitle>
+                            </SurfaceHeader>
                             <dl className="grid gap-4 p-4 sm:grid-cols-2">
                                 <OfficeDetail label="Disponibilidade">
                                     <PoliticalReadiness office={office} />

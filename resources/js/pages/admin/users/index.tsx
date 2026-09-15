@@ -12,7 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { surfaceClasses } from '@/components/ui/surface';
+import {
+    surfaceClasses,
+    SurfaceHeader,
+    SurfaceTitle,
+} from '@/components/ui/surface';
 import { cn } from '@/lib/utils';
 
 type RootUser = {
@@ -154,11 +158,9 @@ export default function RootUsers({ users }: { users: RootUser[] }) {
                         onSubmit={handleSubmit(submit)}
                         className={cn(surfaceClasses, 'overflow-hidden')}
                     >
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Novo usuário root
-                            </h2>
-                        </div>
+                        <SurfaceHeader>
+                            <SurfaceTitle>Novo usuário root</SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="space-y-4 p-5">
                             <div className="space-y-1">
                                 <Label htmlFor="root-name">Nome</Label>

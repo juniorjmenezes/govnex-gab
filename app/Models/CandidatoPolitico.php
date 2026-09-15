@@ -26,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $fonte_atualizada_em
  * @property-read Eleicao $eleicao
  * @property string|null $party_color Atribuído dinamicamente pelo PoliticalPanelController a partir de PartidoCor::colorMap() — não existe como coluna.
+ * @property bool $is_holder Atribuído dinamicamente pelo PoliticalPanelController: é o titular do gabinete que está vendo a lista — não existe como coluna.
  */
 class CandidatoPolitico extends Model
 {

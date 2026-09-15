@@ -1,6 +1,5 @@
 import { Head, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
-import { PollCandidateRows } from '@/components/admin/poll-candidate-rows';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import {
     ScrollableDialogBody,
@@ -9,9 +8,11 @@ import {
     ScrollableDialogHeader,
 } from '@/components/common/scrollable-dialog';
 import { TableActionButton } from '@/components/common/table-action-button';
+import { EmptyState } from '@/components/feedback/empty-state';
 import {
     AddIcon,
     CloseIcon,
+    EyeIcon,
     MagnifierIcon,
     PenIcon,
     PresentationGraphIcon,
@@ -20,7 +21,6 @@ import {
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -31,17 +31,17 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
-import { Textarea } from '@/components/ui/textarea';
-import { usePollCandidateOptions } from '@/hooks/use-poll-candidate-options';
-import { preservedListParams } from '@/lib/pagination';
 import {
-    CARGO_OPTIONS,
-    CENARIO_LABELS,
-    emptyCandidateRow,
-} from '@/lib/poll-curation';
-import type { CandidateRowInput } from '@/lib/poll-curation';
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import { preservedListParams } from '@/lib/pagination';
+import { CARGO_OPTIONS, CENARIO_LABELS } from '@/lib/poll-curation';
 import { cn } from '@/lib/utils';
 import type { PollCurationPesquisa, PollCurationProps } from '@/types';
 
@@ -95,8 +95,9 @@ export default function PollCuration({
         router.get('/admin/pesquisas-eleitorais', {}, { replace: true });
     };
 
-    const [resultsTarget, setResultsTarget] =
-        useState<PollCurationPesquisa | null>(null);
+    const [viewTarget, setViewTarget] = useState<PollCurationPesquisa | null>(
+        null,
+    );
     const [deleteTarget, setDeleteTarget] =
         useState<PollCurationPesquisa | null>(null);
 
@@ -106,7 +107,7 @@ export default function PollCuration({
             <PageContainer>
                 <PageHeader
                     title="Pesquisas eleitorais"
-                    description="O PollingData cobre presidente, mas não governador, senador ou prefeito. Aqui é possível registrar e corrigir pesquisas à mão, direto do PDF ou matéria original."
+                    description="É possível registrar e corrigir pesquisas à mão, direto do PDF ou matéria original."
                     actions={
                         <Button
                             onClick={() =>
@@ -180,29 +181,46 @@ export default function PollCuration({
                 </form>
 
                 <Surface as="section" className="overflow-hidden">
-                    <div className="divide-y">
-                        {pesquisas.data.map((pesquisa) => (
-                            <PollRow
-                                key={pesquisa.id}
-                                pesquisa={pesquisa}
-                                onEditResults={() => setResultsTarget(pesquisa)}
-                                onDelete={() => setDeleteTarget(pesquisa)}
-                            />
-                        ))}
-                    </div>
                     {pesquisas.data.length === 0 ? (
-                        <div className="p-10 text-center">
-                            <PresentationGraphIcon className="mx-auto size-8 text-muted-foreground" />
-                            <p className="mt-3 font-medium">
-                                Nenhuma pesquisa encontrada
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                Revise os filtros ou registre uma nova pesquisa
-                                manual.
-                            </p>
-                        </div>
+                        <EmptyState
+                            icon={PresentationGraphIcon}
+                            title="Nenhuma pesquisa encontrada"
+                            description="Revise os filtros ou registre uma nova pesquisa manual."
+                        />
                     ) : (
                         <>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Instituto</TableHead>
+                                        <TableHead>Cargo</TableHead>
+                                        <TableHead>Origem</TableHead>
+                                        <TableHead>Resultados</TableHead>
+                                        <TableHead className="text-right">
+                                            Ações
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {pesquisas.data.map((pesquisa) => (
+                                        <PollRow
+                                            key={pesquisa.id}
+                                            pesquisa={pesquisa}
+                                            onViewResults={() =>
+                                                setViewTarget(pesquisa)
+                                            }
+                                            onEditResults={() =>
+                                                router.get(
+                                                    `/admin/pesquisas-eleitorais/${pesquisa.id}/editar`,
+                                                )
+                                            }
+                                            onDelete={() =>
+                                                setDeleteTarget(pesquisa)
+                                            }
+                                        />
+                                    ))}
+                                </TableBody>
+                            </Table>
                             <PaginationLinks
                                 pagination={pesquisas}
                                 label="pesquisa(s)"
@@ -212,9 +230,9 @@ export default function PollCuration({
                 </Surface>
             </PageContainer>
 
-            <ResultsDialog
-                pesquisa={resultsTarget}
-                onClose={() => setResultsTarget(null)}
+            <ResultsViewDialog
+                pesquisa={viewTarget}
+                onClose={() => setViewTarget(null)}
             />
 
             <Dialog
@@ -267,105 +285,153 @@ export default function PollCuration({
     );
 }
 
+const formatDate = (value: string | null) =>
+    value ? new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR') : null;
+
+const territoryLabel = (pesquisa: PollCurationPesquisa) =>
+    `${pesquisa.uf}${pesquisa.municipio ? `/${pesquisa.municipio}` : ''}`;
+
+const sortedResults = (pesquisa: PollCurationPesquisa) =>
+    [...pesquisa.resultados].sort((a, b) => b.percentual - a.percentual);
+
 function PollRow({
     pesquisa,
+    onViewResults,
     onEditResults,
     onDelete,
 }: {
     pesquisa: PollCurationPesquisa;
+    onViewResults: () => void;
     onEditResults: () => void;
     onDelete: () => void;
 }) {
-    const topResults = [...pesquisa.resultados]
-        .sort((a, b) => b.percentual - a.percentual)
-        .slice(0, 4);
+    const instituto = pesquisa.instituto ?? 'Instituto não informado';
+    const leader = sortedResults(pesquisa)[0];
 
     return (
-        <article className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 flex-1 space-y-1.5">
-                <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">
-                        {pesquisa.instituto ?? 'Instituto não informado'}
-                    </p>
-                    <Badge variant="outline">
-                        {cargoLabels[pesquisa.cargo] ?? pesquisa.cargo}
-                    </Badge>
-                    <Badge variant="secondary">
-                        {pesquisa.uf}
-                        {pesquisa.municipio ? `/${pesquisa.municipio}` : ''}
-                    </Badge>
-                    {pesquisa.origem_provider && (
-                        <Badge
-                            variant={
-                                pesquisa.origem_provider === 'manual'
-                                    ? 'default'
-                                    : 'outline'
-                            }
-                        >
+        <TableRow>
+            <TableCell className="min-w-56 whitespace-normal">
+                <p className="font-normal">{instituto}</p>
+                <p className="text-xs text-muted-foreground">
+                    {formatDate(pesquisa.publicada_em)} ·{' '}
+                    {CENARIO_LABELS[pesquisa.cenario] ?? pesquisa.cenario}
+                </p>
+            </TableCell>
+            <TableCell className="whitespace-normal">
+                <p className="font-normal">
+                    {cargoLabels[pesquisa.cargo] ?? pesquisa.cargo}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                    {territoryLabel(pesquisa)}
+                </p>
+            </TableCell>
+            <TableCell className="whitespace-normal">
+                {pesquisa.origem_provider ? (
+                    <>
+                        <p className="font-normal">
                             {pesquisa.origem_provider === 'manual'
                                 ? 'Curadoria manual'
                                 : pesquisa.origem_provider}
-                            {pesquisa.confianca !== null &&
-                                ` · confiança ${pesquisa.confianca}`}
-                        </Badge>
+                        </p>
+                        {pesquisa.confianca !== null && (
+                            <p className="text-xs text-muted-foreground">
+                                Confiança {pesquisa.confianca}
+                            </p>
+                        )}
+                    </>
+                ) : (
+                    <span className="text-xs text-muted-foreground">
+                        Não informada
+                    </span>
+                )}
+            </TableCell>
+            <TableCell className="whitespace-normal">
+                {leader ? (
+                    <>
+                        <p className="font-normal tabular-nums">
+                            {pesquisa.resultados.length}{' '}
+                            {pesquisa.resultados.length === 1
+                                ? 'candidato'
+                                : 'candidatos'}
+                        </p>
+                        <p className="text-xs text-muted-foreground tabular-nums">
+                            Lidera {leader.nome} ·{' '}
+                            {leader.percentual.toLocaleString('pt-BR')}%
+                        </p>
+                    </>
+                ) : (
+                    <span className="text-xs text-muted-foreground">
+                        Sem resultados
+                    </span>
+                )}
+            </TableCell>
+            <TableCell>
+                <div className="flex justify-end gap-2">
+                    <TableActionButton
+                        label={`Ver resultados de ${instituto}`}
+                        disabled={pesquisa.resultados.length === 0}
+                        onClick={onViewResults}
+                    >
+                        <EyeIcon aria-hidden="true" />
+                    </TableActionButton>
+                    <TableActionButton
+                        label={`Editar resultados de ${instituto}`}
+                        onClick={onEditResults}
+                    >
+                        <PenIcon aria-hidden="true" />
+                    </TableActionButton>
+                    {pesquisa.deletable && (
+                        <TableActionButton
+                            variant="destructive"
+                            label={`Excluir ${instituto}`}
+                            onClick={onDelete}
+                        >
+                            <TrashBinTrashIcon aria-hidden="true" />
+                        </TableActionButton>
                     )}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                    Publicada em{' '}
-                    {new Date(
-                        `${pesquisa.publicada_em}T00:00:00`,
-                    ).toLocaleDateString('pt-BR')}{' '}
-                    · {CENARIO_LABELS[pesquisa.cenario] ?? pesquisa.cenario}
-                    {pesquisa.tamanho_amostra
-                        ? ` · amostra ${pesquisa.tamanho_amostra}`
-                        : ''}
-                </p>
-                {topResults.length > 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                        {topResults
-                            .map(
-                                (result) =>
-                                    `${result.nome}${result.partido ? ` (${result.partido})` : ''}: ${result.percentual}%`,
-                            )
-                            .join(' · ')}
-                        {pesquisa.resultados.length > topResults.length &&
-                            ` · +${pesquisa.resultados.length - topResults.length}`}
-                    </p>
-                ) : (
-                    <p className="text-sm text-muted-foreground italic">
-                        Sem resultados registrados ainda.
-                    </p>
-                )}
-            </div>
-            <div className="flex shrink-0 gap-2">
-                <TableActionButton
-                    variant="outline"
-                    label={`Editar resultados de ${pesquisa.instituto ?? 'pesquisa'}`}
-                    onClick={onEditResults}
-                >
-                    <PenIcon aria-hidden="true" />
-                </TableActionButton>
-                {pesquisa.deletable && (
-                    <TableActionButton
-                        variant="destructive"
-                        label={`Excluir ${pesquisa.instituto ?? 'pesquisa'}`}
-                        onClick={onDelete}
-                    >
-                        <TrashBinTrashIcon aria-hidden="true" />
-                    </TableActionButton>
-                )}
-            </div>
-        </article>
+            </TableCell>
+        </TableRow>
     );
 }
 
-function ResultsDialog({
+/**
+ * Consulta dos resultados, só leitura: ficha da pesquisa e a tabela de
+ * candidatos em ordem de percentual. A edição fica na página própria
+ * (admin/polls/edit).
+ */
+function ResultsViewDialog({
     pesquisa,
     onClose,
 }: {
     pesquisa: PollCurationPesquisa | null;
     onClose: () => void;
 }) {
+    const coleta =
+        pesquisa?.coleta_inicio_em && pesquisa.coleta_fim_em
+            ? `${formatDate(pesquisa.coleta_inicio_em)} a ${formatDate(pesquisa.coleta_fim_em)}`
+            : null;
+    const details: [string, string | null][] = pesquisa
+        ? [
+              ['Publicada em', formatDate(pesquisa.publicada_em)],
+              ['Coleta', coleta],
+              ['Cenário', CENARIO_LABELS[pesquisa.cenario] ?? pesquisa.cenario],
+              [
+                  'Amostra',
+                  pesquisa.tamanho_amostra
+                      ? pesquisa.tamanho_amostra.toLocaleString('pt-BR')
+                      : null,
+              ],
+              [
+                  'Margem de erro',
+                  pesquisa.margem_erro !== null
+                      ? `${pesquisa.margem_erro.toLocaleString('pt-BR')} p.p.`
+                      : null,
+              ],
+              ['Metodologia', pesquisa.metodologia],
+          ]
+        : [];
+
     return (
         <Dialog
             open={pesquisa !== null}
@@ -373,173 +439,84 @@ function ResultsDialog({
         >
             <ScrollableDialogContent className="sm:max-w-2xl">
                 <ScrollableDialogHeader>
-                    <DialogTitle>Editar resultados</DialogTitle>
+                    <DialogTitle>
+                        {pesquisa?.instituto ?? 'Resultados da pesquisa'}
+                    </DialogTitle>
                     <DialogDescription>
-                        {pesquisa?.instituto} —{' '}
-                        {pesquisa && cargoLabels[pesquisa.cargo]} ·{' '}
-                        {pesquisa?.uf}
-                        {pesquisa?.municipio ? `/${pesquisa.municipio}` : ''}. A
-                        confiança atual desta pesquisa é{' '}
-                        {pesquisa?.confianca ?? 'não definida'}.
+                        {pesquisa &&
+                            `${cargoLabels[pesquisa.cargo] ?? pesquisa.cargo} · ${territoryLabel(pesquisa)}`}
                     </DialogDescription>
                 </ScrollableDialogHeader>
 
                 {pesquisa && (
-                    <ResultsForm
-                        key={pesquisa.id}
-                        pesquisa={pesquisa}
-                        onClose={onClose}
-                    />
+                    <ScrollableDialogBody className="space-y-5">
+                        <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
+                            {details
+                                .filter(([, value]) => value)
+                                .map(([label, value]) => (
+                                    <div key={label} className="min-w-0">
+                                        <dt className="text-xs text-muted-foreground">
+                                            {label}
+                                        </dt>
+                                        <dd className="text-sm">{value}</dd>
+                                    </div>
+                                ))}
+                        </dl>
+
+                        <div className="overflow-hidden rounded-md border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Candidato</TableHead>
+                                        <TableHead>Partido</TableHead>
+                                        <TableHead className="text-right">
+                                            Percentual
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {sortedResults(pesquisa).map((result) => (
+                                        <TableRow
+                                            key={result.external_candidate_id}
+                                        >
+                                            <TableCell className="whitespace-normal">
+                                                {result.nome}
+                                            </TableCell>
+                                            <TableCell>
+                                                {result.partido ?? '—'}
+                                            </TableCell>
+                                            <TableCell className="text-right tabular-nums">
+                                                {result.percentual.toLocaleString(
+                                                    'pt-BR',
+                                                )}
+                                                %
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+
+                        {pesquisa.fonte_url && (
+                            <a
+                                href={pesquisa.fonte_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-block text-xs break-all text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                            >
+                                {pesquisa.fonte_url}
+                            </a>
+                        )}
+                    </ScrollableDialogBody>
                 )}
+
+                <ScrollableDialogFooter>
+                    <Button variant="ghost" onClick={onClose}>
+                        Fechar
+                    </Button>
+                </ScrollableDialogFooter>
             </ScrollableDialogContent>
         </Dialog>
-    );
-}
-
-function ResultsForm({
-    pesquisa,
-    onClose,
-}: {
-    pesquisa: PollCurationPesquisa;
-    onClose: () => void;
-}) {
-    const [rows, setRows] = useState<CandidateRowInput[]>(() =>
-        pesquisa.resultados.length > 0
-            ? pesquisa.resultados.map((result) => ({
-                  key: result.external_candidate_id,
-                  nome: result.nome,
-                  partido: result.partido ?? '',
-                  percentual: String(result.percentual),
-                  candidato_politico_id: result.candidato_politico_id,
-              }))
-            : [emptyCandidateRow()],
-    );
-    const [provider, setProvider] = useState('');
-    const [confidenceScore, setConfidenceScore] = useState('90');
-    const [url, setUrl] = useState(pesquisa.fonte_url ?? '');
-    const [observacao, setObservacao] = useState('');
-    const [candidatesError, setCandidatesError] = useState('');
-    const [submitting, setSubmitting] = useState(false);
-
-    const { options: candidateOptions, loading: loadingCandidates } =
-        usePollCandidateOptions({
-            eleicaoId: pesquisa.eleicao_id,
-            cargo: pesquisa.cargo,
-            uf: pesquisa.cargo === 'presidente' ? '' : pesquisa.uf,
-            municipio: pesquisa.municipio ?? '',
-        });
-
-    const submit = () => {
-        const cleanedRows = rows.filter((row) => row.nome.trim() !== '');
-
-        if (cleanedRows.length === 0) {
-            setCandidatesError('Adicione ao menos um candidato.');
-
-            return;
-        }
-
-        setCandidatesError('');
-        setSubmitting(true);
-        router.post(
-            `/admin/pesquisas-eleitorais/${pesquisa.id}/resultados`,
-            {
-                provider,
-                confidence_score: Number(confidenceScore),
-                url: url || null,
-                observacao: observacao || null,
-                candidatos: cleanedRows.map((row) => ({
-                    nome: row.nome.trim(),
-                    partido: row.partido.trim() || null,
-                    percentual: row.percentual,
-                    candidato_politico_id: row.candidato_politico_id,
-                })),
-            },
-            {
-                preserveScroll: true,
-                onSuccess: onClose,
-                onError: (errors) => {
-                    const message = Object.values(errors)[0];
-
-                    if (message) {
-                        setCandidatesError(message);
-                    }
-                },
-                onFinish: () => setSubmitting(false),
-            },
-        );
-    };
-
-    return (
-        <>
-            <ScrollableDialogBody className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-1">
-                        <Label htmlFor="provider">
-                            Fonte (ex.: "AtlasIntel — PDF oficial")
-                        </Label>
-                        <Input
-                            id="provider"
-                            value={provider}
-                            onChange={(event) =>
-                                setProvider(event.target.value)
-                            }
-                            placeholder="Descreva de onde os números vieram"
-                        />
-                    </div>
-                    <div className="space-y-1">
-                        <Label htmlFor="confidence_score">
-                            Confiança (1-100)
-                        </Label>
-                        <Input
-                            id="confidence_score"
-                            type="number"
-                            min={1}
-                            max={100}
-                            value={confidenceScore}
-                            onChange={(event) =>
-                                setConfidenceScore(event.target.value)
-                            }
-                        />
-                    </div>
-                </div>
-                <div className="space-y-1">
-                    <Label htmlFor="url">URL da fonte (opcional)</Label>
-                    <Input
-                        id="url"
-                        type="url"
-                        value={url}
-                        onChange={(event) => setUrl(event.target.value)}
-                    />
-                </div>
-                <div className="space-y-1">
-                    <Label htmlFor="observacao">Observação (opcional)</Label>
-                    <Textarea
-                        id="observacao"
-                        value={observacao}
-                        onChange={(event) => setObservacao(event.target.value)}
-                    />
-                </div>
-                <PollCandidateRows
-                    rows={rows}
-                    onChange={setRows}
-                    candidateOptions={candidateOptions}
-                    loadingCandidateOptions={loadingCandidates}
-                    error={candidatesError}
-                />
-            </ScrollableDialogBody>
-
-            <ScrollableDialogFooter>
-                <Button variant="ghost" onClick={onClose}>
-                    Cancelar
-                </Button>
-                <Button
-                    onClick={submit}
-                    disabled={submitting || provider.trim() === ''}
-                >
-                    Salvar resultados
-                </Button>
-            </ScrollableDialogFooter>
-        </>
     );
 }
 

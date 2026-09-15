@@ -12,7 +12,12 @@ import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Surface } from '@/components/ui/surface';
+import {
+    Surface,
+    SurfaceHeader,
+    SurfaceTitle,
+    SurfaceDescription,
+} from '@/components/ui/surface';
 import type { OfficeUsage, PlatformSummary } from '@/types';
 
 type Props = {
@@ -94,14 +99,12 @@ export default function PlatformDashboard({ summary, usage }: Props) {
                 </section>
 
                 <Surface as="section" className="overflow-hidden">
-                    <div className="border-b p-4">
-                        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                            Utilização por gabinete
-                        </h2>
-                        <p className="text-xs text-muted-foreground">
+                    <SurfaceHeader>
+                        <SurfaceTitle>Utilização por gabinete</SurfaceTitle>
+                        <SurfaceDescription>
                             Os dez gabinetes com mais demandas registradas.
-                        </p>
-                    </div>
+                        </SurfaceDescription>
+                    </SurfaceHeader>
                     {usage.length === 0 ? (
                         <p className="p-6 text-sm text-muted-foreground">
                             Nenhum gabinete cadastrado.

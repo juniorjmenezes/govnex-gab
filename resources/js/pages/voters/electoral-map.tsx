@@ -13,7 +13,6 @@ import {
     CloseIcon,
     FlameIcon,
     MagnifierIcon,
-    MapPointIcon,
     MaximizeIcon,
     MinimizeIcon,
     RecordIcon,
@@ -23,7 +22,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
 import {
     Sheet,
     SheetContent,
@@ -35,6 +33,7 @@ import type {
     MapFocusRequest,
     MapViewMode,
 } from '@/components/voters/electoral-heatmap-canvas';
+import { MapPanelTitle } from '@/components/voters/map-panel-title';
 import { useIsHydrated } from '@/hooks/use-is-hydrated';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
@@ -125,9 +124,9 @@ export default function ElectoralMap({
         return top;
     }, [rankedPoints, selectedId]);
 
-    // Máximos calculados a partir do conjunto completo (não do filtrado por
-    // busca), para que a escala de cor/tamanho do mapa e as barras do
-    // ranking não mudem conforme o usuário pesquisa um local específico.
+    // Máximo calculado a partir do conjunto completo (não do filtrado por
+    // busca), para que a escala de cor/tamanho do mapa não mude conforme o
+    // usuário pesquisa um local específico.
     const maxVotes = useMemo(
         () =>
             points.length > 0
@@ -297,7 +296,6 @@ export default function ElectoralMap({
                                 hasMoreRanked={
                                     rankedPoints.length > RANKING_LIMIT
                                 }
-                                maxVotes={maxVotes}
                                 selectedId={selectedId}
                                 onRankingSelect={handleRankingSelect}
                                 onRankingHoverStart={handleRankingHoverStart}
@@ -344,7 +342,6 @@ export default function ElectoralMap({
                                         hasMoreRanked={
                                             rankedPoints.length > RANKING_LIMIT
                                         }
-                                        maxVotes={maxVotes}
                                         selectedId={selectedId}
                                         onRankingSelect={handleRankingSelect}
                                         onRankingHoverStart={
@@ -389,7 +386,6 @@ function MapPanelContent({
     onQueryChange,
     visibleRankedPoints,
     hasMoreRanked,
-    maxVotes,
     selectedId,
     onRankingSelect,
     onRankingHoverStart,
@@ -404,7 +400,6 @@ function MapPanelContent({
     onQueryChange: (value: string) => void;
     visibleRankedPoints: ElectoralMapPoint[];
     hasMoreRanked: boolean;
-    maxVotes: number;
     selectedId: number | null;
     onRankingSelect: (id: number) => void;
     onRankingHoverStart: (id: number) => void;
@@ -413,19 +408,10 @@ function MapPanelContent({
 }) {
     return (
         <>
-            <div>
-                <div className="flex items-center gap-2">
-                    <FlameIcon className="size-5 text-primary" />
-                    <h1 className="font-semibold">Mapa de eleitores</h1>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                    {summary.candidate?.name}
-                    {summary.candidate?.party
-                        ? ` (${summary.candidate.party})`
-                        : ''}
-                    {summary.election ? ` — ${summary.election.name}` : ''}
-                </p>
-            </div>
+            <MapPanelTitle
+                title="Mapa de eleitores"
+                description={`${summary.candidate?.name ?? ''}${summary.candidate?.party ? ` (${summary.candidate.party})` : ''}${summary.election ? ` — ${summary.election.name}` : ''}`}
+            />
 
             <div>
                 <p className="mb-1 text-[11px] font-medium text-muted-foreground">
@@ -497,16 +483,9 @@ function MapPanelContent({
             </div>
 
             {visibleRankedPoints.length > 0 && (
-                <div className="space-y-1 border-t pt-3">
+                <div className="divide-y overflow-hidden rounded-md border">
                     {visibleRankedPoints.map((point) => {
                         const selected = point.id === selectedId;
-                        const barWidth =
-                            maxVotes > 0
-                                ? Math.max(
-                                      (point.votes / maxVotes) * 100,
-                                      point.votes > 0 ? 3 : 0,
-                                  )
-                                : 0;
 
                         return (
                             <button
@@ -529,7 +508,7 @@ function MapPanelContent({
                                 }}
                                 type="button"
                                 className={cn(
-                                    'flex w-full items-start gap-2 rounded-lg p-2 text-left transition-colors hover:bg-muted',
+                                    'flex w-full cursor-pointer items-center gap-2 px-2 py-2.5 text-left transition-colors hover:bg-muted',
                                     selected && 'bg-muted',
                                 )}
                                 onClick={() => onRankingSelect(point.id)}
@@ -538,32 +517,24 @@ function MapPanelContent({
                                 }
                                 onMouseLeave={onRankingHoverEnd}
                             >
-                                <MapPointIcon className="mt-0.5 size-3.5 shrink-0 text-primary" />
                                 <span className="min-w-0 flex-1">
-                                    <strong className="block truncate text-xs">
+                                    <span className="block truncate text-xs font-medium uppercase">
                                         {point.name}
-                                    </strong>
+                                    </span>
                                     <span className="block truncate text-[11px] text-muted-foreground">
                                         {[point.address, point.neighborhood]
                                             .filter(Boolean)
                                             .join(' · ')}
                                     </span>
-                                    <Progress
-                                        render={<span />}
-                                        trackRender={<span />}
-                                        indicatorRender={<span />}
-                                        value={barWidth}
-                                        className="mt-1"
-                                    />
                                 </span>
-                                <span className="shrink-0 text-[11px] font-medium text-primary">
+                                <span className="shrink-0 font-mono text-lg font-bold tabular-nums">
                                     {point.votes.toLocaleString('pt-BR')}
                                 </span>
                             </button>
                         );
                     })}
                     {hasMoreRanked && (
-                        <p className="px-2 pt-1 text-xs text-muted-foreground">
+                        <p className="px-2 py-2.5 text-xs text-muted-foreground">
                             Refine a busca para ver outros locais.
                         </p>
                     )}
@@ -583,7 +554,9 @@ function MapPanelContent({
 function Metric({ value, label }: { value: string; label: string }) {
     return (
         <div className="rounded-lg bg-muted p-2">
-            <strong className="block text-lg">{value}</strong>
+            <strong className="block font-mono text-lg font-bold tabular-nums">
+                {value}
+            </strong>
             <span className="text-[11px] text-muted-foreground">{label}</span>
         </div>
     );

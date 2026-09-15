@@ -334,12 +334,12 @@ export default function DemandsIndex({
                                     }
                                 />
                             </div>
-                            <div className="flex items-center justify-between gap-3 border bg-background p-3">
+                            <div className="flex items-center justify-between gap-3 rounded-md border bg-background p-3">
                                 <div className="min-w-0">
                                     <Label htmlFor="filter-unassigned">
                                         Sem responsável
                                     </Label>
-                                    <p className="mt-1 text-xs text-muted-foreground">
+                                    <p className="text-xs text-muted-foreground">
                                         Ainda não atribuídas
                                     </p>
                                 </div>
@@ -463,13 +463,16 @@ function DemandRow({ demand }: { demand: Demand }) {
                 href={tenantUrl(`/demandas/${demand.id}`)}
                 className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
             >
-                <span className="shrink-0 font-mono text-sm font-normal">
+                <span className="shrink-0 text-sm font-normal tabular-nums">
                     {demand.protocolo}
                 </span>
                 <div className="shrink-0">
                     <PriorityBadge priority={demand.prioridade} />
                 </div>
-                <span className="min-w-0 flex-1 truncate text-sm font-normal">
+                <span
+                    className="min-w-0 flex-1 truncate text-sm font-normal"
+                    title={demand.titulo}
+                >
                     {demand.titulo}
                 </span>
                 <span

@@ -120,6 +120,67 @@ class PollCurationControllerTest extends TestCase
         $this->assertDatabaseCount('pesquisas_eleitorais', 0);
     }
 
+    public function test_platform_admin_can_open_the_edit_page_of_a_pesquisa(): void
+    {
+        $admin = User::factory()->root()->create();
+        $pesquisa = $this->existingElectioLabPesquisa();
+
+        $this->actingAs($admin)
+            ->get("/admin/pesquisas-eleitorais/{$pesquisa->id}/editar")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/polls/edit')
+                ->where('pesquisa.id', $pesquisa->id)
+                ->where('pesquisa.confianca', 60)
+                ->has('pesquisa.resultados', 1));
+    }
+
+    public function test_edit_page_carries_the_saved_manual_source(): void
+    {
+        $admin = User::factory()->root()->create();
+        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+
+        $this->actingAs($admin)->post('/admin/pesquisas-eleitorais', [
+            'eleicao_id' => $election->id,
+            'cargo' => 'governador',
+            'uf' => 'CE',
+            'turno' => 1,
+            'cenario' => 'estimulado_1t',
+            'instituto' => 'AtlasIntel',
+            'publicada_em' => today()->toDateString(),
+            'fonte_url' => 'https://atlasintel.org/polls/exemplo',
+            'provider' => 'AtlasIntel — PDF oficial',
+            'confidence_score' => 85,
+            'observacao' => 'Conferido no PDF.',
+            'candidatos' => [
+                ['nome' => 'Fulano', 'partido' => 'ABC', 'percentual' => 40.5, 'candidato_politico_id' => null],
+            ],
+        ])->assertRedirect('/admin/pesquisas-eleitorais');
+
+        $pesquisa = PesquisaEleitoral::query()->where('instituto', 'AtlasIntel')->firstOrFail();
+
+        // A edição preenche a proveniência com esta fonte manual.
+        $this->actingAs($admin)
+            ->get("/admin/pesquisas-eleitorais/{$pesquisa->id}/editar")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/polls/edit')
+                ->where('pesquisa.fontes.0.tipo', 'manual')
+                ->where('pesquisa.fontes.0.provider', 'AtlasIntel — PDF oficial')
+                ->where('pesquisa.fontes.0.confidence_score', 85)
+                ->where('pesquisa.fontes.0.observacao', 'Conferido no PDF.'));
+    }
+
+    public function test_non_platform_admin_cannot_open_the_edit_page(): void
+    {
+        $tenantUser = User::factory()->create();
+        $pesquisa = $this->existingElectioLabPesquisa();
+
+        $this->actingAs($tenantUser)
+            ->get("/admin/pesquisas-eleitorais/{$pesquisa->id}/editar")
+            ->assertForbidden();
+    }
+
     public function test_updating_results_applies_when_confidence_is_high_enough(): void
     {
         $admin = User::factory()->root()->create();
@@ -135,7 +196,7 @@ class PollCurationControllerTest extends TestCase
             ],
         ]);
 
-        $response->assertRedirect();
+        $response->assertRedirect('/admin/pesquisas-eleitorais');
         $pesquisa->refresh();
         $this->assertSame(90, $pesquisa->confianca);
         $this->assertSame('AtlasIntel — PDF oficial', $pesquisa->origem_provider);

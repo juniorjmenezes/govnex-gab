@@ -52,6 +52,9 @@ return [
         // Tempo máximo de cada requisição à GOVNEX API (ver GovnexApiClient).
         'timeout' => env('TSE_TIMEOUT', 600),
         'polling_locations_chunk_size' => env('TSE_POLLING_LOCATIONS_CHUNK_SIZE', 25000),
+        // Linhas por página ao ler um dataset da GOVNEX API. Vazio deixa o
+        // GovnexApiClient escolher pelo teto da API (ver IDENTIFIED_PER_PAGE).
+        'records_per_page' => env('TSE_RECORDS_PER_PAGE'),
         'queue_connection' => env('TSE_QUEUE_CONNECTION', 'database'),
         // Aplicado via ini_set() dentro do próprio job (SyncDatasetFromGovnexApi)
         // — não basta configurar -d memory_limit= na invocação de

@@ -30,6 +30,8 @@ export type PoliticalCandidate = {
     foto_url: string | null;
     fonte_atualizada_em: string | null;
     is_favorite: boolean;
+    /** Titular do gabinete: favorito fixo, não dá para desmarcar. */
+    is_holder: boolean;
     news_count: number;
 };
 
@@ -98,6 +100,68 @@ export type PoliticalPolls = {
     offices: PoliticalPollOffice[];
 };
 
+/** Apuração da eleição municipal selecionada, quando ela já foi realizada. */
+export type PoliticalMunicipalElection = {
+    election: { name: string; year: number; date: string };
+    turnout: {
+        eligible: number;
+        voted: number;
+        abstentions: number;
+        percentage: number | null;
+    } | null;
+    /** Candidatos da disputa proporcional (vereador). */
+    candidates: number;
+    seats: number;
+    /** Disputa majoritária, no turno que decidiu. Ausente sem dado de prefeito. */
+    mayor: {
+        round: number;
+        candidates: {
+            position: number;
+            name: string;
+            party: string | null;
+            party_color: string | null;
+            number: string | null;
+            votes: number;
+            elected: boolean;
+        }[];
+    } | null;
+    holder: {
+        name: string;
+        party: string | null;
+        number: string | null;
+        votes: number;
+        position: number;
+        elected: boolean;
+        result_status: string | null;
+    } | null;
+    elected: {
+        position: number;
+        name: string;
+        party: string | null;
+        party_color: string | null;
+        number: string | null;
+        votes: number;
+        is_holder: boolean;
+    }[];
+    /** Não eleitos mais votados da disputa proporcional. */
+    runners_up: {
+        position: number;
+        name: string;
+        party: string | null;
+        party_color: string | null;
+        number: string | null;
+        votes: number;
+        is_holder: boolean;
+    }[];
+    parties: {
+        party: string;
+        seats: number;
+        votes: number;
+        /** Cor cadastrada em /admin/cores-partidos; nula cai no badge neutro. */
+        color: string | null;
+    }[];
+};
+
 export type PoliticalPanelProps = {
     elections: PoliticalElection[];
     selectedElectionId: number | null;
@@ -134,6 +198,7 @@ export type PoliticalPanelProps = {
         coverage_percentage: number | null;
         favorites: number;
     };
+    municipalElection: PoliticalMunicipalElection | null;
     municipality: {
         name: string;
         state: string;
@@ -147,7 +212,8 @@ export type PoliticalPanelProps = {
     } | null;
     serverNow: string;
     canFavorite: boolean;
-    polls: PoliticalPolls;
+    /** Ausente em eleição municipal já realizada: no lugar entra a apuração. */
+    polls: PoliticalPolls | null;
     sync: {
         electorate: TseSyncSummary | null;
         turnout: TseSyncSummary | null;

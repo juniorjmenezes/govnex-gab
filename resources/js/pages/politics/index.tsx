@@ -3,6 +3,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import { StatCard } from '@/components/common/stat-card';
+import { TableGroupRow } from '@/components/common/table-group-row';
 import { EmptyState } from '@/components/feedback/empty-state';
 import {
     Buildings2Icon,
@@ -39,7 +40,12 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
-import { Surface, surfaceClasses } from '@/components/ui/surface';
+import {
+    Surface,
+    SurfaceDescription,
+    SurfaceHeader,
+    SurfaceTitle,
+} from '@/components/ui/surface';
 import { Switch } from '@/components/ui/switch';
 import {
     Table,
@@ -54,6 +60,7 @@ import { preservedListParams } from '@/lib/pagination';
 import { cn } from '@/lib/utils';
 import type {
     PoliticalCandidate,
+    PoliticalMunicipalElection,
     PoliticalPanelProps,
     PoliticalPoll,
     PoliticalPollOffice,
@@ -95,6 +102,305 @@ function displaySituacao(situacao: string | null): string | null {
     return situacao === null || situacao.trim().toUpperCase() === '#NE'
         ? null
         : situacao;
+}
+
+/**
+ * Apuração da eleição municipal escolhida no seletor. Aparece no lugar do
+ * card de pesquisas: com o resultado publicado, a intenção de voto daquela
+ * eleição não tem mais uso.
+ */
+function MunicipalElectionResult({
+    summary,
+}: {
+    summary: PoliticalMunicipalElection | null;
+}) {
+    if (summary === null) {
+        return null;
+    }
+
+    const { election, turnout, holder, mayor } = summary;
+
+    return (
+        <Surface as="section" className="overflow-hidden">
+            <SurfaceHeader
+                actions={
+                    <p className="shrink-0 text-xs text-muted-foreground">
+                        <span className="text-sm font-medium text-foreground tabular-nums">
+                            {numberFormatter.format(summary.candidates)}
+                        </span>{' '}
+                        candidatos ·{' '}
+                        <span className="text-sm font-medium text-foreground tabular-nums">
+                            {numberFormatter.format(summary.seats)}
+                        </span>{' '}
+                        eleitos
+                    </p>
+                }
+            >
+                <SurfaceTitle>Resultado da eleição</SurfaceTitle>
+                <SurfaceDescription>
+                    {election.name} · 1º turno em{' '}
+                    {dateFormatter.format(
+                        new Date(`${election.date}T12:00:00`),
+                    )}
+                </SurfaceDescription>
+            </SurfaceHeader>
+
+            {turnout && (
+                <dl className="grid grid-cols-2 gap-4 border-b p-4 sm:grid-cols-4">
+                    <div className="min-w-0">
+                        <dt className="text-xs text-muted-foreground">
+                            Eleitores aptos
+                        </dt>
+                        <dd className="mt-0.5 text-sm font-medium tabular-nums">
+                            {numberFormatter.format(turnout.eligible)}
+                        </dd>
+                    </div>
+                    <div className="min-w-0">
+                        <dt className="text-xs text-muted-foreground">
+                            Comparecimento
+                        </dt>
+                        <dd className="mt-0.5 text-sm font-medium tabular-nums">
+                            {numberFormatter.format(turnout.voted)}
+                        </dd>
+                        {turnout.percentage !== null && (
+                            <dd className="text-xs text-muted-foreground">
+                                {percentFormatter.format(turnout.percentage)}%
+                                dos aptos
+                            </dd>
+                        )}
+                    </div>
+                    <div className="min-w-0">
+                        <dt className="text-xs text-muted-foreground">
+                            Abstenções
+                        </dt>
+                        <dd className="mt-0.5 text-sm font-medium tabular-nums">
+                            {numberFormatter.format(turnout.abstentions)}
+                        </dd>
+                    </div>
+                    <div className="min-w-0">
+                        <dt className="text-xs text-muted-foreground">
+                            Cadeiras
+                        </dt>
+                        <dd className="mt-0.5 text-sm font-medium tabular-nums">
+                            {numberFormatter.format(summary.seats)}
+                        </dd>
+                    </div>
+                </dl>
+            )}
+
+            {holder && (
+                <div className="border-b p-4">
+                    <p className="text-xs text-muted-foreground">
+                        Titular do gabinete
+                    </p>
+                    <p className="mt-0.5 text-sm font-medium">
+                        {holder.name}
+                        {holder.party && ` · ${holder.party}`}
+                        {holder.number && ` · ${holder.number}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        {numberFormatter.format(holder.votes)} votos ·{' '}
+                        {holder.position}º entre{' '}
+                        {numberFormatter.format(summary.candidates)} candidatos
+                        ·{' '}
+                        {holder.elected
+                            ? (displaySituacao(holder.result_status) ??
+                              'Eleito')
+                            : 'Não eleito'}
+                    </p>
+                </div>
+            )}
+
+            {summary.parties.length > 0 && (
+                <div className="grid grid-cols-2 gap-3 border-b p-4 sm:grid-cols-3 lg:grid-cols-4">
+                    {summary.parties.map((party) => (
+                        <div
+                            key={party.party}
+                            className="rounded-md border border-l-2 p-3"
+                            style={
+                                party.color
+                                    ? { borderLeftColor: party.color }
+                                    : undefined
+                            }
+                        >
+                            <p
+                                className="text-xs font-medium"
+                                style={
+                                    party.color
+                                        ? { color: party.color }
+                                        : undefined
+                                }
+                            >
+                                {party.party}
+                            </p>
+                            <p className="mt-1 font-mono text-lg leading-none font-medium tabular-nums">
+                                {numberFormatter.format(party.seats)}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {party.seats === 1 ? 'cadeira' : 'cadeiras'} ·{' '}
+                                {numberFormatter.format(party.votes)} votos
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>Candidato</TableHead>
+                        <TableHead>Partido</TableHead>
+                        <TableHead>Votos</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {mayor && (
+                        <>
+                            <TableGroupRow
+                                title="Prefeito"
+                                subtitle={`Resultado do ${mayor.round}º turno`}
+                                colSpan={4}
+                            />
+                            {mayor.candidates.map((candidate) => (
+                                <TableRow
+                                    key={`${candidate.position}-${candidate.name}`}
+                                >
+                                    <TableCell className="text-xs text-muted-foreground tabular-nums">
+                                        {candidate.position}
+                                    </TableCell>
+                                    <TableCell>
+                                        <p className="font-normal">
+                                            {candidate.name}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {candidate.elected
+                                                ? 'Eleito'
+                                                : 'Não eleito'}
+                                        </p>
+                                    </TableCell>
+                                    <TableCell>
+                                        {candidate.party ? (
+                                            <PartyBadge
+                                                party={candidate.party}
+                                                color={candidate.party_color}
+                                            />
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">
+                                                —
+                                            </span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-sm tabular-nums">
+                                        {numberFormatter.format(
+                                            candidate.votes,
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </>
+                    )}
+
+                    <TableGroupRow
+                        title="Vereadores eleitos"
+                        subtitle={`${numberFormatter.format(summary.seats)} de ${numberFormatter.format(summary.candidates)} candidatos`}
+                        colSpan={4}
+                    />
+                    {summary.elected.map((candidate) => (
+                        <TableRow
+                            key={`${candidate.position}-${candidate.name}`}
+                        >
+                            <TableCell className="text-xs text-muted-foreground tabular-nums">
+                                {candidate.position}
+                            </TableCell>
+                            <TableCell>
+                                <p
+                                    className={
+                                        candidate.is_holder
+                                            ? 'font-normal text-primary'
+                                            : 'font-normal'
+                                    }
+                                >
+                                    {candidate.name}
+                                    {candidate.is_holder && (
+                                        <span className="sr-only">
+                                            , titular do gabinete
+                                        </span>
+                                    )}
+                                </p>
+                            </TableCell>
+                            <TableCell>
+                                {candidate.party ? (
+                                    <PartyBadge
+                                        party={candidate.party}
+                                        color={candidate.party_color}
+                                    />
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">
+                                        —
+                                    </span>
+                                )}
+                            </TableCell>
+                            <TableCell className="text-sm tabular-nums">
+                                {numberFormatter.format(candidate.votes)}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                    {summary.runners_up.length > 0 && (
+                        <>
+                            <TableGroupRow
+                                title="Não eleitos mais votados"
+                                subtitle="Quem ficou mais perto da cadeira"
+                                colSpan={4}
+                            />
+                            {summary.runners_up.map((candidate) => (
+                                <TableRow
+                                    key={`${candidate.position}-${candidate.name}`}
+                                >
+                                    <TableCell className="text-xs text-muted-foreground tabular-nums">
+                                        {candidate.position}
+                                    </TableCell>
+                                    <TableCell>
+                                        <p
+                                            className={
+                                                candidate.is_holder
+                                                    ? 'font-normal text-primary'
+                                                    : 'font-normal'
+                                            }
+                                        >
+                                            {candidate.name}
+                                            {candidate.is_holder && (
+                                                <span className="sr-only">
+                                                    , titular do gabinete
+                                                </span>
+                                            )}
+                                        </p>
+                                    </TableCell>
+                                    <TableCell>
+                                        {candidate.party ? (
+                                            <PartyBadge
+                                                party={candidate.party}
+                                                color={candidate.party_color}
+                                            />
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">
+                                                —
+                                            </span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-sm tabular-nums">
+                                        {numberFormatter.format(
+                                            candidate.votes,
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </>
+                    )}
+                </TableBody>
+            </Table>
+        </Surface>
+    );
 }
 
 function Countdown({
@@ -167,6 +473,10 @@ function CandidateRow({
     const toggleFavorite = () => {
         const url = tenantUrl(`/painel-politico/favoritos/${candidate.id}`);
 
+        if (candidate.is_holder) {
+            return;
+        }
+
         if (candidate.is_favorite) {
             router.delete(url, {
                 preserveScroll: true,
@@ -192,21 +502,26 @@ function CandidateRow({
                 <button
                     type="button"
                     onClick={toggleFavorite}
-                    disabled={!canFavorite}
+                    disabled={!canFavorite || candidate.is_holder}
                     aria-pressed={candidate.is_favorite}
                     aria-label={
-                        candidate.is_favorite
-                            ? `Remover ${displayName} dos favoritos`
-                            : `Adicionar ${displayName} aos favoritos`
+                        candidate.is_holder
+                            ? `${displayName} é o titular do gabinete e fica sempre nos favoritos`
+                            : candidate.is_favorite
+                              ? `Remover ${displayName} dos favoritos`
+                              : `Adicionar ${displayName} aos favoritos`
                     }
                     title={
-                        canFavorite
-                            ? undefined
-                            : 'Somente o vereador pode alterar os favoritos'
+                        candidate.is_holder
+                            ? 'O titular do gabinete fica sempre nos favoritos'
+                            : canFavorite
+                              ? undefined
+                              : 'Somente o vereador pode alterar os favoritos'
                     }
                     className={cn(
-                        'flex text-muted-foreground/50 transition-colors hover:text-amber-500 focus-visible:text-amber-500 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+                        'flex text-muted-foreground/50 transition-colors hover:text-amber-500 focus-visible:text-amber-500 focus-visible:outline-none disabled:pointer-events-none',
                         candidate.is_favorite && 'text-amber-500',
+                        !candidate.is_holder && 'disabled:opacity-50',
                     )}
                 >
                     {candidate.is_favorite ? (
@@ -232,7 +547,7 @@ function CandidateRow({
                     displayName
                 )}
             </TableCell>
-            <TableCell className="font-mono tabular-nums">
+            <TableCell className="tabular-nums">
                 {candidate.numero ?? '—'}
             </TableCell>
             <TableCell>
@@ -339,43 +654,38 @@ function PollsSection({
         `${poll.institute} · ${dateFormatter.format(new Date(`${poll.publication_date}T12:00:00`))}`;
 
     return (
-        <section id="pesquisas" aria-labelledby="polls-title">
-            <div className="mb-8 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                    <h2
-                        id="polls-title"
-                        className="text-xs font-semibold tracking-wide text-foreground uppercase"
-                    >
-                        Pesquisas eleitorais
-                    </h2>
-                    <span
-                        className="text-muted-foreground/60"
-                        aria-hidden="true"
-                    >
-                        &middot;
-                    </span>
-                    <p className="text-xs text-muted-foreground">
-                        {polls.election_type === 'municipal'
-                            ? `Prefeito em ${polls.municipality}/${polls.state}.`
-                            : `Presidente em âmbito nacional; governador e Senado em ${polls.state}.`}{' '}
-                        Os favoritos não interferem nos dados.
-                    </p>
-                </div>
-                <a
-                    href={polls.source_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+        <>
+            <Surface
+                as="section"
+                id="pesquisas"
+                aria-labelledby="polls-title"
+                className="overflow-hidden"
+            >
+                <SurfaceHeader
+                    actions={
+                        <a
+                            href={polls.source_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                        >
+                            Fonte: {polls.source}
+                            <SquareArrowRightUpIcon
+                                className="size-3"
+                                aria-hidden="true"
+                            />
+                        </a>
+                    }
                 >
-                    Fonte: {polls.source}
-                    <SquareArrowRightUpIcon
-                        className="size-3"
-                        aria-hidden="true"
-                    />
-                </a>
-            </div>
-
-            <Surface className="overflow-hidden">
+                    <SurfaceTitle id="polls-title">
+                        Pesquisas eleitorais
+                    </SurfaceTitle>
+                    <SurfaceDescription>
+                        {polls.election_type === 'municipal'
+                            ? `Prefeito em ${polls.municipality}/${polls.state}`
+                            : `Presidente, governador e Senado em ${polls.state}`}
+                    </SurfaceDescription>
+                </SurfaceHeader>
                 <div className="flex flex-col gap-4 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex flex-wrap gap-2">
                         {polls.offices.map((item) => (
@@ -576,12 +886,12 @@ function PollsSection({
                                                 <Progress
                                                     className={
                                                         result.is_favorite
-                                                            ? 'bg-amber-500/20'
+                                                            ? 'bg-amber-500/20 dark:bg-amber-500/20'
                                                             : undefined
                                                     }
                                                     indicatorClassName={
                                                         result.is_favorite
-                                                            ? 'bg-amber-500'
+                                                            ? 'bg-amber-500 dark:bg-amber-500'
                                                             : undefined
                                                     }
                                                     value={Math.max(
@@ -696,7 +1006,7 @@ function PollsSection({
                     </div>
                 </SheetContent>
             </Sheet>
-        </section>
+        </>
     );
 }
 
@@ -848,6 +1158,7 @@ export default function PoliticalPanel({
     filters,
     options,
     stats,
+    municipalElection,
     municipality,
     countdown,
     serverNow,
@@ -1054,36 +1365,28 @@ export default function PoliticalPanel({
                     </Surface>
                 )}
 
-                <section>
-                    <div className="mb-8 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Candidatos
-                            </h2>
-                            <span
-                                className="text-muted-foreground/60"
-                                aria-hidden="true"
-                            >
-                                &middot;
-                            </span>
-                            <p className="text-xs text-muted-foreground">
-                                {numberFormatter.format(candidates.total)} nomes
-                                compatíveis com a eleição e o território.
-                            </p>
-                        </div>
-                        {!canFavorite && (
-                            <p className="text-xs text-muted-foreground">
-                                Somente o vereador pode alterar favoritos.
-                            </p>
-                        )}
-                    </div>
+                <MunicipalElectionResult summary={municipalElection} />
+
+                <Surface as="section" className="overflow-hidden">
+                    <SurfaceHeader
+                        actions={
+                            !canFavorite && (
+                                <p className="shrink-0 text-xs text-muted-foreground">
+                                    Somente o vereador pode alterar favoritos.
+                                </p>
+                            )
+                        }
+                    >
+                        <SurfaceTitle>Candidatos</SurfaceTitle>
+                        <SurfaceDescription>
+                            {numberFormatter.format(candidates.total)} nomes
+                            compatíveis com a eleição e o território.
+                        </SurfaceDescription>
+                    </SurfaceHeader>
 
                     <form
                         onSubmit={(event) => event.preventDefault()}
-                        className={cn(
-                            surfaceClasses,
-                            'mb-4 flex flex-wrap items-center gap-3 p-4',
-                        )}
+                        className="flex flex-wrap items-center gap-3 border-b p-4"
                     >
                         <div className="relative min-w-56 flex-1">
                             <MagnifierIcon className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
@@ -1149,56 +1452,54 @@ export default function PoliticalPanel({
                         )}
                     </form>
 
-                    <Surface as="section" className="overflow-hidden">
-                        {candidates.data.length === 0 ? (
-                            <EmptyState
-                                icon={VerifiedCheckIcon}
-                                title="Nenhum candidato encontrado"
-                                description={
-                                    sync.candidates
-                                        ? 'Ajuste os filtros ou aguarde a publicação de novos registros pelo TSE.'
-                                        : 'A lista será preenchida após a primeira sincronização de candidatos com o TSE.'
-                                }
+                    {candidates.data.length === 0 ? (
+                        <EmptyState
+                            icon={VerifiedCheckIcon}
+                            title="Nenhum candidato encontrado"
+                            description={
+                                sync.candidates
+                                    ? 'Ajuste os filtros ou aguarde a publicação de novos registros pelo TSE.'
+                                    : 'A lista será preenchida após a primeira sincronização de candidatos com o TSE.'
+                            }
+                        />
+                    ) : (
+                        <>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-10">
+                                            <span className="sr-only">
+                                                Favorito
+                                            </span>
+                                        </TableHead>
+                                        <TableHead>Nome de urna</TableHead>
+                                        <TableHead>Número</TableHead>
+                                        <TableHead>Partido</TableHead>
+                                        <TableHead>Cargo</TableHead>
+                                        <TableHead>Nome completo</TableHead>
+                                        <TableHead>Situação</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {candidates.data.map((candidate) => (
+                                        <CandidateRow
+                                            key={candidate.id}
+                                            candidate={candidate}
+                                            canFavorite={canFavorite}
+                                            onOpenNews={setNewsCandidate}
+                                        />
+                                    ))}
+                                </TableBody>
+                            </Table>
+                            <PaginationLinks
+                                pagination={candidates}
+                                label="candidato(s)"
                             />
-                        ) : (
-                            <>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-10">
-                                                <span className="sr-only">
-                                                    Favorito
-                                                </span>
-                                            </TableHead>
-                                            <TableHead>Nome de urna</TableHead>
-                                            <TableHead>Número</TableHead>
-                                            <TableHead>Partido</TableHead>
-                                            <TableHead>Cargo</TableHead>
-                                            <TableHead>Nome completo</TableHead>
-                                            <TableHead>Situação</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {candidates.data.map((candidate) => (
-                                            <CandidateRow
-                                                key={candidate.id}
-                                                candidate={candidate}
-                                                canFavorite={canFavorite}
-                                                onOpenNews={setNewsCandidate}
-                                            />
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                                <PaginationLinks
-                                    pagination={candidates}
-                                    label="candidato(s)"
-                                />
-                            </>
-                        )}
-                    </Surface>
-                </section>
+                        </>
+                    )}
+                </Surface>
 
-                {polls.offices.length > 0 && (
+                {polls !== null && polls.offices.length > 0 && (
                     <PollsSection
                         polls={polls}
                         sync={sync.polls}

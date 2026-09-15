@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { SyncStatusRow } from '@/components/admin/sync-progress';
 import { TableActionButton } from '@/components/common/table-action-button';
+import { TableGroupRow } from '@/components/common/table-group-row';
 import { EmptyState } from '@/components/feedback/empty-state';
 import {
     BuildingsIcon,
@@ -12,8 +13,12 @@ import {
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
-import { Label } from '@/components/ui/label';
-import { Surface } from '@/components/ui/surface';
+import {
+    Surface,
+    SurfaceHeader,
+    SurfaceTitle,
+    SurfaceDescription,
+} from '@/components/ui/surface';
 import {
     Table,
     TableBody,
@@ -127,37 +132,32 @@ function GovnexApiDatasetsCard({
 
     return (
         <Surface as="section" className="overflow-hidden">
-            <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-end sm:justify-between">
-                <div className="min-w-0">
-                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                        Dados do TSE — GOVNEX API
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        Cada dataset é localizado na GOVNEX API pelo nome
-                        indicado na linha. Sincronize de cima para baixo: cada
-                        grupo depende dos anteriores.
-                    </p>
-                </div>
-                <div className="w-full shrink-0 space-y-1 sm:w-56">
-                    <Label htmlFor="govnex-election">Eleição</Label>
-                    <AppSelect
-                        id="govnex-election"
-                        value={year}
-                        onValueChange={setYear}
-                        options={elections.map((item) => ({
-                            value: String(item.year),
-                            label: item.label,
-                        }))}
-                        placeholder={
-                            elections.length === 0
-                                ? 'Nenhuma eleição cadastrada'
-                                : 'Selecione'
-                        }
-                        disabled={elections.length === 0}
-                        clearable={false}
-                    />
-                </div>
-            </div>
+            <SurfaceHeader
+                help="Cada dataset é localizado na GOVNEX API pelo nome indicado na linha. Sincronize de cima para baixo: cada grupo depende dos anteriores."
+                actions={
+                    <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
+                        <AppSelect
+                            id="govnex-election"
+                            aria-label="Eleição"
+                            value={year}
+                            onValueChange={setYear}
+                            options={elections.map((item) => ({
+                                value: String(item.year),
+                                label: item.label,
+                            }))}
+                            placeholder={
+                                elections.length === 0
+                                    ? 'Nenhuma eleição cadastrada'
+                                    : 'Selecione'
+                            }
+                            disabled={elections.length === 0}
+                            clearable={false}
+                        />
+                    </div>
+                }
+            >
+                <SurfaceTitle>Dados do TSE — GOVNEX API</SurfaceTitle>
+            </SurfaceHeader>
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -198,14 +198,7 @@ function GovnexDatasetGroup({
 }) {
     return (
         <>
-            <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableCell
-                    colSpan={3}
-                    className="py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase"
-                >
-                    {title}
-                </TableCell>
-            </TableRow>
+            <TableGroupRow title={title} colSpan={3} />
             {options.map((option) => (
                 <GovnexDatasetRow
                     // A linha recomeça (erro e envio) ao trocar de eleição.
@@ -296,7 +289,7 @@ function GovnexDatasetRow({
                     {option.description}
                 </p>
                 {slug && (
-                    <p className="mt-1 font-mono text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground tabular-nums">
                         {slug}
                     </p>
                 )}
@@ -403,16 +396,20 @@ function PollingDataCard({
 
     return (
         <Surface as="section" className="overflow-hidden">
-            <div className="border-b p-4">
-                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                    Pesquisas eleitorais — PollingData
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                    {year !== null
+            <SurfaceHeader
+                help={
+                    year !== null
                         ? `Pesquisas nacionais de intenção de voto para presidente na eleição de ${year}. Não cobre governador, Senado ou prefeito.`
-                        : 'Nenhuma eleição geral cadastrada: não há corrida presidencial para buscar pesquisas no PollingData.'}
-                </p>
-            </div>
+                        : undefined
+                }
+            >
+                <SurfaceTitle>Pesquisas eleitorais — PollingData</SurfaceTitle>
+                {year === null && (
+                    <SurfaceDescription>
+                        Nenhuma eleição geral cadastrada
+                    </SurfaceDescription>
+                )}
+            </SurfaceHeader>
             <Table>
                 <TableHeader>
                     <TableRow>

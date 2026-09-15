@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 
 type EntidadeType = 'GABINETE_INDEPENDENTE' | 'CAMARA_MUNICIPAL' | 'PREFEITURA';
 
@@ -111,15 +112,11 @@ export default function EntityForm({ types }: Props) {
                     )}
 
                     <Card className="gap-0 py-0">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                        <SurfaceHeader help="Essa escolha define os tipos de gabinete que poderão ser adicionados depois.">
+                            <SurfaceTitle>
                                 Qual organização será cadastrada?
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                Essa escolha define os tipos de gabinete que
-                                poderão ser adicionados depois.
-                            </p>
-                        </div>
+                            </SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="grid gap-3 p-5 md:grid-cols-3">
                             {types.map((type) => {
                                 const Icon = icons[type.value];
@@ -158,15 +155,11 @@ export default function EntityForm({ types }: Props) {
                     </Card>
 
                     <Card className="gap-0 py-0">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                        <SurfaceHeader help="Os gabinetes desta entidade usarão o mesmo município, UF e fuso horário.">
+                            <SurfaceTitle>
                                 Identificação e localização
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                Os gabinetes desta entidade usarão o mesmo
-                                município, UF e fuso horário.
-                            </p>
-                        </div>
+                            </SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="space-y-5 p-5">
                             <div className="space-y-1">
                                 <Label htmlFor="nome">Nome da entidade</Label>

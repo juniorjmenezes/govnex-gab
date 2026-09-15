@@ -390,7 +390,7 @@ export function DemandStatusActions({
                     <div className="space-y-2">
                         <p className="text-sm text-muted-foreground">
                             Para confirmar a exclusão, digite o código{' '}
-                            <span className="font-mono text-sm font-semibold tracking-widest text-foreground select-all">
+                            <span className="text-sm font-semibold tracking-widest text-foreground tabular-nums select-all">
                                 {deleteCode}
                             </span>{' '}
                             nos campos abaixo.

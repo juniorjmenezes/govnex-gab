@@ -7,7 +7,6 @@ import {
 import { EmptyState } from '@/components/feedback/empty-state';
 import {
     AddIcon,
-    BuildingsIcon,
     ChatRoundDotsIcon,
     DisketteIcon,
     HistoryIcon,
@@ -26,7 +25,12 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Surface } from '@/components/ui/surface';
+import {
+    Surface,
+    SurfaceDescription,
+    SurfaceHeader,
+    SurfaceTitle,
+} from '@/components/ui/surface';
 import { Switch } from '@/components/ui/switch';
 import {
     Table,
@@ -320,311 +324,323 @@ export default function WhatsAppAdmin(props: Props) {
                     </AlertDescription>
                 </Alert>
 
-                <Card className="space-y-5 p-5">
-                    <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-                        <div>
-                            <h2 className="flex items-center gap-2 text-xs font-semibold tracking-wide text-foreground uppercase">
-                                <BuildingsIcon className="size-4" />
-                                Conta da entidade
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                {props.selectedEntidade?.name ??
-                                    'Selecione um gabinete para identificar a entidade.'}
-                            </p>
-                        </div>
-                        {props.selectedEntidade && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                    router.post(
-                                        `/admin/whatsapp/entidades/${props.selectedEntidade?.id}/contas/consultar`,
-                                        {},
-                                        { preserveScroll: true },
-                                    )
-                                }
-                            >
-                                <RefreshIcon />
-                                Consultar contas
-                            </Button>
-                        )}
-                    </div>
-
-                    {props.connection && (
-                        <Alert>
-                            <LinkIcon />
-                            <AlertTitle>
-                                {props.connection.name}
-                                {props.connection.phone_last_four
-                                    ? ` · final ${props.connection.phone_last_four}`
-                                    : ''}
-                            </AlertTitle>
-                            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                                <span>
-                                    {props.connection.type === 'PROPRIA'
-                                        ? 'Conta própria'
-                                        : 'Conta central atribuída'}{' '}
-                                    · {props.connection.status}
-                                </span>
+                <Card className="gap-0 py-0">
+                    <SurfaceHeader
+                        actions={
+                            props.selectedEntidade && (
                                 <Button
                                     type="button"
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => {
-                                        if (
-                                            window.confirm(
-                                                'Desativar esta conexão e bloquear novos envios da entidade?',
-                                            )
-                                        ) {
-                                            router.delete(
+                                    className="shrink-0"
+                                    onClick={() =>
+                                        router.post(
+                                            `/admin/whatsapp/entidades/${props.selectedEntidade?.id}/contas/consultar`,
+                                            {},
+                                            { preserveScroll: true },
+                                        )
+                                    }
+                                >
+                                    <RefreshIcon />
+                                    Consultar contas
+                                </Button>
+                            )
+                        }
+                    >
+                        <SurfaceTitle>Conta da entidade</SurfaceTitle>
+                        <SurfaceDescription>
+                            {props.selectedEntidade?.name ??
+                                'Selecione um gabinete para identificar a entidade.'}
+                        </SurfaceDescription>
+                    </SurfaceHeader>
+
+                    {(props.connection ||
+                        (props.gatewayAccounts.length > 0 &&
+                            props.selectedEntidade)) && (
+                        <div className="space-y-5 p-5">
+                            {props.connection && (
+                                <Alert>
+                                    <LinkIcon />
+                                    <AlertTitle>
+                                        {props.connection.name}
+                                        {props.connection.phone_last_four
+                                            ? ` · final ${props.connection.phone_last_four}`
+                                            : ''}
+                                    </AlertTitle>
+                                    <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                                        <span>
+                                            {props.connection.type === 'PROPRIA'
+                                                ? 'Conta própria'
+                                                : 'Conta central atribuída'}{' '}
+                                            · {props.connection.status}
+                                        </span>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                if (
+                                                    window.confirm(
+                                                        'Desativar esta conexão e bloquear novos envios da entidade?',
+                                                    )
+                                                ) {
+                                                    router.delete(
+                                                        `/admin/whatsapp/entidades/${props.selectedEntidade?.id}/conexao`,
+                                                        {
+                                                            preserveScroll: true,
+                                                        },
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            <UnlinkIcon />
+                                            Desativar conexão
+                                        </Button>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+
+                            {props.gatewayAccounts.length > 0 &&
+                                props.selectedEntidade && (
+                                    <form
+                                        className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,240px)_auto] md:items-end"
+                                        onSubmit={(event) => {
+                                            event.preventDefault();
+                                            connectionForm.post(
                                                 `/admin/whatsapp/entidades/${props.selectedEntidade?.id}/conexao`,
                                                 { preserveScroll: true },
                                             );
-                                        }
-                                    }}
-                                >
-                                    <UnlinkIcon />
-                                    Desativar conexão
-                                </Button>
-                            </AlertDescription>
-                        </Alert>
+                                        }}
+                                    >
+                                        <div className="space-y-1">
+                                            <Label>Conta disponível</Label>
+                                            <AppSelect
+                                                value={
+                                                    connectionForm.data
+                                                        .account_id
+                                                }
+                                                onValueChange={(value) =>
+                                                    connectionForm.setData(
+                                                        'account_id',
+                                                        value,
+                                                    )
+                                                }
+                                                placeholder="Selecione a conta"
+                                                options={props.gatewayAccounts.map(
+                                                    (account) => ({
+                                                        value: account.id.toString(),
+                                                        disabled:
+                                                            !account.active,
+                                                        label: `${account.name}${account.phone_last_four ? ` · final ${account.phone_last_four}` : ''} · ${account.status}`,
+                                                    }),
+                                                )}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label>Modelo de uso</Label>
+                                            <AppSelect
+                                                value={connectionForm.data.type}
+                                                onValueChange={(value) =>
+                                                    connectionForm.setData(
+                                                        'type',
+                                                        value as
+                                                            | 'PROPRIA'
+                                                            | 'CENTRAL',
+                                                    )
+                                                }
+                                                options={[
+                                                    {
+                                                        value: 'PROPRIA',
+                                                        label: 'Conta própria',
+                                                    },
+                                                    {
+                                                        value: 'CENTRAL',
+                                                        label: 'Conta central atribuída',
+                                                    },
+                                                ]}
+                                            />
+                                        </div>
+                                        <Button
+                                            type="submit"
+                                            disabled={
+                                                connectionForm.processing ||
+                                                connectionForm.data
+                                                    .account_id === ''
+                                            }
+                                        >
+                                            <LinkIcon />
+                                            Vincular conta
+                                        </Button>
+                                    </form>
+                                )}
+                        </div>
                     )}
+                </Card>
 
-                    {props.gatewayAccounts.length > 0 &&
-                        props.selectedEntidade && (
+                <Card className="gap-0 py-0">
+                    <SurfaceHeader help="O modo OFF continua sendo o estado seguro padrão.">
+                        <SurfaceTitle>Gabinete e operação</SurfaceTitle>
+                    </SurfaceHeader>
+                    <div className="space-y-4 p-5">
+                        {props.selectedOfficeId &&
+                            props.configuration &&
+                            !moduleEnabled && (
+                                <Alert>
+                                    <ChatRoundDotsIcon />
+                                    <AlertTitle>
+                                        WhatsApp desativado neste gabinete
+                                    </AlertTitle>
+                                    <AlertDescription>
+                                        A configuração e o histórico foram
+                                        preservados. Ative o módulo na gestão do
+                                        gabinete para liberar novos envios.
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                        {props.selectedOfficeId && props.configuration ? (
                             <form
-                                className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,240px)_auto] md:items-end"
+                                className="space-y-5"
                                 onSubmit={(event) => {
                                     event.preventDefault();
-                                    connectionForm.post(
-                                        `/admin/whatsapp/entidades/${props.selectedEntidade?.id}/conexao`,
+                                    form.put(
+                                        `/admin/whatsapp/gabinetes/${props.selectedOfficeId}`,
                                         { preserveScroll: true },
                                     );
                                 }}
                             >
-                                <div className="space-y-1">
-                                    <Label>Conta disponível</Label>
-                                    <AppSelect
-                                        value={connectionForm.data.account_id}
-                                        onValueChange={(value) =>
-                                            connectionForm.setData(
-                                                'account_id',
-                                                value,
-                                            )
-                                        }
-                                        placeholder="Selecione a conta"
-                                        options={props.gatewayAccounts.map(
-                                            (account) => ({
-                                                value: account.id.toString(),
-                                                disabled: !account.active,
-                                                label: `${account.name}${account.phone_last_four ? ` · final ${account.phone_last_four}` : ''} · ${account.status}`,
-                                            }),
-                                        )}
-                                    />
+                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                    <div className="space-y-1">
+                                        <Label>Gabinete</Label>
+                                        <AppSelect
+                                            value={props.selectedOfficeId?.toString()}
+                                            onValueChange={(value) =>
+                                                router.get('/admin/whatsapp', {
+                                                    gabinete_id: value,
+                                                })
+                                            }
+                                            placeholder="Selecione o gabinete"
+                                            options={props.offices.map(
+                                                (office) => ({
+                                                    value: office.id.toString(),
+                                                    label: `${office.nome}${office.whatsapp_enabled ? '' : ' · módulo desativado'}`,
+                                                }),
+                                            )}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label>Modo</Label>
+                                        <AppSelect
+                                            value={form.data.mode}
+                                            disabled={!channelReady}
+                                            onValueChange={(value) =>
+                                                form.setData('mode', value)
+                                            }
+                                            options={props.modeOptions}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="digest-time">
+                                            Resumo diário
+                                        </Label>
+                                        <Input
+                                            id="digest-time"
+                                            type="time"
+                                            value={form.data.digest_time}
+                                            disabled={!channelReady}
+                                            onChange={(event) =>
+                                                form.setData(
+                                                    'digest_time',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                    </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <Label>Modelo de uso</Label>
-                                    <AppSelect
-                                        value={connectionForm.data.type}
-                                        onValueChange={(value) =>
-                                            connectionForm.setData(
-                                                'type',
-                                                value as 'PROPRIA' | 'CENTRAL',
-                                            )
-                                        }
-                                        options={[
-                                            {
-                                                value: 'PROPRIA',
-                                                label: 'Conta própria',
-                                            },
-                                            {
-                                                value: 'CENTRAL',
-                                                label: 'Conta central atribuída',
-                                            },
-                                        ]}
-                                    />
+                                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                    {props.purposeOptions.map((option) => (
+                                        <Label
+                                            key={option.value}
+                                            className="items-start justify-between gap-3 rounded-lg border p-3 has-disabled:cursor-not-allowed has-disabled:opacity-60"
+                                        >
+                                            <span>
+                                                <span className="block">
+                                                    {option.label}
+                                                </span>
+                                                {!option.available && (
+                                                    <span className="block text-xs text-muted-foreground">
+                                                        Exige{' '}
+                                                        {
+                                                            option.source_module_label
+                                                        }
+                                                    </span>
+                                                )}
+                                            </span>
+                                            <Switch
+                                                checked={form.data.purposes.includes(
+                                                    option.value,
+                                                )}
+                                                disabled={
+                                                    !channelReady ||
+                                                    !option.available
+                                                }
+                                                onCheckedChange={(checked) => {
+                                                    if (
+                                                        checked &&
+                                                        !option.available
+                                                    ) {
+                                                        return;
+                                                    }
+
+                                                    form.setData(
+                                                        'purposes',
+                                                        checked
+                                                            ? [
+                                                                  ...form.data
+                                                                      .purposes,
+                                                                  option.value,
+                                                              ]
+                                                            : form.data.purposes.filter(
+                                                                  (purpose) =>
+                                                                      purpose !==
+                                                                      option.value,
+                                                              ),
+                                                    );
+                                                }}
+                                            />
+                                        </Label>
+                                    ))}
                                 </div>
                                 <Button
                                     type="submit"
-                                    disabled={
-                                        connectionForm.processing ||
-                                        connectionForm.data.account_id === ''
-                                    }
+                                    disabled={form.processing || !channelReady}
                                 >
-                                    <LinkIcon />
-                                    Vincular conta
+                                    <DisketteIcon />
+                                    Salvar configuração
                                 </Button>
                             </form>
+                        ) : (
+                            <AppSelect
+                                className="w-auto max-w-md"
+                                value={props.selectedOfficeId?.toString()}
+                                onValueChange={(value) =>
+                                    router.get('/admin/whatsapp', {
+                                        gabinete_id: value,
+                                    })
+                                }
+                                placeholder="Selecione o gabinete"
+                                options={props.offices.map((office) => ({
+                                    value: office.id.toString(),
+                                    label: `${office.nome}${office.whatsapp_enabled ? '' : ' · módulo desativado'}`,
+                                }))}
+                            />
                         )}
-                </Card>
-
-                <Card className="space-y-4 p-5">
-                    <div>
-                        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                            Gabinete e operação
-                        </h2>
-                        <p className="text-xs text-muted-foreground">
-                            O modo OFF continua sendo o estado seguro padrão.
-                        </p>
                     </div>
-                    {props.selectedOfficeId &&
-                        props.configuration &&
-                        !moduleEnabled && (
-                            <Alert>
-                                <ChatRoundDotsIcon />
-                                <AlertTitle>
-                                    WhatsApp desativado neste gabinete
-                                </AlertTitle>
-                                <AlertDescription>
-                                    A configuração e o histórico foram
-                                    preservados. Ative o módulo na gestão do
-                                    gabinete para liberar novos envios.
-                                </AlertDescription>
-                            </Alert>
-                        )}
-                    {props.selectedOfficeId && props.configuration ? (
-                        <form
-                            className="space-y-5"
-                            onSubmit={(event) => {
-                                event.preventDefault();
-                                form.put(
-                                    `/admin/whatsapp/gabinetes/${props.selectedOfficeId}`,
-                                    { preserveScroll: true },
-                                );
-                            }}
-                        >
-                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                <div className="space-y-1">
-                                    <Label>Gabinete</Label>
-                                    <AppSelect
-                                        value={props.selectedOfficeId?.toString()}
-                                        onValueChange={(value) =>
-                                            router.get('/admin/whatsapp', {
-                                                gabinete_id: value,
-                                            })
-                                        }
-                                        placeholder="Selecione o gabinete"
-                                        options={props.offices.map(
-                                            (office) => ({
-                                                value: office.id.toString(),
-                                                label: `${office.nome}${office.whatsapp_enabled ? '' : ' · módulo desativado'}`,
-                                            }),
-                                        )}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label>Modo</Label>
-                                    <AppSelect
-                                        value={form.data.mode}
-                                        disabled={!channelReady}
-                                        onValueChange={(value) =>
-                                            form.setData('mode', value)
-                                        }
-                                        options={props.modeOptions}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="digest-time">
-                                        Resumo diário
-                                    </Label>
-                                    <Input
-                                        id="digest-time"
-                                        type="time"
-                                        value={form.data.digest_time}
-                                        disabled={!channelReady}
-                                        onChange={(event) =>
-                                            form.setData(
-                                                'digest_time',
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                {props.purposeOptions.map((option) => (
-                                    <Label
-                                        key={option.value}
-                                        className="items-start justify-between gap-3 rounded-lg border p-3 has-disabled:cursor-not-allowed has-disabled:opacity-60"
-                                    >
-                                        <span>
-                                            <span className="block">
-                                                {option.label}
-                                            </span>
-                                            {!option.available && (
-                                                <span className="block text-xs text-muted-foreground">
-                                                    Exige{' '}
-                                                    {option.source_module_label}
-                                                </span>
-                                            )}
-                                        </span>
-                                        <Switch
-                                            checked={form.data.purposes.includes(
-                                                option.value,
-                                            )}
-                                            disabled={
-                                                !channelReady ||
-                                                !option.available
-                                            }
-                                            onCheckedChange={(checked) => {
-                                                if (
-                                                    checked &&
-                                                    !option.available
-                                                ) {
-                                                    return;
-                                                }
-
-                                                form.setData(
-                                                    'purposes',
-                                                    checked
-                                                        ? [
-                                                              ...form.data
-                                                                  .purposes,
-                                                              option.value,
-                                                          ]
-                                                        : form.data.purposes.filter(
-                                                              (purpose) =>
-                                                                  purpose !==
-                                                                  option.value,
-                                                          ),
-                                                );
-                                            }}
-                                        />
-                                    </Label>
-                                ))}
-                            </div>
-                            <Button
-                                type="submit"
-                                disabled={form.processing || !channelReady}
-                            >
-                                <DisketteIcon />
-                                Salvar configuração
-                            </Button>
-                        </form>
-                    ) : (
-                        <AppSelect
-                            className="w-auto max-w-md"
-                            value={props.selectedOfficeId?.toString()}
-                            onValueChange={(value) =>
-                                router.get('/admin/whatsapp', {
-                                    gabinete_id: value,
-                                })
-                            }
-                            placeholder="Selecione o gabinete"
-                            options={props.offices.map((office) => ({
-                                value: office.id.toString(),
-                                label: `${office.nome}${office.whatsapp_enabled ? '' : ' · módulo desativado'}`,
-                            }))}
-                        />
-                    )}
                 </Card>
 
                 <Surface as="section" className="overflow-hidden">
-                    <div className="border-b p-4">
-                        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                            Templates
-                        </h2>
-                    </div>
+                    <SurfaceHeader>
+                        <SurfaceTitle>Templates</SurfaceTitle>
+                    </SurfaceHeader>
                     {props.templates.length === 0 || !props.selectedEntidade ? (
                         <EmptyState
                             icon={ChatRoundDotsIcon}
@@ -655,11 +671,9 @@ export default function WhatsAppAdmin(props: Props) {
                 </Surface>
 
                 <Surface as="section" className="overflow-hidden">
-                    <div className="border-b p-4">
-                        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                            Contatos
-                        </h2>
-                    </div>
+                    <SurfaceHeader>
+                        <SurfaceTitle>Contatos</SurfaceTitle>
+                    </SurfaceHeader>
                     {props.contacts.length === 0 ? (
                         <EmptyState
                             icon={UsersGroupRoundedIcon}
@@ -733,11 +747,9 @@ export default function WhatsAppAdmin(props: Props) {
                 </Surface>
 
                 <Surface as="section" className="overflow-hidden">
-                    <div className="border-b p-4">
-                        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                            Entregas recentes
-                        </h2>
-                    </div>
+                    <SurfaceHeader>
+                        <SurfaceTitle>Entregas recentes</SurfaceTitle>
+                    </SurfaceHeader>
                     {props.outbox.length === 0 ? (
                         <EmptyState
                             icon={HistoryIcon}

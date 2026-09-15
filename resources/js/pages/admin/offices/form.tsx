@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 import { applyMask } from '@/lib/masks';
 import type { GabineteModuleCode, GabineteModuleDefinition } from '@/types';
 
@@ -324,16 +325,9 @@ export default function OfficeForm({
     );
     const moduleCard = !editing ? (
         <Card className="gap-0 py-0">
-            <div className="border-b p-4">
-                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                    Módulos do gabinete
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                    Defina quais áreas estarão disponíveis neste gabinete. A
-                    seleção poderá ser alterada depois sem apagar os dados
-                    existentes.
-                </p>
-            </div>
+            <SurfaceHeader help="Defina quais áreas estarão disponíveis neste gabinete. A seleção poderá ser alterada depois sem apagar os dados existentes.">
+                <SurfaceTitle>Módulos do gabinete</SurfaceTitle>
+            </SurfaceHeader>
             <div className="p-5">
                 <OfficeModuleSelector
                     catalog={moduleCatalog}
@@ -392,15 +386,9 @@ export default function OfficeForm({
                         </div>
                     )}
                     <Card className="gap-0 py-0">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Entidade
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                O gabinete herdará município, UF e fuso horário
-                                da entidade selecionada.
-                            </p>
-                        </div>
+                        <SurfaceHeader help="O gabinete herdará município, UF e fuso horário da entidade selecionada.">
+                            <SurfaceTitle>Entidade</SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="space-y-3 p-5">
                             {!editing ? (
                                 <>
@@ -475,16 +463,9 @@ export default function OfficeForm({
                         </div>
                     </Card>
                     <Card className="gap-0 py-0">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Dados do gabinete
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                O gabinete é o espaço operacional dentro da
-                                entidade. Para este cadastro, “Administrativo” é
-                                um gabinete do tipo “Setor administrativo”.
-                            </p>
-                        </div>
+                        <SurfaceHeader help="O gabinete é o espaço operacional dentro da entidade. Para este cadastro, “Administrativo” é um gabinete do tipo “Setor administrativo”.">
+                            <SurfaceTitle>Dados do gabinete</SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="grid gap-5 p-5 md:grid-cols-2">
                             {!editing && (
                                 <div className="space-y-1 md:col-span-2">
@@ -557,11 +538,9 @@ export default function OfficeForm({
                         </div>
                     </Card>
                     <Card className="gap-0 py-0">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Localização e endereço
-                            </h2>
-                        </div>
+                        <SurfaceHeader>
+                            <SurfaceTitle>Localização e endereço</SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="p-5">
                             <AddressFields
                                 control={control}
@@ -577,29 +556,22 @@ export default function OfficeForm({
                         </div>
                     </Card>
                     <Card className="gap-0 py-0">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Contato institucional
-                            </h2>
-                        </div>
+                        <SurfaceHeader>
+                            <SurfaceTitle>Contato institucional</SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="grid gap-5 p-5 md:grid-cols-2">
                             {field('telefone', 'Telefone')}
                             {field('email', 'E-mail institucional', 'email')}
                         </div>
                     </Card>
                     <Card className="gap-0 py-0">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                        <SurfaceHeader help="Estes dados criam o usuário que entrará no sistema. O nome de acesso pode ser diferente do nome institucional informado no gabinete.">
+                            <SurfaceTitle>
                                 {editing
                                     ? 'Conta de acesso'
                                     : 'Conta de acesso do responsável'}
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                Estes dados criam o usuário que entrará no
-                                sistema. O nome de acesso pode ser diferente do
-                                nome institucional informado no gabinete.
-                            </p>
-                        </div>
+                            </SurfaceTitle>
+                        </SurfaceHeader>
                         <div className="grid gap-5 p-5 md:grid-cols-2">
                             {field(
                                 'responsavel_nome',

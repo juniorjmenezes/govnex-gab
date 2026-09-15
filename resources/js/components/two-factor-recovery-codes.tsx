@@ -1,20 +1,10 @@
 import { Form } from '@inertiajs/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import AlertError from '@/components/alert-error';
-import {
-    EyeClosedIcon,
-    EyeIcon,
-    LockKeyholeIcon,
-    RefreshIcon,
-} from '@/components/icons';
+import { EyeClosedIcon, EyeIcon, RefreshIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 import { regenerateRecoveryCodes } from '@/routes/two-factor';
 
 type Props = {
@@ -58,19 +48,16 @@ export default function TwoFactorRecoveryCodes({
     const RecoveryCodeIconComponent = codesAreVisible ? EyeClosedIcon : EyeIcon;
 
     return (
-        <Card>
-            <CardHeader className="border-b">
-                <CardTitle className="flex gap-3">
-                    <LockKeyholeIcon className="size-4" aria-hidden="true" />
-                    Códigos de recuperação da 2FA
-                </CardTitle>
-                <CardDescription>
+        <Card className="gap-0 py-0">
+            <SurfaceHeader>
+                <SurfaceTitle>Códigos de recuperação da 2FA</SurfaceTitle>
+            </SurfaceHeader>
+            <div className="p-5">
+                <p className="mb-4 text-sm text-muted-foreground">
                     Use estes códigos para recuperar o acesso se perder o
                     dispositivo autenticador. Guarde-os em um gerenciador de
                     senhas seguro.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
+                </p>
                 <div className="flex flex-col gap-3 select-none sm:flex-row sm:items-center sm:justify-between">
                     <Button
                         onClick={toggleCodesVisibility}
@@ -165,7 +152,7 @@ export default function TwoFactorRecoveryCodes({
                         )}
                     </div>
                 </div>
-            </CardContent>
+            </div>
         </Card>
     );
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SyncOfficeSectionVotesFromGovnexApi;
 use App\Models\CandidatoPolitico;
 use App\Models\ComparecimentoEleitoralMunicipio;
 use App\Models\Eleicao;
@@ -16,6 +17,7 @@ use App\Models\VotoSecaoCandidato;
 use App\Services\Politics\TsePoliticalDataSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -322,13 +324,22 @@ class TsePoliticalDataSyncServiceTest extends TestCase
                 ['30/07/2026', '02:17:54', '2024', '2', '1', '619', '06/10/2024', 'CE', '15890', '15890', 'CRUZ', '30', 'Vereador', '60001945113', '11555', 'MARCOS JOSE SILVEIRA', 'MARCOS SILVEIRA', 'PP', 'PROGRESSISTAS', 'DEFERIDO', 'DEFERIDO', 'N', '500', '500', 'ELEITO POR MÉDIA'],
                 ['30/07/2026', '02:17:54', '2024', '2', '1', '619', '06/10/2024', 'CE', '15890', '15890', 'CRUZ', '31', 'Vereador', '60001945113', '11555', 'MARCOS JOSE SILVEIRA', 'MARCOS SILVEIRA', 'PP', 'PROGRESSISTAS', 'DEFERIDO', 'DEFERIDO', 'N', '276', '276', 'ELEITO POR MÉDIA'],
                 ['30/07/2026', '02:17:54', '2024', '2', '1', '619', '06/10/2024', 'CE', '15890', '15890', 'CRUZ', '30', 'Vereador', '60002244509', '77777', 'GERALDO DOS SANTOS MUNIZ', 'SANTOS', 'SOLIDARIEDADE', 'SOLIDARIEDADE', 'DEFERIDO', 'DEFERIDO', 'N', '1193', '1193', 'NÃO ELEITO'],
+                // Prefeito entra junto: mesma tabela, outra disputa.
+                ['30/07/2026', '02:17:54', '2024', '2', '1', '619', '06/10/2024', 'CE', '15890', '15890', 'CRUZ', '30', 'Prefeito', '60003311224', '15', 'MARIA DA SILVA', 'MARIA', 'MDB', 'MOVIMENTO DEMOCRATICO', 'DEFERIDO', 'DEFERIDO', 'N', '4200', '4200', 'ELEITO'],
             ]),
-        ]);
+        ], ['votacao-candidato-munzona-2024' => ['SG_UF']]);
 
         $processed = app(TsePoliticalDataSyncService::class)->importCandidateVotes(2024);
 
-        $this->assertSame(2, $processed);
-        $this->assertDatabaseCount('votacoes_candidatos_municipio', 2);
+        $this->assertSame(3, $processed);
+        $this->assertDatabaseCount('votacoes_candidatos_municipio', 3);
+        // O titular continua sendo o vereador do número do gabinete: a
+        // resolução não se confunde com o prefeito recém-importado.
+        $this->assertDatabaseHas('candidatos_politicos', [
+            'sq_candidato' => '60003311224',
+            'cargo' => 'Prefeito',
+            'nome_urna' => 'MARIA',
+        ]);
         $office->refresh();
         $this->assertNotNull($office->candidato_titular_id);
         $this->assertSame('11555', $office->candidatoTitular?->numero);
@@ -356,7 +367,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
                 ['30/07/2026', '02:17:54', '2024', '2', '1', '619', '06/10/2024', 'CE', '15890', '15890', 'CRUZ', '30', 'Vereador', '60001945113', '11555', 'MARCOS JOSE SILVEIRA', 'MARCOS SILVEIRA', 'PP', 'PROGRESSISTAS', 'DEFERIDO', 'DEFERIDO', 'N', '500', '500', 'ELEITO POR MÉDIA'],
                 ['30/07/2026', '02:17:54', '2024', '2', '1', '620', '06/10/2024', 'SP', '71072', '71072', 'SAO PAULO', '1', 'Vereador', '70002233445', '99999', 'JOANA DA SILVA', 'JOANA', 'PT', 'TRABALHADORES', 'DEFERIDO', 'DEFERIDO', 'N', '900', '900', 'ELEITO'],
             ]),
-        ]);
+        ], ['votacao-candidato-munzona-2024' => ['SG_UF']]);
 
         $processed = app(TsePoliticalDataSyncService::class)->importCandidateVotes(2024);
 
@@ -372,24 +383,18 @@ class TsePoliticalDataSyncServiceTest extends TestCase
     }
 
     /**
-     * Guarda do gravar-por-UF: se uma UF já gravada reaparecer, a soma por
-     * zona sairia partida em duas gravações. A importação precisa falhar
-     * alto em vez de gravar votação errada.
+     * O dataset publicado traz as UFs intercaladas (medido: 897 trocas nas
+     * primeiras 4 mil linhas), então a leitura é feita por consulta filtrada,
+     * um estado por vez. Sem SG_UF declarado como filtrável, o importador para
+     * e diz o que falta, em vez de tentar ler o país inteiro de uma vez.
      */
-    public function test_nominal_votes_fail_when_the_dataset_is_not_grouped_by_state(): void
+    public function test_nominal_votes_require_the_state_filter_on_the_dataset(): void
     {
         MunicipioEleitoral::query()->create(['codigo_tse' => '15890', 'nome' => 'Cruz', 'uf' => 'CE']);
-        MunicipioEleitoral::query()->create(['codigo_tse' => '71072', 'nome' => 'São Paulo', 'uf' => 'SP']);
-        $this->fakeGovnexDatasets([
-            'votacao-candidato-munzona-2024' => $this->records(self::CANDIDATE_VOTES_HEADER, [
-                ['30/07/2026', '02:17:54', '2024', '2', '1', '619', '06/10/2024', 'CE', '15890', '15890', 'CRUZ', '30', 'Vereador', '60001945113', '11555', 'MARCOS JOSE SILVEIRA', 'MARCOS SILVEIRA', 'PP', 'PROGRESSISTAS', 'DEFERIDO', 'DEFERIDO', 'N', '500', '500', 'ELEITO POR MÉDIA'],
-                ['30/07/2026', '02:17:54', '2024', '2', '1', '620', '06/10/2024', 'SP', '71072', '71072', 'SAO PAULO', '1', 'Vereador', '70002233445', '99999', 'JOANA DA SILVA', 'JOANA', 'PT', 'TRABALHADORES', 'DEFERIDO', 'DEFERIDO', 'N', '900', '900', 'ELEITO'],
-                ['30/07/2026', '02:17:54', '2024', '2', '1', '619', '06/10/2024', 'CE', '15890', '15890', 'CRUZ', '31', 'Vereador', '60001945113', '11555', 'MARCOS JOSE SILVEIRA', 'MARCOS SILVEIRA', 'PP', 'PROGRESSISTAS', 'DEFERIDO', 'DEFERIDO', 'N', '276', '276', 'ELEITO POR MÉDIA'],
-            ]),
-        ]);
+        $this->fakeGovnexDatasets(['votacao-candidato-munzona-2024' => []]);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('não está agrupado por UF: CE reapareceu');
+        $this->expectExceptionMessage('precisa declarar SG_UF como campo filtrável');
 
         app(TsePoliticalDataSyncService::class)->importCandidateVotes(2024);
     }
@@ -702,6 +707,70 @@ class TsePoliticalDataSyncServiceTest extends TestCase
         );
     }
 
+    /**
+     * Quando a GOVNEX API aceita filtro por candidato, a votação por seção
+     * pede só as linhas do titular — uma consulta por gabinete, em vez de ler
+     * o estado inteiro (~1,5 milhão de linhas numa UF real).
+     */
+    public function test_section_votes_are_fetched_per_titular_when_the_dataset_accepts_the_filter(): void
+    {
+        $office = $this->officeWithResolvedTitular();
+        $this->fakeGovnexDatasets([
+            'votacao-secao-2024-ce' => $this->records(self::SECTION_VOTES_HEADER, [
+                ['28/10/2024', '11:46:22', '2024', '2', 'Eleição Ordinária', '1', '619', 'Eleições Municipais 2024', '06/10/2024', 'M', 'CE', '15890', 'CRUZ', '15890', 'CRUZ', '30', '0011', '13', 'Vereador', '11555', 'MARCOS SILVEIRA', '500', '0001', '60001945113', 'ESCOLA MUNICIPAL', 'RUA A, 10'],
+            ]),
+        ], ['votacao-secao-2024-ce' => ['SQ_CANDIDATO']]);
+
+        $processed = app(TsePoliticalDataSyncService::class)->importSectionVotes(2024, $office->id);
+
+        $this->assertSame(1, $processed);
+        $this->assertSame(500, (int) VotoSecaoCandidato::query()->sum('votos'));
+        Http::assertSent(
+            fn ($request): bool => str_contains($request->url(), '/records')
+                && str_contains($request->url(), 'SQ_CANDIDATO=60001945113'),
+        );
+    }
+
+    /**
+     * Gabinete cadastrado antes de as candidaturas existirem: assim que a
+     * importação resolve o titular dele, a votação por seção daquele gabinete
+     * entra na fila — sem o administrador precisar sincronizar de novo.
+     */
+    public function test_resolving_a_titular_queues_the_section_votes_import_of_that_office(): void
+    {
+        Queue::fake();
+        $municipality = MunicipioEleitoral::query()->create([
+            'codigo_tse' => '15890',
+            'codigo_ibge' => '2304251',
+            'nome' => 'Cruz',
+            'uf' => 'CE',
+        ]);
+        $office = Gabinete::factory()->create([
+            'municipio' => 'Cruz',
+            'estado' => 'CE',
+            'municipio_eleitoral_id' => $municipality->id,
+            'numero_eleitoral' => '11555',
+            'candidato_titular_id' => null,
+        ]);
+        $this->fakeGovnexDatasets([
+            'consulta-cand-2024' => $this->records([
+                'SQ_CANDIDATO', 'DS_CARGO', 'SG_UF', 'SG_UE', 'DT_GERACAO', 'HH_GERACAO',
+                'NM_CANDIDATO', 'NM_URNA_CANDIDATO', 'NR_CANDIDATO', 'SG_PARTIDO',
+                'NM_PARTIDO', 'DS_SITUACAO_CANDIDATURA', 'DS_DETALHE_SITUACAO_CAND',
+            ], [
+                ['60001945113', 'Vereador', 'CE', '15890', '29/07/2024', '08:00:00', 'MARCOS JOSE SILVEIRA', 'MARCOS SILVEIRA', '11555', 'PP', 'PROGRESSISTAS', 'APTO', 'DEFERIDO'],
+            ]),
+        ]);
+
+        app(TsePoliticalDataSyncService::class)->importCandidates(2024);
+
+        $this->assertNotNull($office->fresh()->candidato_titular_id);
+        Queue::assertPushed(
+            SyncOfficeSectionVotesFromGovnexApi::class,
+            fn (SyncOfficeSectionVotesFromGovnexApi $job): bool => $job->officeId === $office->id,
+        );
+    }
+
     /** Gabinete em Cruz/CE com o titular (vereador eleito em 2024) já resolvido. */
     private function officeWithResolvedTitular(): Gabinete
     {
@@ -789,17 +858,37 @@ class TsePoliticalDataSyncServiceTest extends TestCase
      * a primeira listagem registrada é a que responde.
      *
      * @param  array<string, list<array<string, string>>>  $recordsBySlug
+     * @param  array<string, list<string>>  $filterableBySlug  Colunas que cada
+     *                                                         dataset aceita
+     *                                                         como filtro
      */
-    private function fakeGovnexDatasets(array $recordsBySlug): void
+    private function fakeGovnexDatasets(array $recordsBySlug, array $filterableBySlug = []): void
     {
-        $this->fakeGovnexCatalog(array_keys($recordsBySlug));
+        $this->fakeGovnexCatalog(array_keys($recordsBySlug), $filterableBySlug);
 
         foreach ($recordsBySlug as $slug => $rows) {
             Http::fake([
-                "127.0.0.1:8020/api/v1/sources/tse/datasets/{$slug}/records*" => Http::response([
-                    'data' => $rows,
-                    'links' => ['next' => null],
-                ]),
+                "127.0.0.1:8020/api/v1/sources/tse/datasets/{$slug}/records*" => function ($request) use ($rows) {
+                    // A GOVNEX API devolve só as linhas que casam com o filtro
+                    // declarado; sem isso aqui, uma leitura por UF traria o
+                    // país inteiro a cada consulta.
+                    parse_str((string) parse_url((string) $request->url(), PHP_URL_QUERY), $query);
+                    $filters = array_diff_key($query, array_flip(['paginate', 'per_page', 'cursor']));
+                    $filtered = array_values(array_filter(
+                        $rows,
+                        function (array $row) use ($filters): bool {
+                            foreach ($filters as $field => $value) {
+                                if (($row[$field] ?? null) !== $value) {
+                                    return false;
+                                }
+                            }
+
+                            return true;
+                        },
+                    ));
+
+                    return Http::response(['data' => $filtered, 'links' => ['next' => null]]);
+                },
             ]);
         }
     }
@@ -809,8 +898,9 @@ class TsePoliticalDataSyncServiceTest extends TestCase
      * os datasets com o último import concluído.
      *
      * @param  list<string>  $slugs
+     * @param  array<string, list<string>>  $filterableBySlug
      */
-    private function fakeGovnexCatalog(array $slugs): void
+    private function fakeGovnexCatalog(array $slugs, array $filterableBySlug = []): void
     {
         Http::fake([
             '127.0.0.1:8020/api/v1/sources' => Http::response([
@@ -818,7 +908,11 @@ class TsePoliticalDataSyncServiceTest extends TestCase
             ]),
             '127.0.0.1:8020/api/v1/sources/tse/datasets' => Http::response([
                 'data' => array_map(
-                    fn (string $slug): array => ['slug' => $slug, 'latest_import_status' => 'completed'],
+                    fn (string $slug): array => [
+                        'slug' => $slug,
+                        'latest_import_status' => 'completed',
+                        'filterable_fields' => $filterableBySlug[$slug] ?? [],
+                    ],
                     $slugs,
                 ),
             ]),

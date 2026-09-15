@@ -208,6 +208,20 @@ class PollCurationController extends Controller
         return to_route('admin.polls.index');
     }
 
+    public function edit(Request $request, PesquisaEleitoral $pesquisa): Response
+    {
+        abort_unless($request->user()->isRoot(), 403);
+
+        $pesquisa->load([
+            'resultados' => fn ($query) => $query->orderByDesc('percentual'),
+            'fontes' => fn ($query) => $query->orderByDesc('id'),
+        ]);
+
+        return Inertia::render('admin/polls/edit', [
+            'pesquisa' => $this->serialize($pesquisa),
+        ]);
+    }
+
     public function updateResultados(
         UpdatePesquisaResultadosRequest $request,
         PesquisaEleitoral $pesquisa,
@@ -236,7 +250,7 @@ class PollCurationController extends Controller
                 : "Registro guardado para auditoria, mas não aplicado: esta pesquisa já tem uma fonte com confiança maior ou igual ({$pesquisa->confianca}).",
         ]);
 
-        return back();
+        return to_route('admin.polls.index');
     }
 
     public function destroy(Request $request, PesquisaEleitoral $pesquisa): RedirectResponse

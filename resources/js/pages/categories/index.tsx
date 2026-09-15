@@ -22,7 +22,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { surfaceClasses } from '@/components/ui/surface';
+import {
+    surfaceClasses,
+    SurfaceHeader,
+    SurfaceTitle,
+} from '@/components/ui/surface';
 import {
     Table,
     TableBody,
@@ -203,11 +207,9 @@ export default function Categories({
                             onSubmit={handleSubmit(submit)}
                             className={cn(surfaceClasses, 'overflow-hidden')}
                         >
-                            <div className="border-b p-4">
-                                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                    Nova categoria
-                                </h2>
-                            </div>
+                            <SurfaceHeader>
+                                <SurfaceTitle>Nova categoria</SurfaceTitle>
+                            </SurfaceHeader>
                             <div className="space-y-4 p-5">
                                 <div className="space-y-1">
                                     <Label htmlFor="category-name">Nome</Label>

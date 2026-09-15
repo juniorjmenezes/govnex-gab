@@ -75,6 +75,8 @@ Route::middleware(['auth', 'verified', 'user.active'])->group(function () {
         Route::get('pesquisas-eleitorais/candidatos', [PollCurationController::class, 'candidates'])
             ->name('polls.candidates');
         Route::post('pesquisas-eleitorais', [PollCurationController::class, 'store'])->name('polls.store');
+        Route::get('pesquisas-eleitorais/{pesquisa}/editar', [PollCurationController::class, 'edit'])
+            ->name('polls.edit');
         Route::post('pesquisas-eleitorais/{pesquisa}/resultados', [PollCurationController::class, 'updateResultados'])
             ->name('polls.results.update');
         Route::delete('pesquisas-eleitorais/{pesquisa}', [PollCurationController::class, 'destroy'])

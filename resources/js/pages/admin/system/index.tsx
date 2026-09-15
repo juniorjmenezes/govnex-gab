@@ -14,7 +14,12 @@ import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Surface } from '@/components/ui/surface';
+import {
+    Surface,
+    SurfaceHeader,
+    SurfaceTitle,
+    SurfaceDescription,
+} from '@/components/ui/surface';
 import { cn } from '@/lib/utils';
 
 type ExtensionCheck = { name: string; description: string; loaded: boolean };
@@ -108,15 +113,15 @@ export default function SystemCheck({
 
                 <div className="grid gap-6 lg:grid-cols-2">
                     <Surface as="section" className="overflow-hidden">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Ambiente
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                PHP {php.version} · SAPI {php.sapi}
-                            </p>
-                        </div>
+                        <SurfaceHeader>
+                            <SurfaceTitle>Ambiente</SurfaceTitle>
+                            <SurfaceDescription>
+                                O que este processo PHP tem em vigor agora.
+                            </SurfaceDescription>
+                        </SurfaceHeader>
                         <dl className="grid grid-cols-2 gap-4 p-4 text-sm">
+                            <Info label="Versão do PHP" value={php.version} />
+                            <Info label="Interface (SAPI)" value={php.sapi} />
                             <Info label="Ambiente (APP_ENV)" value={app.env} />
                             <Info
                                 label="Depuração (APP_DEBUG)"
@@ -137,14 +142,12 @@ export default function SystemCheck({
                     </Surface>
 
                     <Surface as="section" className="overflow-hidden">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Banco de dados e fila
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
+                        <SurfaceHeader>
+                            <SurfaceTitle>Banco de dados e fila</SurfaceTitle>
+                            <SurfaceDescription>
                                 Conectividade real, testada agora.
-                            </p>
-                        </div>
+                            </SurfaceDescription>
+                        </SurfaceHeader>
                         <ul className="divide-y">
                             <li className="flex items-center justify-between gap-3 p-4 text-sm">
                                 <span className="flex items-center gap-2">
@@ -175,18 +178,19 @@ export default function SystemCheck({
                 </div>
 
                 <Surface as="section" className="overflow-hidden">
-                    <div className="border-b p-4">
-                        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                            Limites em vigor agora
-                        </h2>
-                        <p className="text-xs text-muted-foreground">
-                            Valores lidos no exato processo que atendeu esta
-                            página — se algo aqui não bater com o que você
-                            configurou, o processo que está de pé (ex.:{' '}
-                            <code>php artisan serve</code>) ainda não foi
-                            reiniciado.
-                        </p>
-                    </div>
+                    <SurfaceHeader
+                        help={
+                            <>
+                                Valores lidos no exato processo que atendeu esta
+                                página — se algo aqui não bater com o que você
+                                configurou, o processo que está de pé (ex.:{' '}
+                                <code>php artisan serve</code>) ainda não foi
+                                reiniciado.
+                            </>
+                        }
+                    >
+                        <SurfaceTitle>Limites em vigor agora</SurfaceTitle>
+                    </SurfaceHeader>
                     <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
                         {Object.entries(ini).map(([directive, check]) => (
                             <div
@@ -196,7 +200,7 @@ export default function SystemCheck({
                                 <p className="text-xs text-muted-foreground">
                                     {iniLabels[directive] ?? directive}
                                 </p>
-                                <p className="mt-1 font-mono text-sm font-medium">
+                                <p className="mt-1 text-sm font-medium tabular-nums">
                                     {check.value || '—'}
                                 </p>
                             </div>
@@ -206,14 +210,12 @@ export default function SystemCheck({
 
                 <div className="grid gap-6 lg:grid-cols-2">
                     <Surface as="section" className="overflow-hidden">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Extensões do PHP
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
+                        <SurfaceHeader>
+                            <SurfaceTitle>Extensões do PHP</SurfaceTitle>
+                            <SurfaceDescription>
                                 Usadas diretamente pela aplicação.
-                            </p>
-                        </div>
+                            </SurfaceDescription>
+                        </SurfaceHeader>
                         <ul className="divide-y">
                             {extensions.map((extension) => (
                                 <li
@@ -221,7 +223,7 @@ export default function SystemCheck({
                                     className="flex items-center justify-between gap-3 p-4 text-sm"
                                 >
                                     <div className="min-w-0">
-                                        <p className="font-mono">
+                                        <p className="tabular-nums">
                                             {extension.name}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
@@ -235,22 +237,16 @@ export default function SystemCheck({
                     </Surface>
 
                     <Surface as="section" className="overflow-hidden">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Diretórios graváveis
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                Precisam de permissão de escrita para logs,
-                                cache, sessões e anexos.
-                            </p>
-                        </div>
+                        <SurfaceHeader help="Precisam de permissão de escrita para logs, cache, sessões e anexos.">
+                            <SurfaceTitle>Diretórios graváveis</SurfaceTitle>
+                        </SurfaceHeader>
                         <ul className="divide-y">
                             {writablePaths.map((path) => (
                                 <li
                                     key={path.label}
                                     className="flex items-center justify-between gap-3 p-4 text-sm"
                                 >
-                                    <span className="flex items-center gap-2 font-mono">
+                                    <span className="flex items-center gap-2 tabular-nums">
                                         <SsdRoundIcon className="size-4 text-muted-foreground" />
                                         {path.label}
                                     </span>
@@ -361,17 +357,13 @@ function UploadLimitTestCard({
 
     return (
         <Surface as="section" className="overflow-hidden">
-            <div className="border-b p-4">
-                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                    Teste real de upload
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                    Envie qualquer arquivo (não precisa ser um ZIP do TSE) para
-                    confirmar, na prática, até que tamanho o ambiente aceita
-                    agora. Limite atual: {uploadMaxFilesize} por arquivo,{' '}
-                    {postMaxSize} por requisição.
-                </p>
-            </div>
+            <SurfaceHeader help="Envie qualquer arquivo (não precisa ser um ZIP do TSE) para confirmar, na prática, até que tamanho o ambiente aceita agora.">
+                <SurfaceTitle>Teste real de upload</SurfaceTitle>
+                <SurfaceDescription>
+                    Limite atual: {uploadMaxFilesize} por arquivo, {postMaxSize}{' '}
+                    por requisição
+                </SurfaceDescription>
+            </SurfaceHeader>
             <div className="flex flex-col gap-3 p-4">
                 <AttachmentField
                     files={files}

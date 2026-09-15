@@ -17,6 +17,7 @@ import 'leaflet/dist/leaflet.css';
 // Precisa vir depois de leaflet.css para sobrescrever o balão padrão do
 // Leaflet com a aparência do app (ver resources/css/leaflet-popup.css).
 import '../../../css/leaflet-popup.css';
+import { PopupHeading } from './map-popup';
 
 function MapViewport({
     markers,
@@ -123,20 +124,26 @@ export default function ProspectingMapCanvas({
                         }}
                     >
                         <Popup>
-                            <div className="min-w-48 space-y-1">
-                                <strong className="block">{marker.name}</strong>
-                                <span className="block text-xs text-muted-foreground">
-                                    {[marker.address, marker.neighborhood]
-                                        .filter(Boolean)
-                                        .join(' — ') ||
-                                        'Endereço não informado'}
-                                </span>
-                                <Link
-                                    href={tenantUrl(`/cidadaos/${marker.id}`)}
-                                    className="inline-block pt-1 text-sm font-medium text-primary hover:underline"
-                                >
-                                    Abrir perfil
-                                </Link>
+                            <div className="w-64">
+                                <PopupHeading
+                                    title={marker.name}
+                                    subtitle={
+                                        [marker.address, marker.neighborhood]
+                                            .filter(Boolean)
+                                            .join(' · ') ||
+                                        'Endereço não informado'
+                                    }
+                                />
+                                <div className="border-t px-3 py-2">
+                                    <Link
+                                        href={tenantUrl(
+                                            `/cidadaos/${marker.id}`,
+                                        )}
+                                        className="text-xs font-medium text-primary hover:underline"
+                                    >
+                                        Abrir perfil
+                                    </Link>
+                                </div>
                             </div>
                         </Popup>
                     </CircleMarker>

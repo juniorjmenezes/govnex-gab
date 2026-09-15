@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -91,10 +92,11 @@ class PoliticalPanelController extends Controller
             ->paginate(PerPage::resolve($request, 18))
             ->withQueryString();
         $partyColors = PartidoCor::colorMap();
-        $candidates->getCollection()->each(function (CandidatoPolitico $candidate) use ($partyColors): void {
+        $candidates->getCollection()->each(function (CandidatoPolitico $candidate) use ($partyColors, $office): void {
             $candidate->party_color = $candidate->partido_sigla !== null
                 ? ($partyColors[PartidoCor::normalizeSigla($candidate->partido_sigla)] ?? null)
                 : null;
+            $candidate->is_holder = $candidate->id === $office->candidato_titular_id;
         });
 
         $latestElectorate = $office->municipio_eleitoral_id
@@ -126,6 +128,13 @@ class PoliticalPanelController extends Controller
             ->whereDate('primeiro_turno_em', '>=', today())
             ->orderBy('primeiro_turno_em')
             ->first();
+
+        // Eleição municipal já realizada muda o que o painel oferece: entra a
+        // apuração e sai a pesquisa de intenção de voto, que perdeu a função
+        // com o resultado publicado.
+        $concludedMunicipal = $selectedElection instanceof Eleicao
+            && $selectedElection->tipo === ElectionType::Municipal
+            && $selectedElection->primeiro_turno_em->lte(today());
 
         return Inertia::render('politics/index', [
             'elections' => $elections->map(fn (Eleicao $election): array => [
@@ -184,6 +193,9 @@ class PoliticalPanelController extends Controller
                         ->count()
                     : 0,
             ],
+            'municipalElection' => $concludedMunicipal
+                ? $this->municipalElectionResult($office, $selectedElection)
+                : null,
             'municipality' => [
                 'name' => $office->municipio,
                 'state' => $office->estado,
@@ -200,7 +212,7 @@ class PoliticalPanelController extends Controller
             ] : null,
             'serverNow' => now()->toIso8601String(),
             'canFavorite' => $user->role === UserRole::Councilor,
-            'polls' => $this->polls($office, $selectedElection),
+            'polls' => $concludedMunicipal ? null : $this->polls($office, $selectedElection),
             'sync' => [
                 // Datasets globais do TSE — sempre gravados com gabinete_id
                 // nulo (ver docblock de latestSync()).
@@ -218,6 +230,175 @@ class PoliticalPanelController extends Controller
                     : $this->latestSync('pollingdata_polls', $office->id),
             ],
         ]);
+    }
+
+    /**
+     * Apuração da eleição municipal escolhida no seletor. É a única visão
+     * que compara o titular com quem mais disputou — a lista de candidatos
+     * mostra nomes, não resultado.
+     *
+     * Devolve null quando não há o que resumir: gabinete sem município
+     * eleitoral vinculado, ou votação nominal daquele município ainda não
+     * sincronizada.
+     *
+     * @return array{
+     *     election: array{name: string, year: int, date: string},
+     *     turnout: array{eligible: int, voted: int, abstentions: int, percentage: float|null}|null,
+     *     candidates: int,
+     *     seats: int,
+     *     holder: array{name: string, party: string|null, number: string|null, votes: int, position: int, elected: bool, result_status: string|null}|null,
+     *     elected: list<array{position: int, name: string, party: string|null, party_color: string|null, number: string|null, votes: int, is_holder: bool}>,
+     *     parties: list<array{party: string, seats: int, votes: int, color: string|null}>,
+     * }|null
+     */
+    private function municipalElectionResult(Gabinete $office, Eleicao $election): ?array
+    {
+        if ($office->municipio_eleitoral_id === null) {
+            return null;
+        }
+
+        $votes = VotacaoCandidatoMunicipio::query()
+            ->with('candidato:id,nome,nome_urna,numero,partido_sigla,cargo')
+            ->where('municipio_eleitoral_id', $office->municipio_eleitoral_id)
+            ->where('eleicao_id', $election->id)
+            ->orderByDesc('votos_nominais')
+            ->get();
+
+        if ($votes->isEmpty()) {
+            return null;
+        }
+
+        // São duas disputas com leituras diferentes, e juntá-las num ranking
+        // só seria enganoso: prefeito é majoritária (vence quem tem mais voto,
+        // e quem decide é o último turno), vereador é proporcional (a cadeira
+        // não sai só do número de votos de cada candidato).
+        $mayorVotes = $votes
+            ->filter(fn (VotacaoCandidatoMunicipio $vote): bool => $this->isMayoralRace($vote))
+            ->values();
+        $decisiveRound = $mayorVotes->max('turno') ?? 1;
+        $mayorVotes = $mayorVotes->where('turno', $decisiveRound)->values();
+        $councilVotes = $votes
+            ->reject(fn (VotacaoCandidatoMunicipio $vote): bool => $this->isMayoralRace($vote))
+            ->where('turno', 1)
+            ->values();
+
+        $positions = [];
+        $position = 0;
+
+        foreach ($councilVotes as $vote) {
+            $position++;
+            $positions[$vote->candidato_politico_id] = $position;
+        }
+
+        $elected = $councilVotes->where('eleito', true)->values();
+        // Os derrotados mais votados: é onde se lê a concorrência real de quem
+        // ficou perto da cadeira. Limitado porque numa capital são milhares.
+        $runnersUp = $councilVotes->where('eleito', false)->take(10)->values();
+        $holderVote = $office->candidato_titular_id !== null
+            ? $councilVotes->firstWhere('candidato_politico_id', $office->candidato_titular_id)
+            : null;
+        $turnout = ComparecimentoEleitoralMunicipio::query()
+            ->where('municipio_eleitoral_id', $office->municipio_eleitoral_id)
+            ->where('eleicao_id', $election->id)
+            ->orderBy('turno')
+            ->first();
+
+        // Mesma cor que o partido tem no resto do painel (ver PartidoCor e
+        // /admin/cores-partidos); sem cor cadastrada fica o badge neutro.
+        $partyColors = PartidoCor::colorMap();
+        $colorFor = fn (?string $sigla): ?string => $sigla !== null
+            ? ($partyColors[PartidoCor::normalizeSigla($sigla)] ?? null)
+            : null;
+        $parties = [];
+
+        foreach ($elected as $vote) {
+            $sigla = $vote->candidato->partido_sigla;
+            $party = $sigla ?? 'Sem partido';
+            $parties[$party] ??= [
+                'party' => $party,
+                'seats' => 0,
+                'votes' => 0,
+                'color' => $colorFor($sigla),
+            ];
+            $parties[$party]['seats']++;
+            $parties[$party]['votes'] += $vote->votos_nominais;
+        }
+
+        $parties = array_values($parties);
+        usort(
+            $parties,
+            fn (array $a, array $b): int => [$b['seats'], $b['votes']] <=> [$a['seats'], $a['votes']],
+        );
+
+        return [
+            'election' => [
+                'name' => $election->nome,
+                'year' => $election->ano,
+                'date' => $election->primeiro_turno_em->toDateString(),
+            ],
+            'turnout' => $turnout instanceof ComparecimentoEleitoralMunicipio ? [
+                'eligible' => $turnout->eleitores_aptos,
+                'voted' => $turnout->comparecimento,
+                'abstentions' => $turnout->abstencoes,
+                'percentage' => $turnout->eleitores_aptos > 0
+                    ? round($turnout->comparecimento / $turnout->eleitores_aptos * 100, 2)
+                    : null,
+            ] : null,
+            'candidates' => $councilVotes->count(),
+            'seats' => $elected->count(),
+            'mayor' => $mayorVotes->isEmpty() ? null : [
+                'round' => $decisiveRound,
+                'candidates' => array_values($mayorVotes
+                    ->map(fn (VotacaoCandidatoMunicipio $vote, int $index): array => [
+                        'position' => $index + 1,
+                        'name' => $vote->candidato->nome_urna,
+                        'party' => $vote->candidato->partido_sigla,
+                        'party_color' => $colorFor($vote->candidato->partido_sigla),
+                        'number' => $vote->candidato->numero,
+                        'votes' => $vote->votos_nominais,
+                        'elected' => (bool) $vote->eleito,
+                    ])
+                    ->all()),
+            ],
+            'holder' => $holderVote instanceof VotacaoCandidatoMunicipio ? [
+                'name' => $holderVote->candidato->nome_urna,
+                'party' => $holderVote->candidato->partido_sigla,
+                'number' => $holderVote->candidato->numero,
+                'votes' => $holderVote->votos_nominais,
+                'position' => $positions[$holderVote->candidato_politico_id],
+                'elected' => (bool) $holderVote->eleito,
+                'result_status' => $holderVote->situacao_totalizacao,
+            ] : null,
+            'elected' => array_values($elected
+                ->map(fn (VotacaoCandidatoMunicipio $vote): array => [
+                    'position' => $positions[$vote->candidato_politico_id],
+                    'name' => $vote->candidato->nome_urna,
+                    'party' => $vote->candidato->partido_sigla,
+                    'party_color' => $colorFor($vote->candidato->partido_sigla),
+                    'number' => $vote->candidato->numero,
+                    'votes' => $vote->votos_nominais,
+                    'is_holder' => $vote->candidato_politico_id === $office->candidato_titular_id,
+                ])
+                ->all()),
+            'runners_up' => array_values($runnersUp
+                ->map(fn (VotacaoCandidatoMunicipio $vote): array => [
+                    'position' => $positions[$vote->candidato_politico_id],
+                    'name' => $vote->candidato->nome_urna,
+                    'party' => $vote->candidato->partido_sigla,
+                    'party_color' => $colorFor($vote->candidato->partido_sigla),
+                    'number' => $vote->candidato->numero,
+                    'votes' => $vote->votos_nominais,
+                    'is_holder' => $vote->candidato_politico_id === $office->candidato_titular_id,
+                ])
+                ->all()),
+            'parties' => $parties,
+        ];
+    }
+
+    /** Prefeito e vereador dividem a mesma tabela de votação nominal. */
+    private function isMayoralRace(VotacaoCandidatoMunicipio $vote): bool
+    {
+        return Str::ascii(mb_strtoupper($vote->candidato->cargo)) === 'PREFEITO';
     }
 
     public function favorite(Request $request, CandidatoPolitico $candidate): RedirectResponse
@@ -256,6 +437,18 @@ class PoliticalPanelController extends Controller
         );
         $office = Gabinete::query()->findOrFail($user->gabinete_id);
         $this->ensureCandidateIsVisible($candidate, $office);
+
+        // O titular é favorito por definição do vínculo do gabinete, não por
+        // escolha — desmarcá-lo desligaria a coleta de notícias e o destaque
+        // dele nas pesquisas do próprio gabinete.
+        if ($office->candidato_titular_id === $candidate->id) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'O titular do gabinete fica sempre nos favoritos.',
+            ]);
+
+            return back();
+        }
 
         CandidatoFavorito::query()
             ->where('candidato_politico_id', $candidate->id)

@@ -35,7 +35,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Surface, surfaceClasses } from '@/components/ui/surface';
+import {
+    Surface,
+    surfaceClasses,
+    SurfaceHeader,
+    SurfaceTitle,
+    SurfaceDescription,
+} from '@/components/ui/surface';
 import { Switch } from '@/components/ui/switch';
 import {
     Table,
@@ -170,7 +176,7 @@ function DistributionChart({ data }: { data: DashboardDatum[] }) {
                                         <span className="text-muted-foreground">
                                             Demandas
                                         </span>
-                                        <span className="ml-auto pl-4 font-mono font-medium tabular-nums">
+                                        <span className="ml-auto pl-4 font-medium tabular-nums">
                                             {datum.total.toLocaleString(
                                                 'pt-BR',
                                             )}
@@ -334,14 +340,9 @@ export default function ReportsIndex({
                     className={cn(surfaceClasses, 'overflow-hidden')}
                     aria-label="Filtros do relatório"
                 >
-                    <div className="border-b p-4">
-                        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                            Filtros do relatório
-                        </h2>
-                        <p className="text-xs text-muted-foreground">
-                            O período considera a data de abertura da demanda.
-                        </p>
-                    </div>
+                    <SurfaceHeader help="O período considera a data de abertura da demanda.">
+                        <SurfaceTitle>Filtros do relatório</SurfaceTitle>
+                    </SurfaceHeader>
                     <div className="p-4">
                         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                             <Label className="grid gap-1">
@@ -536,16 +537,14 @@ export default function ReportsIndex({
                 </section>
 
                 <Surface as="section" className="overflow-hidden">
-                    <div className="border-b p-4">
-                        <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                            Demandas do relatório
-                        </h2>
-                        <p className="text-xs text-muted-foreground">
+                    <SurfaceHeader>
+                        <SurfaceTitle>Demandas do relatório</SurfaceTitle>
+                        <SurfaceDescription>
                             {summary.total} registro
                             {summary.total === 1 ? '' : 's'} encontrado
                             {summary.total === 1 ? '' : 's'}
-                        </p>
-                    </div>
+                        </SurfaceDescription>
+                    </SurfaceHeader>
                     {demands.data.length === 0 ? (
                         <EmptyState
                             icon={ChartIcon}
@@ -574,9 +573,10 @@ export default function ReportsIndex({
                                                         href={tenantUrl(
                                                             `/demandas/${demand.id}`,
                                                         )}
-                                                        className="font-normal hover:underline"
+                                                        className="line-clamp-2 font-normal hover:underline"
+                                                        title={demand.title}
                                                     >
-                                                        <span className="font-mono">
+                                                        <span className="tabular-nums">
                                                             {demand.protocol}
                                                         </span>{' '}
                                                         · {demand.title}
@@ -633,10 +633,13 @@ export default function ReportsIndex({
                                         className="block space-y-3 px-5 py-4 hover:bg-muted/40"
                                     >
                                         <div>
-                                            <p className="font-mono text-sm text-muted-foreground">
+                                            <p className="text-sm text-muted-foreground tabular-nums">
                                                 {demand.protocol}
                                             </p>
-                                            <p className="mt-1 font-medium">
+                                            <p
+                                                className="mt-1 line-clamp-2 font-medium"
+                                                title={demand.title}
+                                            >
                                                 {demand.title}
                                             </p>
                                         </div>
@@ -667,14 +670,12 @@ export default function ReportsIndex({
 
                 <div className="grid gap-6">
                     <Surface as="section" className="overflow-hidden">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Evolução mensal
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
+                        <SurfaceHeader>
+                            <SurfaceTitle>Evolução mensal</SurfaceTitle>
+                            <SurfaceDescription>
                                 Demandas abertas no período
-                            </p>
-                        </div>
+                            </SurfaceDescription>
+                        </SurfaceHeader>
                         <div
                             className="h-72 p-4"
                             aria-label="Gráfico da evolução mensal"
@@ -758,7 +759,7 @@ export default function ReportsIndex({
                                                         <span className="text-muted-foreground">
                                                             Demandas
                                                         </span>
-                                                        <span className="ml-auto pl-4 font-mono font-medium tabular-nums">
+                                                        <span className="ml-auto pl-4 font-medium tabular-nums">
                                                             {datum.total.toLocaleString(
                                                                 'pt-BR',
                                                             )}
@@ -788,19 +789,17 @@ export default function ReportsIndex({
                     </Surface>
 
                     <Surface as="section" className="overflow-hidden">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Distribuição
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
+                        <SurfaceHeader>
+                            <SurfaceTitle>Distribuição</SurfaceTitle>
+                            <SurfaceDescription>
                                 Demandas por{' '}
                                 {distributionOptions
                                     .find(
                                         (option) => option.key === distribution,
                                     )
                                     ?.label.toLowerCase()}
-                            </p>
-                        </div>
+                            </SurfaceDescription>
+                        </SurfaceHeader>
                         <div className="p-4">
                             <div
                                 className="mb-4 flex flex-wrap gap-1"
@@ -831,14 +830,12 @@ export default function ReportsIndex({
 
                 <div className="grid gap-6 xl:grid-cols-2">
                     <Surface as="section" className="overflow-hidden">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Produtividade da equipe
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
+                        <SurfaceHeader>
+                            <SurfaceTitle>Produtividade da equipe</SurfaceTitle>
+                            <SurfaceDescription>
                                 Volume atribuído e resolvido no período
-                            </p>
-                        </div>
+                            </SurfaceDescription>
+                        </SurfaceHeader>
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -891,14 +888,14 @@ export default function ReportsIndex({
                     </Surface>
 
                     <Surface as="section" className="overflow-hidden">
-                        <div className="border-b p-4">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                        <SurfaceHeader>
+                            <SurfaceTitle>
                                 Encaminhamentos aguardando
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
+                            </SurfaceTitle>
+                            <SurfaceDescription>
                                 Ordenados pelo prazo de resposta
-                            </p>
-                        </div>
+                            </SurfaceDescription>
+                        </SurfaceHeader>
                         {waitingReferrals.length === 0 ? (
                             <div className="px-5 py-12 text-center text-sm text-muted-foreground">
                                 Nenhum encaminhamento aguardando resposta.
@@ -920,7 +917,7 @@ export default function ReportsIndex({
                                                     {referral.recipient}
                                                 </p>
                                                 <p className="mt-1 truncate text-xs text-muted-foreground">
-                                                    <span className="font-mono">
+                                                    <span className="tabular-nums">
                                                         {
                                                             referral.demand
                                                                 ?.protocol
@@ -946,30 +943,27 @@ export default function ReportsIndex({
                 </div>
 
                 <Surface as="section" className="overflow-hidden">
-                    <div className="flex items-center justify-between gap-4 border-b p-4">
-                        <div>
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Exportações recentes
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                Arquivos privados expiram sete dias após a
-                                geração
-                            </p>
-                        </div>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                                router.reload({
-                                    only: ['exports'],
-                                })
-                            }
-                        >
-                            <RefreshIcon aria-hidden="true" />
-                            Atualizar
-                        </Button>
-                    </div>
+                    <SurfaceHeader
+                        help="Arquivos privados expiram sete dias após a geração"
+                        actions={
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="shrink-0"
+                                onClick={() =>
+                                    router.reload({
+                                        only: ['exports'],
+                                    })
+                                }
+                            >
+                                <RefreshIcon aria-hidden="true" />
+                                Atualizar
+                            </Button>
+                        }
+                    >
+                        <SurfaceTitle>Exportações recentes</SurfaceTitle>
+                    </SurfaceHeader>
                     {exports.length === 0 ? (
                         <div className="px-5 py-12 text-center text-sm text-muted-foreground">
                             Nenhuma exportação solicitada.

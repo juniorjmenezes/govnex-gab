@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Surface } from '@/components/ui/surface';
+import { Surface, SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 
 type Entidade = {
     id: number;
@@ -81,11 +81,9 @@ export default function EntidadeTransferShow({
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
                     <div className="flex flex-col gap-6">
                         <Surface as="section" className="overflow-hidden">
-                            <div className="border-b p-4">
-                                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                    Aprovações
-                                </h2>
-                            </div>
+                            <SurfaceHeader>
+                                <SurfaceTitle>Aprovações</SurfaceTitle>
+                            </SurfaceHeader>
                             <dl className="grid gap-4 p-4 text-sm sm:grid-cols-3">
                                 <div>
                                     <dt className="text-muted-foreground">
@@ -119,11 +117,9 @@ export default function EntidadeTransferShow({
                         </Surface>
 
                         <Surface as="section" className="overflow-hidden">
-                            <div className="border-b p-4">
-                                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                    Histórico
-                                </h2>
-                            </div>
+                            <SurfaceHeader>
+                                <SurfaceTitle>Histórico</SurfaceTitle>
+                            </SurfaceHeader>
                             <ol className="flex flex-col gap-4 p-4">
                                 {transfer.events.map((event) => {
                                     const EventIcon =
@@ -178,15 +174,15 @@ export default function EntidadeTransferShow({
                     <aside className="flex flex-col gap-6">
                         {(canAccept || canCancel || canReject) && (
                             <Surface as="section" className="overflow-hidden">
-                                <div className="border-b p-4">
-                                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                                <SurfaceHeader>
+                                    <SurfaceTitle>
                                         {canAccept
                                             ? 'Aceite do destino'
                                             : canCancel
                                               ? 'Cancelar'
                                               : 'Recusar'}
-                                    </h2>
-                                </div>
+                                    </SurfaceTitle>
+                                </SurfaceHeader>
                                 <div className="flex flex-col gap-4 p-4">
                                     {canAccept && (
                                         <Button
@@ -250,11 +246,11 @@ export default function EntidadeTransferShow({
 
                         {canApprove && (
                             <Surface as="section" className="overflow-hidden">
-                                <div className="border-b p-4">
-                                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                                <SurfaceHeader>
+                                    <SurfaceTitle>
                                         Aprovação da plataforma
-                                    </h2>
-                                </div>
+                                    </SurfaceTitle>
+                                </SurfaceHeader>
                                 <div className="p-4">
                                     <Button
                                         className="w-full"
@@ -272,11 +268,11 @@ export default function EntidadeTransferShow({
 
                         {transfer.closing_reason && (
                             <Surface as="section" className="overflow-hidden">
-                                <div className="border-b p-4">
-                                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                                <SurfaceHeader>
+                                    <SurfaceTitle>
                                         Motivo do encerramento
-                                    </h2>
-                                </div>
+                                    </SurfaceTitle>
+                                </SurfaceHeader>
                                 <p className="p-4 text-sm text-muted-foreground">
                                     {transfer.closing_reason}
                                 </p>

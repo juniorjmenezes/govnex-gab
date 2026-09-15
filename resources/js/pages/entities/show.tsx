@@ -26,7 +26,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Surface } from '@/components/ui/surface';
+import {
+    Surface,
+    SurfaceHeader,
+    SurfaceTitle,
+    SurfaceDescription,
+} from '@/components/ui/surface';
 import { Switch } from '@/components/ui/switch';
 import {
     Tooltip,
@@ -286,43 +291,42 @@ export default function EntidadeShow({
                 />
 
                 <Surface as="section" className="overflow-hidden">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-                        <div className="min-w-0">
-                            <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                Gabinetes
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                Selecione onde deseja trabalhar
-                            </p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                            <Badge variant="outline">
-                                {gabinetesQuery === ''
-                                    ? gabinetes.length
-                                    : `${filteredGabinetes.length}/${gabinetes.length}`}
-                            </Badge>
-                            {canManage && (
-                                <Button variant="outline" size="sm" asChild>
-                                    <Link
-                                        href={`/entidades/${entidade.slug}/transferencias`}
-                                    >
-                                        <TransferHorizontalIcon className="size-4" />
-                                        Transferências
-                                    </Link>
-                                </Button>
-                            )}
-                            {canCreateGabinete && (
-                                <Button size="sm" asChild>
-                                    <Link
-                                        href={`/admin/gabinetes/novo?entidade=${entidade.id}`}
-                                    >
-                                        <AddIcon className="size-4" />
-                                        Novo gabinete
-                                    </Link>
-                                </Button>
-                            )}
-                        </div>
-                    </div>
+                    <SurfaceHeader
+                        actions={
+                            <div className="flex shrink-0 items-center gap-2">
+                                <Badge variant="outline">
+                                    {gabinetesQuery === ''
+                                        ? gabinetes.length
+                                        : `${filteredGabinetes.length}/${gabinetes.length}`}
+                                </Badge>
+                                {canManage && (
+                                    <Button variant="outline" size="sm" asChild>
+                                        <Link
+                                            href={`/entidades/${entidade.slug}/transferencias`}
+                                        >
+                                            <TransferHorizontalIcon className="size-4" />
+                                            Transferências
+                                        </Link>
+                                    </Button>
+                                )}
+                                {canCreateGabinete && (
+                                    <Button size="sm" asChild>
+                                        <Link
+                                            href={`/admin/gabinetes/novo?entidade=${entidade.id}`}
+                                        >
+                                            <AddIcon className="size-4" />
+                                            Novo gabinete
+                                        </Link>
+                                    </Button>
+                                )}
+                            </div>
+                        }
+                    >
+                        <SurfaceTitle>Gabinetes</SurfaceTitle>
+                        <SurfaceDescription>
+                            Selecione onde deseja trabalhar
+                        </SurfaceDescription>
+                    </SurfaceHeader>
                     <div className="flex items-center gap-2 border-b p-4">
                         <div className="relative min-w-52 flex-1">
                             <MagnifierIcon
@@ -442,11 +446,9 @@ export default function EntidadeShow({
                 {canManage && (
                     <>
                         <Surface as="section" className="overflow-hidden">
-                            <div className="border-b p-4">
-                                <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-                                    Integrantes
-                                </h2>
-                            </div>
+                            <SurfaceHeader>
+                                <SurfaceTitle>Integrantes</SurfaceTitle>
+                            </SurfaceHeader>
                             <form
                                 className="grid gap-4 border-b p-4 sm:grid-cols-2"
                                 onSubmit={sendInvitation}
@@ -584,15 +586,11 @@ export default function EntidadeShow({
 
                         {canManageModules && (
                             <Surface as="section" className="overflow-hidden">
-                                <div className="border-b p-4">
-                                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                                <SurfaceHeader help="A licença precisa contratar o módulo antes de ele poder ser ativado.">
+                                    <SurfaceTitle>
                                         Módulos da entidade
-                                    </h2>
-                                    <p className="text-xs text-muted-foreground">
-                                        A licença precisa contratar o módulo
-                                        antes de ele poder ser ativado.
-                                    </p>
-                                </div>
+                                    </SurfaceTitle>
+                                </SurfaceHeader>
                                 <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
                                     {moduleCatalog.map((module) => (
                                         <div
@@ -626,11 +624,11 @@ export default function EntidadeShow({
 
                         <div className="grid gap-6 lg:grid-cols-2">
                             <Surface as="section" className="overflow-hidden">
-                                <div className="border-b p-4">
-                                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                                <SurfaceHeader>
+                                    <SurfaceTitle>
                                         Identidade visual
-                                    </h2>
-                                </div>
+                                    </SurfaceTitle>
+                                </SurfaceHeader>
                                 <form
                                     className="space-y-4 p-4"
                                     onSubmit={saveSettings}
@@ -792,16 +790,11 @@ export default function EntidadeShow({
                             </Surface>
 
                             <Surface as="section" className="overflow-hidden">
-                                <div className="border-b p-4">
-                                    <h2 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+                                <SurfaceHeader help="Catálogo público compartilhado pelos gabinetes. Cidadãos e rotinas permanecem privados em cada gabinete.">
+                                    <SurfaceTitle>
                                         Referências territoriais
-                                    </h2>
-                                    <p className="text-xs text-muted-foreground">
-                                        Catálogo público compartilhado pelos
-                                        gabinetes. Cidadãos e rotinas permanecem
-                                        privados em cada gabinete.
-                                    </p>
-                                </div>
+                                    </SurfaceTitle>
+                                </SurfaceHeader>
                                 <div className="p-4">
                                     <form
                                         className="flex flex-col gap-3 sm:flex-row"

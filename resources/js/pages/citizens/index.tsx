@@ -7,15 +7,16 @@ import { EmptyState } from '@/components/feedback/empty-state';
 import {
     AddIcon,
     CloseIcon,
+    DislikeIcon,
     HeartBoldIcon,
     HeartIcon as HeartOutlineIcon,
+    LikeIcon,
     MagnifierIcon,
     PenIcon,
     UsersGroupRoundedIcon,
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
@@ -197,17 +198,11 @@ export default function CitizensIndex({
                                                     'Não informado'}
                                             </TableCell>
                                             <TableCell>
-                                                <Badge
-                                                    variant={
+                                                <ConsentMark
+                                                    authorized={
                                                         citizen.consentimento_contato
-                                                            ? 'default'
-                                                            : 'secondary'
                                                     }
-                                                >
-                                                    {citizen.consentimento_contato
-                                                        ? 'Autorizado'
-                                                        : 'Não autorizado'}
-                                                </Badge>
+                                                />
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex justify-end gap-2">
@@ -248,6 +243,30 @@ export default function CitizensIndex({
                 </Surface>
             </PageContainer>
         </>
+    );
+}
+
+/**
+ * Consentimento de contato como ícone: polegar para cima na cor do gabinete
+ * quando autorizado, para baixo em cinza quando não. O texto fica no title
+ * (hover) e em sr-only, para leitores de tela.
+ */
+function ConsentMark({ authorized }: { authorized: boolean }) {
+    const label = authorized ? 'Contato autorizado' : 'Contato não autorizado';
+    const Icon = authorized ? LikeIcon : DislikeIcon;
+
+    return (
+        <span className="inline-flex" title={label}>
+            <Icon
+                className={
+                    authorized
+                        ? 'size-4 text-primary'
+                        : 'size-4 text-muted-foreground'
+                }
+                aria-hidden="true"
+            />
+            <span className="sr-only">{label}</span>
+        </span>
     );
 }
 
