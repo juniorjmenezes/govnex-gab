@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\ContextoAcessoEvento;
 use App\Models\Gabinete;
+use App\Models\GabineteMembro;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\RedirectResponse;
@@ -24,6 +25,15 @@ class RedirectLegacyTenantRoute
             ?? $this->resolveLegacyUnit($user);
 
         if ($gabinete === null) {
+            // Conta ligada a um gabinete que não aceita mais esta pessoa e sem
+            // outro vínculo ativo: o diretório de entidades mostra o que ainda
+            // está disponível, em vez de um 403 logo após o login.
+            if ($user->gabinete_id !== null && ! $user->isRoot()) {
+                return redirect()->route('entidades.index')->withErrors([
+                    'gabinete' => 'Você não possui mais acesso ao gabinete de origem. Selecione outro contexto.',
+                ]);
+            }
+
             return $next($request);
         }
 
@@ -109,15 +119,42 @@ class RedirectLegacyTenantRoute
         return $gabinete;
     }
 
+    /**
+     * users.gabinete_id é gravado na criação da conta e não acompanha os
+     * vínculos. Vale enquanto a pessoa ainda tiver acesso a esse gabinete;
+     * senão, entra no vínculo ativo mais antigo.
+     */
     private function resolveLegacyUnit(User $user): ?Gabinete
     {
         if ($user->gabinete_id === null) {
             return null;
         }
 
-        return Gabinete::withoutGlobalScopes()
+        $origin = Gabinete::withoutGlobalScopes()
             ->with('entidade')
             ->find($user->gabinete_id);
+
+        if ($user->isRoot() || ($origin !== null && $this->isAvailableTo($origin, $user))) {
+            return $origin;
+        }
+
+        return GabineteMembro::query()
+            ->where('usuario_id', $user->id)
+            ->where('ativo', true)
+            ->when($origin !== null, fn ($query) => $query->where('gabinete_id', '!=', $origin->id))
+            ->orderBy('ingressou_em')
+            ->orderBy('id')
+            ->pluck('gabinete_id')
+            ->map(fn (int $id): ?Gabinete => Gabinete::withoutGlobalScopes()->with('entidade')->find($id))
+            ->first(fn (?Gabinete $gabinete): bool => $gabinete !== null && $this->isAvailableTo($gabinete, $user));
+    }
+
+    private function isAvailableTo(Gabinete $gabinete, User $user): bool
+    {
+        return $gabinete->isActive()
+            && $gabinete->entidade?->isActive() === true
+            && $user->canAccessEntidade($gabinete->entidade_id)
+            && $user->canAccessGabinete($gabinete->id);
     }
 
     private function audit(Request $request, User $user, Gabinete $gabinete, string $target): void

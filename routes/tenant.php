@@ -44,6 +44,7 @@ $registerTenantRoutes = static function (): void {
 
     Route::middleware('module:AGENDA')->group(function () {
         Route::get('agenda', [AppointmentController::class, 'index'])->name('appointments.index');
+        Route::get('agenda/novo', [AppointmentController::class, 'create'])->name('appointments.create');
         Route::post('agenda', [AppointmentController::class, 'store'])->name('appointments.store');
         Route::put('agenda/{appointment}', [AppointmentController::class, 'update'])->name('appointments.update');
         Route::patch('agenda/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('appointments.status');

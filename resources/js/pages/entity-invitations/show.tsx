@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Surface } from '@/components/ui/surface';
+import { checkRequiredFields } from '@/lib/required-fields';
 import type { Auth } from '@/types';
 
 type Invitation = {
@@ -34,6 +35,18 @@ export default function InvitationShow({
     };
     const submit = (event: FormEvent) => {
         event.preventDefault();
+
+        if (
+            !invitation.existing_user &&
+            !checkRequiredFields(form.data, form, {
+                name: 'Informe seu nome.',
+                password: 'Informe uma senha.',
+                password_confirmation: 'Confirme a senha.',
+            })
+        ) {
+            return;
+        }
+
         form.post(`/convites/entidade/${encodeURIComponent(credential)}`);
     };
 
@@ -62,7 +75,7 @@ export default function InvitationShow({
                         </Button>
                     </div>
                 ) : (
-                    <form className="space-y-4" onSubmit={submit}>
+                    <form noValidate className="space-y-4" onSubmit={submit}>
                         {!invitation.existing_user && (
                             <>
                                 <div>
@@ -76,7 +89,7 @@ export default function InvitationShow({
                                                 event.target.value,
                                             )
                                         }
-                                        required
+                                        aria-required="true"
                                     />
                                     <InputError message={form.errors.name} />
                                 </div>
@@ -93,7 +106,7 @@ export default function InvitationShow({
                                                 event.target.value,
                                             )
                                         }
-                                        required
+                                        aria-required="true"
                                     />
                                     <InputError
                                         message={form.errors.password}
@@ -114,7 +127,12 @@ export default function InvitationShow({
                                                 event.target.value,
                                             )
                                         }
-                                        required
+                                        aria-required="true"
+                                    />
+                                    <InputError
+                                        message={
+                                            form.errors.password_confirmation
+                                        }
                                     />
                                 </div>
                             </>

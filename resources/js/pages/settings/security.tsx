@@ -1,15 +1,18 @@
 import { Form, Head } from '@inertiajs/react';
 import { useRef } from 'react';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
-import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
+import { FieldError } from '@/components/forms/field-error';
 import type { Props as ManagePasskeysProps } from '@/components/manage-passkeys';
 import ManagePasskeys from '@/components/manage-passkeys';
 import type { Props as ManageTwoFactorProps } from '@/components/manage-two-factor';
 import ManageTwoFactor from '@/components/manage-two-factor';
 import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
+import { checkRequiredFormFields } from '@/lib/required-fields';
+import type { InertiaFormRef } from '@/lib/required-fields';
 import { edit } from '@/routes/security';
 
 type Props = {
@@ -20,22 +23,27 @@ type Props = {
 export default function Security(props: Props) {
     const passwordInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
+    const formRef = useRef<InertiaFormRef>(null);
 
     return (
         <>
             <Head title="Segurança" />
 
-            <h1 className="sr-only">Segurança</h1>
-
-            <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Atualizar senha"
-                    description="Use uma senha longa e exclusiva para manter sua conta protegida"
-                />
-
+            <Card className="gap-0 py-0">
+                <SurfaceHeader help="Use uma senha longa e exclusiva para manter sua conta protegida.">
+                    <SurfaceTitle>Alterar senha</SurfaceTitle>
+                </SurfaceHeader>
                 <Form
+                    noValidate
                     {...SecurityController.update.form()}
+                    ref={formRef}
+                    onBefore={() =>
+                        checkRequiredFormFields(formRef.current, {
+                            current_password: 'Informe a senha atual.',
+                            password: 'Informe a nova senha.',
+                            password_confirmation: 'Confirme a nova senha.',
+                        })
+                    }
                     options={{
                         preserveScroll: true,
                     }}
@@ -54,74 +62,76 @@ export default function Security(props: Props) {
                             currentPasswordInput.current?.focus();
                         }
                     }}
-                    className="space-y-6"
                 >
                     {({ errors, processing }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="current_password">
-                                    Senha atual
-                                </Label>
+                            <div className="grid gap-5 p-5 md:grid-cols-3">
+                                <div className="space-y-1">
+                                    <Label htmlFor="current_password">
+                                        Senha atual{' '}
+                                        <span aria-hidden="true">*</span>
+                                    </Label>
+                                    <PasswordInput
+                                        id="current_password"
+                                        ref={currentPasswordInput}
+                                        name="current_password"
+                                        autoComplete="current-password"
+                                        placeholder="Senha atual"
+                                        aria-required="true"
+                                    />
+                                    <FieldError
+                                        message={errors.current_password}
+                                    />
+                                </div>
 
-                                <PasswordInput
-                                    id="current_password"
-                                    ref={currentPasswordInput}
-                                    name="current_password"
-                                    className="mt-1 block w-full"
-                                    autoComplete="current-password"
-                                    placeholder="Senha atual"
-                                />
+                                <div className="space-y-1">
+                                    <Label htmlFor="password">
+                                        Nova senha{' '}
+                                        <span aria-hidden="true">*</span>
+                                    </Label>
+                                    <PasswordInput
+                                        id="password"
+                                        ref={passwordInput}
+                                        name="password"
+                                        autoComplete="new-password"
+                                        placeholder="Nova senha"
+                                        aria-required="true"
+                                        passwordrules={props.passwordRules}
+                                    />
+                                    <FieldError message={errors.password} />
+                                </div>
 
-                                <InputError message={errors.current_password} />
+                                <div className="space-y-1">
+                                    <Label htmlFor="password_confirmation">
+                                        Confirmar nova senha{' '}
+                                        <span aria-hidden="true">*</span>
+                                    </Label>
+                                    <PasswordInput
+                                        id="password_confirmation"
+                                        name="password_confirmation"
+                                        autoComplete="new-password"
+                                        placeholder="Confirmar nova senha"
+                                        aria-required="true"
+                                        passwordrules={props.passwordRules}
+                                    />
+                                    <FieldError
+                                        message={errors.password_confirmation}
+                                    />
+                                </div>
                             </div>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="password">Nova senha</Label>
-
-                                <PasswordInput
-                                    id="password"
-                                    ref={passwordInput}
-                                    name="password"
-                                    className="mt-1 block w-full"
-                                    autoComplete="new-password"
-                                    placeholder="Nova senha"
-                                    passwordrules={props.passwordRules}
-                                />
-
-                                <InputError message={errors.password} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="password_confirmation">
-                                    Confirmar nova senha
-                                </Label>
-
-                                <PasswordInput
-                                    id="password_confirmation"
-                                    name="password_confirmation"
-                                    className="mt-1 block w-full"
-                                    autoComplete="new-password"
-                                    placeholder="Confirmar nova senha"
-                                    passwordrules={props.passwordRules}
-                                />
-
-                                <InputError
-                                    message={errors.password_confirmation}
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-4">
+                            <div className="flex justify-end gap-2 border-t p-4">
                                 <Button
                                     disabled={processing}
                                     data-test="update-password-button"
                                 >
-                                    Salvar
+                                    Salvar senha
                                 </Button>
                             </div>
                         </>
                     )}
                 </Form>
-            </div>
+            </Card>
 
             <ManageTwoFactor
                 canManageTwoFactor={props.canManageTwoFactor}

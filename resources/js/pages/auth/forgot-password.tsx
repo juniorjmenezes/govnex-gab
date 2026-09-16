@@ -1,15 +1,20 @@
 // Components
 import { Form, Head } from '@inertiajs/react';
+import { useRef } from 'react';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { checkRequiredFormFields } from '@/lib/required-fields';
+import type { InertiaFormRef } from '@/lib/required-fields';
 import { login } from '@/routes';
 import { email } from '@/routes/password';
 
 export default function ForgotPassword({ status }: { status?: string }) {
+    const formRef = useRef<InertiaFormRef>(null);
+
     return (
         <>
             <Head title="Recuperar senha" />
@@ -21,7 +26,16 @@ export default function ForgotPassword({ status }: { status?: string }) {
             )}
 
             <div className="space-y-6">
-                <Form {...email.form()}>
+                <Form
+                    noValidate
+                    {...email.form()}
+                    ref={formRef}
+                    onBefore={() =>
+                        checkRequiredFormFields(formRef.current, {
+                            email: 'Informe o e-mail.',
+                        })
+                    }
+                >
                     {({ processing, errors }) => (
                         <>
                             <div className="grid gap-2">
@@ -33,6 +47,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                                     type="email"
                                     name="email"
                                     autoComplete="off"
+                                    aria-required="true"
                                     autoFocus
                                     placeholder="nome@gabinete.gov.br"
                                 />

@@ -142,59 +142,98 @@ class AppointmentController extends Controller
                 'demands' => $demandsEnabled,
                 'whatsapp' => $whatsAppEnabled,
             ],
-            'options' => [
-                'statuses' => $this->enumOptions(AppointmentStatus::cases()),
-                'recurrences' => $this->enumOptions(AppointmentRecurrence::cases()),
-                'channels' => $this->enumOptions(ReminderChannel::cases()),
-                'members' => User::query()
-                    ->where('gabinete_id', $user->gabinete_id)
-                    ->where('role', '!=', UserRole::Root)
-                    ->where('is_active', true)
-                    ->select(['id', 'name'])
-                    ->with('whatsappContact')
-                    ->orderBy('name')
-                    ->get()
-                    ->map(function (User $member): array {
-                        $evaluation = $member->whatsappContact
-                            ? app(WhatsAppEligibilityService::class)->evaluate(
-                                $member->whatsappContact,
-                                WhatsAppPurpose::AppointmentStaffReminder,
-                            )
-                            : ['eligible' => false];
+            'options' => $this->formOptions($user, $demandsEnabled),
+        ]);
+    }
 
-                        return ['id' => $member->id, 'name' => $member->name, 'whatsapp_ready' => $evaluation['eligible']];
-                    }),
-                'citizens' => Cidadao::query()
-                    ->select(['id', 'nome', 'whatsapp', 'consentimento_contato'])
-                    ->with('whatsappContact')
-                    ->orderBy('nome')
+    /**
+     * Novo compromisso em página própria (/agenda/novo): o formulário tem
+     * participantes, recorrência e lembretes — campos demais para um modal.
+     */
+    public function create(Request $request, GabineteModuleManager $modules): Response
+    {
+        $this->authorize('create', Appointment::class);
+        $user = $request->user();
+        abort_unless($user instanceof User && $user->gabinete_id !== null, 403);
+
+        $timezone = $user->gabinete->timezone ?? 'America/Sao_Paulo';
+        $today = CarbonImmutable::now($timezone)->toDateString();
+        $date = $this->date($request->string('data')->toString())->toDateString();
+        $demandsEnabled = $modules->isActive($user->gabinete_id, GabineteModule::Demands);
+        $whatsAppEnabled = $modules->isActive($user->gabinete_id, GabineteModule::WhatsApp);
+
+        return Inertia::render('appointments/create', [
+            'today' => $today,
+            'defaults' => ['date' => max($date, $today)],
+            'whatsappSimulated' => (bool) config('services.whatsapp.simulated', true)
+                && $whatsAppEnabled,
+            'whatsappRealEnabled' => config('whatsapp.driver') === 'gateway'
+                && (bool) config('whatsapp.real_enabled')
+                && $whatsAppEnabled,
+            'capabilities' => [
+                'events' => $modules->isActive($user->gabinete_id, GabineteModule::Events),
+                'demands' => $demandsEnabled,
+                'whatsapp' => $whatsAppEnabled,
+            ],
+            'options' => $this->formOptions($user, $demandsEnabled),
+        ]);
+    }
+
+    /** @return array<string, mixed> Listas que alimentam o formulário de compromisso. */
+    private function formOptions(User $user, bool $demandsEnabled): array
+    {
+        return [
+            'statuses' => $this->enumOptions(AppointmentStatus::cases()),
+            'recurrences' => $this->enumOptions(AppointmentRecurrence::cases()),
+            'channels' => $this->enumOptions(ReminderChannel::cases()),
+            'members' => User::query()
+                ->where('gabinete_id', $user->gabinete_id)
+                ->where('role', '!=', UserRole::Root)
+                ->where('is_active', true)
+                ->select(['id', 'name'])
+                ->with('whatsappContact')
+                ->orderBy('name')
+                ->get()
+                ->map(function (User $member): array {
+                    $evaluation = $member->whatsappContact
+                        ? app(WhatsAppEligibilityService::class)->evaluate(
+                            $member->whatsappContact,
+                            WhatsAppPurpose::AppointmentStaffReminder,
+                        )
+                        : ['eligible' => false];
+
+                    return ['id' => $member->id, 'name' => $member->name, 'whatsapp_ready' => $evaluation['eligible']];
+                }),
+            'citizens' => Cidadao::query()
+                ->select(['id', 'nome', 'whatsapp', 'consentimento_contato'])
+                ->with('whatsappContact')
+                ->orderBy('nome')
+                ->limit(300)
+                ->get()
+                ->map(function (Cidadao $citizen): array {
+                    $evaluation = $citizen->whatsappContact
+                        ? app(WhatsAppEligibilityService::class)->evaluate(
+                            $citizen->whatsappContact,
+                            WhatsAppPurpose::AppointmentCitizenReminder,
+                        )
+                        : ['eligible' => false];
+
+                    return [
+                        'id' => $citizen->id,
+                        'nome' => $citizen->nome,
+                        'whatsapp' => $citizen->whatsapp,
+                        'consentimento_contato' => $citizen->consentimento_contato,
+                        'whatsapp_ready' => $evaluation['eligible'],
+                    ];
+                }),
+            'demands' => $demandsEnabled
+                ? Demanda::query()
+                    ->select(['id', 'protocolo', 'titulo'])
+                    ->latest('aberta_em')
                     ->limit(300)
                     ->get()
-                    ->map(function (Cidadao $citizen): array {
-                        $evaluation = $citizen->whatsappContact
-                            ? app(WhatsAppEligibilityService::class)->evaluate(
-                                $citizen->whatsappContact,
-                                WhatsAppPurpose::AppointmentCitizenReminder,
-                            )
-                            : ['eligible' => false];
-
-                        return [
-                            'id' => $citizen->id,
-                            'nome' => $citizen->nome,
-                            'whatsapp' => $citizen->whatsapp,
-                            'consentimento_contato' => $citizen->consentimento_contato,
-                            'whatsapp_ready' => $evaluation['eligible'],
-                        ];
-                    }),
-                'demands' => $demandsEnabled
-                    ? Demanda::query()
-                        ->select(['id', 'protocolo', 'titulo'])
-                        ->latest('aberta_em')
-                        ->limit(300)
-                        ->get()
-                    : [],
-            ],
-        ]);
+                : [],
+        ];
     }
 
     public function store(AppointmentRequest $request, SaveAppointment $action): RedirectResponse

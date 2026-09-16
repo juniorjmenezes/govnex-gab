@@ -1,15 +1,16 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import { VoterMark } from '@/components/citizens/voter-mark';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import { TableActionButton } from '@/components/common/table-action-button';
 import { EmptyState } from '@/components/feedback/empty-state';
+import { DatePicker } from '@/components/forms/date-picker';
 import {
     AddIcon,
     CloseIcon,
     EyeIcon,
     HandShakeIcon,
-    HeartBoldIcon,
     MagnifierIcon,
     PenIcon,
 } from '@/components/icons';
@@ -145,17 +146,15 @@ export default function AttendancesIndex({
                             aria-label="Filtrar por atendente"
                             className="w-52"
                         />
-                        <Input
-                            type="date"
+                        <DatePicker
                             value={from}
-                            onChange={(event) => setFrom(event.target.value)}
+                            onChange={setFrom}
                             aria-label="Atendimentos desde"
                             className="w-44"
                         />
-                        <Input
-                            type="date"
+                        <DatePicker
                             value={to}
-                            onChange={(event) => setTo(event.target.value)}
+                            onChange={setTo}
                             aria-label="Atendimentos até"
                             className="w-44"
                         />
@@ -232,21 +231,12 @@ export default function AttendancesIndex({
                                                                 .nome
                                                         }
                                                     </Link>
-                                                    {attendance.cidadao
-                                                        .eleitor && (
-                                                        <span
-                                                            className="inline-flex"
-                                                            title="Eleitor"
-                                                        >
-                                                            <HeartBoldIcon
-                                                                className="size-4 text-primary"
-                                                                aria-hidden="true"
-                                                            />
-                                                            <span className="sr-only">
-                                                                Eleitor
-                                                            </span>
-                                                        </span>
-                                                    )}
+                                                    <VoterMark
+                                                        voter={
+                                                            attendance.cidadao
+                                                                .eleitor
+                                                        }
+                                                    />
                                                 </span>
                                             </TableCell>
                                             <TableCell>

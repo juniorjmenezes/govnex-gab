@@ -3,11 +3,12 @@ import { Head, router } from '@inertiajs/react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { ActivityMark } from '@/components/common/activity-mark';
+import { ActivityToggleButton } from '@/components/common/activity-toggle-button';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import { TableActionButton } from '@/components/common/table-action-button';
 import { FieldError } from '@/components/forms/field-error';
 import { FieldLabel } from '@/components/forms/field-label';
-import { KeyIcon, PowerIcon } from '@/components/icons';
+import { KeyIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
@@ -45,7 +46,7 @@ const schema = z
     .object({
         name: z.string().min(2, 'Informe o nome.'),
         email: z.email('E-mail inválido.'),
-        role: z.string().min(1),
+        role: z.string().min(1, 'Selecione a função.'),
         password: z
             .string()
             .refine(
@@ -196,19 +197,15 @@ export default function Team({
                                                         >
                                                             <KeyIcon aria-hidden="true" />
                                                         </TableActionButton>
-                                                        <TableActionButton
-                                                            label={`${member.is_active ? 'Desativar' : 'Ativar'} ${member.name}`}
-                                                            variant={
+                                                        <ActivityToggleButton
+                                                            active={
                                                                 member.is_active
-                                                                    ? 'destructive'
-                                                                    : 'outline'
                                                             }
+                                                            name={member.name}
                                                             onClick={() =>
                                                                 toggle(member)
                                                             }
-                                                        >
-                                                            <PowerIcon aria-hidden="true" />
-                                                        </TableActionButton>
+                                                        />
                                                         <DeleteRecordButton
                                                             url={tenantUrl(
                                                                 `/equipe/${member.id}`,
@@ -228,6 +225,7 @@ export default function Team({
                     </Card>
                     {canManage && (
                         <form
+                            noValidate
                             onSubmit={handleSubmit(submit)}
                             className={cn(surfaceClasses, 'overflow-hidden')}
                         >
@@ -269,6 +267,9 @@ export default function Team({
                                                 options={allowedRoles}
                                             />
                                         )}
+                                    />
+                                    <FieldError
+                                        message={errors.role?.message}
                                     />
                                 </div>
                                 <div className="space-y-1">

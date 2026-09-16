@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Head, router } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { PollCandidateRows } from '@/components/admin/poll-candidate-rows';
+import { DatePicker } from '@/components/forms/date-picker';
 import { FieldError } from '@/components/forms/field-error';
 import { AddIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
@@ -200,6 +201,24 @@ export default function CreatePoll({ elections }: Props) {
             },
         );
     };
+    const dateField = (name: keyof Values, label: string) => (
+        <div className="space-y-1">
+            <Label htmlFor={name}>{label}</Label>
+            <Controller
+                control={control}
+                name={name}
+                render={({ field }) => (
+                    <DatePicker
+                        id={name}
+                        value={field.value}
+                        onChange={field.onChange}
+                        aria-invalid={Boolean(errors[name])}
+                    />
+                )}
+            />
+            <FieldError message={errors[name]?.message} />
+        </div>
+    );
     const field = (
         name: keyof Values,
         label: string,
@@ -221,7 +240,11 @@ export default function CreatePoll({ elections }: Props) {
                     title="Nova pesquisa manual"
                     description="Registre à mão uma pesquisa que o PollingData não cobre"
                 />
-                <form onSubmit={handleSubmit(submit)} className="space-y-6">
+                <form
+                    noValidate
+                    onSubmit={handleSubmit(submit)}
+                    className="space-y-6"
+                >
                     <Card className="gap-0 py-0">
                         <SurfaceHeader>
                             <SurfaceTitle>
@@ -290,6 +313,9 @@ export default function CreatePoll({ elections }: Props) {
                                         }
                                         options={TURNO_OPTIONS}
                                     />
+                                    <FieldError
+                                        message={errors.turno?.message}
+                                    />
                                 </div>
                                 <div className="space-y-1">
                                     <Label htmlFor="cenario">Cenário</Label>
@@ -300,18 +326,19 @@ export default function CreatePoll({ elections }: Props) {
                                         }
                                         options={CENARIO_OPTIONS}
                                     />
+                                    <FieldError
+                                        message={errors.cenario?.message}
+                                    />
                                 </div>
                                 {field('instituto', 'Instituto')}
-                                {field('publicada_em', 'Publicada em', 'date')}
-                                {field(
+                                {dateField('publicada_em', 'Publicada em')}
+                                {dateField(
                                     'coleta_inicio_em',
                                     'Coleta iniciada em (opcional)',
-                                    'date',
                                 )}
-                                {field(
+                                {dateField(
                                     'coleta_fim_em',
                                     'Coleta encerrada em (opcional)',
-                                    'date',
                                 )}
                                 {field(
                                     'tamanho_amostra',

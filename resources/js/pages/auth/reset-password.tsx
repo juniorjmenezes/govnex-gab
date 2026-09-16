@@ -1,10 +1,13 @@
 import { Form, Head } from '@inertiajs/react';
+import { useRef } from 'react';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { checkRequiredFormFields } from '@/lib/required-fields';
+import type { InertiaFormRef } from '@/lib/required-fields';
 import { update } from '@/routes/password';
 
 type Props = {
@@ -14,12 +17,22 @@ type Props = {
 };
 
 export default function ResetPassword({ token, email, passwordRules }: Props) {
+    const formRef = useRef<InertiaFormRef>(null);
+
     return (
         <>
             <Head title="Redefinir senha" />
 
             <Form
+                noValidate
                 {...update.form()}
+                ref={formRef}
+                onBefore={() =>
+                    checkRequiredFormFields(formRef.current, {
+                        password: 'Informe a nova senha.',
+                        password_confirmation: 'Confirme a nova senha.',
+                    })
+                }
                 transform={(data) => ({ ...data, token, email })}
                 resetOnSuccess={['password', 'password_confirmation']}
             >
@@ -51,6 +64,7 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
                                 className="mt-1 block w-full"
                                 autoFocus
                                 placeholder="Nova senha"
+                                aria-required="true"
                                 passwordrules={passwordRules}
                             />
                             <InputError message={errors.password} />
@@ -66,6 +80,7 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
                                 autoComplete="new-password"
                                 className="mt-1 block w-full"
                                 placeholder="Confirmar nova senha"
+                                aria-required="true"
                                 passwordrules={passwordRules}
                             />
                             <InputError

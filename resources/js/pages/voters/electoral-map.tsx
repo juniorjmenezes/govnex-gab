@@ -527,7 +527,7 @@ function MapPanelContent({
                                             .join(' · ')}
                                     </span>
                                 </span>
-                                <span className="shrink-0 font-mono text-lg font-bold tabular-nums">
+                                <span className="shrink-0 font-mono text-sm font-bold tabular-nums">
                                     {point.votes.toLocaleString('pt-BR')}
                                 </span>
                             </button>

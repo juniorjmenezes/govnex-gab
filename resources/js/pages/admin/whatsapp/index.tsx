@@ -1,10 +1,13 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { ActivityMark } from '@/components/common/activity-mark';
+import { ActivityToggleButton } from '@/components/common/activity-toggle-button';
 import {
     TableActionButton,
     tableButtonOutlineHoverClass,
 } from '@/components/common/table-action-button';
 import { EmptyState } from '@/components/feedback/empty-state';
+import { FieldError } from '@/components/forms/field-error';
 import {
     AddIcon,
     ChatRoundDotsIcon,
@@ -18,7 +21,12 @@ import {
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+    Alert,
+    AlertAction,
+    AlertDescription,
+    AlertTitle,
+} from '@/components/ui/alert';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,6 +49,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { checkRequiredFields } from '@/lib/required-fields';
 
 type Option = { value: string; label: string };
 type Template = {
@@ -144,6 +153,13 @@ function TemplateRow({
 
     return (
         <TableRow>
+            <TableCell className="w-10">
+                <ActivityMark
+                    active={template.active}
+                    activeLabel="Template ativo"
+                    inactiveLabel="Template inativo"
+                />
+            </TableCell>
             <TableCell>
                 <p className="font-normal">{template.purpose}</p>
                 <p className="max-w-72 truncate text-xs text-muted-foreground">
@@ -235,23 +251,16 @@ function TemplateRow({
                             </Button>
                         )}
                     {template.status === 'APPROVED' && (
-                        <Button
-                            size="sm"
-                            variant={template.active ? 'outline' : 'default'}
-                            className={
-                                template.active
-                                    ? tableButtonOutlineHoverClass
-                                    : undefined
-                            }
+                        <ActivityToggleButton
+                            active={template.active}
+                            name={`template de ${template.purpose}`}
                             onClick={() =>
                                 router.patch(
                                     `/admin/whatsapp/templates/${template.id}/ativacao`,
                                     { active: !template.active },
                                 )
                             }
-                        >
-                            {template.active ? 'Desativar' : 'Ativar'}
-                        </Button>
+                        />
                     )}
                     {busy && (
                         <span className="text-xs text-muted-foreground">
@@ -310,7 +319,7 @@ export default function WhatsAppAdmin(props: Props) {
                     }
                 />
 
-                <Alert variant={gatewayReady ? 'default' : 'destructive'}>
+                <Alert variant={gatewayReady ? 'success' : 'warning'}>
                     <ChatRoundDotsIcon />
                     <AlertTitle>
                         Gateway {gatewayReady ? 'configurado' : 'incompleto'}
@@ -367,17 +376,19 @@ export default function WhatsAppAdmin(props: Props) {
                                             ? ` · final ${props.connection.phone_last_four}`
                                             : ''}
                                     </AlertTitle>
-                                    <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                                        <span>
-                                            {props.connection.type === 'PROPRIA'
-                                                ? 'Conta própria'
-                                                : 'Conta central atribuída'}{' '}
-                                            · {props.connection.status}
-                                        </span>
+                                    <AlertDescription>
+                                        {props.connection.type === 'PROPRIA'
+                                            ? 'Conta própria'
+                                            : 'Conta central atribuída'}{' '}
+                                        · {props.connection.status}
+                                    </AlertDescription>
+                                    <AlertAction>
                                         <Button
                                             type="button"
-                                            size="sm"
+                                            size="icon-xs"
                                             variant="outline"
+                                            aria-label="Desativar conexão"
+                                            title="Desativar conexão"
                                             onClick={() => {
                                                 if (
                                                     window.confirm(
@@ -394,18 +405,32 @@ export default function WhatsAppAdmin(props: Props) {
                                             }}
                                         >
                                             <UnlinkIcon />
-                                            Desativar conexão
                                         </Button>
-                                    </AlertDescription>
+                                    </AlertAction>
                                 </Alert>
                             )}
 
                             {props.gatewayAccounts.length > 0 &&
                                 props.selectedEntidade && (
                                     <form
+                                        noValidate
                                         className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,240px)_auto] md:items-end"
                                         onSubmit={(event) => {
                                             event.preventDefault();
+
+                                            if (
+                                                !checkRequiredFields(
+                                                    connectionForm.data,
+                                                    connectionForm,
+                                                    {
+                                                        account_id:
+                                                            'Selecione a conta.',
+                                                    },
+                                                )
+                                            ) {
+                                                return;
+                                            }
+
                                             connectionForm.post(
                                                 `/admin/whatsapp/entidades/${props.selectedEntidade?.id}/conexao`,
                                                 { preserveScroll: true },
@@ -435,6 +460,12 @@ export default function WhatsAppAdmin(props: Props) {
                                                     }),
                                                 )}
                                             />
+                                            <FieldError
+                                                message={
+                                                    connectionForm.errors
+                                                        .account_id
+                                                }
+                                            />
                                         </div>
                                         <div className="space-y-1">
                                             <Label>Modelo de uso</Label>
@@ -459,14 +490,15 @@ export default function WhatsAppAdmin(props: Props) {
                                                     },
                                                 ]}
                                             />
+                                            <FieldError
+                                                message={
+                                                    connectionForm.errors.type
+                                                }
+                                            />
                                         </div>
                                         <Button
                                             type="submit"
-                                            disabled={
-                                                connectionForm.processing ||
-                                                connectionForm.data
-                                                    .account_id === ''
-                                            }
+                                            disabled={connectionForm.processing}
                                         >
                                             <LinkIcon />
                                             Vincular conta
@@ -485,7 +517,7 @@ export default function WhatsAppAdmin(props: Props) {
                         {props.selectedOfficeId &&
                             props.configuration &&
                             !moduleEnabled && (
-                                <Alert>
+                                <Alert variant="warning">
                                     <ChatRoundDotsIcon />
                                     <AlertTitle>
                                         WhatsApp desativado neste gabinete
@@ -499,9 +531,20 @@ export default function WhatsAppAdmin(props: Props) {
                             )}
                         {props.selectedOfficeId && props.configuration ? (
                             <form
+                                noValidate
                                 className="space-y-5"
                                 onSubmit={(event) => {
                                     event.preventDefault();
+
+                                    if (
+                                        !checkRequiredFields(form.data, form, {
+                                            digest_time:
+                                                'Informe o horário do resumo.',
+                                        })
+                                    ) {
+                                        return;
+                                    }
+
                                     form.put(
                                         `/admin/whatsapp/gabinetes/${props.selectedOfficeId}`,
                                         { preserveScroll: true },
@@ -537,6 +580,9 @@ export default function WhatsAppAdmin(props: Props) {
                                             }
                                             options={props.modeOptions}
                                         />
+                                        <FieldError
+                                            message={form.errors.mode}
+                                        />
                                     </div>
                                     <div className="space-y-1">
                                         <Label htmlFor="digest-time">
@@ -545,6 +591,7 @@ export default function WhatsAppAdmin(props: Props) {
                                         <Input
                                             id="digest-time"
                                             type="time"
+                                            aria-required="true"
                                             value={form.data.digest_time}
                                             disabled={!channelReady}
                                             onChange={(event) =>
@@ -553,6 +600,9 @@ export default function WhatsAppAdmin(props: Props) {
                                                     event.target.value,
                                                 )
                                             }
+                                        />
+                                        <FieldError
+                                            message={form.errors.digest_time}
                                         />
                                     </div>
                                 </div>
@@ -651,6 +701,11 @@ export default function WhatsAppAdmin(props: Props) {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead className="w-10">
+                                        <span className="sr-only">
+                                            Ativação
+                                        </span>
+                                    </TableHead>
                                     <TableHead>Finalidade</TableHead>
                                     <TableHead>Estado</TableHead>
                                     <TableHead>Texto</TableHead>

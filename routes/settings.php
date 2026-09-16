@@ -22,8 +22,6 @@ Route::middleware(['auth', 'user.active', 'gabinete.active'])->group(function ()
 });
 
 Route::middleware(['auth', 'verified', 'user.active', 'gabinete.active'])->group(function () {
-    Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-
     Route::get('settings/security', [SecurityController::class, 'edit'])
         ->middleware(RequirePassword::class)
         ->name('security.edit');

@@ -205,7 +205,7 @@ export function CitizenForm({
     );
 
     return (
-        <form onSubmit={handleSubmit(submit)} className="space-y-6">
+        <form noValidate onSubmit={handleSubmit(submit)} className="space-y-6">
             <Card className="gap-0 py-0">
                 <SurfaceHeader>
                     <SurfaceTitle>Dados pessoais</SurfaceTitle>

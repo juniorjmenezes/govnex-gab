@@ -1,10 +1,16 @@
 import { Form } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
-import Heading from '@/components/heading';
 import { ShieldCheckIcon } from '@/components/icons';
 import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes';
 import TwoFactorSetupModal from '@/components/two-factor-setup-modal';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+    SurfaceDescription,
+    SurfaceHeader,
+    SurfaceTitle,
+} from '@/components/ui/surface';
 import { useTwoFactorAuth } from '@/hooks/use-two-factor-auth';
 import { disable, enable } from '@/routes/two-factor';
 
@@ -45,20 +51,29 @@ export default function ManageTwoFactor(props: Props) {
     }
 
     return (
-        <div className="space-y-6">
-            <Heading
-                variant="small"
-                title="Autenticação em dois fatores"
-                description="Adicione uma segunda camada de proteção à sua conta"
-            />
-            {twoFactorEnabled ? (
-                <div className="flex flex-col items-start justify-start space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                        Durante o acesso, será solicitado um código seguro
-                        gerado pelo aplicativo autenticador do seu celular.
-                    </p>
-
-                    <div className="relative inline">
+        <>
+            <Card className="gap-0 py-0">
+                <SurfaceHeader
+                    actions={
+                        <Badge
+                            variant={twoFactorEnabled ? 'default' : 'secondary'}
+                        >
+                            {twoFactorEnabled ? 'Ativa' : 'Desativada'}
+                        </Badge>
+                    }
+                >
+                    <SurfaceTitle>Autenticação em dois fatores</SurfaceTitle>
+                    <SurfaceDescription>
+                        Segunda camada de proteção
+                    </SurfaceDescription>
+                </SurfaceHeader>
+                <p className="p-5 text-sm text-muted-foreground">
+                    {twoFactorEnabled
+                        ? 'Durante o acesso, será solicitado um código gerado pelo aplicativo autenticador do seu celular.'
+                        : 'Ao ativar, além da senha você informará um código gerado por um aplicativo autenticador.'}
+                </p>
+                <div className="flex justify-end gap-2 border-t p-4">
+                    {twoFactorEnabled ? (
                         <Form {...disable.form()}>
                             {({ processing }) => (
                                 <Button
@@ -70,42 +85,33 @@ export default function ManageTwoFactor(props: Props) {
                                 </Button>
                             )}
                         </Form>
-                    </div>
-
-                    <TwoFactorRecoveryCodes
-                        recoveryCodesList={recoveryCodesList}
-                        fetchRecoveryCodes={fetchRecoveryCodes}
-                        errors={errors}
-                    />
+                    ) : hasSetupData ? (
+                        <Button onClick={() => setShowSetupModal(true)}>
+                            <ShieldCheckIcon />
+                            Continuar configuração
+                        </Button>
+                    ) : (
+                        <Form
+                            {...enable.form()}
+                            onSuccess={() => setShowSetupModal(true)}
+                        >
+                            {({ processing }) => (
+                                <Button type="submit" disabled={processing}>
+                                    <ShieldCheckIcon />
+                                    Ativar 2FA
+                                </Button>
+                            )}
+                        </Form>
+                    )}
                 </div>
-            ) : (
-                <div className="flex flex-col items-start justify-start space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                        Ao ativar a autenticação em dois fatores, você usará um
-                        código gerado por um aplicativo autenticador além da
-                        senha.
-                    </p>
+            </Card>
 
-                    <div>
-                        {hasSetupData ? (
-                            <Button onClick={() => setShowSetupModal(true)}>
-                                <ShieldCheckIcon />
-                                Continuar configuração
-                            </Button>
-                        ) : (
-                            <Form
-                                {...enable.form()}
-                                onSuccess={() => setShowSetupModal(true)}
-                            >
-                                {({ processing }) => (
-                                    <Button type="submit" disabled={processing}>
-                                        Ativar 2FA
-                                    </Button>
-                                )}
-                            </Form>
-                        )}
-                    </div>
-                </div>
+            {twoFactorEnabled && (
+                <TwoFactorRecoveryCodes
+                    recoveryCodesList={recoveryCodesList}
+                    fetchRecoveryCodes={fetchRecoveryCodes}
+                    errors={errors}
+                />
             )}
 
             <TwoFactorSetupModal
@@ -119,6 +125,6 @@ export default function ManageTwoFactor(props: Props) {
                 fetchSetupData={fetchSetupData}
                 errors={errors}
             />
-        </div>
+        </>
     );
 }

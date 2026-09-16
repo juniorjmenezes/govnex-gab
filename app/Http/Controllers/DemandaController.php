@@ -293,7 +293,7 @@ class DemandaController extends Controller
     {
         $this->authorize('view', $demanda);
         $demanda->load([
-            'cidadao:id,nome,telefone,whatsapp,email,consentimento_contato',
+            'cidadao:id,nome,telefone,whatsapp,email,consentimento_contato,eleitor',
             'categoria:id,nome,icone,cor_semantica',
             'bairro:id,nome,municipio,estado',
             'responsavel:id,name,email',

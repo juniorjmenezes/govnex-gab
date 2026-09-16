@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { PaginationLinks } from '@/components/common/pagination-links';
+import { FieldError } from '@/components/forms/field-error';
 import { ArrowRightIcon, RefreshCircleIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
@@ -9,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Surface, SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
+import { checkRequiredFields } from '@/lib/required-fields';
 import type { Pagination } from '@/types';
 
 type Entidade = {
@@ -48,6 +50,16 @@ export default function EntidadeTransfersIndex({
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
+
+        if (
+            !checkRequiredFields(form.data, form, {
+                gabinete_id: 'Selecione o gabinete.',
+                destination_id: 'Selecione a entidade de destino.',
+            })
+        ) {
+            return;
+        }
+
         form.post(`/entidades/${entidade.slug}/transferencias`);
     };
 
@@ -66,6 +78,7 @@ export default function EntidadeTransfersIndex({
                             <SurfaceTitle>Nova transferência</SurfaceTitle>
                         </SurfaceHeader>
                         <form
+                            noValidate
                             className="grid gap-4 p-4 md:grid-cols-[1fr_1fr_auto]"
                             onSubmit={submit}
                         >
@@ -82,11 +95,7 @@ export default function EntidadeTransfersIndex({
                                         label: `${gabinete.name} · ${gabinete.type_label}`,
                                     }))}
                                 />
-                                {form.errors.gabinete_id && (
-                                    <p className="text-sm text-destructive">
-                                        {form.errors.gabinete_id}
-                                    </p>
-                                )}
+                                <FieldError message={form.errors.gabinete_id} />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label>Entidade de destino</Label>
@@ -103,21 +112,15 @@ export default function EntidadeTransfersIndex({
                                         }),
                                     )}
                                 />
-                                {form.errors.destination_id && (
-                                    <p className="text-sm text-destructive">
-                                        {form.errors.destination_id}
-                                    </p>
-                                )}
+                                <FieldError
+                                    message={form.errors.destination_id}
+                                />
                             </div>
                             <div className="flex md:flex-col md:justify-end">
                                 <Button
                                     type="submit"
                                     className="w-full md:w-auto"
-                                    disabled={
-                                        form.processing ||
-                                        !form.data.gabinete_id ||
-                                        !form.data.destination_id
-                                    }
+                                    disabled={form.processing}
                                 >
                                     Solicitar
                                     <ArrowRightIcon className="size-4" />

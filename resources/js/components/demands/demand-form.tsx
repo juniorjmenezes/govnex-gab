@@ -168,7 +168,7 @@ export function DemandForm({
     };
 
     return (
-        <form onSubmit={handleSubmit(submit)} className="space-y-6">
+        <form noValidate onSubmit={handleSubmit(submit)} className="space-y-6">
             <Card className="gap-0 py-0">
                 <SurfaceHeader help="O protocolo e o status inicial serão definidos pelo sistema.">
                     <SurfaceTitle>Solicitação</SurfaceTitle>

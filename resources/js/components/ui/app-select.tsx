@@ -59,46 +59,48 @@ export function AppSelect({
         clearable && selectedItem !== null && selectedItem.value !== '';
 
     return (
-        <Combobox
-            items={items}
-            value={selectedItem}
-            onValueChange={(item) => onValueChange?.(item?.value ?? '')}
-            itemToStringValue={(item: AppSelectOption) => item.value}
-            itemToStringLabel={(item: AppSelectOption) => item.label}
-            isItemEqualToValue={(a: AppSelectOption, b: AppSelectOption) =>
-                a.value === b.value
-            }
-            name={name}
-            disabled={disabled}
-        >
-            <ComboboxInput
-                id={id}
-                placeholder={placeholder}
+        <div data-slot="app-select" className={cn('w-full', className)}>
+            <Combobox
+                items={items}
+                value={selectedItem}
+                onValueChange={(item) => onValueChange?.(item?.value ?? '')}
+                itemToStringValue={(item: AppSelectOption) => item.value}
+                itemToStringLabel={(item: AppSelectOption) => item.label}
+                isItemEqualToValue={(a: AppSelectOption, b: AppSelectOption) =>
+                    a.value === b.value
+                }
+                name={name}
                 disabled={disabled}
-                showClear={hasClearableSelection}
-                className={cn('w-full', className)}
-                {...accessibility}
             >
-                {startAdornment && (
-                    <InputGroupAddon align="inline-start">
-                        {startAdornment}
-                    </InputGroupAddon>
-                )}
-            </ComboboxInput>
-            <ComboboxContent>
-                <ComboboxEmpty>Nenhum resultado encontrado.</ComboboxEmpty>
-                <ComboboxList>
-                    {(item: AppSelectOption) => (
-                        <ComboboxItem
-                            key={item.value}
-                            value={item}
-                            disabled={item.disabled}
-                        >
-                            {item.label}
-                        </ComboboxItem>
+                <ComboboxInput
+                    id={id}
+                    placeholder={placeholder}
+                    disabled={disabled}
+                    showClear={hasClearableSelection}
+                    className="w-full"
+                    {...accessibility}
+                >
+                    {startAdornment && (
+                        <InputGroupAddon align="inline-start">
+                            {startAdornment}
+                        </InputGroupAddon>
                     )}
-                </ComboboxList>
-            </ComboboxContent>
-        </Combobox>
+                </ComboboxInput>
+                <ComboboxContent>
+                    <ComboboxEmpty>Nenhum resultado encontrado.</ComboboxEmpty>
+                    <ComboboxList>
+                        {(item: AppSelectOption) => (
+                            <ComboboxItem
+                                key={item.value}
+                                value={item}
+                                disabled={item.disabled}
+                            >
+                                {item.label}
+                            </ComboboxItem>
+                        )}
+                    </ComboboxList>
+                </ComboboxContent>
+            </Combobox>
+        </div>
     );
 }

@@ -1,5 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
+import type { ReactNode } from 'react';
+import { VoterMark } from '@/components/citizens/voter-mark';
 import { DemandStatusActions } from '@/components/demands/demand-status-actions';
 import { DemandTimeline } from '@/components/demands/demand-timeline';
 import { NextActionPanel } from '@/components/demands/next-action-panel';
@@ -162,7 +164,12 @@ export default function DemandShow({
                         <Info
                             icon={UserCircleIcon}
                             label="Solicitante"
-                            value={demand.cidadao.nome}
+                            value={
+                                <span className="inline-flex items-center gap-1.5">
+                                    {demand.cidadao.nome}
+                                    <VoterMark voter={demand.cidadao.eleitor} />
+                                </span>
+                            }
                         />
                         <Info
                             icon={UserCheckRoundedIcon}
@@ -259,9 +266,7 @@ export default function DemandShow({
             >
                 <DrawerContent side="right">
                     <DrawerHeader className="flex-row items-center justify-between border-b p-4">
-                        <DrawerTitle className="text-xs font-semibold tracking-wide uppercase">
-                            Adicionar atualização
-                        </DrawerTitle>
+                        <DrawerTitle>Adicionar atualização</DrawerTitle>
                         <DrawerClose
                             render={<Button variant="ghost" size="icon-sm" />}
                             aria-label="Fechar"
@@ -285,9 +290,7 @@ export default function DemandShow({
             >
                 <DrawerContent side="right">
                     <DrawerHeader className="flex-row items-center justify-between border-b p-4">
-                        <DrawerTitle className="text-xs font-semibold tracking-wide uppercase">
-                            Encaminhar
-                        </DrawerTitle>
+                        <DrawerTitle>Encaminhar</DrawerTitle>
                         <DrawerClose
                             render={<Button variant="ghost" size="icon-sm" />}
                             aria-label="Fechar"
@@ -311,9 +314,7 @@ export default function DemandShow({
             >
                 <DrawerContent side="right">
                     <DrawerHeader className="flex-row items-center justify-between border-b p-4">
-                        <DrawerTitle className="text-xs font-semibold tracking-wide uppercase">
-                            Registrar retorno
-                        </DrawerTitle>
+                        <DrawerTitle>Registrar retorno</DrawerTitle>
                         <DrawerClose
                             render={<Button variant="ghost" size="icon-sm" />}
                             aria-label="Fechar"
@@ -360,8 +361,8 @@ function FavoriteButton({ demand }: { demand: Demand }) {
                     : undefined
             }
             className={cn(
-                'normal-case transition-colors hover:text-amber-500 focus-visible:text-amber-500 focus-visible:outline-none',
-                favorited ? 'text-amber-500' : 'text-muted-foreground/50',
+                'normal-case transition-colors hover:text-primary focus-visible:text-primary focus-visible:outline-none',
+                favorited ? 'text-primary' : 'text-muted-foreground/50',
             )}
         >
             {favorited ? (
@@ -381,7 +382,7 @@ function Info({
 }: {
     icon: typeof CalendarMarkIcon;
     label: string;
-    value: string;
+    value: ReactNode;
     danger?: boolean;
 }) {
     return (

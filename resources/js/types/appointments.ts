@@ -79,27 +79,32 @@ export type AppointmentPageProps = {
     today: string;
     whatsappSimulated: boolean;
     whatsappRealEnabled: boolean;
-    capabilities: {
-        events: boolean;
-        demands: boolean;
-        whatsapp: boolean;
-    };
-    options: {
-        statuses: Array<{ value: string; label: string }>;
-        recurrences: Array<{ value: string; label: string }>;
-        channels: Array<{ value: string; label: string }>;
-        members: Array<{
-            id: number;
-            name: string;
-            whatsapp_ready: boolean;
-        }>;
-        citizens: Array<{
-            id: number;
-            nome: string;
-            whatsapp: string | null;
-            consentimento_contato: boolean;
-            whatsapp_ready: boolean;
-        }>;
-        demands: Array<{ id: number; protocolo: string; titulo: string }>;
-    };
+    capabilities: AppointmentCapabilities;
+    options: AppointmentOptions;
+};
+
+export type AppointmentCapabilities = {
+    events: boolean;
+    demands: boolean;
+    whatsapp: boolean;
+};
+
+/** Listas que alimentam o formulário de compromisso (página e modal). */
+export type AppointmentOptions = {
+    statuses: Array<{ value: string; label: string }>;
+    recurrences: Array<{ value: string; label: string }>;
+    channels: Array<{ value: string; label: string }>;
+    members: Array<{
+        id: number;
+        name: string;
+        whatsapp_ready: boolean;
+    }>;
+    citizens: Array<{
+        id: number;
+        nome: string;
+        whatsapp: string | null;
+        consentimento_contato: boolean;
+        whatsapp_ready: boolean;
+    }>;
+    demands: Array<{ id: number; protocolo: string; titulo: string }>;
 };

@@ -101,7 +101,7 @@ export function NextActionPanel({
             );
         }
 
-        return tenantUrl(`/agenda?${params.toString()}`);
+        return tenantUrl(`/agenda/novo?${params.toString()}`);
     };
 
     if (!editing && hasPending) {
@@ -156,7 +156,11 @@ export function NextActionPanel({
     }
 
     return (
-        <form onSubmit={handleSubmit(submit)} className="space-y-3 p-5">
+        <form
+            noValidate
+            onSubmit={handleSubmit(submit)}
+            className="space-y-3 p-5"
+        >
             <div className="space-y-1">
                 <Label htmlFor="proxima_acao_descricao">Descrição</Label>
                 <Input

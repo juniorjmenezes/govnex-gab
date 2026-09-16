@@ -61,6 +61,7 @@ export function UpdateForm({
 
     return (
         <form
+            noValidate
             onSubmit={handleSubmit(submit)}
             className="flex h-full min-h-0 flex-col"
         >

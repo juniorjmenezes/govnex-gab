@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { ActivityMark } from '@/components/common/activity-mark';
+import { ActivityToggleButton } from '@/components/common/activity-toggle-button';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import { TableActionButton } from '@/components/common/table-action-button';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { FieldError } from '@/components/forms/field-error';
-import { FeedIcon, PowerIcon, RefreshIcon } from '@/components/icons';
+import { FeedIcon, RefreshIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
@@ -105,14 +106,12 @@ function SourceRow({ source }: { source: RssSource }) {
             </TableCell>
             <TableCell>
                 <div className="flex justify-end gap-2">
-                    <TableActionButton
-                        label={`${source.ativo ? 'Desativar' : 'Ativar'} ${source.nome}`}
-                        variant={source.ativo ? 'destructive' : 'outline'}
+                    <ActivityToggleButton
+                        active={source.ativo}
+                        name={source.nome}
                         disabled={pending}
                         onClick={toggle}
-                    >
-                        <PowerIcon aria-hidden="true" />
-                    </TableActionButton>
+                    />
                     <TableActionButton
                         label={`Coletar ${source.nome} agora`}
                         disabled={pending}
@@ -174,6 +173,7 @@ export default function RssSources({ sources }: { sources: RssSource[] }) {
                         <SurfaceTitle>Nova fonte</SurfaceTitle>
                     </SurfaceHeader>
                     <form
+                        noValidate
                         onSubmit={handleSubmit(submit)}
                         className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start"
                     >

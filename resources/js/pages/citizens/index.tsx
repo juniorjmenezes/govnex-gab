@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import { VoterMark } from '@/components/citizens/voter-mark';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import { TableActionButton } from '@/components/common/table-action-button';
@@ -8,8 +9,6 @@ import {
     AddIcon,
     CloseIcon,
     DislikeIcon,
-    HeartBoldIcon,
-    HeartIcon as HeartOutlineIcon,
     LikeIcon,
     MagnifierIcon,
     PenIcon,
@@ -142,31 +141,10 @@ export default function CitizensIndex({
                                     {citizens.data.map((citizen) => (
                                         <TableRow key={citizen.id}>
                                             <TableCell className="w-10">
-                                                <span
-                                                    className="inline-flex"
-                                                    title={
-                                                        citizen.eleitor
-                                                            ? 'Eleitor'
-                                                            : 'Não eleitor'
-                                                    }
-                                                >
-                                                    {citizen.eleitor ? (
-                                                        <HeartBoldIcon
-                                                            className="size-4 text-primary"
-                                                            aria-hidden="true"
-                                                        />
-                                                    ) : (
-                                                        <HeartOutlineIcon
-                                                            className="size-4 text-muted-foreground/50"
-                                                            aria-hidden="true"
-                                                        />
-                                                    )}
-                                                    <span className="sr-only">
-                                                        {citizen.eleitor
-                                                            ? 'Eleitor'
-                                                            : 'Não eleitor'}
-                                                    </span>
-                                                </span>
+                                                <VoterMark
+                                                    voter={citizen.eleitor}
+                                                    showWhenNotVoter
+                                                />
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-wrap items-center gap-2">

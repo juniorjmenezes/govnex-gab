@@ -8,16 +8,16 @@ import {
     categoryColorOptions,
     categoryIconOptions,
 } from '@/components/categories/category-appearance';
+import { ActivityMark } from '@/components/common/activity-mark';
+import { ActivityToggleButton } from '@/components/common/activity-toggle-button';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import { PaginationLinks } from '@/components/common/pagination-links';
-import { TableActionButton } from '@/components/common/table-action-button';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { FieldError } from '@/components/forms/field-error';
-import { PowerIcon, TagIcon } from '@/components/icons';
+import { TagIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -109,8 +109,12 @@ export default function Categories({
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
+                                            <TableHead className="w-10">
+                                                <span className="sr-only">
+                                                    Situação
+                                                </span>
+                                            </TableHead>
                                             <TableHead>Nome</TableHead>
-                                            <TableHead>Situação</TableHead>
                                             {canManage && (
                                                 <TableHead className="text-right">
                                                     Ações
@@ -121,6 +125,11 @@ export default function Categories({
                                     <TableBody>
                                         {categories.data.map((item) => (
                                             <TableRow key={item.id}>
+                                                <TableCell className="w-10">
+                                                    <ActivityMark
+                                                        active={item.ativo}
+                                                    />
+                                                </TableCell>
                                                 <TableCell>
                                                     <span className="flex items-start gap-3">
                                                         <CategoryIconBadge
@@ -140,29 +149,14 @@ export default function Categories({
                                                         </span>
                                                     </span>
                                                 </TableCell>
-                                                <TableCell>
-                                                    <Badge
-                                                        variant={
-                                                            item.ativo
-                                                                ? 'default'
-                                                                : 'secondary'
-                                                        }
-                                                    >
-                                                        {item.ativo
-                                                            ? 'Ativa'
-                                                            : 'Inativa'}
-                                                    </Badge>
-                                                </TableCell>
                                                 {canManage && (
                                                     <TableCell>
                                                         <div className="flex justify-end gap-2">
-                                                            <TableActionButton
-                                                                label={`${item.ativo ? 'Desativar' : 'Ativar'} ${item.nome}`}
-                                                                variant={
+                                                            <ActivityToggleButton
+                                                                active={
                                                                     item.ativo
-                                                                        ? 'destructive'
-                                                                        : 'outline'
                                                                 }
+                                                                name={item.nome}
                                                                 onClick={() =>
                                                                     router.put(
                                                                         tenantUrl(
@@ -177,9 +171,7 @@ export default function Categories({
                                                                         },
                                                                     )
                                                                 }
-                                                            >
-                                                                <PowerIcon aria-hidden="true" />
-                                                            </TableActionButton>
+                                                            />
                                                             <DeleteRecordButton
                                                                 url={tenantUrl(
                                                                     `/categorias/${item.id}`,
@@ -204,6 +196,7 @@ export default function Categories({
                     </Card>
                     {canManage && (
                         <form
+                            noValidate
                             onSubmit={handleSubmit(submit)}
                             className={cn(surfaceClasses, 'overflow-hidden')}
                         >

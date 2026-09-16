@@ -1,5 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
+import { FieldError } from '@/components/forms/field-error';
 import { CheckCircleIcon, CloseCircleIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Surface, SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
+import { checkRequiredFields } from '@/lib/required-fields';
 
 type Entidade = {
     id: number;
@@ -60,6 +62,15 @@ export default function EntidadeTransferShow({
     const closeForm = useForm({ reason: '' });
     const closeTransfer = (event: FormEvent) => {
         event.preventDefault();
+
+        if (
+            !checkRequiredFields(closeForm.data, closeForm, {
+                reason: 'Informe o motivo.',
+            })
+        ) {
+            return;
+        }
+
         closeForm.post(
             `/entidades/${entidade.slug}/transferencias/${transfer.id}/encerrar`,
             { preserveScroll: true },
@@ -199,6 +210,7 @@ export default function EntidadeTransferShow({
 
                                     {(canCancel || canReject) && (
                                         <form
+                                            noValidate
                                             className="flex flex-col gap-3"
                                             onSubmit={closeTransfer}
                                         >
@@ -217,16 +229,13 @@ export default function EntidadeTransferShow({
                                                             event.target.value,
                                                         )
                                                     }
-                                                    required
+                                                    aria-required="true"
                                                 />
-                                                {closeForm.errors.reason && (
-                                                    <p className="text-sm text-destructive">
-                                                        {
-                                                            closeForm.errors
-                                                                .reason
-                                                        }
-                                                    </p>
-                                                )}
+                                                <FieldError
+                                                    message={
+                                                        closeForm.errors.reason
+                                                    }
+                                                />
                                             </div>
                                             <Button
                                                 type="submit"

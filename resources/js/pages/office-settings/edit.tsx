@@ -53,8 +53,8 @@ const schema = z.object({
     vereador_nome: z.string().min(2, 'Informe o parlamentar.'),
     partido: z.string(),
     legislatura: z.string(),
-    municipio: z.string().min(2),
-    estado: z.string().length(2),
+    municipio: z.string().min(2, 'Informe o município.'),
+    estado: z.string().length(2, 'Selecione a UF.'),
     numero: z.string(),
     complemento: z.string(),
     cep: z.string(),
@@ -207,7 +207,11 @@ export default function OfficeSettings({
                         vereador ou vereadora pode alterá-las.
                     </p>
                 )}
-                <form onSubmit={handleSubmit(submit)} className="space-y-6">
+                <form
+                    noValidate
+                    onSubmit={handleSubmit(submit)}
+                    className="space-y-6"
+                >
                     <Card className="gap-0 py-0">
                         <SurfaceHeader>
                             <SurfaceTitle>Identificação</SurfaceTitle>

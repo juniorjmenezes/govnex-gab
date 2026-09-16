@@ -249,9 +249,7 @@ export default function EventsIndex({
                 >
                     <DrawerContent>
                         <DrawerHeader className="flex-row items-center justify-between border-b p-4">
-                            <DrawerTitle className="text-xs font-semibold tracking-wide uppercase">
-                                Filtros avançados
-                            </DrawerTitle>
+                            <DrawerTitle>Filtros avançados</DrawerTitle>
                             <DrawerClose
                                 render={
                                     <Button variant="ghost" size="icon-sm" />
@@ -321,9 +319,7 @@ export default function EventsIndex({
                 >
                     <DrawerContent>
                         <DrawerHeader className="flex-row items-center justify-between border-b p-4">
-                            <DrawerTitle className="text-xs font-semibold tracking-wide uppercase">
-                                Visualização
-                            </DrawerTitle>
+                            <DrawerTitle>Visualização</DrawerTitle>
                             <DrawerClose
                                 render={
                                     <Button variant="ghost" size="icon-sm" />

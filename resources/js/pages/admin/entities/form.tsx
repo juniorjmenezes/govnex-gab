@@ -100,9 +100,13 @@ export default function EntityForm({ types }: Props) {
                     description="Cadastre a organização primeiro. Na próxima etapa, você adicionará o primeiro gabinete."
                 />
 
-                <form onSubmit={handleSubmit(submit)} className="space-y-6">
+                <form
+                    noValidate
+                    onSubmit={handleSubmit(submit)}
+                    className="space-y-6"
+                >
                     {validationMessages.length > 0 && (
-                        <Alert variant="destructive" role="alert">
+                        <Alert variant="destructive">
                             <DangerCircleIcon />
                             <AlertTitle>Revise os dados informados</AlertTitle>
                             <AlertDescription>

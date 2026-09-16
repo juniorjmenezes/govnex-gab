@@ -52,9 +52,7 @@ function PartyColorRow({ party }: { party: PartyColor }) {
 
     return (
         <TableRow>
-            <TableCell className="font-heading font-semibold">
-                {party.sigla}
-            </TableCell>
+            <TableCell>{party.sigla}</TableCell>
             <TableCell className="w-56">
                 <ColorPicker
                     value={color}
@@ -120,10 +118,11 @@ export default function PartyColors({ parties }: { parties: PartyColor[] }) {
                         <SurfaceTitle>Novo partido</SurfaceTitle>
                     </SurfaceHeader>
                     <form
+                        noValidate
                         onSubmit={handleSubmit(submit)}
                         className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start"
                     >
-                        <div className="w-full space-y-1 sm:w-48">
+                        <div className="w-full min-w-0 space-y-1 sm:flex-1">
                             <Input
                                 aria-label="Sigla"
                                 className="uppercase"
@@ -132,7 +131,7 @@ export default function PartyColors({ parties }: { parties: PartyColor[] }) {
                             />
                             <FieldError message={errors.sigla?.message} />
                         </div>
-                        <div className="w-full space-y-1 sm:w-56">
+                        <div className="w-full min-w-0 space-y-1 sm:flex-1">
                             <Controller
                                 control={control}
                                 name="cor"

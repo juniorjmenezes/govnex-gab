@@ -12,6 +12,7 @@ import {
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -98,17 +99,23 @@ export default function SystemCheck({
                 />
 
                 {criticalIssues === 0 ? (
-                    <div className="flex items-center gap-2 rounded-2xl bg-emerald-500/10 p-4 text-sm text-emerald-700 ring-1 ring-emerald-500/20 dark:text-emerald-400">
-                        <CheckCircleIcon className="size-5 shrink-0" />
-                        Tudo que verificamos está dentro do esperado.
-                    </div>
+                    <Alert variant="success">
+                        <CheckCircleIcon />
+                        <AlertTitle>Diagnóstico concluído</AlertTitle>
+                        <AlertDescription>
+                            Tudo que verificamos está dentro do esperado.
+                        </AlertDescription>
+                    </Alert>
                 ) : (
-                    <div className="flex items-center gap-2 rounded-2xl bg-destructive/10 p-4 text-sm text-destructive ring-1 ring-destructive/20">
-                        <DangerTriangleIcon className="size-5 shrink-0" />
-                        {criticalIssues === 1
-                            ? '1 item precisa de atenção.'
-                            : `${criticalIssues} itens precisam de atenção.`}
-                    </div>
+                    <Alert variant="destructive">
+                        <DangerTriangleIcon />
+                        <AlertTitle>Diagnóstico requer atenção</AlertTitle>
+                        <AlertDescription>
+                            {criticalIssues === 1
+                                ? '1 item precisa de atenção.'
+                                : `${criticalIssues} itens precisam de atenção.`}
+                        </AlertDescription>
+                    </Alert>
                 )}
 
                 <div className="grid gap-6 lg:grid-cols-2">
@@ -392,22 +399,19 @@ function UploadLimitTestCard({
                 />
             </div>
             {lastResult && (
-                <div className="flex items-start gap-3 border-t bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-400">
-                    <CheckCircleIcon className="mt-0.5 size-4 shrink-0" />
-                    <div>
-                        <p className="font-medium">
-                            {lastResult.name} —{' '}
-                            {formatBytes(lastResult.size_bytes)} chegaram ao
-                            servidor
-                            {elapsedMs !== null &&
-                                ` em ${(elapsedMs / 1000).toFixed(1)}s`}
-                            .
-                        </p>
-                        <p className="text-xs opacity-80">
-                            {lastResult.mime_type ?? 'Tipo não identificado'}
-                        </p>
-                    </div>
-                </div>
+                <Alert variant="success">
+                    <CheckCircleIcon />
+                    <AlertTitle>
+                        {lastResult.name} — {formatBytes(lastResult.size_bytes)}{' '}
+                        chegaram ao servidor
+                        {elapsedMs !== null &&
+                            ` em ${(elapsedMs / 1000).toFixed(1)}s`}
+                        .
+                    </AlertTitle>
+                    <AlertDescription>
+                        {lastResult.mime_type ?? 'Tipo não identificado'}
+                    </AlertDescription>
+                </Alert>
             )}
         </Surface>
     );

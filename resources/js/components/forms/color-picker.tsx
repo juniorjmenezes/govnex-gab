@@ -36,7 +36,7 @@ export function ColorPicker({
                     type="button"
                     disabled={disabled}
                     aria-label={ariaLabel}
-                    className="flex h-10 w-full min-w-0 items-center gap-2 rounded-sm border border-transparent bg-muted px-3 text-left text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex h-10 w-full min-w-0 cursor-pointer items-center gap-2 rounded-md border border-input bg-muted px-3 text-left text-sm text-foreground transition-[color,border-color,box-shadow] outline-none hover:border-[color-mix(in_oklch,var(--input),var(--foreground)_12%)] focus-visible:border-[color-mix(in_oklch,var(--input),var(--foreground)_25%)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <span
                         className="size-5 shrink-0 rounded-full border border-foreground/10"

@@ -238,7 +238,7 @@ function ComboboxChips({
     <ComboboxPrimitive.Chips
       data-slot="combobox-chips"
       className={cn(
-        "flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-input bg-muted bg-clip-padding px-3 py-1.5 text-sm transition-[color,border-color,box-shadow] hover:border-[color-mix(in_oklch,var(--input),var(--foreground)_12%)] focus-within:border-[color-mix(in_oklch,var(--input),var(--foreground)_25%)] has-aria-invalid:border-destructive has-aria-invalid:ring-2 has-aria-invalid:ring-destructive/20 has-data-[slot=combobox-chip]:px-3 dark:has-aria-invalid:border-destructive/50 dark:has-aria-invalid:ring-destructive/40",
+        "flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-input bg-muted bg-clip-padding px-3 py-1.5 text-sm transition-[color,border-color,box-shadow] hover:border-[color-mix(in_oklch,var(--input),var(--foreground)_12%)] focus-within:border-[color-mix(in_oklch,var(--input),var(--foreground)_25%)] has-data-[slot=combobox-chip]:px-3",
         className
       )}
       {...props}

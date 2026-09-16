@@ -17,6 +17,7 @@ import { TableActionButton } from '@/components/common/table-action-button';
 import { PriorityBadge } from '@/components/demands/priority-badge';
 import { StatusBadge } from '@/components/demands/status-badge';
 import { EmptyState } from '@/components/feedback/empty-state';
+import { DatePicker } from '@/components/forms/date-picker';
 import { FilterSelect } from '@/components/forms/list-filters';
 import {
     ChartIcon,
@@ -33,7 +34,6 @@ import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Surface,
@@ -347,26 +347,24 @@ export default function ReportsIndex({
                         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                             <Label className="grid gap-1">
                                 Início
-                                <Input
-                                    type="date"
+                                <DatePicker
                                     value={form.inicio}
-                                    onChange={(event) =>
+                                    onChange={(value) =>
                                         setForm((current) => ({
                                             ...current,
-                                            inicio: event.target.value,
+                                            inicio: value,
                                         }))
                                     }
                                 />
                             </Label>
                             <Label className="grid gap-1">
                                 Fim
-                                <Input
-                                    type="date"
+                                <DatePicker
                                     value={form.fim}
-                                    onChange={(event) =>
+                                    onChange={(value) =>
                                         setForm((current) => ({
                                             ...current,
-                                            fim: event.target.value,
+                                            fim: value,
                                         }))
                                     }
                                 />

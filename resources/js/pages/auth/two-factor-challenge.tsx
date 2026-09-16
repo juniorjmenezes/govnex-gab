@@ -1,6 +1,6 @@
 import { Form, Head, setLayoutProps } from '@inertiajs/react';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,11 +10,14 @@ import {
     InputOTPSlot,
 } from '@/components/ui/input-otp';
 import { OTP_MAX_LENGTH } from '@/hooks/use-two-factor-auth';
+import { checkRequiredFormFields } from '@/lib/required-fields';
+import type { InertiaFormRef } from '@/lib/required-fields';
 import { store } from '@/routes/two-factor/login';
 
 export default function TwoFactorChallenge() {
     const [showRecoveryInput, setShowRecoveryInput] = useState<boolean>(false);
     const [code, setCode] = useState<string>('');
+    const formRef = useRef<InertiaFormRef>(null);
 
     const authConfigContent = useMemo<{
         title: string;
@@ -55,8 +58,21 @@ export default function TwoFactorChallenge() {
 
             <div className="space-y-6">
                 <Form
+                    noValidate
                     {...store.form()}
+                    ref={formRef}
                     className="space-y-4"
+                    onBefore={() =>
+                        checkRequiredFormFields(
+                            formRef.current,
+                            showRecoveryInput
+                                ? {
+                                      recovery_code:
+                                          'Informe o código de recuperação.',
+                                  }
+                                : { code: 'Informe o código de autenticação.' },
+                        )
+                    }
                     resetOnError
                     resetOnSuccess={!showRecoveryInput}
                 >
@@ -69,7 +85,7 @@ export default function TwoFactorChallenge() {
                                         type="text"
                                         placeholder="Informe o código de recuperação"
                                         autoFocus={showRecoveryInput}
-                                        required
+                                        aria-required="true"
                                     />
                                     <InputError
                                         message={errors.recovery_code}

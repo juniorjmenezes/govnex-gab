@@ -28,18 +28,13 @@ import { PageHeader } from '@/components/layout/page-header';
 import { CandidateNewsDialog } from '@/components/politics/candidate-news-dialog';
 import { OfficeBadge } from '@/components/politics/office-badge';
 import { PartyBadge } from '@/components/politics/party-badge';
+import { PollsHistoryDrawer } from '@/components/politics/polls-history-drawer';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-} from '@/components/ui/sheet';
 import {
     Surface,
     SurfaceDescription,
@@ -57,6 +52,7 @@ import {
 } from '@/components/ui/table';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { preservedListParams } from '@/lib/pagination';
+import { isInvalidVoteLabel } from '@/lib/poll-results';
 import { cn } from '@/lib/utils';
 import type {
     PoliticalCandidate,
@@ -79,20 +75,6 @@ const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
     timeStyle: 'short',
 });
 
-/** Identifica a linha de votos em branco/nulo publicada por alguns
- * institutos como se fosse mais um "candidato" no resultado — deve sempre
- * aparecer por último na lista, independente do percentual. */
-function isInvalidVoteLabel(name: string): boolean {
-    const normalized = name.toUpperCase().trim();
-
-    return (
-        normalized === 'NÃO VÁLIDO' ||
-        normalized === 'BRANCO/NULO' ||
-        normalized === 'BRANCOS E NULOS' ||
-        normalized === 'BRANCOS/NULOS'
-    );
-}
-
 /**
  * "#NE" é o marcador de nulo do próprio TSE ("não existe"), não um status de
  * candidatura — exibi-lo só ocupa a linha com uma sigla sem significado para
@@ -102,6 +84,20 @@ function displaySituacao(situacao: string | null): string | null {
     return situacao === null || situacao.trim().toUpperCase() === '#NE'
         ? null
         : situacao;
+}
+
+/** Percentual sobre os eleitores aptos, na mesma linha do número. */
+function ShareOfEligible({ percentage }: { percentage: number | null }) {
+    if (percentage === null) {
+        return null;
+    }
+
+    return (
+        <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+            {percentFormatter.format(percentage)}%
+            <span className="sr-only"> dos aptos</span>
+        </span>
+    );
 }
 
 /**
@@ -161,13 +157,8 @@ function MunicipalElectionResult({
                         </dt>
                         <dd className="mt-0.5 text-sm font-medium tabular-nums">
                             {numberFormatter.format(turnout.voted)}
+                            <ShareOfEligible percentage={turnout.percentage} />
                         </dd>
-                        {turnout.percentage !== null && (
-                            <dd className="text-xs text-muted-foreground">
-                                {percentFormatter.format(turnout.percentage)}%
-                                dos aptos
-                            </dd>
-                        )}
                     </div>
                     <div className="min-w-0">
                         <dt className="text-xs text-muted-foreground">
@@ -175,6 +166,15 @@ function MunicipalElectionResult({
                         </dt>
                         <dd className="mt-0.5 text-sm font-medium tabular-nums">
                             {numberFormatter.format(turnout.abstentions)}
+                            <ShareOfEligible
+                                percentage={
+                                    turnout.eligible > 0
+                                        ? (turnout.abstentions /
+                                              turnout.eligible) *
+                                          100
+                                        : null
+                                }
+                            />
                         </dd>
                     </div>
                     <div className="min-w-0">
@@ -519,8 +519,8 @@ function CandidateRow({
                               : 'Somente o vereador pode alterar os favoritos'
                     }
                     className={cn(
-                        'flex text-muted-foreground/50 transition-colors hover:text-amber-500 focus-visible:text-amber-500 focus-visible:outline-none disabled:pointer-events-none',
-                        candidate.is_favorite && 'text-amber-500',
+                        'flex cursor-pointer text-muted-foreground/50 transition-colors hover:text-primary focus-visible:text-primary focus-visible:outline-none disabled:pointer-events-none',
+                        candidate.is_favorite && 'text-primary',
                         !candidate.is_holder && 'disabled:opacity-50',
                     )}
                 >
@@ -538,8 +538,8 @@ function CandidateRow({
                     <button
                         type="button"
                         onClick={() => onOpenNews(candidate)}
-                        aria-label={`Ver notícias de ${displayName}`}
-                        className="text-left hover:underline"
+                        aria-label={`Ver notícias e informações de ${displayName}`}
+                        className="cursor-pointer text-left hover:underline"
                     >
                         {displayName}
                     </button>
@@ -871,7 +871,7 @@ function PollsSection({
                                                         )}
                                                         {result.is_favorite && (
                                                             <HeartBoldIcon
-                                                                className="size-3.5 text-amber-500"
+                                                                className="size-3.5 text-primary"
                                                                 aria-label="Favorito"
                                                             />
                                                         )}
@@ -884,14 +884,17 @@ function PollsSection({
                                                     </span>
                                                 </div>
                                                 <Progress
+                                                    // O favorito usa a cor do
+                                                    // gabinete (--primary, que
+                                                    // o OfficeTheme troca).
                                                     className={
                                                         result.is_favorite
-                                                            ? 'bg-amber-500/20 dark:bg-amber-500/20'
+                                                            ? 'bg-primary/20 dark:bg-primary/20'
                                                             : undefined
                                                     }
                                                     indicatorClassName={
                                                         result.is_favorite
-                                                            ? 'bg-amber-500 dark:bg-amber-500'
+                                                            ? 'bg-primary dark:bg-primary'
                                                             : undefined
                                                     }
                                                     value={Math.max(
@@ -947,65 +950,21 @@ function PollsSection({
                 )}
             </Surface>
 
-            <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
-                <SheetContent className="overflow-y-auto sm:max-w-xl">
-                    <SheetHeader className="border-b">
-                        <SheetTitle>
-                            Pesquisas para {activeOffice.label}
-                        </SheetTitle>
-                        <SheetDescription>
-                            Histórico disponível para a UF do gabinete.
-                        </SheetDescription>
-                    </SheetHeader>
-                    <div className="space-y-4 p-6">
-                        {activeOffice.polls.map((poll) => (
-                            <article
-                                key={poll.id}
-                                className="rounded-xl border p-4"
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="font-medium">
-                                            {poll.institute}
-                                        </p>
-                                        <p className="mt-1 text-xs text-muted-foreground">
-                                            Publicada em{' '}
-                                            {dateFormatter.format(
-                                                new Date(
-                                                    `${poll.publication_date}T12:00:00`,
-                                                ),
-                                            )}
-                                        </p>
-                                    </div>
-                                    {poll.poll_type && (
-                                        <Badge variant="outline">
-                                            {poll.poll_type}
-                                        </Badge>
-                                    )}
-                                </div>
-                                <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
-                                    {poll.results.slice(0, 6).map((result) => (
-                                        <div
-                                            key={result.external_candidate_id}
-                                            className="flex justify-between gap-2"
-                                        >
-                                            <span className="truncate">
-                                                {result.name}
-                                            </span>
-                                            <span className="font-medium tabular-nums">
-                                                {percentFormatter.format(
-                                                    result.percentage,
-                                                )}
-                                                %
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </article>
-                        ))}
-                    </div>
-                </SheetContent>
-            </Sheet>
+            <PollsHistoryDrawer
+                // O filtro de instituto recomeça ao trocar de cargo.
+                key={activeOffice.slug}
+                open={detailsOpen}
+                onOpenChange={setDetailsOpen}
+                office={activeOffice}
+                selectedPollId={
+                    mode === 'poll' ? (selectedPoll?.id ?? null) : null
+                }
+                onSelectPoll={(pollId) => {
+                    setSelectedPollId(pollId);
+                    setMode('poll');
+                    setDetailsOpen(false);
+                }}
+            />
         </>
     );
 }
@@ -1244,22 +1203,17 @@ export default function PoliticalPanel({
                 />
 
                 {!municipality.mapped && (
-                    <div
-                        role="status"
-                        className="flex gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/8 p-4 text-sm"
-                    >
-                        <MapPointIcon className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-400" />
-                        <div>
-                            <p className="font-medium">
-                                Município ainda não vinculado ao cadastro do TSE
-                            </p>
-                            <p className="mt-1 text-muted-foreground">
-                                Execute a sincronização do eleitorado para
-                                localizar o código oficial e carregar a
-                                quantidade de eleitores aptos.
-                            </p>
-                        </div>
-                    </div>
+                    <Alert variant="warning">
+                        <MapPointIcon />
+                        <AlertTitle>
+                            Município ainda não vinculado ao cadastro do TSE
+                        </AlertTitle>
+                        <AlertDescription>
+                            Execute a sincronização do eleitorado para localizar
+                            o código oficial e carregar a quantidade de
+                            eleitores aptos.
+                        </AlertDescription>
+                    </Alert>
                 )}
 
                 <section
@@ -1335,25 +1289,28 @@ export default function PoliticalPanel({
                         as="section"
                         className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
                     >
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2 text-primary">
-                                <CalendarMarkIcon
-                                    className="size-4"
+                        <div className="flex min-w-0 items-center gap-3">
+                            <CalendarMarkIcon
+                                className="size-5 shrink-0 text-primary"
+                                aria-hidden="true"
+                            />
+                            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                <h2 className="text-sm font-semibold">
+                                    {countdown.label}
+                                </h2>
+                                <span
+                                    className="hidden text-muted-foreground/60 sm:inline"
                                     aria-hidden="true"
-                                />
-                                <span className="text-xs font-semibold tracking-wide uppercase">
-                                    Próxima eleição
+                                >
+                                    &middot;
                                 </span>
+                                <p className="basis-full text-xs text-muted-foreground sm:basis-auto">
+                                    1º turno em{' '}
+                                    {dateFormatter.format(
+                                        new Date(`${countdown.date}T12:00:00`),
+                                    )}
+                                </p>
                             </div>
-                            <h2 className="mt-1 font-heading text-base font-semibold">
-                                {countdown.label}
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
-                                1º turno em{' '}
-                                {dateFormatter.format(
-                                    new Date(`${countdown.date}T12:00:00`),
-                                )}
-                            </p>
                         </div>
                         <div className="w-full shrink-0 sm:w-auto sm:max-w-sm">
                             <Countdown
@@ -1369,6 +1326,7 @@ export default function PoliticalPanel({
 
                 <Surface as="section" className="overflow-hidden">
                     <SurfaceHeader
+                        help="Favorite um candidato pelo coração para acompanhá-lo. O nome dos favoritos fica clicável e abre as informações do candidato e as notícias relacionadas publicadas nos portais cadastrados."
                         actions={
                             !canFavorite && (
                                 <p className="shrink-0 text-xs text-muted-foreground">

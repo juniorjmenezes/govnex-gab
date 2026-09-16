@@ -1,17 +1,8 @@
 import { router } from '@inertiajs/react';
 import { useState } from 'react';
+import { DestructiveAlertDialog } from '@/components/common/destructive-alert-dialog';
 import { TableActionButton } from '@/components/common/table-action-button';
 import { TrashBinTrashIcon } from '@/components/icons';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 
 type DeleteRecordButtonProps = {
     url: string;
@@ -29,11 +20,17 @@ export function DeleteRecordButton({
     onSuccess,
 }: DeleteRecordButtonProps) {
     const [open, setOpen] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
     const destroy = () => {
         router.delete(url, {
             preserveScroll: true,
-            onSuccess: () => onSuccess?.(),
+            onStart: () => setSubmitting(true),
+            onFinish: () => setSubmitting(false),
+            onSuccess: () => {
+                setOpen(false);
+                onSuccess?.();
+            },
         });
     };
 
@@ -47,25 +44,15 @@ export function DeleteRecordButton({
             >
                 <TrashBinTrashIcon aria-hidden="true" />
             </TableActionButton>
-            <AlertDialog open={open} onOpenChange={setOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>{title}</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            {description}
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                            variant="destructive"
-                            onClick={destroy}
-                        >
-                            Excluir registro
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            <DestructiveAlertDialog
+                open={open}
+                onOpenChange={setOpen}
+                title={title}
+                description={description}
+                submitting={submitting}
+                confirmLabel={submitting ? 'Excluindo...' : 'Excluir registro'}
+                onConfirm={destroy}
+            />
         </>
     );
 }

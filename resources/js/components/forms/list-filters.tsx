@@ -1,5 +1,5 @@
+import { DatePicker } from '@/components/forms/date-picker';
 import { AppSelect } from '@/components/ui/app-select';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 /**
@@ -46,11 +46,7 @@ export function DateFilter({
     return (
         <Label className="grid gap-1">
             <span>{label}</span>
-            <Input
-                type="date"
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-            />
+            <DatePicker value={value} onChange={onChange} />
         </Label>
     );
 }

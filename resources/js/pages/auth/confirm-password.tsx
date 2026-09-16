@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+import { useRef } from 'react';
 import {
     index as confirmOptions,
     store as confirmStore,
@@ -9,9 +10,13 @@ import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { checkRequiredFormFields } from '@/lib/required-fields';
+import type { InertiaFormRef } from '@/lib/required-fields';
 import { store } from '@/routes/password/confirm';
 
 export default function ConfirmPassword() {
+    const formRef = useRef<InertiaFormRef>(null);
+
     return (
         <>
             <Head title="Confirmar senha" />
@@ -26,7 +31,17 @@ export default function ConfirmPassword() {
                 separator="Ou confirme com a senha"
             />
 
-            <Form {...store.form()} resetOnSuccess={['password']}>
+            <Form
+                noValidate
+                {...store.form()}
+                ref={formRef}
+                resetOnSuccess={['password']}
+                onBefore={() =>
+                    checkRequiredFormFields(formRef.current, {
+                        password: 'Informe a senha.',
+                    })
+                }
+            >
                 {({ processing, errors }) => (
                     <div className="space-y-6">
                         <div className="grid gap-2">
@@ -35,6 +50,7 @@ export default function ConfirmPassword() {
                                 id="password"
                                 name="password"
                                 placeholder="Senha"
+                                aria-required="true"
                                 autoComplete="current-password"
                                 autoFocus
                             />

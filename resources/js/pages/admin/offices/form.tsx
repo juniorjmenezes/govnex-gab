@@ -361,12 +361,13 @@ export default function OfficeForm({
                     }
                 />
                 <form
+                    noValidate
                     onSubmit={handleSubmit(submit, focusErrorSummary)}
                     className="space-y-6"
                 >
                     {validationMessages.length > 0 && (
                         <div id="office-form-error-summary" tabIndex={-1}>
-                            <Alert variant="destructive" role="alert">
+                            <Alert variant="destructive">
                                 <DangerCircleIcon />
                                 <AlertTitle>
                                     Revise os dados antes de continuar

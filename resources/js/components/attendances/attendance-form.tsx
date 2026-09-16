@@ -3,6 +3,7 @@ import { router } from '@inertiajs/react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import type { Control, FieldPath } from 'react-hook-form';
 import { z } from 'zod';
+import { DatePicker } from '@/components/forms/date-picker';
 import { DateTimeFieldPair } from '@/components/forms/date-time-field-pair';
 import { FieldError } from '@/components/forms/field-error';
 import { AppSelect } from '@/components/ui/app-select';
@@ -121,7 +122,7 @@ export function AttendanceForm({
     };
 
     return (
-        <form onSubmit={handleSubmit(submit)} className="space-y-6">
+        <form noValidate onSubmit={handleSubmit(submit)} className="space-y-6">
             <Card className="gap-0 py-0">
                 <SurfaceHeader help="Informe quem foi atendido e quem realizou o atendimento no gabinete.">
                     <SurfaceTitle>Identificação</SurfaceTitle>
@@ -156,21 +157,28 @@ export function AttendanceForm({
                             label: member.name,
                         }))}
                     />
-                    <DateTimeFieldPair
-                        required
-                        className="md:col-span-2"
-                        dateLabel="Data do atendimento"
-                        timeLabel="Hora do atendimento"
-                        dateInputProps={{
-                            id: 'atendido_data',
-                            ...register('atendido_data'),
-                        }}
-                        timeInputProps={{
-                            id: 'atendido_hora',
-                            ...register('atendido_hora'),
-                        }}
-                        dateError={errors.atendido_data?.message}
-                        timeError={errors.atendido_hora?.message}
+                    <Controller
+                        control={control}
+                        name="atendido_data"
+                        render={({ field }) => (
+                            <DateTimeFieldPair
+                                required
+                                className="md:col-span-2"
+                                dateLabel="Data do atendimento"
+                                timeLabel="Hora do atendimento"
+                                dateProps={{
+                                    id: 'atendido_data',
+                                    value: field.value,
+                                    onChange: field.onChange,
+                                }}
+                                timeInputProps={{
+                                    id: 'atendido_hora',
+                                    ...register('atendido_hora'),
+                                }}
+                                dateError={errors.atendido_data?.message}
+                                timeError={errors.atendido_hora?.message}
+                            />
+                        )}
                     />
                     <div className="space-y-1">
                         <Label htmlFor="duracao_minutos">
@@ -281,11 +289,19 @@ export function AttendanceForm({
                         <Label htmlFor="retorno_previsto_em">
                             Retorno previsto <span aria-hidden="true">*</span>
                         </Label>
-                        <Input
-                            id="retorno_previsto_em"
-                            type="date"
-                            {...register('retorno_previsto_em')}
-                            aria-invalid={Boolean(errors.retorno_previsto_em)}
+                        <Controller
+                            control={control}
+                            name="retorno_previsto_em"
+                            render={({ field }) => (
+                                <DatePicker
+                                    id="retorno_previsto_em"
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    aria-invalid={Boolean(
+                                        errors.retorno_previsto_em,
+                                    )}
+                                />
+                            )}
                         />
                         <FieldError
                             message={errors.retorno_previsto_em?.message}

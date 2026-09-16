@@ -161,9 +161,9 @@ function GovnexApiDatasetsCard({
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Dataset</TableHead>
+                        <TableHead className="w-2/5">Dataset</TableHead>
                         <TableHead>Última sincronização</TableHead>
-                        <TableHead>Ações</TableHead>
+                        <TableHead className="w-px text-right">Ações</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -310,29 +310,31 @@ function GovnexDatasetRow({
                     </p>
                 )}
             </TableCell>
-            <TableCell>
-                {applicable &&
-                    (active && sync ? (
-                        <TableActionButton
-                            variant="destructive"
-                            label={`Travou? Cancelar ${label}`}
-                            disabled={cancelling}
-                            onClick={() => cancel(sync.id)}
-                        >
-                            <ForbiddenIcon aria-hidden="true" />
-                        </TableActionButton>
-                    ) : (
-                        <TableActionButton
-                            label={`Sincronizar ${label}`}
-                            disabled={submitting}
-                            onClick={synchronize}
-                        >
-                            <RefreshIcon
-                                className={cn(submitting && 'animate-spin')}
-                                aria-hidden="true"
-                            />
-                        </TableActionButton>
-                    ))}
+            <TableCell className="w-px">
+                <div className="flex justify-end gap-2">
+                    {applicable &&
+                        (active && sync ? (
+                            <TableActionButton
+                                variant="destructive"
+                                label={`Travou? Cancelar ${label}`}
+                                disabled={cancelling}
+                                onClick={() => cancel(sync.id)}
+                            >
+                                <ForbiddenIcon aria-hidden="true" />
+                            </TableActionButton>
+                        ) : (
+                            <TableActionButton
+                                label={`Sincronizar ${label}`}
+                                disabled={submitting}
+                                onClick={synchronize}
+                            >
+                                <RefreshIcon
+                                    className={cn(submitting && 'animate-spin')}
+                                    aria-hidden="true"
+                                />
+                            </TableActionButton>
+                        ))}
+                </div>
             </TableCell>
         </TableRow>
     );
@@ -413,9 +415,9 @@ function PollingDataCard({
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Gabinete</TableHead>
+                        <TableHead className="w-2/5">Gabinete</TableHead>
                         <TableHead>Última sincronização</TableHead>
-                        <TableHead>Ações</TableHead>
+                        <TableHead className="w-px text-right">Ações</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -425,7 +427,7 @@ function PollingDataCard({
 
                         return (
                             <TableRow key={office.id}>
-                                <TableCell>
+                                <TableCell className="whitespace-normal">
                                     <p className="font-normal">{office.name}</p>
                                     <p className="text-xs text-muted-foreground">
                                         {[
@@ -445,8 +447,8 @@ function PollingDataCard({
                                         </p>
                                     )}
                                 </TableCell>
-                                <TableCell>
-                                    <div className="flex gap-2">
+                                <TableCell className="w-px">
+                                    <div className="flex justify-end gap-2">
                                         <TableActionButton
                                             label="Sincronizar pesquisas"
                                             disabled={

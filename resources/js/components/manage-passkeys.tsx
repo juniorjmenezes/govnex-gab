@@ -1,28 +1,20 @@
 import { router } from '@inertiajs/react';
 import { destroy } from '@/actions/Laravel/Passkeys/Http/Controllers/PasskeyRegistrationController';
-import Heading from '@/components/heading';
+import { EmptyState } from '@/components/feedback/empty-state';
 import { KeyIcon } from '@/components/icons';
 import PasskeyItem from '@/components/passkey-item';
 import PasskeyRegistration from '@/components/passkey-register';
+import { Card } from '@/components/ui/card';
+import {
+    SurfaceDescription,
+    SurfaceHeader,
+    SurfaceTitle,
+} from '@/components/ui/surface';
 import type { Passkey } from '@/types/auth';
 
 export type Props = {
     canManagePasskeys?: boolean;
     passkeys?: Passkey[];
-};
-
-const EmptyState = () => {
-    return (
-        <div className="p-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-sm bg-muted">
-                <KeyIcon className="h-7 w-7 text-muted-foreground" />
-            </div>
-            <p className="font-medium">Nenhuma chave de acesso cadastrada</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-                Adicione uma chave para entrar sem digitar a senha
-            </p>
-        </div>
-    );
 };
 
 export default function ManagePasskeys(props: Props) {
@@ -44,28 +36,39 @@ export default function ManagePasskeys(props: Props) {
     }
 
     return (
-        <div className="space-y-6">
-            <Heading
-                variant="small"
-                title="Chaves de acesso"
-                description="Gerencie formas seguras de acesso sem senha"
-            />
+        <Card className="gap-0 py-0">
+            <SurfaceHeader help="Chaves de acesso usam a biometria ou o PIN do dispositivo no lugar da senha.">
+                <SurfaceTitle>Chaves de acesso</SurfaceTitle>
+                <SurfaceDescription>
+                    {passkeys.length === 0
+                        ? 'Nenhuma cadastrada'
+                        : passkeys.length === 1
+                          ? '1 cadastrada'
+                          : `${passkeys.length} cadastradas`}
+                </SurfaceDescription>
+            </SurfaceHeader>
 
-            <div className="overflow-hidden rounded-lg border border-border">
-                {passkeys.length > 0 ? (
-                    passkeys.map((passkey) => (
+            {passkeys.length > 0 ? (
+                <div>
+                    {passkeys.map((passkey) => (
                         <PasskeyItem
                             key={passkey.id}
                             passkey={passkey}
                             onDelete={handleDelete}
                         />
-                    ))
-                ) : (
-                    <EmptyState />
-                )}
-            </div>
+                    ))}
+                </div>
+            ) : (
+                <EmptyState
+                    icon={KeyIcon}
+                    title="Nenhuma chave de acesso cadastrada"
+                    description="Adicione uma chave para entrar sem digitar a senha."
+                />
+            )}
 
-            <PasskeyRegistration onSuccess={handleRegisterSuccess} />
-        </div>
+            <div className="border-t p-4">
+                <PasskeyRegistration onSuccess={handleRegisterSuccess} />
+            </div>
+        </Card>
     );
 }

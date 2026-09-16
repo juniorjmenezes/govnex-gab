@@ -1,6 +1,11 @@
 import { Head } from '@inertiajs/react';
 import AppearanceTabs from '@/components/appearance-tabs';
-import Heading from '@/components/heading';
+import { Card } from '@/components/ui/card';
+import {
+    SurfaceDescription,
+    SurfaceHeader,
+    SurfaceTitle,
+} from '@/components/ui/surface';
 import { edit as editAppearance } from '@/routes/appearance';
 
 export default function Appearance() {
@@ -8,16 +13,17 @@ export default function Appearance() {
         <>
             <Head title="Aparência" />
 
-            <h1 className="sr-only">Aparência</h1>
-
-            <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Aparência"
-                    description="Escolha como a interface será exibida nesta conta"
-                />
-                <AppearanceTabs />
-            </div>
+            <Card className="gap-0 py-0">
+                <SurfaceHeader help="A escolha vale para este navegador. Em “Sistema”, o tema acompanha a configuração do dispositivo.">
+                    <SurfaceTitle>Tema</SurfaceTitle>
+                    <SurfaceDescription>
+                        Como a interface será exibida
+                    </SurfaceDescription>
+                </SurfaceHeader>
+                <div className="p-5">
+                    <AppearanceTabs />
+                </div>
+            </Card>
         </>
     );
 }

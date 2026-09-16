@@ -262,9 +262,7 @@ export default function DemandsIndex({
                 >
                     <DrawerContent>
                         <DrawerHeader className="flex-row items-center justify-between border-b p-4">
-                            <DrawerTitle className="text-xs font-semibold tracking-wide uppercase">
-                                Filtros avançados
-                            </DrawerTitle>
+                            <DrawerTitle>Filtros avançados</DrawerTitle>
                             <DrawerClose
                                 render={
                                     <Button variant="ghost" size="icon-sm" />
@@ -449,8 +447,8 @@ function DemandRow({ demand }: { demand: Demand }) {
                         : undefined
                 }
                 className={cn(
-                    'shrink-0 py-3 pr-3 pl-5 text-muted-foreground/50 transition-colors hover:text-amber-500 focus-visible:text-amber-500 focus-visible:outline-none',
-                    favorited && 'text-amber-500',
+                    'shrink-0 py-3 pr-3 pl-5 text-muted-foreground/50 transition-colors hover:text-primary focus-visible:text-primary focus-visible:outline-none',
+                    favorited && 'text-primary',
                 )}
             >
                 {favorited ? (

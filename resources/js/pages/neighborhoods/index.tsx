@@ -3,12 +3,12 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { ActivityMark } from '@/components/common/activity-mark';
+import { ActivityToggleButton } from '@/components/common/activity-toggle-button';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import { PaginationLinks } from '@/components/common/pagination-links';
-import { TableActionButton } from '@/components/common/table-action-button';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { FieldError } from '@/components/forms/field-error';
-import { AddIcon, MapPointIcon, PowerIcon } from '@/components/icons';
+import { AddIcon, MapPointIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
@@ -96,6 +96,7 @@ export default function Neighborhoods({
                             </SurfaceDescription>
                         </SurfaceHeader>
                         <form
+                            noValidate
                             onSubmit={handleSubmit(submit)}
                             className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start"
                         >
@@ -158,13 +159,9 @@ export default function Neighborhoods({
                                             {canManage && (
                                                 <TableCell>
                                                     <div className="flex justify-end gap-2">
-                                                        <TableActionButton
-                                                            label={`${item.ativo ? 'Desativar' : 'Ativar'} ${item.nome}`}
-                                                            variant={
-                                                                item.ativo
-                                                                    ? 'destructive'
-                                                                    : 'outline'
-                                                            }
+                                                        <ActivityToggleButton
+                                                            active={item.ativo}
+                                                            name={item.nome}
                                                             onClick={() =>
                                                                 router.put(
                                                                     tenantUrl(
@@ -179,9 +176,7 @@ export default function Neighborhoods({
                                                                     },
                                                                 )
                                                             }
-                                                        >
-                                                            <PowerIcon aria-hidden="true" />
-                                                        </TableActionButton>
+                                                        />
                                                         <DeleteRecordButton
                                                             url={tenantUrl(
                                                                 `/bairros/${item.id}`,

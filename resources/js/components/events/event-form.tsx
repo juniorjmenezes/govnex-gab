@@ -8,13 +8,14 @@ import type {
     UseFormRegisterReturn,
 } from 'react-hook-form';
 import { z } from 'zod';
+import { DatePicker } from '@/components/forms/date-picker';
 import { FieldError } from '@/components/forms/field-error';
 import { FieldLabel } from '@/components/forms/field-label';
+import { PeoplePicker } from '@/components/forms/people-picker';
 import { AddIcon, CloseIcon, MagnifierIcon } from '@/components/icons';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
@@ -184,7 +185,7 @@ export function EventForm({
     };
 
     return (
-        <form onSubmit={handleSubmit(submit)} className="space-y-6">
+        <form noValidate onSubmit={handleSubmit(submit)} className="space-y-6">
             <Card className="gap-0 py-0">
                 <SurfaceHeader help="Classifique o evento e defina sua situação atual.">
                     <SurfaceTitle>Identificação do evento</SurfaceTitle>
@@ -268,25 +269,23 @@ export function EventForm({
                                 : 'grid gap-4'
                         }
                     >
-                        <InputField
+                        <DateField
+                            control={control}
+                            name="inicio_data"
                             id="inicio_data"
                             label={
                                 duration === 'multiplos_dias'
                                     ? 'Data de início'
                                     : 'Data do evento'
                             }
-                            type="date"
-                            required
-                            register={register('inicio_data')}
                             error={errors.inicio_data?.message}
                         />
                         {duration === 'multiplos_dias' && (
-                            <InputField
+                            <DateField
+                                control={control}
+                                name="fim_data"
                                 id="fim_data"
                                 label="Data de término"
-                                type="date"
-                                required
-                                register={register('fim_data')}
                                 error={errors.fim_data?.message}
                             />
                         )}
@@ -325,14 +324,25 @@ export function EventForm({
                     <SurfaceTitle>Participantes</SurfaceTitle>
                 </SurfaceHeader>
                 <div className="space-y-5 p-5">
-                    <InternalParticipantChecklist
-                        label="Equipe do gabinete"
+                    <Controller
                         control={control}
-                        options={options.members.map((member) => ({
-                            id: member.id,
-                            label: member.name,
-                        }))}
-                        error={errors.participantes_usuarios?.message}
+                        name="participantes_usuarios"
+                        render={({ field }) => (
+                            <PeoplePicker
+                                label="Equipe do gabinete"
+                                options={options.members.map((member) => ({
+                                    id: member.id,
+                                    label: member.name,
+                                }))}
+                                value={field.value}
+                                onChange={field.onChange}
+                                error={errors.participantes_usuarios?.message}
+                                searchPlaceholder="Buscar integrante pelo nome"
+                                emptyLabel="Nenhum integrante disponível."
+                                noResultsLabel="Nenhum integrante encontrado."
+                                noSelectionLabel="Nenhum integrante selecionado."
+                            />
+                        )}
                     />
                     <CitizenParticipantPicker
                         control={control}
@@ -381,6 +391,41 @@ export function EventForm({
     );
 }
 
+function DateField({
+    control,
+    name,
+    id,
+    label,
+    error,
+}: {
+    control: Control<Values>;
+    name: 'inicio_data' | 'fim_data';
+    id: string;
+    label: string;
+    error?: string;
+}) {
+    return (
+        <div className="space-y-1">
+            <Label htmlFor={id}>
+                {label} <span aria-hidden="true">*</span>
+            </Label>
+            <Controller
+                control={control}
+                name={name}
+                render={({ field }) => (
+                    <DatePicker
+                        id={id}
+                        value={field.value}
+                        onChange={field.onChange}
+                        aria-invalid={Boolean(error)}
+                    />
+                )}
+            />
+            <FieldError message={error} />
+        </div>
+    );
+}
+
 function InputField({
     id,
     label,
@@ -406,65 +451,6 @@ function InputField({
                 type={type}
                 {...register}
                 aria-invalid={Boolean(error)}
-            />
-            <FieldError message={error} />
-        </div>
-    );
-}
-
-function InternalParticipantChecklist({
-    label,
-    control,
-    options,
-    error,
-}: {
-    label: string;
-    control: Control<Values>;
-    options: Array<{ id: number; label: string }>;
-    error?: string;
-}) {
-    return (
-        <div className="space-y-1">
-            <Label>{label}</Label>
-            <Controller
-                control={control}
-                name="participantes_usuarios"
-                render={({ field }) => (
-                    <div className="max-h-64 overflow-y-auto rounded-md border p-3">
-                        {options.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">
-                                Nenhum registro disponível.
-                            </p>
-                        ) : (
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                {options.map((option) => (
-                                    <Label key={option.id}>
-                                        <Checkbox
-                                            checked={field.value.includes(
-                                                option.id,
-                                            )}
-                                            onCheckedChange={(checked) =>
-                                                field.onChange(
-                                                    checked
-                                                        ? [
-                                                              ...field.value,
-                                                              option.id,
-                                                          ]
-                                                        : field.value.filter(
-                                                              (id) =>
-                                                                  id !==
-                                                                  option.id,
-                                                          ),
-                                                )
-                                            }
-                                        />
-                                        <span>{option.label}</span>
-                                    </Label>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
             />
             <FieldError message={error} />
         </div>

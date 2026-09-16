@@ -1,4 +1,5 @@
 import type { ComponentProps } from 'react';
+import { DatePicker } from '@/components/forms/date-picker';
 import { FieldError } from '@/components/forms/field-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,7 +8,7 @@ import { cn } from '@/lib/utils';
 export function DateTimeFieldPair({
     dateLabel,
     timeLabel,
-    dateInputProps,
+    dateProps,
     timeInputProps,
     dateError,
     timeError,
@@ -16,7 +17,7 @@ export function DateTimeFieldPair({
 }: {
     dateLabel: string;
     timeLabel: string;
-    dateInputProps: Omit<ComponentProps<typeof Input>, 'type'>;
+    dateProps: ComponentProps<typeof DatePicker>;
     timeInputProps: Omit<ComponentProps<typeof Input>, 'type'>;
     dateError?: string;
     timeError?: string;
@@ -26,14 +27,10 @@ export function DateTimeFieldPair({
     return (
         <div className={cn('grid gap-4 sm:grid-cols-2', className)}>
             <div className="space-y-1">
-                <Label htmlFor={dateInputProps.id}>
+                <Label htmlFor={dateProps.id}>
                     {dateLabel} {required && <span aria-hidden="true">*</span>}
                 </Label>
-                <Input
-                    type="date"
-                    {...dateInputProps}
-                    aria-invalid={Boolean(dateError)}
-                />
+                <DatePicker {...dateProps} aria-invalid={Boolean(dateError)} />
                 <FieldError message={dateError} />
             </div>
             <div className="space-y-1">

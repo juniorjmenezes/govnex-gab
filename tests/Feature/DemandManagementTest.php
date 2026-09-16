@@ -173,6 +173,22 @@ class DemandManagementTest extends TestCase
         $this->assertSame(DemandStatus::Closed, $demand->fresh()->status);
     }
 
+    public function test_demand_in_progress_cannot_go_back_to_new(): void
+    {
+        [$advisor, $demand] = $this->demandContext();
+
+        $this->actingAs($advisor)
+            ->patch(route('demands.transition', $demand), ['status' => DemandStatus::InProgress->value])
+            ->assertRedirect(route('demands.show', $demand));
+
+        // "Nova" é só o estado inicial: não volta a ser opção depois.
+        $this->actingAs($advisor)
+            ->patch(route('demands.transition', $demand), ['status' => DemandStatus::New->value])
+            ->assertSessionHasErrors('status');
+
+        $this->assertSame(DemandStatus::InProgress, $demand->fresh()->status);
+    }
+
     public function test_invalid_transition_is_rejected(): void
     {
         [$advisor, $demand] = $this->demandContext();

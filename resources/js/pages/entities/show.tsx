@@ -1,8 +1,11 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
+import { ActivityMark } from '@/components/common/activity-mark';
+import { ActivityToggleButton } from '@/components/common/activity-toggle-button';
 import { AttachmentField } from '@/components/forms/attachment-field';
 import { ColorPicker } from '@/components/forms/color-picker';
+import { FieldError } from '@/components/forms/field-error';
 import {
     AddIcon,
     AltArrowLeftIcon,
@@ -11,7 +14,6 @@ import {
     CloseIcon,
     DisketteIcon,
     MagnifierIcon,
-    PowerIcon,
     RestartIcon,
     ShieldCheckIcon,
     ShieldCrossIcon,
@@ -38,6 +40,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { checkRequiredFields } from '@/lib/required-fields';
 
 const SYSTEM_PRIMARY_COLOR = '#ca3500';
 const SYSTEM_SECONDARY_COLOR = '#333333';
@@ -218,6 +221,15 @@ export default function EntidadeShow({
 
     const saveSettings = (event: FormEvent) => {
         event.preventDefault();
+
+        if (
+            !checkRequiredFields(settings.data, settings, {
+                name: 'Informe o nome da organização.',
+            })
+        ) {
+            return;
+        }
+
         settings.post(`/entidades/${entidade.slug}/identidade`, {
             preserveScroll: true,
             forceFormData: true,
@@ -227,6 +239,15 @@ export default function EntidadeShow({
 
     const addSharedNeighborhood = (event: FormEvent) => {
         event.preventDefault();
+
+        if (
+            !checkRequiredFields(neighborhood.data, neighborhood, {
+                name: 'Informe o nome do bairro.',
+            })
+        ) {
+            return;
+        }
+
         neighborhood.post(`/entidades/${entidade.slug}/bairros`, {
             preserveScroll: true,
             onSuccess: () => neighborhood.reset('name'),
@@ -254,6 +275,15 @@ export default function EntidadeShow({
 
     const sendInvitation = (event: FormEvent) => {
         event.preventDefault();
+
+        if (
+            !checkRequiredFields(invitation.data, invitation, {
+                email: 'Informe o e-mail do convidado.',
+            })
+        ) {
+            return;
+        }
+
         invitation.post(`/entidades/${entidade.slug}/convites`, {
             preserveScroll: true,
             onSuccess: () => invitation.reset('email'),
@@ -450,6 +480,7 @@ export default function EntidadeShow({
                                 <SurfaceTitle>Integrantes</SurfaceTitle>
                             </SurfaceHeader>
                             <form
+                                noValidate
                                 className="grid gap-4 border-b p-4 sm:grid-cols-2"
                                 onSubmit={sendInvitation}
                             >
@@ -465,7 +496,10 @@ export default function EntidadeShow({
                                                 event.target.value,
                                             )
                                         }
-                                        required
+                                        aria-required="true"
+                                    />
+                                    <FieldError
+                                        message={invitation.errors.email}
                                     />
                                 </div>
                                 <div className="space-y-1">
@@ -482,6 +516,11 @@ export default function EntidadeShow({
                                             value: role,
                                             label: role,
                                         }))}
+                                    />
+                                    <FieldError
+                                        message={
+                                            invitation.errors.entidade_role
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-1">
@@ -512,6 +551,9 @@ export default function EntidadeShow({
                                                 label: gabinete.name,
                                             }))}
                                     />
+                                    <FieldError
+                                        message={invitation.errors.gabinete_id}
+                                    />
                                 </div>
                                 {invitation.data.gabinete_id && (
                                     <div className="space-y-1">
@@ -533,6 +575,11 @@ export default function EntidadeShow({
                                                     label: role,
                                                 }),
                                             )}
+                                        />
+                                        <FieldError
+                                            message={
+                                                invitation.errors.papel_gabinete
+                                            }
                                         />
                                     </div>
                                 )}
@@ -630,6 +677,7 @@ export default function EntidadeShow({
                                     </SurfaceTitle>
                                 </SurfaceHeader>
                                 <form
+                                    noValidate
                                     className="space-y-4 p-4"
                                     onSubmit={saveSettings}
                                 >
@@ -678,6 +726,7 @@ export default function EntidadeShow({
                                         </Label>
                                         <Input
                                             id="entidade-name"
+                                            aria-required="true"
                                             value={settings.data.name}
                                             onChange={(event) =>
                                                 settings.setData(
@@ -685,6 +734,9 @@ export default function EntidadeShow({
                                                     event.target.value,
                                                 )
                                             }
+                                        />
+                                        <FieldError
+                                            message={settings.errors.name}
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -797,10 +849,11 @@ export default function EntidadeShow({
                                 </SurfaceHeader>
                                 <div className="p-4">
                                     <form
+                                        noValidate
                                         className="flex flex-col gap-3 sm:flex-row"
                                         onSubmit={addSharedNeighborhood}
                                     >
-                                        <div className="min-w-0 flex-1">
+                                        <div className="min-w-0 flex-1 space-y-1">
                                             <Label
                                                 htmlFor="shared-neighborhood-name"
                                                 className="sr-only"
@@ -809,6 +862,7 @@ export default function EntidadeShow({
                                             </Label>
                                             <Input
                                                 id="shared-neighborhood-name"
+                                                aria-required="true"
                                                 value={neighborhood.data.name}
                                                 placeholder="Nome do bairro"
                                                 onChange={(event) =>
@@ -816,6 +870,11 @@ export default function EntidadeShow({
                                                         'name',
                                                         event.target.value,
                                                     )
+                                                }
+                                            />
+                                            <FieldError
+                                                message={
+                                                    neighborhood.errors.name
                                                 }
                                             />
                                         </div>
@@ -839,6 +898,9 @@ export default function EntidadeShow({
                                                     key={item.id}
                                                     className="flex flex-wrap items-center gap-3 p-3"
                                                 >
+                                                    <ActivityMark
+                                                        active={item.active}
+                                                    />
                                                     <div className="min-w-0 flex-1">
                                                         <span className="block text-sm font-medium">
                                                             {item.name}
@@ -852,35 +914,15 @@ export default function EntidadeShow({
                                                             gabinete(s)
                                                         </span>
                                                     </div>
-                                                    <Badge
-                                                        variant={
-                                                            item.active
-                                                                ? 'default'
-                                                                : 'secondary'
-                                                        }
-                                                    >
-                                                        {item.active
-                                                            ? 'Ativa'
-                                                            : 'Inativa'}
-                                                    </Badge>
-                                                    <Button
-                                                        type="button"
-                                                        size="icon"
-                                                        variant="outline"
-                                                        title={`${item.active ? 'Desativar' : 'Ativar'} ${item.name}`}
+                                                    <ActivityToggleButton
+                                                        active={item.active}
+                                                        name={item.name}
                                                         onClick={() =>
                                                             toggleSharedNeighborhood(
                                                                 item,
                                                             )
                                                         }
-                                                    >
-                                                        <PowerIcon className="size-4" />
-                                                        <span className="sr-only">
-                                                            {item.active
-                                                                ? 'Desativar'
-                                                                : 'Ativar'}
-                                                        </span>
-                                                    </Button>
+                                                    />
                                                 </div>
                                             ))
                                         )}

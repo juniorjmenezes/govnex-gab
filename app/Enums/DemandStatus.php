@@ -24,9 +24,10 @@ enum DemandStatus: string
     /**
      * A máquina de status é deliberadamente permissiva: o status representa
      * só "onde a demanda está", não um fluxo rígido. Praticamente qualquer
-     * transição direta é válida — a única regra protegida é que sair de
+     * transição direta é válida, com duas exceções: sair de
      * Resolvida/Encerrada é sempre uma "reabertura" (ver ReopenDemand), não
-     * uma transição simples.
+     * uma transição simples; e Nova é só o estado inicial de quem acabou de
+     * chegar — uma demanda já em andamento não volta a ser nova.
      *
      * @return list<self>
      */
@@ -34,8 +35,8 @@ enum DemandStatus: string
     {
         return match ($this) {
             self::New => [self::InProgress, self::Awaiting, self::Resolved, self::Closed],
-            self::InProgress => [self::New, self::Awaiting, self::Resolved, self::Closed],
-            self::Awaiting => [self::New, self::InProgress, self::Resolved, self::Closed],
+            self::InProgress => [self::Awaiting, self::Resolved, self::Closed],
+            self::Awaiting => [self::InProgress, self::Resolved, self::Closed],
             self::Resolved => [self::InProgress, self::Closed],
             self::Closed => [self::InProgress],
         };

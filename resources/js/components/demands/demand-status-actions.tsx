@@ -1,6 +1,7 @@
 import { Link, router } from '@inertiajs/react';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { useState } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { FieldError } from '@/components/forms/field-error';
 import {
     ArrowRightIcon,
@@ -14,14 +15,6 @@ import {
 } from '@/components/icons';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import {
     Drawer,
     DrawerClose,
@@ -50,7 +43,7 @@ import type { Demand, SelectOption } from '@/types';
 const generateConfirmationCode = () =>
     String(Math.floor(100000 + Math.random() * 900000));
 
-type DialogKind = 'resolve' | 'reopen' | null;
+type DecisionKind = 'resolve' | 'reopen' | null;
 
 /**
  * Ações de ciclo de vida raramente usadas (resolver/encerrar/reabrir/
@@ -69,7 +62,7 @@ export function DemandStatusActions({
     canDelete: boolean;
 }) {
     const tenantUrl = useTenantUrl();
-    const [dialog, setDialog] = useState<DialogKind>(null);
+    const [decision, setDecision] = useState<DecisionKind>(null);
     const [resultado, setResultado] = useState('');
     const [descricao, setDescricao] = useState('');
     const [descricaoError, setDescricaoError] = useState('');
@@ -101,18 +94,18 @@ export function DemandStatusActions({
     };
 
     const close = () => {
-        setDialog(null);
+        setDecision(null);
         setResultado('');
         setDescricao('');
         setDescricaoError('');
     };
 
     const confirm = () => {
-        if (!dialog) {
+        if (!decision) {
             return;
         }
 
-        if (dialog === 'reopen' && descricao.trim() === '') {
+        if (decision === 'reopen' && descricao.trim() === '') {
             setDescricaoError('Informe o motivo da reabertura.');
 
             return;
@@ -121,10 +114,10 @@ export function DemandStatusActions({
         setDescricaoError('');
         setSubmitting(true);
         const url = tenantUrl(
-            `/demandas/${demand.id}/${{ resolve: 'resolver', reopen: 'reabrir' }[dialog]}`,
+            `/demandas/${demand.id}/${{ resolve: 'resolver', reopen: 'reabrir' }[decision]}`,
         );
         const payload =
-            dialog === 'resolve'
+            decision === 'resolve'
                 ? { resultado: resultado || null, descricao: descricao || null }
                 : { motivo: descricao };
 
@@ -134,7 +127,7 @@ export function DemandStatusActions({
             onSuccess: close,
             onError: (errors) => {
                 const message =
-                    dialog === 'reopen' ? errors.motivo : errors.descricao;
+                    decision === 'reopen' ? errors.motivo : errors.descricao;
 
                 if (message) {
                     setDescricaoError(message);
@@ -182,7 +175,7 @@ export function DemandStatusActions({
         setDeleteOpen(true);
     };
 
-    const closeDeleteDialog = () => {
+    const closeDeleteDrawer = () => {
         setDeleteOpen(false);
         setDeleteCode('');
         setDeleteInput('');
@@ -223,7 +216,9 @@ export function DemandStatusActions({
                     ))}
                     {plainTransitions.length > 0 && <DropdownMenuSeparator />}
                     {canResolve && (
-                        <DropdownMenuItem onClick={() => setDialog('resolve')}>
+                        <DropdownMenuItem
+                            onClick={() => setDecision('resolve')}
+                        >
                             <ChecklistIcon />
                             Marcar como resolvida
                         </DropdownMenuItem>
@@ -235,7 +230,7 @@ export function DemandStatusActions({
                         </DropdownMenuItem>
                     )}
                     {canReopen && (
-                        <DropdownMenuItem onClick={() => setDialog('reopen')}>
+                        <DropdownMenuItem onClick={() => setDecision('reopen')}>
                             <RestartIcon />
                             Reabrir
                         </DropdownMenuItem>
@@ -261,183 +256,196 @@ export function DemandStatusActions({
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            <Dialog
-                open={dialog !== null}
-                onOpenChange={(open) => !open && close()}
+            <DecisionDrawer
+                open={decision !== null}
+                onClose={close}
+                title={
+                    decision === 'reopen'
+                        ? 'Reabrir demanda'
+                        : 'Marcar como resolvida'
+                }
+                description={
+                    decision === 'reopen'
+                        ? 'A demanda volta para Em andamento e o histórico é preservado.'
+                        : 'O trabalho foi concluído. Resultado e descrição são opcionais.'
+                }
+                confirmLabel="Confirmar"
+                onConfirm={confirm}
+                submitting={submitting}
             >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>
-                            {dialog === 'resolve' && 'Marcar como resolvida'}
-                            {dialog === 'reopen' && 'Reabrir demanda'}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {dialog === 'resolve' &&
-                                'O trabalho foi concluído. Resultado e descrição são opcionais.'}
-                            {dialog === 'reopen' &&
-                                'A demanda volta para Em andamento e o histórico é preservado.'}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3">
-                        {dialog === 'resolve' && (
-                            <div className="space-y-1">
-                                <Label htmlFor="resultado">
-                                    Resultado (opcional)
-                                </Label>
-                                <AppSelect
-                                    id="resultado"
-                                    value={resultado}
-                                    onValueChange={setResultado}
-                                    options={resultados}
-                                    emptyLabel="Não informar"
-                                />
-                            </div>
+                {decision === 'resolve' && (
+                    <div className="space-y-1">
+                        <Label htmlFor="resultado">Resultado (opcional)</Label>
+                        <AppSelect
+                            id="resultado"
+                            value={resultado}
+                            onValueChange={setResultado}
+                            options={resultados}
+                            emptyLabel="Não informar"
+                        />
+                    </div>
+                )}
+                <div className="space-y-1">
+                    <Label htmlFor="descricao-decisao">
+                        {decision === 'reopen' ? (
+                            <>
+                                Motivo <span aria-hidden="true">*</span>
+                            </>
+                        ) : (
+                            'Descrição final (opcional)'
                         )}
-                        <div className="space-y-1">
-                            <Label htmlFor="descricao-dialog">
-                                {dialog === 'reopen' ? (
-                                    <>
-                                        Motivo <span aria-hidden="true">*</span>
-                                    </>
-                                ) : (
-                                    'Descrição final (opcional)'
-                                )}
-                            </Label>
-                            <Textarea
-                                id="descricao-dialog"
-                                rows={3}
-                                value={descricao}
-                                aria-invalid={Boolean(descricaoError)}
-                                onChange={(event) => {
-                                    setDescricao(event.target.value);
-                                    setDescricaoError('');
-                                }}
-                            />
-                            <FieldError message={descricaoError} />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={close}>
-                            Cancelar
-                        </Button>
-                        <Button onClick={confirm} disabled={submitting}>
-                            Confirmar
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </Label>
+                    <Textarea
+                        id="descricao-decisao"
+                        rows={4}
+                        value={descricao}
+                        aria-invalid={Boolean(descricaoError)}
+                        onChange={(event) => {
+                            setDescricao(event.target.value);
+                            setDescricaoError('');
+                        }}
+                    />
+                    <FieldError message={descricaoError} />
+                </div>
+            </DecisionDrawer>
 
-            <Drawer
+            <DecisionDrawer
                 open={closeOpen}
-                onOpenChange={(open) => !open && closeDrawer()}
-                swipeDirection="right"
+                onClose={closeDrawer}
+                title="Encerrar"
+                description="O encerramento fecha a demanda sem registrar resultado."
+                confirmLabel="Encerrar"
+                onConfirm={confirmClose}
+                submitting={closeSubmitting}
             >
-                <DrawerContent side="right">
-                    <DrawerHeader className="flex-row items-center justify-between border-b p-4">
-                        <DrawerTitle className="text-xs font-semibold tracking-wide uppercase">
-                            Encerrar
-                        </DrawerTitle>
-                        <DrawerClose
-                            render={<Button variant="ghost" size="icon-sm" />}
-                            aria-label="Fechar"
-                        >
-                            <CloseIcon aria-hidden="true" />
-                        </DrawerClose>
-                    </DrawerHeader>
-                    <div className="flex min-h-0 flex-1 flex-col">
-                        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-5">
-                            <Label htmlFor="descricao-encerrar">
-                                Descrição final{' '}
-                                <span aria-hidden="true">*</span>
-                            </Label>
-                            <Textarea
-                                id="descricao-encerrar"
-                                rows={4}
-                                value={closeDescricao}
-                                aria-invalid={Boolean(closeDescricaoError)}
-                                onChange={(event) => {
-                                    setCloseDescricao(event.target.value);
-                                    setCloseDescricaoError('');
-                                }}
-                            />
-                            <FieldError message={closeDescricaoError} />
-                        </div>
-                        <div className="flex shrink-0 justify-end gap-2 border-t p-4">
-                            <Button variant="ghost" onClick={closeDrawer}>
-                                Cancelar
-                            </Button>
-                            <Button
-                                onClick={confirmClose}
-                                disabled={closeSubmitting}
-                            >
-                                Encerrar
-                            </Button>
-                        </div>
-                    </div>
-                </DrawerContent>
-            </Drawer>
+                <div className="space-y-1">
+                    <Label htmlFor="descricao-encerrar">
+                        Descrição final <span aria-hidden="true">*</span>
+                    </Label>
+                    <Textarea
+                        id="descricao-encerrar"
+                        rows={4}
+                        value={closeDescricao}
+                        aria-invalid={Boolean(closeDescricaoError)}
+                        onChange={(event) => {
+                            setCloseDescricao(event.target.value);
+                            setCloseDescricaoError('');
+                        }}
+                    />
+                    <FieldError message={closeDescricaoError} />
+                </div>
+            </DecisionDrawer>
 
-            <Dialog
+            <DecisionDrawer
                 open={deleteOpen}
-                onOpenChange={(open) => !open && closeDeleteDialog()}
+                onClose={closeDeleteDrawer}
+                title={`Excluir a Demanda ${demand.protocolo}?`}
+                description="O histórico permanece armazenado para auditoria, mas a demanda some das listagens."
+                confirmLabel="Excluir"
+                confirmVariant="destructive-solid"
+                onConfirm={confirmDelete}
+                submitting={deleteSubmitting}
+                confirmDisabled={deleteInput !== deleteCode}
             >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>
-                            Excluir a Demanda {demand.protocolo}?
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">
-                            Para confirmar a exclusão, digite o código{' '}
-                            <span className="text-sm font-semibold tracking-widest text-foreground tabular-nums select-all">
-                                {deleteCode}
-                            </span>{' '}
-                            nos campos abaixo.
-                        </p>
-                        <div>
-                            <InputOTP
-                                id="delete-confirmation-code"
-                                aria-label="Código de confirmação"
-                                maxLength={6}
-                                pattern={REGEXP_ONLY_DIGITS}
-                                value={deleteInput}
-                                onChange={setDeleteInput}
-                                disabled={deleteSubmitting}
-                                containerClassName="w-full justify-center"
-                            >
-                                <InputOTPGroup>
-                                    {Array.from({ length: 6 }, (_, index) => (
-                                        <InputOTPSlot
-                                            key={index}
-                                            index={index}
-                                            className="rounded-md border"
-                                        />
-                                    ))}
-                                </InputOTPGroup>
-                            </InputOTP>
-                        </div>
-                        <DialogDescription>
-                            O histórico permanece armazenado para auditoria, mas
-                            a demanda some das listagens.
-                        </DialogDescription>
+                <p className="text-sm text-muted-foreground">
+                    Para confirmar a exclusão, digite o código{' '}
+                    <span className="text-sm font-semibold tracking-widest text-foreground tabular-nums select-all">
+                        {deleteCode}
+                    </span>{' '}
+                    nos campos abaixo.
+                </p>
+                <InputOTP
+                    id="delete-confirmation-code"
+                    aria-label="Código de confirmação"
+                    maxLength={6}
+                    pattern={REGEXP_ONLY_DIGITS}
+                    value={deleteInput}
+                    onChange={setDeleteInput}
+                    disabled={deleteSubmitting}
+                    containerClassName="w-full justify-center"
+                >
+                    <InputOTPGroup>
+                        {Array.from({ length: 6 }, (_, index) => (
+                            <InputOTPSlot
+                                key={index}
+                                index={index}
+                                className="rounded-md border"
+                            />
+                        ))}
+                    </InputOTPGroup>
+                </InputOTP>
+            </DecisionDrawer>
+        </>
+    );
+}
+
+/**
+ * Toda decisão de ciclo de vida da demanda (resolver, encerrar, reabrir,
+ * excluir) abre neste drawer lateral: mesma moldura, mesmo lugar do botão de
+ * confirmar, em vez de uma caixa no meio da tela.
+ */
+function DecisionDrawer({
+    open,
+    onClose,
+    title,
+    description,
+    confirmLabel,
+    confirmVariant = 'default',
+    confirmDisabled = false,
+    submitting,
+    onConfirm,
+    children,
+}: {
+    open: boolean;
+    onClose: () => void;
+    title: string;
+    description?: string;
+    confirmLabel: string;
+    confirmVariant?: ComponentProps<typeof Button>['variant'];
+    confirmDisabled?: boolean;
+    submitting: boolean;
+    onConfirm: () => void;
+    children: ReactNode;
+}) {
+    return (
+        <Drawer
+            open={open}
+            onOpenChange={(next) => !next && onClose()}
+            swipeDirection="right"
+        >
+            <DrawerContent side="right">
+                <DrawerHeader className="flex-row items-center justify-between border-b p-4">
+                    <DrawerTitle>{title}</DrawerTitle>
+                    <DrawerClose
+                        render={<Button variant="ghost" size="icon-sm" />}
+                        aria-label="Fechar"
+                    >
+                        <CloseIcon aria-hidden="true" />
+                    </DrawerClose>
+                </DrawerHeader>
+                <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+                        {description && (
+                            <p className="text-sm text-muted-foreground">
+                                {description}
+                            </p>
+                        )}
+                        {children}
                     </div>
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={closeDeleteDialog}>
+                    <div className="flex shrink-0 justify-end gap-2 border-t p-4">
+                        <Button variant="ghost" onClick={onClose}>
                             Cancelar
                         </Button>
                         <Button
-                            variant="destructive-solid"
-                            onClick={confirmDelete}
-                            disabled={
-                                deleteSubmitting || deleteInput !== deleteCode
-                            }
+                            variant={confirmVariant}
+                            onClick={onConfirm}
+                            disabled={submitting || confirmDisabled}
                         >
-                            Excluir
+                            {confirmLabel}
                         </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </>
+                    </div>
+                </div>
+            </DrawerContent>
+        </Drawer>
     );
 }

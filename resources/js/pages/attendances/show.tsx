@@ -8,6 +8,7 @@ import {
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -197,17 +198,14 @@ export default function AttendanceShow({
                         </Card>
 
                         {attendance.requer_retorno && (
-                            <Card className="gap-0 border-amber-300 bg-amber-50 py-0 text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
-                                <SurfaceHeader className="border-amber-300 dark:border-amber-900">
-                                    <SurfaceTitle>
-                                        Retorno necessário
-                                    </SurfaceTitle>
-                                </SurfaceHeader>
-                                <p className="p-5 text-sm">
+                            <Alert variant="warning">
+                                <CalendarMarkIcon />
+                                <AlertTitle>Retorno necessário</AlertTitle>
+                                <AlertDescription>
                                     Previsão:{' '}
                                     {formatDate(attendance.retorno_previsto_em)}
-                                </p>
-                            </Card>
+                                </AlertDescription>
+                            </Alert>
                         )}
                     </aside>
                 </div>

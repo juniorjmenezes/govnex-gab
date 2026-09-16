@@ -46,8 +46,12 @@ type DatePickerProps = {
     onChange: (value: string) => void;
     placeholder?: string;
     disabled?: boolean;
+    /** Data mínima (ISO). Desabilita os dias anteriores no calendário. */
+    min?: string;
+    className?: string;
     'aria-invalid'?: boolean;
     'aria-describedby'?: string;
+    'aria-label'?: string;
 };
 
 export function DatePicker({
@@ -56,10 +60,13 @@ export function DatePicker({
     onChange,
     placeholder = 'dd/mm/aaaa',
     disabled,
+    min,
+    className,
     ...accessibility
 }: DatePickerProps) {
     const [open, setOpen] = useState(false);
     const selectedDate = parseIsoDate(value);
+    const minDate = min ? parseIsoDate(min) : undefined;
     const [month, setMonth] = useState<Date | undefined>(selectedDate);
     const [inputValue, setInputValue] = useState(
         formatDisplayDate(selectedDate),
@@ -88,7 +95,7 @@ export function DatePicker({
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverAnchor asChild>
-                <InputGroup>
+                <InputGroup className={className}>
                     <InputGroupInput
                         id={id}
                         value={inputValue}
@@ -140,6 +147,7 @@ export function DatePicker({
                 <Calendar
                     mode="single"
                     locale={ptBR}
+                    disabled={minDate ? { before: minDate } : undefined}
                     selected={selectedDate}
                     month={month}
                     onMonthChange={setMonth}

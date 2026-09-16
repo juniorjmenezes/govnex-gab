@@ -1,5 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import { DestructiveAlertDialog } from '@/components/common/destructive-alert-dialog';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import {
     ScrollableDialogBody,
@@ -22,14 +23,7 @@ import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
 import {
@@ -100,6 +94,7 @@ export default function PollCuration({
     );
     const [deleteTarget, setDeleteTarget] =
         useState<PollCurationPesquisa | null>(null);
+    const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
     return (
         <>
@@ -235,52 +230,42 @@ export default function PollCuration({
                 onClose={() => setViewTarget(null)}
             />
 
-            <Dialog
+            <DestructiveAlertDialog
                 open={deleteTarget !== null}
                 onOpenChange={(open) => !open && setDeleteTarget(null)}
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Excluir pesquisa?</DialogTitle>
-                        <DialogDescription>
-                            {deleteTarget?.instituto ?? 'Esta pesquisa'} (
-                            {deleteTarget && cargoLabels[deleteTarget.cargo]},{' '}
-                            {deleteTarget?.uf}
-                            {deleteTarget?.municipio
-                                ? `/${deleteTarget.municipio}`
-                                : ''}
-                            ) será removida definitivamente, junto com seus
-                            resultados e proveniência.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button
-                            variant="ghost"
-                            onClick={() => setDeleteTarget(null)}
-                        >
-                            Cancelar
-                        </Button>
-                        <Button
-                            variant="destructive-solid"
-                            onClick={() => {
-                                if (!deleteTarget) {
-                                    return;
-                                }
+                title="Excluir pesquisa?"
+                description={
+                    <>
+                        {deleteTarget?.instituto ?? 'Esta pesquisa'} (
+                        {deleteTarget && cargoLabels[deleteTarget.cargo]},{' '}
+                        {deleteTarget?.uf}
+                        {deleteTarget?.municipio
+                            ? `/${deleteTarget.municipio}`
+                            : ''}
+                        ) será removida definitivamente, junto com seus
+                        resultados e proveniência.
+                    </>
+                }
+                confirmLabel={
+                    deleteSubmitting ? 'Excluindo...' : 'Excluir pesquisa'
+                }
+                submitting={deleteSubmitting}
+                onConfirm={() => {
+                    if (!deleteTarget) {
+                        return;
+                    }
 
-                                router.delete(
-                                    `/admin/pesquisas-eleitorais/${deleteTarget.id}`,
-                                    {
-                                        preserveScroll: true,
-                                        onSuccess: () => setDeleteTarget(null),
-                                    },
-                                );
-                            }}
-                        >
-                            Confirmar exclusão
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    router.delete(
+                        `/admin/pesquisas-eleitorais/${deleteTarget.id}`,
+                        {
+                            preserveScroll: true,
+                            onStart: () => setDeleteSubmitting(true),
+                            onFinish: () => setDeleteSubmitting(false),
+                            onSuccess: () => setDeleteTarget(null),
+                        },
+                    );
+                }}
+            />
         </>
     );
 }

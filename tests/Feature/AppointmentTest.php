@@ -99,6 +99,21 @@ class AppointmentTest extends TestCase
                 ->where('appointments.2.ends_at', '2026-08-17T20:00:00+00:00'));
     }
 
+    public function test_new_appointment_opens_in_its_own_page_with_form_options(): void
+    {
+        $office = Gabinete::factory()->create();
+        $user = User::factory()->councilor()->forGabinete($office)->create();
+
+        $this->actingAs($user)
+            ->get(route('appointments.create', ['data' => now()->addDay()->toDateString()]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('appointments/create')
+                ->where('defaults.date', now()->addDay()->toDateString())
+                ->has('options.statuses')
+                ->has('options.members'));
+    }
+
     public function test_agenda_is_visible_and_strictly_isolated_by_office(): void
     {
         $office = Gabinete::factory()->create();

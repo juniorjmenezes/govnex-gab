@@ -1,13 +1,26 @@
 import { Form, Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { useRef } from 'react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
-import DeleteUser from '@/components/delete-user';
-import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
+import { FieldError } from '@/components/forms/field-error';
+import { LetterIcon } from '@/components/icons';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    SurfaceDescription,
+    SurfaceHeader,
+    SurfaceTitle,
+} from '@/components/ui/surface';
 import { hasModule } from '@/lib/modules';
+import {
+    checkRequiredFields,
+    checkRequiredFormFields,
+} from '@/lib/required-fields';
+import type { InertiaFormRef } from '@/lib/required-fields';
 import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
 import type { Auth } from '@/types';
@@ -34,211 +47,249 @@ export default function Profile({
 }) {
     const { auth } = usePage<PageProps>().props;
     const whatsappForm = useForm({ telefone: '', aceite: false });
+    const profileFormRef = useRef<InertiaFormRef>(null);
+    const emailUnverified =
+        mustVerifyEmail && auth.user.email_verified_at === null;
 
     return (
         <>
             <Head title="Perfil" />
 
-            <h1 className="sr-only">Perfil</h1>
-
-            <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Dados pessoais"
-                    description="Atualize seu nome e endereço de e-mail"
-                />
-
+            <Card className="gap-0 py-0">
+                <SurfaceHeader help="O e-mail é usado para entrar no sistema e receber avisos da conta.">
+                    <SurfaceTitle>Dados pessoais</SurfaceTitle>
+                </SurfaceHeader>
                 <Form
+                    noValidate
                     {...ProfileController.update.form()}
-                    options={{
-                        preserveScroll: true,
-                    }}
-                    className="space-y-6"
+                    ref={profileFormRef}
+                    onBefore={() =>
+                        checkRequiredFormFields(profileFormRef.current, {
+                            name: 'Informe o nome.',
+                            email: 'Informe o e-mail.',
+                        })
+                    }
+                    options={{ preserveScroll: true }}
                 >
                     {({ processing, errors }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="name">Nome</Label>
+                            <div className="grid gap-5 p-5 md:grid-cols-2">
+                                <div className="space-y-1">
+                                    <Label htmlFor="name">
+                                        Nome <span aria-hidden="true">*</span>
+                                    </Label>
+                                    <Input
+                                        id="name"
+                                        name="name"
+                                        defaultValue={auth.user.name}
+                                        aria-required="true"
+                                        autoComplete="name"
+                                        placeholder="Nome completo"
+                                    />
+                                    <FieldError message={errors.name} />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="email">
+                                        E-mail <span aria-hidden="true">*</span>
+                                    </Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        name="email"
+                                        defaultValue={auth.user.email}
+                                        aria-required="true"
+                                        autoComplete="username"
+                                        placeholder="nome@gabinete.gov.br"
+                                    />
+                                    <FieldError message={errors.email} />
+                                </div>
 
-                                <Input
-                                    id="name"
-                                    className="mt-1 block w-full"
-                                    defaultValue={auth.user.name}
-                                    name="name"
-                                    required
-                                    autoComplete="name"
-                                    placeholder="Nome completo"
-                                />
-
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.name}
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">
-                                    Endereço de e-mail
-                                </Label>
-
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    className="mt-1 block w-full"
-                                    defaultValue={auth.user.email}
-                                    name="email"
-                                    required
-                                    autoComplete="username"
-                                    placeholder="Endereço de e-mail"
-                                />
-
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.email}
-                                />
-                            </div>
-
-                            {mustVerifyEmail &&
-                                auth.user.email_verified_at === null && (
-                                    <div>
-                                        <p className="-mt-4 text-sm text-muted-foreground">
-                                            Seu endereço de e-mail ainda não foi
-                                            verificado.{' '}
-                                            <Link
-                                                href={send()}
-                                                as="button"
-                                                className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
-                                            >
-                                                Click here to re-send the
-                                                verification email.
-                                            </Link>
-                                        </p>
-
-                                        {status ===
-                                            'verification-link-sent' && (
-                                            <div className="mt-2 text-sm font-medium text-green-600">
-                                                A new verification link has been
-                                                sent to your email address.
-                                            </div>
-                                        )}
-                                    </div>
+                                {emailUnverified && (
+                                    <Alert
+                                        variant={
+                                            status === 'verification-link-sent'
+                                                ? 'success'
+                                                : 'warning'
+                                        }
+                                        className="md:col-span-2"
+                                    >
+                                        <LetterIcon />
+                                        <AlertTitle>
+                                            {status === 'verification-link-sent'
+                                                ? 'Link de verificação enviado'
+                                                : 'E-mail ainda não verificado'}
+                                        </AlertTitle>
+                                        <AlertDescription>
+                                            {status ===
+                                            'verification-link-sent' ? (
+                                                'Confira sua caixa de entrada para confirmar o endereço.'
+                                            ) : (
+                                                <>
+                                                    Confirme o endereço para
+                                                    receber os avisos da conta.{' '}
+                                                    <Link
+                                                        href={send()}
+                                                        as="button"
+                                                    >
+                                                        Reenviar e-mail de
+                                                        verificação
+                                                    </Link>
+                                                </>
+                                            )}
+                                        </AlertDescription>
+                                    </Alert>
                                 )}
-
-                            <div className="flex items-center gap-4">
+                            </div>
+                            <div className="flex justify-end gap-2 border-t p-4">
                                 <Button
                                     disabled={processing}
                                     data-test="update-profile-button"
                                 >
-                                    Salvar
+                                    Salvar dados
                                 </Button>
                             </div>
                         </>
                     )}
                 </Form>
-            </div>
+            </Card>
 
             {auth.user.gabinete_id !== null &&
                 hasModule(auth.modules, 'WHATSAPP') && (
-                    <div className="space-y-6">
-                        <Heading
-                            variant="small"
-                            title="WhatsApp"
-                            description="Gerencie o número usado para notificações operacionais"
-                        />
+                    <Card className="gap-0 py-0">
+                        <SurfaceHeader
+                            actions={
+                                whatsapp?.has_current_consent ? (
+                                    <Badge variant="secondary">
+                                        Consentimento {whatsappConsent.version}
+                                    </Badge>
+                                ) : undefined
+                            }
+                            help="O número é declarado pelo próprio usuário e não passa por validação de posse."
+                        >
+                            <SurfaceTitle>WhatsApp</SurfaceTitle>
+                            <SurfaceDescription>
+                                Notificações operacionais
+                            </SurfaceDescription>
+                        </SurfaceHeader>
 
                         {whatsapp?.has_current_consent ? (
-                            <div className="space-y-4 rounded-lg border p-4">
-                                <div>
-                                    <p className="font-medium">
-                                        Número declarado com final{' '}
-                                        {whatsapp.last_four}
+                            <>
+                                <div className="space-y-1 p-5">
+                                    <p className="text-sm font-medium">
+                                        Número com final {whatsapp.last_four}
                                     </p>
                                     <p className="text-sm text-muted-foreground">
-                                        Consentimento {whatsappConsent.version}{' '}
-                                        vigente. O número é declarado pelo
-                                        usuário e não passa por validação de
-                                        posse.
+                                        As notificações operacionais estão
+                                        autorizadas para este número.
                                     </p>
                                 </div>
-                                <Button
-                                    type="button"
-                                    variant="destructive"
-                                    onClick={() =>
-                                        router.delete('/settings/whatsapp', {
-                                            preserveScroll: true,
-                                        })
-                                    }
-                                >
-                                    Revogar consentimento
-                                </Button>
-                            </div>
+                                <div className="flex justify-end gap-2 border-t p-4">
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        onClick={() =>
+                                            router.delete(
+                                                '/settings/whatsapp',
+                                                {
+                                                    preserveScroll: true,
+                                                },
+                                            )
+                                        }
+                                    >
+                                        Revogar consentimento
+                                    </Button>
+                                </div>
+                            </>
                         ) : (
                             <form
-                                className="space-y-4"
+                                noValidate
                                 onSubmit={(event) => {
                                     event.preventDefault();
+
+                                    if (
+                                        !checkRequiredFields(
+                                            whatsappForm.data,
+                                            whatsappForm,
+                                            {
+                                                telefone:
+                                                    'Informe o número com DDD.',
+                                            },
+                                        )
+                                    ) {
+                                        return;
+                                    }
+
                                     whatsappForm.post('/settings/whatsapp', {
                                         preserveScroll: true,
                                         onSuccess: () => whatsappForm.reset(),
                                     });
                                 }}
                             >
-                                <div className="grid gap-2">
-                                    <Label htmlFor="whatsapp-telefone">
-                                        Número com DDD
-                                    </Label>
-                                    <Input
-                                        id="whatsapp-telefone"
-                                        value={whatsappForm.data.telefone}
-                                        onChange={(event) =>
-                                            whatsappForm.setData(
-                                                'telefone',
-                                                event.target.value,
-                                            )
-                                        }
-                                        autoComplete="tel"
-                                        placeholder="(88) 99999-9999"
-                                    />
-                                    <InputError
-                                        message={whatsappForm.errors.telefone}
-                                    />
+                                <div className="grid gap-5 p-5 md:grid-cols-2">
+                                    <div className="space-y-1">
+                                        <Label htmlFor="whatsapp-telefone">
+                                            Número com DDD{' '}
+                                            <span aria-hidden="true">*</span>
+                                        </Label>
+                                        <Input
+                                            id="whatsapp-telefone"
+                                            value={whatsappForm.data.telefone}
+                                            onChange={(event) =>
+                                                whatsappForm.setData(
+                                                    'telefone',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            autoComplete="tel"
+                                            aria-required="true"
+                                            placeholder="(88) 99999-9999"
+                                        />
+                                        <FieldError
+                                            message={
+                                                whatsappForm.errors.telefone
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <Label className="flex min-h-14 items-center justify-between gap-3 rounded-md border p-3">
+                                            <span className="min-w-0">
+                                                <span className="block text-sm font-medium">
+                                                    Aceite para notificações
+                                                    operacionais
+                                                </span>
+                                                <span className="block text-xs font-normal text-muted-foreground">
+                                                    {whatsappConsent.text}
+                                                </span>
+                                            </span>
+                                            <Checkbox
+                                                checked={
+                                                    whatsappForm.data.aceite
+                                                }
+                                                onCheckedChange={(checked) =>
+                                                    whatsappForm.setData(
+                                                        'aceite',
+                                                        checked === true,
+                                                    )
+                                                }
+                                            />
+                                        </Label>
+                                        <FieldError
+                                            message={whatsappForm.errors.aceite}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border p-3">
-                                    <span className="min-w-0">
-                                        <span className="block text-sm font-medium">
-                                            Aceite para notificações
-                                            operacionais
-                                        </span>
-                                        <span className="block text-xs text-muted-foreground">
-                                            {whatsappConsent.text}
-                                        </span>
-                                    </span>
-                                    <Checkbox
-                                        checked={whatsappForm.data.aceite}
-                                        onCheckedChange={(checked) =>
-                                            whatsappForm.setData(
-                                                'aceite',
-                                                checked === true,
-                                            )
-                                        }
-                                        aria-label="Aceite para notificações operacionais"
-                                    />
+                                <div className="flex justify-end gap-2 border-t p-4">
+                                    <Button
+                                        type="submit"
+                                        disabled={whatsappForm.processing}
+                                    >
+                                        Cadastrar WhatsApp
+                                    </Button>
                                 </div>
-                                <InputError
-                                    message={whatsappForm.errors.aceite}
-                                />
-                                <Button
-                                    type="submit"
-                                    disabled={whatsappForm.processing}
-                                >
-                                    Cadastrar WhatsApp
-                                </Button>
                             </form>
                         )}
-                    </div>
+                    </Card>
                 )}
-
-            {!['root', 'vereador'].includes(auth.user.role) && <DeleteUser />}
         </>
     );
 }

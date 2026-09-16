@@ -1,16 +1,7 @@
 import { useState } from 'react';
+import { DestructiveAlertDialog } from '@/components/common/destructive-alert-dialog';
 import { KeyIcon, TrashBinTrashIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
 import type { Passkey } from '@/types/auth';
 
 type Props = {
@@ -20,6 +11,7 @@ type Props = {
 
 export default function PasskeyItem({ passkey, onDelete }: Props) {
     const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
 
     const handleDelete = () => {
         setIsDeleting(true);
@@ -57,39 +49,29 @@ export default function PasskeyItem({ passkey, onDelete }: Props) {
                 </div>
             </div>
 
-            <Dialog>
-                <DialogTrigger asChild>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    >
-                        <TrashBinTrashIcon className="h-4 w-4" />
-                        <span className="sr-only">Remover</span>
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Remover chave de acesso</DialogTitle>
-                        <DialogDescription>
-                            Deseja remover a chave "{passkey.name}"? Ela não
-                            poderá mais ser usada para entrar na conta.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="gap-2">
-                        <DialogClose asChild>
-                            <Button variant="ghost">Cancelar</Button>
-                        </DialogClose>
-                        <Button
-                            variant="destructive-solid"
-                            onClick={handleDelete}
-                            disabled={isDeleting}
-                        >
-                            {isDeleting ? 'Removendo...' : 'Remover chave'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setDeleteOpen(true)}
+            >
+                <TrashBinTrashIcon className="h-4 w-4" />
+                <span className="sr-only">Remover</span>
+            </Button>
+            <DestructiveAlertDialog
+                open={deleteOpen}
+                onOpenChange={setDeleteOpen}
+                title="Remover chave de acesso?"
+                description={
+                    <>
+                        A chave “{passkey.name}” não poderá mais ser usada para
+                        entrar na conta.
+                    </>
+                }
+                confirmLabel={isDeleting ? 'Removendo...' : 'Remover chave'}
+                submitting={isDeleting}
+                onConfirm={handleDelete}
+            />
         </div>
     );
 }

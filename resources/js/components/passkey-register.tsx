@@ -1,9 +1,10 @@
 import { usePasskeyRegister } from '@laravel/passkeys/react';
 import { useState } from 'react';
-import { FieldLabel } from '@/components/forms/field-label';
+import { AddIcon } from '@/components/icons';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type Props = {
     onSuccess: () => void;
@@ -33,6 +34,7 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
     });
 
     const [showForm, setShowForm] = useState(false);
+    const [nameError, setNameError] = useState('');
     const { register, isLoading, error, isSupported } = usePasskeyRegister({
         onSuccess: () => {
             setName('');
@@ -45,8 +47,12 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
         e.preventDefault();
 
         if (!name.trim()) {
+            setNameError('Informe um nome para a chave de acesso.');
+
             return;
         }
+
+        setNameError('');
 
         await register(name);
     };
@@ -54,6 +60,7 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
     const handleCancel = () => {
         setShowForm(false);
         setName('');
+        setNameError('');
     };
 
     if (!isSupported) {
@@ -66,43 +73,46 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
 
     if (!showForm) {
         return (
-            <Button variant="outline" onClick={() => setShowForm(true)}>
-                Adicionar chave de acesso
-            </Button>
+            <div className="flex justify-end">
+                <Button variant="outline" onClick={() => setShowForm(true)}>
+                    <AddIcon aria-hidden="true" />
+                    Adicionar chave de acesso
+                </Button>
+            </div>
         );
     }
 
     return (
         <form
+            noValidate
             onSubmit={handleSubmit}
-            className="space-y-4 rounded-lg border border-border bg-muted/50 p-4"
+            className="flex flex-col gap-3 sm:flex-row sm:items-start"
         >
-            <div className="grid gap-2">
-                <FieldLabel
-                    htmlFor="passkey-name"
-                    help="Use um nome que ajude a reconhecer este dispositivo."
-                >
+            <div className="min-w-0 flex-1 space-y-1">
+                <Label htmlFor="passkey-name" className="sr-only">
                     Nome da chave de acesso
-                </FieldLabel>
+                </Label>
                 <Input
                     id="passkey-name"
                     type="text"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ex.: notebook pessoal, celular"
-                    className="mt-1 block w-full border-foreground/20"
+                    onChange={(e) => {
+                        setName(e.target.value);
+                        setNameError('');
+                    }}
+                    aria-required="true"
+                    placeholder="Nome da chave (ex.: notebook pessoal, celular)"
                     autoFocus
                 />
+                <InputError message={nameError || error || undefined} />
             </div>
 
-            {error && <InputError message={error} />}
-
-            <div className="flex gap-2">
-                <Button type="submit" disabled={isLoading || !name.trim()}>
-                    {isLoading ? 'Cadastrando...' : 'Cadastrar chave'}
-                </Button>
+            <div className="flex shrink-0 gap-2">
                 <Button type="button" variant="ghost" onClick={handleCancel}>
                     Cancelar
+                </Button>
+                <Button type="submit" disabled={isLoading}>
+                    {isLoading ? 'Cadastrando...' : 'Cadastrar chave'}
                 </Button>
             </div>
         </form>

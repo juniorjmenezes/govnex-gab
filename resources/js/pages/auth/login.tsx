@@ -1,4 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { useRef } from 'react';
 import { FieldError } from '@/components/forms/field-error';
 import PasskeyVerify from '@/components/passkey-verify';
 import PasswordInput from '@/components/password-input';
@@ -7,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
+import { checkRequiredFormFields } from '@/lib/required-fields';
+import type { InertiaFormRef } from '@/lib/required-fields';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 
@@ -16,6 +19,8 @@ type Props = {
 };
 
 export default function Login({ status, canResetPassword }: Props) {
+    const formRef = useRef<InertiaFormRef>(null);
+
     return (
         <>
             <Head title="Entrar" />
@@ -28,7 +33,18 @@ export default function Login({ status, canResetPassword }: Props) {
 
             <PasskeyVerify />
 
-            <Form {...store.form()} resetOnSuccess={['password']}>
+            <Form
+                noValidate
+                {...store.form()}
+                ref={formRef}
+                resetOnSuccess={['password']}
+                onBefore={() =>
+                    checkRequiredFormFields(formRef.current, {
+                        email: 'Informe o e-mail.',
+                        password: 'Informe a senha.',
+                    })
+                }
+            >
                 {({ processing, errors }) => (
                     <div className="space-y-4">
                         <div className="space-y-1">
@@ -37,7 +53,7 @@ export default function Login({ status, canResetPassword }: Props) {
                                 id="email"
                                 type="email"
                                 name="email"
-                                required
+                                aria-required="true"
                                 autoFocus
                                 tabIndex={1}
                                 autoComplete="email"
@@ -52,7 +68,7 @@ export default function Login({ status, canResetPassword }: Props) {
                             <PasswordInput
                                 id="password"
                                 name="password"
-                                required
+                                aria-required="true"
                                 tabIndex={2}
                                 autoComplete="current-password"
                                 placeholder="Sua senha"

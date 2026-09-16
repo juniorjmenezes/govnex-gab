@@ -109,25 +109,28 @@ export default function EditPoll({
 
         const cleanedRows = rows.filter((row) => row.nome.trim() !== '');
         const providerMissing = provider.trim() === '';
+        const confidenceMissing = confidenceScore.trim() === '';
         const candidatesMissing = cleanedRows.length === 0;
 
         // Valida antes de enviar, mostrando o erro no campo: com o botão
         // desativado, quem só vinculava candidatos não via o que faltava.
-        setErrors(
-            providerMissing
-                ? {
-                      provider:
-                          'Descreva a fonte (ex.: "AtlasIntel — PDF oficial").',
-                  }
-                : {},
-        );
+        setErrors({
+            ...(providerMissing && {
+                provider: 'Descreva a fonte (ex.: "AtlasIntel — PDF oficial").',
+            }),
+            ...(confidenceMissing && {
+                confidence_score: 'Informe a confiança.',
+            }),
+        });
         setCandidatesError(
             candidatesMissing ? 'Adicione ao menos um candidato.' : '',
         );
 
-        if (providerMissing || candidatesMissing) {
+        if (providerMissing || confidenceMissing || candidatesMissing) {
             if (providerMissing) {
                 document.getElementById('provider')?.focus();
+            } else if (confidenceMissing) {
+                document.getElementById('confidence_score')?.focus();
             }
 
             return;
@@ -176,7 +179,7 @@ export default function EditPoll({
                     title="Editar resultados"
                     description={`${pesquisa.instituto ?? 'Instituto não informado'} · ${cargoLabels[pesquisa.cargo] ?? pesquisa.cargo} · ${territory}`}
                 />
-                <form onSubmit={submit} className="space-y-6">
+                <form noValidate onSubmit={submit} className="space-y-6">
                     <Card className="gap-0 py-0">
                         <SurfaceHeader>
                             <SurfaceTitle>Pesquisa</SurfaceTitle>
@@ -233,10 +236,12 @@ export default function EditPoll({
                                 </div>
                                 <div className="space-y-1">
                                     <Label htmlFor="confidence_score">
-                                        Confiança (1-100)
+                                        Confiança (1-100){' '}
+                                        <span aria-hidden="true">*</span>
                                     </Label>
                                     <Input
                                         id="confidence_score"
+                                        aria-required="true"
                                         type="number"
                                         min={1}
                                         max={100}

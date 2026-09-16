@@ -11,6 +11,7 @@ import {
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -100,30 +101,22 @@ export default function CitizenShow({
                     }
                 />
                 {possibleDuplicates.length > 0 && (
-                    <section className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950">
-                        <div className="flex gap-3">
-                            <DangerTriangleIcon className="mt-0.5 size-5" />
-                            <div>
-                                <h2 className="font-semibold">
-                                    Possíveis cadastros semelhantes
-                                </h2>
-                                {possibleDuplicates.map((item) => (
-                                    <p key={item.id} className="mt-1 text-sm">
-                                        <Link
-                                            className="underline"
-                                            href={tenantUrl(
-                                                `/cidadaos/${item.id}`,
-                                            )}
-                                        >
-                                            {item.nome}
-                                        </Link>{' '}
-                                        — coincidência em{' '}
-                                        {item.matches.join(', ')}
-                                    </p>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
+                    <Alert variant="warning">
+                        <DangerTriangleIcon />
+                        <AlertTitle>Possíveis cadastros semelhantes</AlertTitle>
+                        <AlertDescription>
+                            {possibleDuplicates.map((item) => (
+                                <p key={item.id}>
+                                    <Link
+                                        href={tenantUrl(`/cidadaos/${item.id}`)}
+                                    >
+                                        {item.nome}
+                                    </Link>{' '}
+                                    — coincidência em {item.matches.join(', ')}
+                                </p>
+                            ))}
+                        </AlertDescription>
+                    </Alert>
                 )}
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
                     <div className="space-y-6">
