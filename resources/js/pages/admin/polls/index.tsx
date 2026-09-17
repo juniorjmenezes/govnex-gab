@@ -234,17 +234,17 @@ export default function PollCuration({
                 open={deleteTarget !== null}
                 onOpenChange={(open) => !open && setDeleteTarget(null)}
                 title="Excluir pesquisa?"
-                description={
-                    <>
-                        {deleteTarget?.instituto ?? 'Esta pesquisa'} (
-                        {deleteTarget && cargoLabels[deleteTarget.cargo]},{' '}
-                        {deleteTarget?.uf}
-                        {deleteTarget?.municipio
-                            ? `/${deleteTarget.municipio}`
-                            : ''}
-                        ) será removida definitivamente, junto com seus
-                        resultados e proveniência.
-                    </>
+                description="A pesquisa será removida definitivamente, junto com seus resultados e proveniência."
+                subject={deleteTarget?.instituto ?? 'Pesquisa sem instituto'}
+                subjectDetail={
+                    deleteTarget &&
+                    [
+                        cargoLabels[deleteTarget.cargo],
+                        `${deleteTarget.uf}${deleteTarget.municipio ? `/${deleteTarget.municipio}` : ''}`,
+                        `publicada em ${formatDate(deleteTarget.publicada_em)}`,
+                    ]
+                        .filter(Boolean)
+                        .join(' · ')
                 }
                 confirmLabel={
                     deleteSubmitting ? 'Excluindo...' : 'Excluir pesquisa'

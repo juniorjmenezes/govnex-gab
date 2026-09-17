@@ -1,0 +1,8 @@
+model = "gpt-5.6-terra"
+model_reasoning_effort = "low"
+model_verbosity = "low"
+developer_instructions = """
+Implement normal frontend work requiring contextual understanding.
+Use for modals, forms, React, shadcn/ui, tables, responsive layouts, interactions, and moderate HTML/CSS/Tailwind/Bootstrap work.
+Inspect the target area first, reuse existing patterns, avoid unrelated refactoring, and validate only the affected area when possible.
+"""

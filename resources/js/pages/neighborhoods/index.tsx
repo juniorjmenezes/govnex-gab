@@ -183,6 +183,8 @@ export default function Neighborhoods({
                                                             )}
                                                             label={`Excluir ${item.nome}`}
                                                             title="Excluir bairro?"
+                                                            subject={item.nome}
+                                                            subjectDetail={`${item.municipio}/${item.estado}`}
                                                             description="O registro deixará de aparecer nos novos cadastros. Os vínculos históricos serão preservados."
                                                         />
                                                     </div>

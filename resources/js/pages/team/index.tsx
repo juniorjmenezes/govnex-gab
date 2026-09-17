@@ -212,6 +212,12 @@ export default function Team({
                                                             )}
                                                             label={`Excluir ${member.name}`}
                                                             title="Excluir integrante?"
+                                                            subject={
+                                                                member.name
+                                                            }
+                                                            subjectDetail={
+                                                                member.email
+                                                            }
                                                             description="O acesso será removido e o integrante deixará de aparecer na equipe. O histórico de atividades será preservado."
                                                         />
                                                     </div>

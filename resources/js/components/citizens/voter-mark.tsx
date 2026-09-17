@@ -1,9 +1,10 @@
-import { Flag2BoldIcon, Flag2Icon } from '@/components/icons';
+import { StarBoldIcon, StarIcon } from '@/components/icons';
 import { cn } from '@/lib/utils';
 
 /**
- * Indica se o cidadão é eleitor do gabinete. A bandeira preenchida marca o
- * eleitor; a de contorno, quando pedida, marca explicitamente quem não é.
+ * Indica se o cidadão é eleitor do gabinete: estrela preenchida na cor do
+ * gabinete para o eleitor e, quando pedida, estrela de contorno apagada para
+ * quem não é.
  */
 export function VoterMark({
     voter,
@@ -19,7 +20,7 @@ export function VoterMark({
     }
 
     const label = voter ? 'Eleitor' : 'Não eleitor';
-    const Icon = voter ? Flag2BoldIcon : Flag2Icon;
+    const Icon = voter ? StarBoldIcon : StarIcon;
 
     return (
         <span className={cn('inline-flex shrink-0', className)} title={label}>

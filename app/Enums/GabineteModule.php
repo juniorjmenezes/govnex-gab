@@ -12,6 +12,7 @@ enum GabineteModule: string
     case Politics = 'POLITICA';
     case Reports = 'RELATORIOS';
     case WhatsApp = 'WHATSAPP';
+    case KnowledgeBase = 'BASE_CONHECIMENTO';
 
     public function label(): string
     {
@@ -24,6 +25,7 @@ enum GabineteModule: string
             self::Politics => 'Inteligência política',
             self::Reports => 'Relatórios',
             self::WhatsApp => 'WhatsApp',
+            self::KnowledgeBase => 'Base de Conhecimento',
         };
     }
 
@@ -38,6 +40,7 @@ enum GabineteModule: string
             self::Politics => 'Painel político, mapa de eleitores e dados eleitorais.',
             self::Reports => 'Relatórios e exportações de demandas.',
             self::WhatsApp => 'Notificações operacionais pelo Gateway WhatsApp.',
+            self::KnowledgeBase => 'Biblioteca de PDFs para leitura da equipe.',
         };
     }
 }

@@ -61,13 +61,16 @@ export default function PasskeyItem({ passkey, onDelete }: Props) {
             <DestructiveAlertDialog
                 open={deleteOpen}
                 onOpenChange={setDeleteOpen}
+                animation="key"
                 title="Remover chave de acesso?"
-                description={
-                    <>
-                        A chave “{passkey.name}” não poderá mais ser usada para
-                        entrar na conta.
-                    </>
-                }
+                description="A chave não poderá mais ser usada para entrar na conta."
+                subject={passkey.name}
+                subjectDetail={[
+                    passkey.authenticator,
+                    `adicionada ${passkey.created_at_diff}`,
+                ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 confirmLabel={isDeleting ? 'Removendo...' : 'Remover chave'}
                 submitting={isDeleting}
                 onConfirm={handleDelete}

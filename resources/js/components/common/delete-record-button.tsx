@@ -9,6 +9,9 @@ type DeleteRecordButtonProps = {
     label: string;
     title: string;
     description: string;
+    /** Registro que será excluído, exibido em destaque na confirmação. */
+    subject: string;
+    subjectDetail?: string | null;
     onSuccess?: () => void;
 };
 
@@ -17,6 +20,8 @@ export function DeleteRecordButton({
     label,
     title,
     description,
+    subject,
+    subjectDetail,
     onSuccess,
 }: DeleteRecordButtonProps) {
     const [open, setOpen] = useState(false);
@@ -49,6 +54,8 @@ export function DeleteRecordButton({
                 onOpenChange={setOpen}
                 title={title}
                 description={description}
+                subject={subject}
+                subjectDetail={subjectDetail || undefined}
                 submitting={submitting}
                 confirmLabel={submitting ? 'Excluindo...' : 'Excluir registro'}
                 onConfirm={destroy}

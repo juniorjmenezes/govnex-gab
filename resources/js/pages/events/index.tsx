@@ -379,7 +379,7 @@ export default function EventsIndex({
                                                     {event.titulo}
                                                 </Link>
                                                 {event.local && (
-                                                    <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                                                    <p className="flex items-center gap-1 text-xs text-muted-foreground">
                                                         <MapPointIcon className="size-3" />
                                                         {event.local}
                                                     </p>
@@ -476,6 +476,17 @@ export default function EventsIndex({
                                                             )}
                                                             label={`Excluir ${event.titulo}`}
                                                             title="Excluir evento?"
+                                                            subject={
+                                                                event.titulo
+                                                            }
+                                                            subjectDetail={[
+                                                                formatDate(
+                                                                    event.inicio_em,
+                                                                ),
+                                                                event.local,
+                                                            ]
+                                                                .filter(Boolean)
+                                                                .join(' · ')}
                                                             description="O evento deixará de aparecer na central."
                                                         />
                                                     )}

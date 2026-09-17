@@ -113,7 +113,9 @@ class OfficeModulesTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame($selection, app(GabineteModuleManager::class)->activeFor($office));
-        $this->assertDatabaseCount('gabinete_modulo_eventos', 6);
+        // Um evento por módulo desativado.
+        $disabledCount = count(GabineteModule::cases()) - count($selection);
+        $this->assertDatabaseCount('gabinete_modulo_eventos', $disabledCount);
         $this->assertDatabaseHas('gabinete_modulo_eventos', [
             'gabinete_id' => $office->id,
             'modulo' => GabineteModule::Demands->value,
@@ -123,12 +125,12 @@ class OfficeModulesTest extends TestCase
 
         $this->patch(route('admin.offices.modules.update', $office), ['modules' => $selection])
             ->assertSessionHasNoErrors();
-        $this->assertDatabaseCount('gabinete_modulo_eventos', 6);
+        $this->assertDatabaseCount('gabinete_modulo_eventos', $disabledCount);
 
         $this->patch(route('admin.offices.modules.update', $office), ['modules' => []])
             ->assertSessionHasNoErrors();
         $this->assertSame([], app(GabineteModuleManager::class)->activeFor($office));
-        $this->assertDatabaseCount('gabinete_modulo_eventos', 8);
+        $this->assertDatabaseCount('gabinete_modulo_eventos', count(GabineteModule::cases()));
     }
 
     public function test_new_office_uses_the_selected_modules_without_starting_tse_sync(): void

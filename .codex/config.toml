@@ -1,0 +1,46 @@
+model = "gpt-5.6-luna"
+model_reasoning_effort = "low"
+model_verbosity = "low"
+
+developer_instructions = """
+Follow AGENTS.md as the canonical project instruction file.
+
+Routing:
+- MICRO: execute directly in current Luna.
+- FRONTEND: delegate to `frontend`.
+- FEATURE: delegate to `feature`.
+- COMPLEX: delegate to `architect`.
+- DEEP: delegate to `deep_reasoning`.
+
+Do not classify ambiguous requests like "fix this modal", "adjust this form",
+or "improve this component" as MICRO. Those belong in FRONTEND.
+
+Use the lowest reliable tier.
+Avoid unnecessary subagents, broad repository exploration, and unrelated refactoring.
+"""
+
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 2
+default_subagent_model = "gpt-5.6-luna"
+default_subagent_reasoning_effort = "low"
+
+[agents.ui_fast]
+description = "Optional explicit Luna worker for tiny mechanical UI changes."
+config_file = "./agents/ui-fast.toml"
+
+[agents.frontend]
+description = "Normal frontend implementation requiring contextual understanding."
+config_file = "./agents/frontend.toml"
+
+[agents.feature]
+description = "Normal application features."
+config_file = "./agents/feature.toml"
+
+[agents.architect]
+description = "Architecture, new modules, complex modeling and integrations."
+config_file = "./agents/architect.toml"
+
+[agents.deep_reasoning]
+description = "Exceptional deep reasoning for concurrency, integrity, security and persistent multi-layer failures."
+config_file = "./agents/deep-reasoning.toml"

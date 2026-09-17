@@ -408,9 +408,12 @@ export default function EntidadeShow({
                                             />
                                         </span>
                                         <div className="min-w-0 flex-1">
-                                            <p className="truncate text-sm font-medium uppercase">
+                                            <h2
+                                                className="truncate text-sm font-semibold"
+                                                title={gabinete.name}
+                                            >
                                                 {gabinete.name}
-                                            </p>
+                                            </h2>
                                             <p className="text-xs text-muted-foreground">
                                                 {gabinete.type_label}
                                             </p>

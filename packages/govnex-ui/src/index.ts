@@ -104,7 +104,10 @@ export { cn } from './lib/utils';
 export { EmptyState } from './patterns/empty-state';
 export type { EmptyStateProps } from './patterns/empty-state';
 export { DestructiveAlertDialog } from './patterns/destructive-alert-dialog';
-export type { DestructiveAlertDialogProps } from './patterns/destructive-alert-dialog';
+export type {
+    DestructiveAlertDialogProps,
+    DestructiveAnimation,
+} from './patterns/destructive-alert-dialog';
 export { PageContainer } from './patterns/page-container';
 export { PageHeader } from './patterns/page-header';
 export type { PageHeaderProps } from './patterns/page-header';

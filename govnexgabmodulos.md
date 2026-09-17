@@ -16,8 +16,22 @@ O nucleo e sempre ativo e inclui autenticacao, perfil, equipe, configuracoes, no
 | `POLITICA` | Painel politico, mapa, TSE e pesquisas | Nenhuma |
 | `RELATORIOS` | Relatorios e exportacoes | Demandas |
 | `WHATSAPP` | Notificacoes pelo gateway | Demandas, Agenda ou Politica |
+| `BASE_CONHECIMENTO` | Biblioteca de PDFs para leitura da equipe | Nenhuma |
 
 Cada finalidade do WhatsApp tambem exige seu modulo de origem. Configuracoes, templates, outbox e historico permanecem armazenados quando uma combinacao deixa de ser valida, mas novos envios ficam suspensos.
+
+## Base de Conhecimento
+
+Biblioteca de PDFs lidos dentro da plataforma (pdf.js, via `react-pdf`).
+
+- **Biblioteca da plataforma:** documentos sem `gabinete_id`, mantidos pelo administrador em `/admin/conhecimento` e visiveis a todos os gabinetes com o modulo ativo.
+- **Documentos do gabinete:** enviados por qualquer integrante e visiveis so para aquele gabinete. Removem quem enviou ou quem gerencia o gabinete.
+- **Arquivos:** somente PDF (extensao, tipo e assinatura `%PDF-`), ate 30 MB, no disco privado `local` e servidos apenas por rota autenticada com Policy.
+- **Progresso:** `conhecimento_leituras` guarda, por pessoa, as paginas vistas (a pagina conta depois de alguns instantes na tela) e a ultima pagina. Ao cobrir todas as paginas, a leitura e concluida.
+- **Leituras completas:** `conhecimento_documentos.leituras_completas` conta quantas pessoas concluiram a leitura; cada pessoa conta uma unica vez, mesmo relendo.
+- **Total de paginas:** informado pelo leitor na primeira abertura e fixado no documento; paginas acima dele sao recusadas.
+
+A migration `2026_09_17_000001_create_base_conhecimento_tables.php` cria as tabelas e ativa o modulo para entidades e gabinetes ja existentes, sem duplicar linhas.
 
 ## Regras de estado
 
@@ -65,6 +79,6 @@ Validar pelo menos dois gabinetes simultaneamente:
 
 ## Publicacao e rollback
 
-Esta implementacao nao foi aplicada em producao. Uma publicacao futura exige o runbook de `docs/DEPLOY.md`, backup do banco e validacao de que o backfill deixou todos os gabinetes com os oito modulos ativos.
+Esta implementacao nao foi aplicada em producao. Uma publicacao futura exige o runbook de `docs/DEPLOY.md`, backup do banco e validacao de que o backfill deixou todos os gabinetes com todos os modulos do catalogo ativos.
 
 Em rollback de codigo, as tabelas podem permanecer no banco sem uso. Nao apague as tabelas nem os eventos durante a estabilizacao. Se a release anterior for restaurada, ela continuara operando sem consultar a nova camada.

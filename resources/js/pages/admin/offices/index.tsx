@@ -379,8 +379,11 @@ export default function Offices({
                         {offices.data.map((office) => (
                             <article key={office.id} className="space-y-4 p-4">
                                 <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <h2 className="font-medium">
+                                    <div className="min-w-0">
+                                        <h2
+                                            className="truncate text-sm font-semibold"
+                                            title={office.name}
+                                        >
                                             {office.name}
                                         </h2>
                                         <p className="text-xs text-muted-foreground">

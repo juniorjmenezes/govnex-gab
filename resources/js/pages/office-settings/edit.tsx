@@ -9,12 +9,14 @@ import { FieldError } from '@/components/forms/field-error';
 import {
     DangerTriangleIcon,
     GalleryIcon,
+    InfoCircleIcon,
     PaletteIcon,
     RestartIcon,
     ShieldCheckIcon,
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -133,6 +135,7 @@ export default function OfficeSettings({
         },
     });
     const useDefaultColor = useWatch({ control, name: 'usar_cor_padrao' });
+    const customColor = useWatch({ control, name: 'cor_principal' });
     const removeLogo = useWatch({ control, name: 'remover_logo' });
     const logoFiles = useWatch({ control, name: 'logo' }) ?? [];
     const hasCurrentLogo = Boolean(office.logo_path) && !removeLogo;
@@ -202,10 +205,14 @@ export default function OfficeSettings({
                     description="Identidade institucional, contato e padrões usados em protocolos e relatórios."
                 />
                 {!canUpdate && (
-                    <p className="rounded-lg border bg-muted p-4 text-sm text-muted-foreground">
-                        Você pode consultar estas informações. Somente o
-                        vereador ou vereadora pode alterá-las.
-                    </p>
+                    <Alert variant="info">
+                        <InfoCircleIcon />
+                        <AlertTitle>Somente consulta</AlertTitle>
+                        <AlertDescription>
+                            Você pode consultar estas informações. Somente o
+                            vereador ou vereadora pode alterá-las.
+                        </AlertDescription>
+                    </Alert>
                 )}
                 <form
                     noValidate
@@ -238,25 +245,26 @@ export default function OfficeSettings({
                                 {input('timezone', 'Fuso horário')}
                             </div>
                             <div className="mt-5 space-y-2">
-                                <div
-                                    className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${
+                                <Alert
+                                    variant={
                                         electoralCandidate.matched
-                                            ? 'border-emerald-600/30 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400'
-                                            : 'border-amber-600/30 bg-amber-600/10 text-amber-700 dark:text-amber-400'
-                                    }`}
+                                            ? 'success'
+                                            : 'warning'
+                                    }
                                 >
                                     {electoralCandidate.matched ? (
-                                        <ShieldCheckIcon
-                                            className="mt-0.5 size-4 shrink-0"
-                                            aria-hidden="true"
-                                        />
+                                        <ShieldCheckIcon />
                                     ) : (
-                                        <DangerTriangleIcon
-                                            className="mt-0.5 size-4 shrink-0"
-                                            aria-hidden="true"
-                                        />
+                                        <DangerTriangleIcon />
                                     )}
-                                    <p>
+                                    <AlertTitle>
+                                        {electoralCandidate.matched
+                                            ? 'Candidatura vinculada'
+                                            : office.numero_eleitoral
+                                              ? 'Candidatura não encontrada'
+                                              : 'Número eleitoral não cadastrado'}
+                                    </AlertTitle>
+                                    <AlertDescription>
                                         {electoralCandidate.matched ? (
                                             <>
                                                 Vinculado à candidatura de{' '}
@@ -291,8 +299,8 @@ export default function OfficeSettings({
                                                 Gabinetes.
                                             </>
                                         )}
-                                    </p>
-                                </div>
+                                    </AlertDescription>
+                                </Alert>
                                 <p className="text-xs text-muted-foreground">
                                     Definido pela administração da plataforma a
                                     partir do cadastro oficial do TSE.
@@ -327,7 +335,7 @@ export default function OfficeSettings({
                         <SurfaceHeader help="Personalize a marca do gabinete ou restaure o padrão do sistema.">
                             <SurfaceTitle>Identidade visual</SurfaceTitle>
                         </SurfaceHeader>
-                        <div className="grid gap-4 p-5 lg:grid-cols-2">
+                        <div className="grid gap-4 p-5">
                             <section className="rounded-xl border bg-muted/20 p-4">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="flex min-w-0 items-start gap-3">
@@ -376,7 +384,7 @@ export default function OfficeSettings({
                                                     backgroundColor:
                                                         useDefaultColor
                                                             ? inheritedPrimaryColor
-                                                            : undefined,
+                                                            : customColor,
                                                 }}
                                                 aria-hidden="true"
                                             />
@@ -392,7 +400,7 @@ export default function OfficeSettings({
                                                 <p className="text-xs text-muted-foreground tabular-nums">
                                                     {useDefaultColor
                                                         ? inheritedPrimaryColor
-                                                        : 'Definida pelo gabinete'}
+                                                        : customColor.toUpperCase()}
                                                 </p>
                                             </div>
                                         </div>

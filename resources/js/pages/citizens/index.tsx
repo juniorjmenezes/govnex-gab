@@ -203,6 +203,16 @@ export default function CitizensIndex({
                                                             )}
                                                             label={`Excluir ${citizen.nome}`}
                                                             title="Excluir cidadão?"
+                                                            subject={
+                                                                citizen.nome
+                                                            }
+                                                            subjectDetail={[
+                                                                citizen.bairro
+                                                                    ?.nome,
+                                                                citizen.email,
+                                                            ]
+                                                                .filter(Boolean)
+                                                                .join(' · ')}
                                                             description="O cadastro deixará de aparecer nas consultas. Demandas e atendimentos históricos serão preservados."
                                                         />
                                                     )}

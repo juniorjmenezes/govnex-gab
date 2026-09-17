@@ -346,6 +346,11 @@ export default function AppointmentsIndex({
                                     url={tenantUrl(`/agenda/${editing.id}`)}
                                     label={`Excluir ${editing.title}`}
                                     title="Excluir compromisso?"
+                                    subject={editing.title}
+                                    subjectDetail={format(
+                                        parseISO(editing.starts_at),
+                                        "dd/MM/yyyy 'às' HH:mm",
+                                    )}
                                     description="O compromisso e seus lembretes deixarão de aparecer na agenda. O registro permanecerá preservado no banco de dados."
                                     onSuccess={() => setDialogOpen(false)}
                                 />

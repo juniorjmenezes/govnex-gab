@@ -48,6 +48,14 @@ type DatePickerProps = {
     disabled?: boolean;
     /** Data mínima (ISO). Desabilita os dias anteriores no calendário. */
     min?: string;
+    /** Data máxima (ISO). Desabilita os dias posteriores no calendário. */
+    max?: string;
+    /**
+     * Mostra listas de mês e ano no calendário, para datas distantes como a
+     * de nascimento. O intervalo vai de `startYear` até a data máxima.
+     */
+    yearNavigation?: boolean;
+    startYear?: number;
     className?: string;
     'aria-invalid'?: boolean;
     'aria-describedby'?: string;
@@ -61,12 +69,20 @@ export function DatePicker({
     placeholder = 'dd/mm/aaaa',
     disabled,
     min,
+    max,
+    yearNavigation = false,
+    startYear = 1900,
     className,
     ...accessibility
 }: DatePickerProps) {
     const [open, setOpen] = useState(false);
     const selectedDate = parseIsoDate(value);
     const minDate = min ? parseIsoDate(min) : undefined;
+    const maxDate = max ? parseIsoDate(max) : undefined;
+    const disabledDays = [
+        ...(minDate ? [{ before: minDate }] : []),
+        ...(maxDate ? [{ after: maxDate }] : []),
+    ];
     const [month, setMonth] = useState<Date | undefined>(selectedDate);
     const [inputValue, setInputValue] = useState(
         formatDisplayDate(selectedDate),
@@ -147,7 +163,16 @@ export function DatePicker({
                 <Calendar
                     mode="single"
                     locale={ptBR}
-                    disabled={minDate ? { before: minDate } : undefined}
+                    disabled={disabledDays.length ? disabledDays : undefined}
+                    captionLayout={yearNavigation ? 'dropdown' : 'label'}
+                    startMonth={
+                        yearNavigation
+                            ? (minDate ?? new Date(startYear, 0))
+                            : undefined
+                    }
+                    endMonth={
+                        yearNavigation ? (maxDate ?? new Date()) : undefined
+                    }
                     selected={selectedDate}
                     month={month}
                     onMonthChange={setMonth}

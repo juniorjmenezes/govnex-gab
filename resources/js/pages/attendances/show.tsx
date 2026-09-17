@@ -1,6 +1,8 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
+import { StatusBadge } from '@/components/demands/status-badge';
 import {
+    AltArrowRightIcon,
     CalendarMarkIcon,
     ClockCircleIcon,
     PenIcon,
@@ -69,6 +71,8 @@ export default function AttendanceShow({
                                     )}
                                     label="Excluir atendimento"
                                     title="Excluir atendimento?"
+                                    subject={attendance.assunto}
+                                    subjectDetail={`${attendance.cidadao.nome} · ${formatDateTime(attendance.atendido_em)}`}
                                     description="O registro deixará de aparecer no histórico do gabinete."
                                 />
                             )}
@@ -105,24 +109,38 @@ export default function AttendanceShow({
                                         Demanda relacionada
                                     </SurfaceTitle>
                                 </SurfaceHeader>
-                                <div className="p-5">
-                                    <Link
-                                        href={tenantUrl(
-                                            `/demandas/${attendance.demanda.id}`,
-                                        )}
-                                        className="rounded-xl border p-4 transition-colors hover:bg-muted"
-                                    >
-                                        <span className="text-xs text-muted-foreground tabular-nums">
-                                            {attendance.demanda.protocolo}
-                                        </span>
-                                        <strong
-                                            className="mt-1 line-clamp-2 text-sm"
+                                <Link
+                                    href={tenantUrl(
+                                        `/demandas/${attendance.demanda.id}`,
+                                    )}
+                                    className="group flex items-center gap-4 p-5 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+                                >
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="text-xs text-muted-foreground tabular-nums">
+                                                {attendance.demanda.protocolo}
+                                            </span>
+                                            {attendance.demanda.status && (
+                                                <StatusBadge
+                                                    status={
+                                                        attendance.demanda
+                                                            .status
+                                                    }
+                                                />
+                                            )}
+                                        </div>
+                                        <p
+                                            className="mt-1 line-clamp-2 text-sm font-medium group-hover:underline"
                                             title={attendance.demanda.titulo}
                                         >
                                             {attendance.demanda.titulo}
-                                        </strong>
-                                    </Link>
-                                </div>
+                                        </p>
+                                    </div>
+                                    <AltArrowRightIcon
+                                        className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
+                                        aria-hidden="true"
+                                    />
+                                </Link>
                             </Card>
                         )}
                     </div>

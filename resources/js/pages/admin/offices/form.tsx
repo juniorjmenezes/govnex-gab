@@ -123,6 +123,7 @@ const schema = z
                 'POLITICA',
                 'RELATORIOS',
                 'WHATSAPP',
+                'BASE_CONHECIMENTO',
             ]),
         ),
     })

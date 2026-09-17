@@ -74,6 +74,8 @@ function PartyColorRow({ party }: { party: PartyColor }) {
                         url={`/admin/cores-partidos/${party.id}`}
                         label={`Remover cor de ${party.sigla}`}
                         title={`Remover a cor de ${party.sigla}?`}
+                        subject={party.sigla}
+                        subjectDetail={`Cor ${party.cor.toUpperCase()}`}
                         description="O partido volta a aparecer sem cor definida nos gráficos e pesquisas até que uma nova cor seja cadastrada."
                     />
                 </div>

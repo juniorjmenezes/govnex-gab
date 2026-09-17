@@ -85,7 +85,7 @@ function SourceRow({ source }: { source: RssSource }) {
                     {source.url}
                 </p>
                 {source.ultimo_erro && (
-                    <p className="mt-1 text-xs break-words text-destructive">
+                    <p className="text-xs break-words text-destructive">
                         {source.ultimo_erro}
                     </p>
                 )}
@@ -123,6 +123,8 @@ function SourceRow({ source }: { source: RssSource }) {
                         url={`/admin/fontes-rss/${source.id}`}
                         label={`Remover ${source.nome}`}
                         title={`Remover ${source.nome}?`}
+                        subject={source.nome}
+                        subjectDetail={source.url}
                         description="As notícias já coletadas dessa fonte também são removidas dos painéis."
                     />
                 </div>

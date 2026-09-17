@@ -1,9 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from '@inertiajs/react';
+import { format } from 'date-fns';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { CitizenLocationPicker } from '@/components/citizens/citizen-location-picker';
 import { AddressFields } from '@/components/forms/address-fields';
+import { DatePicker } from '@/components/forms/date-picker';
 import { FieldError } from '@/components/forms/field-error';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
@@ -64,6 +66,7 @@ export function CitizenForm({
     whatsappConsentText: string;
 }) {
     const tenantUrl = useTenantUrl();
+    const today = format(new Date(), 'yyyy-MM-dd');
     const {
         control,
         register,
@@ -79,7 +82,9 @@ export function CitizenForm({
             telefone: applyMask(citizen?.telefone, 'phone'),
             whatsapp: applyMask(citizen?.whatsapp, 'phone'),
             email: text(citizen?.email),
-            data_nascimento: text(citizen?.data_nascimento),
+            // O cast `date` do model chega como data e hora ISO; o campo usa
+            // só a parte da data.
+            data_nascimento: text(citizen?.data_nascimento).slice(0, 10),
             // O cidadão tem estado, município e CEP próprios; o bairro e o
             // gabinete só entram como origem quando o cadastro é novo ou
             // veio de antes dessas colunas existirem.
@@ -216,7 +221,28 @@ export function CitizenForm({
                     {field('telefone', 'Telefone', 'text', 'phone')}{' '}
                     {field('whatsapp', 'WhatsApp', 'text', 'phone')}{' '}
                     {field('email', 'E-mail', 'email')}{' '}
-                    {field('data_nascimento', 'Data de nascimento', 'date')}
+                    <div className="space-y-1">
+                        <Label htmlFor="data_nascimento">
+                            Data de nascimento
+                        </Label>
+                        <Controller
+                            control={control}
+                            name="data_nascimento"
+                            render={({ field: dateField }) => (
+                                <DatePicker
+                                    id="data_nascimento"
+                                    value={dateField.value}
+                                    onChange={dateField.onChange}
+                                    max={today}
+                                    yearNavigation
+                                    aria-invalid={Boolean(
+                                        errors.data_nascimento,
+                                    )}
+                                />
+                            )}
+                        />
+                        <FieldError message={errors.data_nascimento?.message} />
+                    </div>
                 </div>
             </Card>
             <Card className="gap-0 py-0">

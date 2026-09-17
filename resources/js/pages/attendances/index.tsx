@@ -309,6 +309,10 @@ export default function AttendancesIndex({
                                                             )}
                                                             label={`Excluir ${attendance.assunto}`}
                                                             title="Excluir atendimento?"
+                                                            subject={
+                                                                attendance.assunto
+                                                            }
+                                                            subjectDetail={`${attendance.cidadao.nome} · ${formatDate(attendance.atendido_em)}`}
                                                             description="O registro deixará de aparecer no histórico do gabinete."
                                                         />
                                                     )}

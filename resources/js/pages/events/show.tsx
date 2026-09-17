@@ -93,6 +93,13 @@ export default function EventShow({
                                     url={tenantUrl(`/eventos/${event.id}`)}
                                     label="Excluir evento"
                                     title="Excluir evento?"
+                                    subject={event.titulo}
+                                    subjectDetail={[
+                                        formatDate(event.inicio_em),
+                                        event.local,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' · ')}
                                     description="O evento deixará de aparecer na central."
                                 />
                             )}

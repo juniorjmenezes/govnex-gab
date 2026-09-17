@@ -1,3 +1,4 @@
+import type { DemandStatus } from './demands';
 import type { Pagination } from './registrations';
 
 export type AttendancePerson = {
@@ -20,7 +21,7 @@ export type AttendanceDemand = {
     cidadao_id?: number;
     protocolo: string;
     titulo: string;
-    status?: string;
+    status?: DemandStatus;
 };
 
 export type Attendance = {

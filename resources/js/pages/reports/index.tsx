@@ -826,7 +826,7 @@ export default function ReportsIndex({
                     </Surface>
                 </div>
 
-                <div className="grid gap-6 xl:grid-cols-2">
+                <div className="grid gap-6">
                     <Surface as="section" className="overflow-hidden">
                         <SurfaceHeader>
                             <SurfaceTitle>Produtividade da equipe</SurfaceTitle>

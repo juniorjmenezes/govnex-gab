@@ -13,6 +13,7 @@ use App\Http\Controllers\DemandUpdateController;
 use App\Http\Controllers\ElectoralHeatmapController;
 use App\Http\Controllers\EventoController;
 use App\Http\Controllers\GabineteSettingsController;
+use App\Http\Controllers\KnowledgeBaseController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PoliticalPanelController;
 use App\Http\Controllers\ReportController;
@@ -130,6 +131,21 @@ $registerTenantRoutes = static function (): void {
             ->name('neighborhoods.references.import');
         Route::put('bairros/{bairro}', [BairroController::class, 'update'])->name('neighborhoods.update');
         Route::delete('bairros/{bairro}', [BairroController::class, 'destroy'])->name('neighborhoods.destroy');
+    });
+
+    Route::middleware('module:BASE_CONHECIMENTO')->group(function () {
+        Route::get('conhecimento', [KnowledgeBaseController::class, 'index'])->name('knowledge.index');
+        Route::post('conhecimento', [KnowledgeBaseController::class, 'store'])
+            ->middleware('throttle:20,1')
+            ->name('knowledge.store');
+        Route::get('conhecimento/{documento}', [KnowledgeBaseController::class, 'show'])->name('knowledge.show');
+        Route::get('conhecimento/{documento}/arquivo', [KnowledgeBaseController::class, 'file'])
+            ->name('knowledge.file');
+        Route::post('conhecimento/{documento}/leitura', [KnowledgeBaseController::class, 'progress'])
+            ->middleware('throttle:120,1')
+            ->name('knowledge.progress');
+        Route::delete('conhecimento/{documento}', [KnowledgeBaseController::class, 'destroy'])
+            ->name('knowledge.destroy');
     });
 
     Route::get('equipe', [TeamController::class, 'index'])->name('team.index');

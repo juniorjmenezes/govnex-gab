@@ -8,6 +8,7 @@ import {
     ClipboardListIcon,
     FeedIcon,
     HandShakeIcon,
+    LibraryIcon,
     MapIcon,
     PaletteIcon,
     PlugCircleIcon,
@@ -33,6 +34,12 @@ const overviewItems: ModuleNavItem[] = [
         href: '/painel-politico',
         icon: PresentationGraphIcon,
         module: 'POLITICA',
+    },
+    {
+        title: 'Base de Conhecimento',
+        href: '/conhecimento',
+        icon: LibraryIcon,
+        module: 'BASE_CONHECIMENTO',
     },
 ];
 const tenantServiceItems: ModuleNavItem[] = [
@@ -150,6 +157,11 @@ export function useAppNavSections(): NavSection[] {
                       title: 'Fontes de notícias',
                       href: '/admin/fontes-rss',
                       icon: FeedIcon,
+                  },
+                  {
+                      title: 'Base de Conhecimento',
+                      href: '/admin/conhecimento',
+                      icon: LibraryIcon,
                   },
                   {
                       title: 'WhatsApp',

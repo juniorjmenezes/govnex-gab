@@ -12,6 +12,7 @@ enum EntidadeModule: string
     case Politics = 'POLITICA';
     case Reports = 'RELATORIOS';
     case WhatsApp = 'WHATSAPP';
+    case KnowledgeBase = 'BASE_CONHECIMENTO';
 
     public function scope(): ModuleScope
     {
@@ -29,6 +30,7 @@ enum EntidadeModule: string
             self::Politics => 'Inteligência política',
             self::Reports => 'Relatórios',
             self::WhatsApp => 'WhatsApp',
+            self::KnowledgeBase => 'Base de Conhecimento',
         };
     }
 }

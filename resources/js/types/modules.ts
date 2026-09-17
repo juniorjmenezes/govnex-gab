@@ -6,7 +6,8 @@ export type GabineteModuleCode =
     | 'EVENTOS'
     | 'POLITICA'
     | 'RELATORIOS'
-    | 'WHATSAPP';
+    | 'WHATSAPP'
+    | 'BASE_CONHECIMENTO';
 
 export type GabineteModuleDefinition = {
     code: GabineteModuleCode;

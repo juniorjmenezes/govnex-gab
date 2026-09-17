@@ -27,7 +27,7 @@ export function AppWordmark({ className }: { className?: string }) {
     return (
         <span
             className={cn(
-                'truncate text-sm font-bold tracking-tight group-data-[collapsible=icon]:hidden',
+                'truncate text-sm font-medium tracking-tight group-data-[collapsible=icon]:hidden',
                 className,
             )}
         >

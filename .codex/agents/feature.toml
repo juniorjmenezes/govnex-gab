@@ -1,0 +1,7 @@
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
+model_verbosity = "low"
+developer_instructions = """
+Implement normal application features such as CRUD, models, migrations, controllers, validation, APIs, business rules, and frontend/backend integration.
+Follow existing architecture, inspect only the relevant flow, avoid unrelated refactoring, and run targeted tests when possible.
+"""

@@ -289,13 +289,11 @@ function GovnexDatasetRow({
                     {option.description}
                 </p>
                 {slug && (
-                    <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+                    <p className="text-xs text-muted-foreground tabular-nums">
                         {slug}
                     </p>
                 )}
-                {error && (
-                    <p className="mt-1 text-xs text-destructive">{error}</p>
-                )}
+                {error && <p className="text-xs text-destructive">{error}</p>}
             </TableCell>
             <TableCell className="min-w-56 whitespace-normal">
                 {!applicable ? (

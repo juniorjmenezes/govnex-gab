@@ -1,0 +1,7 @@
+model = "gpt-5.6-sol"
+model_reasoning_effort = "medium"
+model_verbosity = "low"
+developer_instructions = """
+Handle new modules, complex modeling, cross-domain workflows, banking/payment integrations, structural refactors, and architectural trade-offs.
+Start at Medium, inspect only affected domains, and prefer incremental implementation.
+"""

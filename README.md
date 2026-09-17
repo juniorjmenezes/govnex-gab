@@ -62,7 +62,7 @@ Entidades podem configurar identidade, referências territoriais, licenças e co
 
 ## Módulos por gabinete
 
-O administrador da plataforma pode habilitar, por gabinete, Relacionamento, Demandas, Atendimentos, Agenda, Eventos, Política, Relatórios e WhatsApp. O núcleo de autenticação, perfil, equipe, configurações e notificações internas permanece sempre ativo.
+O administrador da plataforma pode habilitar, por gabinete, Relacionamento, Demandas, Atendimentos, Agenda, Eventos, Política, Relatórios, WhatsApp e Base de Conhecimento. O núcleo de autenticação, perfil, equipe, configurações e notificações internas permanece sempre ativo.
 
 Os dados oficiais do TSE — base de municípios TSE/IBGE, perfil do eleitorado, candidaturas, comparecimento, votação nominal, locais de votação, votação por seção e registro de pesquisas — vêm todos da [GOVNEX API](https://github.com/juniorjmenezes/govnex-api), aplicação companheira que centraliza datasets públicos. Não há upload de arquivo nem download direto do TSE. Em `/admin/sincronizacao-politica`, um único card lista os oito datasets na ordem em que dependem uns dos outros: escolha a eleição e sincronize cada linha. A base de municípios não tem ano, e os datasets que não se aplicam ao tipo da eleição escolhida (votação nominal, locais e seções só em eleição municipal; registro de pesquisas só em eleição geral) ficam indisponíveis. A sincronização roda na fila `tse`; `GOVNEX_API_URL` e `GOVNEX_API_KEY` configuram o acesso (sem a key, ainda funciona, com limite de requisições mais baixo), `TSE_TIMEOUT` limita cada requisição e `TSE_WORKER_MEMORY_LIMIT` a memória do worker. A mesma tela concentra a sincronização das pesquisas do PollingData, disparada por gabinete com o módulo Política ativo.
 

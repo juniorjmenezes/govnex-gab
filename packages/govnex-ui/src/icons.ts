@@ -7,7 +7,6 @@ export {
     ArrowDownIcon,
     ArrowLeftIcon,
     ArrowRightIcon,
-    ArchiveCloseIcon,
     BoxIcon,
     Buildings2Icon,
     Buildings3Icon,
@@ -47,7 +46,6 @@ export {
     FeedIcon,
     FileIcon,
     FilterIcon,
-    Flag2Icon,
     FlameIcon,
     ForbiddenIcon,
     GalleryIcon,
@@ -65,12 +63,15 @@ export {
     LampIcon,
     LeafIcon,
     LetterIcon,
+    LibraryIcon,
     LikeIcon,
     LinkIcon,
     ListIcon,
     LockKeyholeIcon,
     LogoutIcon,
     MagnifierIcon,
+    MagnifierZoomInIcon,
+    MagnifierZoomOutIcon,
     MapIcon,
     MapPointIcon,
     MaximizeIcon,
@@ -92,6 +93,7 @@ export {
     PlugCircleIcon,
     PowerIcon,
     PresentationGraphIcon,
+    PrinterIcon,
     PulseIcon,
     QuestionCircleIcon,
     QuestionMarkIcon,
@@ -113,6 +115,7 @@ export {
     SquareAcademicCapIcon,
     SquareArrowRightUpIcon,
     SsdRoundIcon,
+    StarIcon,
     StructureIcon,
     SuitcaseIcon,
     SunIcon,
@@ -132,8 +135,8 @@ export {
 } from '@solar-icons/react/outline';
 
 export {
-    Flag2Icon as Flag2BoldIcon,
     HeartIcon as HeartBoldIcon,
+    StarIcon as StarBoldIcon,
     PlayIcon as PlayBoldIcon,
 } from '@solar-icons/react/bold';
 
@@ -146,6 +149,6 @@ export {
     MenuDotsIcon as MoreHorizontalIcon,
 } from '@solar-icons/react/outline';
 
-// O alias legado mantém todos os consumidores de ações de exclusão
-// sincronizados durante a avaliação visual do `archive-close-outline`.
-export { ArchiveCloseIcon as TrashBinTrashIcon } from '@solar-icons/react/outline';
+// Ícone único de exclusão em todo o sistema (`trash-bin-2-outline`). Os
+// consumidores usam o nome TrashBinTrashIcon; trocar o ícone é mudar só aqui.
+export { TrashBin2Icon as TrashBinTrashIcon } from '@solar-icons/react/outline';

@@ -268,8 +268,10 @@ export default function GovnexApiIntegration({
             <DestructiveAlertDialog
                 open={removeOpen}
                 onOpenChange={setRemoveOpen}
-                icon={KeyIcon}
+                animation="key"
                 title="Remover a chave de acesso?"
+                subject="Chave de acesso da GOVNEX API"
+                subjectDetail={integration.key_hint ?? undefined}
                 description="As sincronizações passam a usar a GOVNEX API como consumidor anônimo, com limite de 60 requisições por minuto, até que uma nova chave seja salva."
                 confirmLabel={removing ? 'Removendo...' : 'Remover chave'}
                 submitting={removing}

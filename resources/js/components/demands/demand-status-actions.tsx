@@ -347,6 +347,16 @@ export function DemandStatusActions({
                 submitting={deleteSubmitting}
                 confirmDisabled={deleteInput !== deleteCode}
             >
+                <div className="rounded-md border bg-muted/40 px-3 py-2">
+                    <p className="text-sm font-medium break-words">
+                        {demand.titulo}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        {[demand.protocolo, demand.cidadao?.nome]
+                            .filter(Boolean)
+                            .join(' · ')}
+                    </p>
+                </div>
                 <p className="text-sm text-muted-foreground">
                     Para confirmar a exclusão, digite o código{' '}
                     <span className="text-sm font-semibold tracking-widest text-foreground tabular-nums select-all">

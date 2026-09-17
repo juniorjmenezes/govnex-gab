@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\EntidadeController as AdminEntidadeController;
 use App\Http\Controllers\Admin\GlobalPoliticalDataSyncController;
 use App\Http\Controllers\Admin\GovnexApiIntegrationController;
+use App\Http\Controllers\Admin\KnowledgeBaseController as AdminKnowledgeBaseController;
 use App\Http\Controllers\Admin\OfficeController;
 use App\Http\Controllers\Admin\OfficePoliticalDataSyncController;
 use App\Http\Controllers\Admin\PartyColorController;
@@ -142,6 +143,20 @@ Route::middleware(['auth', 'verified', 'user.active'])->group(function () {
         Route::post('integracoes/govnex-api/testar', [GovnexApiIntegrationController::class, 'test'])
             ->middleware('throttle:10,1')
             ->name('integrations.govnex-api.test');
+
+        Route::get('conhecimento', [AdminKnowledgeBaseController::class, 'index'])->name('knowledge.index');
+        Route::post('conhecimento', [AdminKnowledgeBaseController::class, 'store'])
+            ->middleware('throttle:20,1')
+            ->name('knowledge.store');
+        Route::get('conhecimento/{documento}', [AdminKnowledgeBaseController::class, 'show'])
+            ->name('knowledge.show');
+        Route::get('conhecimento/{documento}/arquivo', [AdminKnowledgeBaseController::class, 'file'])
+            ->name('knowledge.file');
+        Route::post('conhecimento/{documento}/leitura', [AdminKnowledgeBaseController::class, 'progress'])
+            ->middleware('throttle:120,1')
+            ->name('knowledge.progress');
+        Route::delete('conhecimento/{documento}', [AdminKnowledgeBaseController::class, 'destroy'])
+            ->name('knowledge.destroy');
 
         Route::get('sistema', [SystemCheckController::class, 'index'])->name('system.index');
         Route::post('sistema/teste-upload', [SystemCheckController::class, 'testUpload'])->name('system.test-upload');
