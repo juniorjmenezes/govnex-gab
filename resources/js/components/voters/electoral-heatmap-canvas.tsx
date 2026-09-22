@@ -1,5 +1,6 @@
 import * as L from 'leaflet';
 import { LatLngBounds } from 'leaflet';
+import '@/lib/leaflet-heat-setup';
 import 'leaflet.heat';
 import { useEffect, useMemo, useRef } from 'react';
 import {

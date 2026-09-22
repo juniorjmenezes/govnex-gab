@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot, hydrateRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { PwaUpdatePrompt } from '@/components/layout/pwa-update-prompt';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -55,9 +56,11 @@ createInertiaApp({
     setup({ el, App, props }) {
         const application = (
             <StrictMode>
-                <AppProviders>
-                    <App {...props} />
-                </AppProviders>
+                <ErrorBoundary>
+                    <AppProviders>
+                        <App {...props} />
+                    </AppProviders>
+                </ErrorBoundary>
             </StrictMode>
         );
 

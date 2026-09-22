@@ -38,7 +38,7 @@ function Progress({
                     data-slot="progress-indicator"
                     render={indicatorRender}
                     className={cn(
-                        'h-full bg-stone-700 transition-[width] duration-500 ease-out data-[indeterminate]:w-full data-[indeterminate]:animate-pulse dark:bg-stone-400',
+                        'h-full bg-stone-700/80 transition-[width] duration-500 ease-out data-[indeterminate]:w-full data-[indeterminate]:animate-pulse dark:bg-stone-400',
                         indicatorClassName,
                     )}
                 />

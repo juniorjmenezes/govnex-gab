@@ -12,7 +12,8 @@
         "./styles.css": "./src/styles.css"
     },
     "scripts": {
-        "types:check": "tsc --noEmit -p tsconfig.json"
+        "types:check": "tsc --noEmit -p tsconfig.json",
+        "build": "tsup"
     },
     "dependencies": {
         "@base-ui/react": "^1.7.0",
@@ -21,7 +22,12 @@
         "@solar-icons/react": "^2.2.0",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
+        "date-fns": "^4.4.0",
+        "input-otp": "^1.4.2",
         "radix-ui": "^1.6.4",
+        "react-colorful": "^5.8.0",
+        "react-day-picker": "^10.0.1",
+        "recharts": "^3.8.0",
         "tailwind-merge": "^3.0.1"
     },
     "peerDependencies": {
@@ -35,6 +41,7 @@
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
         "tailwindcss": "^4.0.0",
+        "tsup": "^8.3.5",
         "typescript": "^5.7.2"
     }
 }

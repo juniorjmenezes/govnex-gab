@@ -25,6 +25,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property int|null $gabinete_id
  * @property string $name
  * @property string $email
+ * @property string|null $hub_user_id
  * @property UserRole $role
  * @property bool $is_active
  * @property Carbon|null $email_verified_at

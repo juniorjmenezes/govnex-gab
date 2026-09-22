@@ -1,6 +1,8 @@
 # Integração com o Govnex Hub — usuários, vínculos e papéis
 
-Status: **proposta em discussão** (16/09/2026). Nada deste documento está implementado ainda.
+Status: **decisões fechadas** (22/09/2026). Nada deste documento está
+implementado ainda — as 10 decisões em aberto foram resolvidas (ver tabela
+abaixo); falta a implementação (passos 2 a 5 do plano sugerido).
 
 ## Decisão
 
@@ -79,28 +81,28 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
 5. **Papéis:** o Hub envia os papéis já no vocabulário do GAB (`entidade_membros.papel` e `gabinete_membros.papel`), ou um vocabulário próprio com mapeamento documentado aqui. `users.role` passa a ser derivado e deixa de ser editado.
 6. **Desativação:** desligar alguém no Hub desativa a conta local (`is_active = false`) e encerra as sessões ativas no GAB.
 
-## Decisões em aberto
+## Decisões fechadas (22/09/2026)
 
-| # | Pergunta | Opções | Observação |
+| # | Pergunta | Decisão | Observação |
 |---|---|---|---|
-| 1 | Protocolo de login | OIDC (recomendado) · SAML · sessão compartilhada | OIDC tem suporte maduro em Laravel (Socialite + provider próprio). |
-| 2 | Período de transição | login local e SSO lado a lado · corte direto | Lado a lado exige regra clara para contas que existem só de um lado. |
-| 3 | Provisionamento | só no login · só webhook · os dois (recomendado) | Só no login não resolve listagem de quem ainda não entrou. |
-| 4 | Contrato do webhook | eventos por pessoa e por vínculo · snapshot completo periódico | Precisa de assinatura, idempotência e reprocessamento. |
-| 5 | Vocabulário de papéis | Hub usa os papéis do GAB · Hub tem papéis próprios + mapa | Os papéis atuais do GAB têm os problemas listados acima. |
-| 6 | Usuários root | geridos pelo Hub · mantidos locais no GAB | Root local mantém um acesso de emergência se o Hub cair. |
-| 7 | Contas já existentes | vínculo único por e-mail · convite para vincular | E-mails duplicados ou divergentes precisam de tratamento manual. |
-| 8 | 2FA e passkeys atuais | descartados no corte · exigidos no Hub | As credenciais atuais não migram para outro provedor. |
-| 9 | WhatsApp e consentimento | ficam no GAB · vão para o Hub | Hoje o número declarado e o consentimento ficam por usuário no GAB. |
-| 10 | Queda do Hub | GAB recusa login · aceita sessão já aberta até expirar | Define a disponibilidade do GAB em relação ao Hub. |
+| 1 | Protocolo de login | **OIDC** | Socialite + provider próprio no Hub. O Hub vira um Identity Provider — hoje não há Passport/Socialite/OIDC no `composer.json` do Hub, é infraestrutura nova. |
+| 2 | Período de transição | **Corte direto** | Sem login local e SSO lado a lado. Login local do GAB é desativado no dia do corte — exige que a carga inicial (decisão #7) e a base técnica (webhook, `hub_user_id`) estejam prontas e testadas antes do corte. |
+| 3 | Provisionamento | **Login + webhook** | No login, o GAB sincroniza a própria conta; webhook assinado do Hub avisa mudanças em tempo real (necessário para listar quem ainda não entrou e bloquear desligados sem esperar login). |
+| 4 | Contrato do webhook | **Eventos por pessoa e por vínculo** | Não é snapshot periódico. Precisa de assinatura, idempotência e fila de reprocessamento por evento perdido. |
+| 5 | Vocabulário de papéis | **Hub tem vocabulário próprio + mapa** | Chance de corrigir os problemas já documentados (GESTOR duplicado, AUDITOR sem regra própria) numa modelagem nova no Hub, com mapeamento documentado para `entidade_membros.papel`/`gabinete_membros.papel` do GAB. |
+| 6 | Usuários root | **Mantidos locais no GAB** | Preserva acesso de emergência se o Hub cair — coerente com a decisão #10. |
+| 7 | Contas já existentes | **Vínculo único por e-mail** | Cada e-mail do GAB casa com uma pessoa no Hub na carga inicial. E-mails duplicados ou divergentes precisam de revisão manual antes do corte. |
+| 8 | 2FA e passkeys atuais | **Hub precisa oferecer o equivalente antes do corte** | O corte só acontece quando o Hub já tiver 2FA/passkey funcionando — não pode reduzir a segurança das contas na virada. Bloqueia a decisão #2 até estar pronto. |
+| 9 | WhatsApp e consentimento | **Ficam no GAB** | Continuam dado operacional do GAB; fora do escopo de identidade/acesso do Hub. |
+| 10 | Queda do Hub | **Aceita sessão já aberta até expirar** | Só login novo é bloqueado quando o Hub está fora do ar; quem já estava logado continua trabalhando até a sessão expirar. Root local (#6) cobre o acesso administrativo de emergência. |
 
 ## Plano sugerido
 
-1. **Contrato:** fechar as decisões acima e o formato das claims e dos webhooks.
-2. **Base no GAB:** `hub_user_id`, endpoint de webhook com assinatura e idempotência, serviço que aplica pessoa e vínculos localmente, sem mudar o login.
-3. **Carga inicial:** vincular as contas existentes ao Hub e revisar as divergências.
-4. **SSO:** login pelo Hub; telas de gestão de usuários do GAB passam a somente leitura.
-5. **Limpeza:** remover senha, 2FA e passkeys locais (se decidido), `users.role` como dado editável e as rotas legadas que dependem de `users.gabinete_id`.
+1. ~~**Contrato:** fechar as decisões acima e o formato das claims e dos webhooks.~~ ✅ Decisões fechadas em 22/09/2026 (falta ainda o formato exato das claims OIDC e do payload dos webhooks, item de detalhe técnico do passo 2).
+2. **Base:** no Hub, provider OIDC + 2FA/passkeys próprios (bloqueia o corte, decisão #8) + vocabulário de papéis próprio com mapa (decisão #5) + endpoint de webhook assinado (eventos por pessoa/vínculo, decisão #4). No GAB, `hub_user_id`, endpoint que recebe o webhook (assinatura + idempotência) e serviço que aplica pessoa e vínculos localmente, sem mudar o login ainda.
+3. **Carga inicial:** vincular as contas existentes por e-mail (decisão #7) e revisar as divergências (duplicados, e-mails que não batem).
+4. **Corte:** login local do GAB desativado; SSO pelo Hub vira obrigatório (decisão #2). Telas de gestão de usuários do GAB passam a somente leitura. Sessões já abertas continuam até expirar se o Hub cair (decisão #10); root continua local (decisão #6).
+5. **Limpeza:** remover senha, 2FA e passkeys locais do GAB, `users.role` como dado editável e as rotas legadas que dependem de `users.gabinete_id`.
 
 ## Até a integração
 

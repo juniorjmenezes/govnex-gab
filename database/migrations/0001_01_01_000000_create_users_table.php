@@ -20,6 +20,11 @@ return new class extends Migration
                 ->restrictOnDelete();
             $table->string('name');
             $table->string('email')->unique();
+            // Identificador da pessoa no Govnex Hub, fonte da verdade de
+            // contas/vínculos (docs/INTEGRACAO_GOVNEX_HUB.md). Nulo até a
+            // carga inicial; depois disso é sempre a chave de casamento —
+            // e-mail vira só dado da pessoa.
+            $table->string('hub_user_id')->nullable()->unique();
             $table->string('role')->default(UserRole::Advisor->value)->index();
             $table->boolean('is_active')->default(true)->index();
             $table->timestamp('email_verified_at')->nullable();

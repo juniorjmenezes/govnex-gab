@@ -6,7 +6,6 @@ import {
     AddIcon,
     AltArrowRightIcon,
     Buildings2Icon,
-    BuildingsIcon,
     CloseIcon,
     MagnifierIcon,
 } from '@/components/icons';
@@ -164,11 +163,13 @@ export default function Entidades({
                                     </div>
 
                                     <div className="flex flex-1 flex-col p-4">
-                                        <div className="flex min-w-0 items-start gap-3 rounded-md bg-muted/40 p-3">
-                                            <BuildingsIcon
-                                                className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                                                aria-hidden="true"
-                                            />
+                                        <div className="flex min-w-0 items-start gap-3">
+                                            <span className="grid size-9 shrink-0 place-items-center rounded-sm bg-muted">
+                                                <Buildings2Icon
+                                                    className="size-4 text-muted-foreground"
+                                                    aria-hidden="true"
+                                                />
+                                            </span>
                                             <div className="min-w-0">
                                                 <p className="text-sm font-medium">
                                                     {entidade.gabinetes.length}{' '}

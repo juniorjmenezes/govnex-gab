@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import type { MouseEvent } from 'react';
-import { Field, FieldLabel } from '@/components/ui/field';
+import { FieldLabel } from '@/components/forms/field-label';
+import { Field } from '@/components/ui/field';
 import {
     Pagination,
     PaginationContent,
