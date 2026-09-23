@@ -20,7 +20,7 @@ class AttendanceTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         $ownAttendance = Atendimento::factory()->forGabinete($office)->create();
         $foreignAttendance = Atendimento::factory()->forGabinete($otherOffice)->create();
 
@@ -42,7 +42,7 @@ class AttendanceTest extends TestCase
         $office = Gabinete::factory()->create([
             'timezone' => 'America/Sao_Paulo',
         ]);
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         $citizen = Cidadao::factory()->forGabinete($office)->create([
             'eleitor' => true,
         ]);
@@ -81,11 +81,11 @@ class AttendanceTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         $citizen = Cidadao::factory()->forGabinete($office)->create();
         $otherCitizen = Cidadao::factory()->forGabinete($office)->create();
         $foreignCitizen = Cidadao::factory()->forGabinete($otherOffice)->create();
-        $foreignUser = User::factory()->advisor()->forGabinete($otherOffice)->create();
+        $foreignUser = User::factory()->operator()->forGabinete($otherOffice)->create();
         $unrelatedDemand = Demanda::factory()
             ->forGabinete($office, $otherCitizen)
             ->create();
@@ -109,8 +109,8 @@ class AttendanceTest extends TestCase
     public function test_only_office_managers_can_delete_attendances(): void
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
-        $manager = User::factory()->chiefOfStaff()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
+        $manager = User::factory()->administrator()->forGabinete($office)->create();
         $attendance = Atendimento::factory()
             ->forGabinete($office, attendant: $advisor)
             ->create();
@@ -129,7 +129,7 @@ class AttendanceTest extends TestCase
     public function test_citizen_profile_contains_recent_attendances(): void
     {
         $office = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         $citizen = Cidadao::factory()->forGabinete($office)->create();
         $attendance = Atendimento::factory()
             ->forGabinete($office, $citizen, $user)

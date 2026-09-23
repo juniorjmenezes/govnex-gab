@@ -124,7 +124,7 @@ class AppointmentController extends Controller
 
         return Inertia::render('appointments/index', [
             'appointments' => $agendaItems,
-            'canDelete' => in_array($user->role, [UserRole::Councilor, UserRole::ChiefOfStaff], true),
+            'canDelete' => $user->role->isAdministrator(),
             'filters' => $filters,
             'range' => [
                 'start' => $start->toIso8601String(),

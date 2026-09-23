@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\MultiEntidade;
 
-use App\Enums\GabineteRole;
+use App\Enums\AccessRole;
 use App\Models\Gabinete;
 use App\Models\GabineteMembro;
 use App\Models\User;
@@ -17,12 +17,12 @@ class TeamMembershipTest extends TestCase
     public function test_secondary_office_member_appears_in_canonical_team_list(): void
     {
         $office = Gabinete::factory()->create();
-        $leader = User::factory()->councilor()->forGabinete($office)->create();
-        $member = User::factory()->advisor()->create();
+        $leader = User::factory()->administrator()->forGabinete($office)->create();
+        $member = User::factory()->operator()->create();
         GabineteMembro::query()->create([
             'gabinete_id' => $office->id,
             'usuario_id' => $member->id,
-            'papel' => GabineteRole::Member,
+            'papel' => AccessRole::Operator,
             'ativo' => true,
             'ingressou_em' => now(),
         ]);
@@ -37,19 +37,19 @@ class TeamMembershipTest extends TestCase
                 ->component('team/index')
                 ->where('members', fn ($members) => collect($members)
                     ->contains(fn (array $item): bool => $item['id'] === $member->id
-                        && $item['role'] === GabineteRole::Member->value)));
+                        && $item['role'] === AccessRole::Operator->value)));
     }
 
     public function test_removing_office_access_preserves_global_user_and_other_memberships(): void
     {
         $office = Gabinete::factory()->create();
-        $leader = User::factory()->councilor()->forGabinete($office)->create();
+        $leader = User::factory()->administrator()->forGabinete($office)->create();
         $otherOffice = Gabinete::factory()->create();
-        $member = User::factory()->advisor()->forGabinete($otherOffice)->create();
+        $member = User::factory()->operator()->forGabinete($otherOffice)->create();
         GabineteMembro::query()->create([
             'gabinete_id' => $office->id,
             'usuario_id' => $member->id,
-            'papel' => GabineteRole::Member,
+            'papel' => AccessRole::Operator,
             'ativo' => true,
             'ingressou_em' => now(),
         ]);
@@ -78,8 +78,8 @@ class TeamMembershipTest extends TestCase
     public function test_existing_account_can_be_linked_without_replacing_its_password(): void
     {
         $office = Gabinete::factory()->create();
-        $leader = User::factory()->councilor()->forGabinete($office)->create();
-        $existing = User::factory()->advisor()->create();
+        $leader = User::factory()->administrator()->forGabinete($office)->create();
+        $existing = User::factory()->operator()->create();
         $passwordHash = $existing->password;
 
         $this->actingAs($leader)
@@ -89,14 +89,14 @@ class TeamMembershipTest extends TestCase
             ]), [
                 'name' => $existing->name,
                 'email' => $existing->email,
-                'role' => GabineteRole::Member->value,
+                'role' => AccessRole::Operator->value,
             ])
             ->assertRedirect(route('team.index'));
 
         $this->assertDatabaseHas('gabinete_membros', [
             'gabinete_id' => $office->id,
             'usuario_id' => $existing->id,
-            'papel' => GabineteRole::Member->value,
+            'papel' => AccessRole::Operator->value,
             'ativo' => true,
         ]);
         $this->assertSame($passwordHash, $existing->fresh()->password);

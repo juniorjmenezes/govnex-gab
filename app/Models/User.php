@@ -2,8 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\EntidadeRole;
-use App\Enums\GabineteRole;
+use App\Enums\AccessRole;
 use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -64,28 +63,28 @@ class User extends Authenticatable implements PasskeyUser
         return $this->hasMany(GabineteMembro::class, 'usuario_id');
     }
 
-    public function entidadeRole(int $entidadeId): ?EntidadeRole
+    public function entidadeRole(int $entidadeId): ?AccessRole
     {
         $role = $this->entidades()
             ->where('entidade_id', $entidadeId)
             ->where('ativo', true)
             ->value('papel');
 
-        return $role instanceof EntidadeRole
+        return $role instanceof AccessRole
             ? $role
-            : (is_string($role) ? EntidadeRole::tryFrom($role) : null);
+            : (is_string($role) ? AccessRole::tryFrom($role) : null);
     }
 
-    public function gabineteRole(int $gabineteId): ?GabineteRole
+    public function gabineteRole(int $gabineteId): ?AccessRole
     {
         $role = $this->gabinetes()
             ->where('gabinete_id', $gabineteId)
             ->where('ativo', true)
             ->value('papel');
 
-        return $role instanceof GabineteRole
+        return $role instanceof AccessRole
             ? $role
-            : (is_string($role) ? GabineteRole::tryFrom($role) : null);
+            : (is_string($role) ? AccessRole::tryFrom($role) : null);
     }
 
     public function canAccessEntidade(int $entidadeId): bool
@@ -101,12 +100,12 @@ class User extends Authenticatable implements PasskeyUser
     public function canManageEntidade(int $entidadeId): bool
     {
         return $this->isRoot()
-            || $this->entidadeRole($entidadeId)?->canManageEntidade() === true;
+            || $this->entidadeRole($entidadeId)?->canManage() === true;
     }
 
     public function canManageGabinete(int $gabineteId): bool
     {
-        return $this->isRoot() || $this->gabineteRole($gabineteId)?->canManageGabinete() === true;
+        return $this->isRoot() || $this->gabineteRole($gabineteId)?->canManage() === true;
     }
 
     /** @return HasMany<Demanda, $this> */

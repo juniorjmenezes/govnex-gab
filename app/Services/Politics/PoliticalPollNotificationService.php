@@ -47,7 +47,7 @@ class PoliticalPollNotificationService
 
         $recipients = User::query()
             ->whereIn('gabinete_id', $favoritesByOffice->keys())
-            ->where('role', UserRole::Councilor)
+            ->where('role', UserRole::Administrator)
             ->where('is_active', true)
             ->get()
             ->groupBy('gabinete_id');

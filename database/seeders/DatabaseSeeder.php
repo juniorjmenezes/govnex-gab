@@ -89,10 +89,10 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->upsertUser($accounts['admin'], UserRole::Root, null);
-        $this->upsertUser($accounts['councilor'], UserRole::Councilor, $fortaleza);
-        $this->upsertUser($accounts['chief'], UserRole::ChiefOfStaff, $fortaleza);
-        $this->upsertUser($accounts['advisor'], UserRole::Advisor, $fortaleza);
-        $this->upsertUser($accounts['second_councilor'], UserRole::Councilor, $caucaia);
+        $this->upsertUser($accounts['councilor'], UserRole::Administrator, $fortaleza);
+        $this->upsertUser($accounts['chief'], UserRole::Administrator, $fortaleza);
+        $this->upsertUser($accounts['advisor'], UserRole::Operator, $fortaleza);
+        $this->upsertUser($accounts['second_councilor'], UserRole::Administrator, $caucaia);
 
         $administrator = User::query()->where('email', $accounts['admin']['email'])->firstOrFail();
         $memberships = app(EntidadeMembershipService::class);
@@ -207,7 +207,7 @@ class DatabaseSeeder extends Seeder
                 'name' => $vereador,
                 'email' => $slug.'@gabinetefacil.test',
                 'password' => 'password',
-            ], UserRole::Councilor, $office);
+            ], UserRole::Administrator, $office);
             $moduleManager->sync($office, $moduleManager->allEnabled(), $administrator, ['source' => 'database-seeder']);
         }
 
@@ -226,7 +226,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Diretoria Legislativa',
             'email' => 'diretoria-legislativa@gabinetefacil.test',
             'password' => 'password',
-        ], UserRole::Advisor, $administrativeSector);
+        ], UserRole::Operator, $administrativeSector);
         $moduleManager->sync($administrativeSector, $moduleManager->allEnabled(), $administrator, ['source' => 'database-seeder']);
 
         $cityHall = Entidade::withoutGlobalScopes()->updateOrCreate(
@@ -258,7 +258,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Prefeito Municipal',
             'email' => 'prefeito.barra-nova@gabinetefacil.test',
             'password' => 'password',
-        ], UserRole::Councilor, $mayorOffice);
+        ], UserRole::Administrator, $mayorOffice);
         $moduleManager->sync($mayorOffice, $moduleManager->allEnabled(), $administrator, ['source' => 'database-seeder']);
 
         $secretariat = Gabinete::withoutGlobalScopes()->updateOrCreate(
@@ -276,7 +276,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Secretário de Obras',
             'email' => 'secretaria-obras.barra-nova@gabinetefacil.test',
             'password' => 'password',
-        ], UserRole::ChiefOfStaff, $secretariat);
+        ], UserRole::Administrator, $secretariat);
         $moduleManager->sync($secretariat, $moduleManager->allEnabled(), $administrator, ['source' => 'database-seeder']);
 
         User::withoutGlobalScopes()
@@ -363,7 +363,7 @@ class DatabaseSeeder extends Seeder
      */
     private function seedDemands(Gabinete $gabinete, array $citizens, array $categories, array $neighborhoods): void
     {
-        $creator = User::query()->where('gabinete_id', $gabinete->id)->orderByRaw("CASE role WHEN 'assessor' THEN 1 WHEN 'chefe_gabinete' THEN 2 ELSE 3 END")->firstOrFail();
+        $creator = User::query()->where('gabinete_id', $gabinete->id)->orderByRaw("CASE role WHEN 'operador' THEN 1 WHEN 'administrador' THEN 2 ELSE 3 END")->firstOrFail();
         $members = User::query()->where('gabinete_id', $gabinete->id)->where('is_active', true)->get();
         $statuses = DemandStatus::cases();
         $priorities = DemandPriority::cases();

@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $cor_principal
  * @property string|null $cor_secundaria
  * @property bool $interface_simplificada
+ * @property string|null $hub_entidade_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */

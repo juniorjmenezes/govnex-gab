@@ -48,7 +48,7 @@ class PoliticalPanelTest extends TestCase
             'numero_eleitoral' => '11555',
             'candidato_titular_id' => $holder->id,
         ]);
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         ComparecimentoEleitoralMunicipio::query()->create([
             'municipio_eleitoral_id' => $municipality->id,
             'eleicao_id' => $election->id,
@@ -135,7 +135,7 @@ class PoliticalPanelTest extends TestCase
             'estado' => 'CE',
             'municipio_eleitoral_id' => $municipality->id,
         ]);
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
 
         $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
 
@@ -205,7 +205,7 @@ class PoliticalPanelTest extends TestCase
             'municipio_eleitoral_id' => $municipality->id,
         ]);
         $otherOffice = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         Cidadao::factory()->count(2)->forGabinete($office)->create(['eleitor' => true]);
         Cidadao::factory()->forGabinete($office)->create(['eleitor' => false]);
         Cidadao::factory()->forGabinete($otherOffice)->create(['eleitor' => true]);
@@ -291,7 +291,7 @@ class PoliticalPanelTest extends TestCase
         // O indicador do rodapé precisa achar essa sincronização mesmo sem
         // nenhum registro vinculado ao gabinete que está olhando o painel.
         $office = Gabinete::factory()->create(['estado' => 'CE']);
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         SincronizacaoTse::query()->create([
             'gabinete_id' => null,
             'dataset' => 'electorate',
@@ -349,7 +349,7 @@ class PoliticalPanelTest extends TestCase
             'estado' => 'CE',
             'municipio_eleitoral_id' => $municipality->id,
         ]);
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
 
         $visible = [
@@ -421,7 +421,7 @@ class PoliticalPanelTest extends TestCase
             'numero_eleitoral' => '11555',
             'candidato_titular_id' => $titular->id,
         ]);
-        $councilor = User::factory()->councilor()->forGabinete($office)->create();
+        $councilor = User::factory()->administrator()->forGabinete($office)->create();
         $titular->favoritos()->forceCreate([
             'gabinete_id' => $office->id,
             'escolhido_por_id' => null,
@@ -444,7 +444,7 @@ class PoliticalPanelTest extends TestCase
     public function test_panel_lists_favorited_candidates_first(): void
     {
         $office = Gabinete::factory()->create(['estado' => 'CE']);
-        $councilor = User::factory()->councilor()->forGabinete($office)->create();
+        $councilor = User::factory()->administrator()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
 
         $alphabeticallyFirst = $this->candidate($election, '1', CandidateScope::State, 'CE', null, 'Governador');
@@ -470,7 +470,7 @@ class PoliticalPanelTest extends TestCase
     public function test_candidate_party_color_matches_regardless_of_accent(): void
     {
         $office = Gabinete::factory()->create(['estado' => 'CE']);
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
         PartidoCor::query()->create(['sigla' => 'MISSÃO', 'cor' => '#FFD600']);
 
@@ -499,9 +499,9 @@ class PoliticalPanelTest extends TestCase
     {
         $office = Gabinete::factory()->create(['estado' => 'CE']);
         $otherOffice = Gabinete::factory()->create(['estado' => 'CE']);
-        $councilor = User::factory()->councilor()->forGabinete($office)->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
-        $otherCouncilor = User::factory()->councilor()->forGabinete($otherOffice)->create();
+        $councilor = User::factory()->administrator()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
+        $otherCouncilor = User::factory()->administrator()->forGabinete($otherOffice)->create();
         $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
         $candidate = $this->candidate(
             $election,
@@ -548,7 +548,7 @@ class PoliticalPanelTest extends TestCase
     public function test_councilor_cannot_favorite_candidate_outside_office_territory(): void
     {
         $office = Gabinete::factory()->create(['estado' => 'CE']);
-        $councilor = User::factory()->councilor()->forGabinete($office)->create();
+        $councilor = User::factory()->administrator()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
         $candidate = $this->candidate(
             $election,
@@ -567,7 +567,7 @@ class PoliticalPanelTest extends TestCase
     public function test_panel_exposes_state_polls_and_highlights_favorite_candidates(): void
     {
         $office = Gabinete::factory()->create(['estado' => 'CE']);
-        $councilor = User::factory()->councilor()->forGabinete($office)->create();
+        $councilor = User::factory()->administrator()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
         $candidate = $this->candidate(
             $election,
@@ -661,7 +661,7 @@ class PoliticalPanelTest extends TestCase
         // whereIn(external_candidate_id, []) zera médias reais e já
         // calculadas.
         $office = Gabinete::factory()->create(['estado' => 'CE']);
-        $councilor = User::factory()->councilor()->forGabinete($office)->create();
+        $councilor = User::factory()->administrator()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
         $candidate = $this->candidate(
             $election,
@@ -723,7 +723,7 @@ class PoliticalPanelTest extends TestCase
         // própria — nesse caso o painel deve preferi-la à /averages do
         // ElectioLab, mesmo que esta última também esteja disponível.
         $office = Gabinete::factory()->create(['estado' => 'CE']);
-        $councilor = User::factory()->councilor()->forGabinete($office)->create();
+        $councilor = User::factory()->administrator()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
         $candidate = $this->candidate(
             $election,
@@ -804,7 +804,7 @@ class PoliticalPanelTest extends TestCase
             'municipio' => 'Cruz',
             'municipio_eleitoral_id' => $municipality->id,
         ]);
-        $councilor = User::factory()->councilor()->forGabinete($office)->create();
+        $councilor = User::factory()->administrator()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
         // A eleição de 2024 já passou; o cenário aqui é o de uma eleição
         // municipal ainda por vir, que é quando a pesquisa importa.

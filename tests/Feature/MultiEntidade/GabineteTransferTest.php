@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\MultiEntidade;
 
-use App\Enums\EntidadeRole;
+use App\Enums\AccessRole;
 use App\Enums\GabineteModule;
 use App\Enums\GabineteTransferStatus;
 use App\Enums\WhatsAppMode;
@@ -70,7 +70,7 @@ class GabineteTransferTest extends TestCase
     public function test_private_unit_data_memberships_modules_and_whatsapp_follow_transfer_rules(): void
     {
         [$source, $gabinete, $sourceManager, $destination, $destinationManager, $admin] = $this->context();
-        $member = User::factory()->advisor()->forGabinete($gabinete)->create();
+        $member = User::factory()->operator()->forGabinete($gabinete)->create();
         $demand = Demanda::factory()->forGabinete($gabinete, creator: $member)->create();
 
         DB::table('entidade_modulos')
@@ -96,7 +96,7 @@ class GabineteTransferTest extends TestCase
         $this->assertDatabaseHas('entidade_membros', [
             'entidade_id' => $destination->id,
             'usuario_id' => $member->id,
-            'papel' => EntidadeRole::Operator->value,
+            'papel' => AccessRole::Operator->value,
             'ativo' => true,
         ]);
         $this->assertDatabaseHas('entidade_membros', [
@@ -107,7 +107,7 @@ class GabineteTransferTest extends TestCase
         $this->assertDatabaseHas('entidade_membros', [
             'entidade_id' => $source->id,
             'usuario_id' => $sourceManager->id,
-            'papel' => EntidadeRole::Manager->value,
+            'papel' => AccessRole::Administrator->value,
             'ativo' => true,
         ]);
         $this->assertDatabaseHas('gabinete_modulos', [
@@ -155,13 +155,13 @@ class GabineteTransferTest extends TestCase
     public function test_transfer_is_hidden_from_unrelated_entidades(): void
     {
         [$source, $gabinete, $sourceManager, $destination, $destinationManager, $admin] = $this->context();
-        User::factory()->advisor()->forGabinete($gabinete)->create();
+        User::factory()->operator()->forGabinete($gabinete)->create();
         $transfer = app(GabineteTransferService::class)->request($source, $gabinete, $destination, $sourceManager);
         app(GabineteTransferService::class)->acceptDestination($transfer, $destinationManager);
         $completed = app(GabineteTransferService::class)->approve($transfer, $admin);
 
         $unrelatedUnit = Gabinete::factory()->create();
-        $unrelatedManager = User::factory()->chiefOfStaff()->forGabinete($unrelatedUnit)->create();
+        $unrelatedManager = User::factory()->administrator()->forGabinete($unrelatedUnit)->create();
         $this->actingAs($unrelatedManager)
             ->get(route('entidades.transfers.show', [
                 'entidade' => $destination,
@@ -193,12 +193,12 @@ class GabineteTransferTest extends TestCase
         $gabinete = Gabinete::factory()->create(['municipio' => 'Fortaleza', 'estado' => 'CE']);
         $source = $gabinete->entidade;
         $source->forceFill(['municipio' => 'Fortaleza', 'estado' => 'CE'])->save();
-        $sourceManager = User::factory()->chiefOfStaff()->forGabinete($gabinete)->create();
+        $sourceManager = User::factory()->administrator()->forGabinete($gabinete)->create();
 
         $destinationUnit = Gabinete::factory()->create(['municipio' => 'Fortaleza', 'estado' => 'CE']);
         $destination = $destinationUnit->entidade;
         $destination->forceFill(['municipio' => 'Fortaleza', 'estado' => 'CE'])->save();
-        $destinationManager = User::factory()->chiefOfStaff()->forGabinete($destinationUnit)->create();
+        $destinationManager = User::factory()->administrator()->forGabinete($destinationUnit)->create();
 
         return [
             $source,

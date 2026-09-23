@@ -30,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $municipio_eleitoral_id
  * @property int|null $candidato_titular_id
  * @property string|null $timezone
+ * @property string|null $hub_unidade_id
  * @property Carbon|null $suspended_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -87,12 +88,6 @@ class Gabinete extends Model
     public function membros(): HasMany
     {
         return $this->hasMany(GabineteMembro::class, 'gabinete_id');
-    }
-
-    /** @return HasMany<GabineteLideranca, $this> */
-    public function liderancas(): HasMany
-    {
-        return $this->hasMany(GabineteLideranca::class, 'gabinete_id');
     }
 
     /** @return HasMany<GabineteModulo, $this> */

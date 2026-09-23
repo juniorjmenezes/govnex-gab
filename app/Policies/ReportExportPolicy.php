@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\ReportExport;
 use App\Models\User;
 
@@ -11,7 +10,7 @@ class ReportExportPolicy
     public function viewAny(User $user): bool
     {
         return $user->gabinete_id !== null
-            && in_array($user->role, [UserRole::Councilor, UserRole::ChiefOfStaff], true);
+            && $user->role->isAdministrator();
     }
 
     public function view(User $user, ReportExport $export): bool

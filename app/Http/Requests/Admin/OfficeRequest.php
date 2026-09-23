@@ -6,6 +6,7 @@ use App\Enums\EntidadeStatus;
 use App\Enums\EntidadeType;
 use App\Enums\GabineteModule;
 use App\Enums\GabineteType;
+use App\Enums\UserRole;
 use App\Models\Entidade;
 use App\Models\Gabinete;
 use App\Models\User;
@@ -34,7 +35,7 @@ class OfficeRequest extends FormRequest
         $responsibleId = $office instanceof Gabinete
             ? User::query()
                 ->where('gabinete_id', $office->id)
-                ->where('role', 'vereador')
+                ->where('role', UserRole::Administrator->value)
                 ->value('id')
             : null;
         $requiresPassword = ! $office instanceof Gabinete || $responsibleId === null;

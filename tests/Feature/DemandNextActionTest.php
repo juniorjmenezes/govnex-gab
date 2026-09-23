@@ -23,7 +23,7 @@ class DemandNextActionTest extends TestCase
     public function test_next_action_can_be_defined_and_notifies_the_assigned_responsible(): void
     {
         [$user, $demand] = $this->demandContext();
-        $responsible = User::factory()->advisor()->forGabinete($user->gabinete)->create();
+        $responsible = User::factory()->operator()->forGabinete($user->gabinete)->create();
 
         $this->actingAs($user)
             ->post(route('demands.next-action.store', $demand), [
@@ -180,7 +180,7 @@ class DemandNextActionTest extends TestCase
     private function demandContext(?Gabinete $office = null): array
     {
         $office ??= Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         $demand = Demanda::factory()->forGabinete($office, creator: $user)->create();
 
         return [$user, $demand];

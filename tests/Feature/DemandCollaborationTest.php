@@ -120,7 +120,7 @@ class DemandCollaborationTest extends TestCase
             ->assertHeader('content-type', 'application/pdf');
 
         $otherOffice = Gabinete::factory()->create();
-        $otherUser = User::factory()->advisor()->forGabinete($otherOffice)->create();
+        $otherUser = User::factory()->operator()->forGabinete($otherOffice)->create();
 
         $this->actingAs($otherUser)
             ->get(route('demands.attachments.download', [$demand, $attachment]))
@@ -170,7 +170,7 @@ class DemandCollaborationTest extends TestCase
     public function test_priority_responsible_and_deadline_changes_have_specific_timeline_events(): void
     {
         [$user, $demand] = $this->demandContext();
-        $responsible = User::factory()->advisor()->forGabinete($user->gabinete)->create();
+        $responsible = User::factory()->operator()->forGabinete($user->gabinete)->create();
 
         $this->actingAs($user)
             ->put(route('demands.update', $demand), [
@@ -198,7 +198,7 @@ class DemandCollaborationTest extends TestCase
     private function demandContext(): array
     {
         $office = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         $demand = Demanda::factory()->forGabinete($office, creator: $user)->create();
 
         return [$user, $demand];

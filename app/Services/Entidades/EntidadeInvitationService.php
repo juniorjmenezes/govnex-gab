@@ -2,10 +2,8 @@
 
 namespace App\Services\Entidades;
 
+use App\Enums\AccessRole;
 use App\Enums\EntidadeInvitationStatus;
-use App\Enums\EntidadeRole;
-use App\Enums\GabineteRole;
-use App\Enums\UserRole;
 use App\Models\Entidade;
 use App\Models\EntidadeConvite;
 use App\Models\EntidadeMembro;
@@ -21,37 +19,28 @@ use Illuminate\Validation\ValidationException;
 
 class EntidadeInvitationService
 {
-    /** @return list<EntidadeRole> */
+    /** @return list<AccessRole> */
     public function grantableEntidadeRoles(User $actor, Entidade $entidade): array
     {
-        if ($actor->isRoot() || $actor->entidadeRole($entidade->id) === EntidadeRole::Administrator) {
-            return EntidadeRole::cases();
-        }
-
-        if ($actor->entidadeRole($entidade->id) === EntidadeRole::Manager) {
-            return [EntidadeRole::Manager, EntidadeRole::Operator, EntidadeRole::Auditor];
-        }
-
-        return [];
+        return $actor->canManageEntidade($entidade->id) ? AccessRole::cases() : [];
     }
 
     public function canGrantGabineteAccess(User $actor, Entidade $entidade, Gabinete $gabinete): bool
     {
         return $gabinete->entidade_id === $entidade->id
             && ($actor->isRoot()
-                || $actor->entidadeRole($entidade->id) === EntidadeRole::Administrator
+                || $actor->entidadeRole($entidade->id) === AccessRole::Administrator
                 || $actor->canManageGabinete($gabinete->id));
     }
 
-    /** @return list<GabineteRole> */
+    /** @return list<AccessRole> */
     public function grantableGabineteRoles(User $actor, Entidade $entidade, Gabinete $gabinete): array
     {
         if (! $this->canGrantGabineteAccess($actor, $entidade, $gabinete)) {
             return [];
         }
 
-        // A liderança possui histórico próprio e deve ser alterada pelo fluxo específico.
-        return [GabineteRole::Manager, GabineteRole::Member];
+        return AccessRole::cases();
     }
 
     /**
@@ -61,8 +50,8 @@ class EntidadeInvitationService
         Entidade $entidade,
         ?Gabinete $gabinete,
         string $email,
-        EntidadeRole $entidadeRole,
-        ?GabineteRole $gabineteRole,
+        AccessRole $entidadeRole,
+        ?AccessRole $gabineteRole,
         User $actor,
         string $deliveryMode = 'EMAIL',
     ): array {
@@ -95,9 +84,7 @@ class EntidadeInvitationService
         if ($gabinete !== null
             && ! in_array($gabineteRole, $this->grantableGabineteRoles($actor, $entidade, $gabinete), true)) {
             throw ValidationException::withMessages([
-                'papel_gabinete' => $gabineteRole === GabineteRole::Leader
-                    ? 'A liderança deve ser definida pelo fluxo específico do gabinete.'
-                    : 'Você não pode conceder este papel no gabinete.',
+                'papel_gabinete' => 'Você não pode conceder este papel no gabinete.',
             ]);
         }
 
@@ -214,11 +201,7 @@ class EntidadeInvitationService
                     ]);
                 }
 
-                $legacyRole = match ($invitation->papel_gabinete) {
-                    GabineteRole::Leader => UserRole::Councilor,
-                    GabineteRole::Manager => UserRole::ChiefOfStaff,
-                    default => UserRole::Advisor,
-                };
+                $legacyRole = ($invitation->papel_gabinete ?? $invitation->papel_entidade)->userRole();
 
                 $user = User::query()->create([
                     'gabinete_id' => $invitation->gabinete_id,

@@ -69,7 +69,7 @@ class PlatformAdministrationTest extends TestCase
     public function test_only_platform_admin_can_open_office_management(): void
     {
         $office = Gabinete::factory()->create();
-        $tenantUser = User::factory()->forGabinete($office)->councilor()->create();
+        $tenantUser = User::factory()->forGabinete($office)->administrator()->create();
 
         $this->actingAs($tenantUser)
             ->get(route('admin.offices.index'))
@@ -167,7 +167,7 @@ class PlatformAdministrationTest extends TestCase
 
         $responsible = User::where('email', 'responsavel@gabinete.test')->firstOrFail();
         $this->assertSame($office->id, $responsible->gabinete_id);
-        $this->assertSame(UserRole::Councilor, $responsible->role);
+        $this->assertSame(UserRole::Administrator, $responsible->role);
         $this->assertTrue($responsible->is_active);
         $this->assertTrue(Hash::check('Senha!Segura2026', $responsible->password));
     }
@@ -293,7 +293,7 @@ class PlatformAdministrationTest extends TestCase
     public function test_tenant_user_cannot_view_the_political_sync_page(): void
     {
         $office = Gabinete::factory()->create();
-        $tenantUser = User::factory()->forGabinete($office)->councilor()->create();
+        $tenantUser = User::factory()->forGabinete($office)->administrator()->create();
 
         $this->actingAs($tenantUser)
             ->get(route('admin.political-sync.index'))
@@ -486,7 +486,7 @@ class PlatformAdministrationTest extends TestCase
     public function test_tenant_user_cannot_restart_a_sync(): void
     {
         $office = Gabinete::factory()->create();
-        $tenantUser = User::factory()->forGabinete($office)->councilor()->create();
+        $tenantUser = User::factory()->forGabinete($office)->administrator()->create();
         $run = SincronizacaoTse::query()->create([
             'gabinete_id' => $office->id,
             'dataset' => 'municipalities',
@@ -604,7 +604,7 @@ class PlatformAdministrationTest extends TestCase
     public function test_tenant_user_cannot_cancel_a_sync(): void
     {
         $office = Gabinete::factory()->create();
-        $tenantUser = User::factory()->forGabinete($office)->councilor()->create();
+        $tenantUser = User::factory()->forGabinete($office)->administrator()->create();
         $run = SincronizacaoTse::query()->create([
             'gabinete_id' => $office->id,
             'dataset' => 'municipalities',
@@ -722,7 +722,7 @@ class PlatformAdministrationTest extends TestCase
     {
         $admin = User::factory()->root()->create();
         $office = Gabinete::factory()->create();
-        $responsible = User::factory()->forGabinete($office)->councilor()->create();
+        $responsible = User::factory()->forGabinete($office)->administrator()->create();
         $payload = $this->payload([
             'nome' => 'Gabinete Renovado',
             'responsavel_email' => 'novo@gabinete.test',
@@ -738,7 +738,7 @@ class PlatformAdministrationTest extends TestCase
         $this->assertDatabaseHas('users', [
             'id' => $responsible->id,
             'email' => 'novo@gabinete.test',
-            'role' => UserRole::Councilor->value,
+            'role' => UserRole::Administrator->value,
         ]);
     }
 
@@ -761,7 +761,7 @@ class PlatformAdministrationTest extends TestCase
             'estado' => 'CE',
             'municipio_eleitoral_id' => $fortalezaCe->id,
         ]);
-        User::factory()->forGabinete($office)->councilor()->create();
+        User::factory()->forGabinete($office)->administrator()->create();
 
         $this->actingAs($admin)
             ->put(route('admin.offices.update', $office), $this->payload([
@@ -790,7 +790,7 @@ class PlatformAdministrationTest extends TestCase
             'estado' => 'CE',
             'municipio_eleitoral_id' => $fortalezaCe->id,
         ]);
-        User::factory()->forGabinete($office)->councilor()->create();
+        User::factory()->forGabinete($office)->administrator()->create();
 
         // Não existe "Fortaleza/SP" na base TSE/IBGE do app (só a de CE
         // acima) — simula o gabinete apontando pra um município ainda não

@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AccessRole;
 use App\Enums\EntidadeModule;
-use App\Enums\EntidadeRole;
 use App\Enums\EntidadeType;
-use App\Enums\GabineteRole;
 use App\Models\Entidade;
 use App\Models\EntidadeBairro;
 use App\Models\EntidadeConvite;
@@ -118,10 +117,10 @@ class EntidadeController extends Controller
                 && ($entidade->tipo !== EntidadeType::IndependentOffice
                     || $entidade->gabinetes->isEmpty()),
             'entidadeRoles' => array_map(
-                fn (EntidadeRole $role): string => $role->value,
+                fn (AccessRole $role): string => $role->value,
                 $invitations->grantableEntidadeRoles($user, $entidade),
             ),
-            'gabineteRoles' => [GabineteRole::Manager->value, GabineteRole::Member->value],
+            'gabineteRoles' => array_map(fn (AccessRole $role): string => $role->value, AccessRole::cases()),
         ]);
     }
 

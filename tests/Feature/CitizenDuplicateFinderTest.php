@@ -17,7 +17,7 @@ class CitizenDuplicateFinderTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         Cidadao::factory()->forGabinete($office)->create(['cpf' => '11111111111']);
-        $this->actingAs(User::factory()->advisor()->forGabinete($office)->create());
+        $this->actingAs(User::factory()->operator()->forGabinete($office)->create());
 
         $matches = (new CitizenDuplicateFinder)->find([]);
 
@@ -31,7 +31,7 @@ class CitizenDuplicateFinderTest extends TestCase
             'nome' => 'Maria Existente',
             'cpf' => '11111111111',
         ]);
-        $this->actingAs(User::factory()->advisor()->forGabinete($office)->create());
+        $this->actingAs(User::factory()->operator()->forGabinete($office)->create());
 
         $matches = (new CitizenDuplicateFinder)->find(['cpf' => '11111111111']);
 
@@ -49,7 +49,7 @@ class CitizenDuplicateFinderTest extends TestCase
             'whatsapp' => '85988880000',
             'email' => 'duplicado@exemplo.test',
         ]);
-        $this->actingAs(User::factory()->advisor()->forGabinete($office)->create());
+        $this->actingAs(User::factory()->operator()->forGabinete($office)->create());
 
         $matches = (new CitizenDuplicateFinder)->find([
             'cpf' => '22222222222',
@@ -66,7 +66,7 @@ class CitizenDuplicateFinderTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $self = Cidadao::factory()->forGabinete($office)->create(['cpf' => '33333333333']);
-        $this->actingAs(User::factory()->advisor()->forGabinete($office)->create());
+        $this->actingAs(User::factory()->operator()->forGabinete($office)->create());
 
         $matches = (new CitizenDuplicateFinder)->find(['cpf' => '33333333333'], $self);
 
@@ -84,7 +84,7 @@ class CitizenDuplicateFinderTest extends TestCase
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
         Cidadao::factory()->forGabinete($otherOffice)->create(['cpf' => '44444444444']);
-        $this->actingAs(User::factory()->advisor()->forGabinete($office)->create());
+        $this->actingAs(User::factory()->operator()->forGabinete($office)->create());
 
         $matches = (new CitizenDuplicateFinder)->find(['cpf' => '44444444444']);
 

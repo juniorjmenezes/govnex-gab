@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\Configuracao;
 use App\Models\User;
 
@@ -15,6 +14,6 @@ class ConfiguracaoPolicy
 
     public function update(User $user, Configuracao $configuracao): bool
     {
-        return $this->view($user, $configuracao) && $user->role === UserRole::Councilor;
+        return $this->view($user, $configuracao) && $user->role->isAdministrator();
     }
 }

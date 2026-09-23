@@ -40,7 +40,7 @@ class EventoFactory extends Factory
         ?User $responsible = null,
         ?User $creator = null,
     ): static {
-        $creator ??= User::factory()->advisor()->forGabinete($gabinete)->create();
+        $creator ??= User::factory()->operator()->forGabinete($gabinete)->create();
 
         return $this->state(fn (): array => [
             'gabinete_id' => $gabinete->id,

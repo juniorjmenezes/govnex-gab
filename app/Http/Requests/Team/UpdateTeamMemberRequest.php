@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Team;
 
-use App\Enums\GabineteRole;
+use App\Enums\AccessRole;
 use App\Enums\UserRole;
 use App\Models\GabineteMembro;
 use App\Models\User;
@@ -43,11 +43,7 @@ class UpdateTeamMemberRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'role' => match ($this->input('role')) {
-                UserRole::ChiefOfStaff->value => GabineteRole::Manager->value,
-                UserRole::Advisor->value => GabineteRole::Member->value,
-                default => $this->input('role'),
-            },
+            'role' => UserRole::tryFrom((string) $this->input('role'))?->accessRole()->value ?? $this->input('role'),
             'is_active' => $this->boolean('is_active'),
         ]);
     }
@@ -55,8 +51,6 @@ class UpdateTeamMemberRequest extends FormRequest
     /** @return list<string> */
     private function allowedRoles(): array
     {
-        return $this->user()->gabineteRole((int) $this->user()->gabinete_id) === GabineteRole::Manager
-            ? [GabineteRole::Member->value]
-            : [GabineteRole::Manager->value, GabineteRole::Member->value];
+        return array_map(fn (AccessRole $role): string => $role->value, AccessRole::cases());
     }
 }

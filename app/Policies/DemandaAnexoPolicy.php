@@ -14,6 +14,6 @@ class DemandaAnexoPolicy
 
     public function delete(User $user, DemandaAnexo $attachment): bool
     {
-        return $this->view($user, $attachment);
+        return $this->view($user, $attachment) && $user->role->canWrite();
     }
 }

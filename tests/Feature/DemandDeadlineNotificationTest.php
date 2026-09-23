@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Enums\GabineteRole;
+use App\Enums\AccessRole;
 use App\Models\Demanda;
 use App\Models\Gabinete;
 use App\Models\GabineteMembro;
@@ -34,7 +34,7 @@ class DemandDeadlineNotificationTest extends TestCase
     public function test_overdue_demand_notifies_the_responsible(): void
     {
         $office = Gabinete::factory()->create();
-        $responsible = User::factory()->advisor()->forGabinete($office)->create();
+        $responsible = User::factory()->operator()->forGabinete($office)->create();
         $demand = $this->overdueDemand($office, $responsible);
 
         app(DemandNotificationService::class)->dispatchAttention();
@@ -45,8 +45,8 @@ class DemandDeadlineNotificationTest extends TestCase
     public function test_overdue_demand_without_a_responsible_notifies_the_office_leadership(): void
     {
         $office = Gabinete::factory()->create();
-        $leader = User::factory()->councilor()->forGabinete($office)->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $leader = User::factory()->administrator()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
         $demand = $this->overdueDemand($office);
 
         app(DemandNotificationService::class)->dispatchAttention();
@@ -59,8 +59,8 @@ class DemandDeadlineNotificationTest extends TestCase
     public function test_overdue_demand_in_an_office_without_leadership_notifies_the_active_members(): void
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
-        $inactive = User::factory()->advisor()->inactive()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
+        $inactive = User::factory()->operator()->inactive()->forGabinete($office)->create();
         $demand = $this->overdueDemand($office);
 
         app(DemandNotificationService::class)->dispatchAttention();
@@ -73,11 +73,11 @@ class DemandDeadlineNotificationTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $responsible = User::factory()->advisor()->forGabinete($otherOffice)->create();
+        $responsible = User::factory()->operator()->forGabinete($otherOffice)->create();
         GabineteMembro::query()->create([
             'gabinete_id' => $office->id,
             'usuario_id' => $responsible->id,
-            'papel' => GabineteRole::Member,
+            'papel' => AccessRole::Operator,
             'ativo' => true,
             'ingressou_em' => now(),
         ]);
@@ -91,8 +91,8 @@ class DemandDeadlineNotificationTest extends TestCase
     public function test_inactive_responsible_hands_the_alert_over_to_the_leadership(): void
     {
         $office = Gabinete::factory()->create();
-        $leader = User::factory()->chiefOfStaff()->forGabinete($office)->create();
-        $responsible = User::factory()->advisor()->inactive()->forGabinete($office)->create();
+        $leader = User::factory()->administrator()->forGabinete($office)->create();
+        $responsible = User::factory()->operator()->inactive()->forGabinete($office)->create();
         $demand = $this->overdueDemand($office, $responsible);
 
         app(DemandNotificationService::class)->dispatchAttention();
@@ -104,7 +104,7 @@ class DemandDeadlineNotificationTest extends TestCase
     public function test_overdue_next_action_without_an_assignee_notifies_the_leadership(): void
     {
         $office = Gabinete::factory()->create();
-        $leader = User::factory()->councilor()->forGabinete($office)->create();
+        $leader = User::factory()->administrator()->forGabinete($office)->create();
         $demand = Demanda::factory()->forGabinete($office)->create([
             'prazo' => null,
             'proxima_acao_descricao' => 'Cobrar retorno da secretaria',
@@ -121,7 +121,7 @@ class DemandDeadlineNotificationTest extends TestCase
     public function test_the_same_deadline_is_not_notified_twice(): void
     {
         $office = Gabinete::factory()->create();
-        $responsible = User::factory()->advisor()->forGabinete($office)->create();
+        $responsible = User::factory()->operator()->forGabinete($office)->create();
         $this->overdueDemand($office, $responsible);
 
         $service = app(DemandNotificationService::class);

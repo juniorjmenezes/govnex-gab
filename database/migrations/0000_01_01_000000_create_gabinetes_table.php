@@ -26,6 +26,9 @@ return new class extends Migration
             $table->boolean('interface_simplificada')->default(false);
             $table->json('configuracoes')->nullable();
             $table->unsignedBigInteger('gabinete_origem_id')->nullable()->unique();
+            // Identificador da Entidade correspondente no Govnex Hub
+            // (docs/INTEGRACAO_GOVNEX_HUB.md). Nulo até a carga inicial.
+            $table->string('hub_entidade_id')->nullable()->unique();
             $table->timestamp('suspensa_em')->nullable();
             $table->timestamps();
             $table->softDeletes();
@@ -58,6 +61,9 @@ return new class extends Migration
             $table->string('cor_principal', 20)->nullable();
             $table->string('formato_protocolo')->default('{ANO}-{SEQUENCIAL}');
             $table->text('cabecalho_relatorios')->nullable();
+            // Identificador da Unidade correspondente no Govnex Hub
+            // (docs/INTEGRACAO_GOVNEX_HUB.md). Nulo até a carga inicial.
+            $table->string('hub_unidade_id')->nullable()->unique();
             $table->timestamp('suspended_at')->nullable();
             $table->timestamps();
             $table->softDeletes();

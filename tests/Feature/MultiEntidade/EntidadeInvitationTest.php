@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\MultiEntidade;
 
+use App\Enums\AccessRole;
 use App\Enums\EntidadeInvitationStatus;
-use App\Enums\EntidadeRole;
-use App\Enums\GabineteRole;
+use App\Enums\EntidadeType;
 use App\Models\EntidadeConvite;
 use App\Models\Gabinete;
 use App\Models\User;
@@ -23,15 +23,15 @@ class EntidadeInvitationTest extends TestCase
     {
         Notification::fake();
         $office = Gabinete::factory()->create();
-        $actor = User::factory()->councilor()->forGabinete($office)->create();
+        $actor = User::factory()->administrator()->forGabinete($office)->create();
         $service = app(EntidadeInvitationService::class);
 
         $result = $service->invite(
             $office->entidade,
             $office,
             'novo@example.test',
-            EntidadeRole::Operator,
-            GabineteRole::Member,
+            AccessRole::Operator,
+            AccessRole::Operator,
             $actor,
         );
 
@@ -49,12 +49,12 @@ class EntidadeInvitationTest extends TestCase
         $this->assertDatabaseHas('entidade_membros', [
             'entidade_id' => $office->entidade_id,
             'usuario_id' => $user->id,
-            'papel' => EntidadeRole::Operator->value,
+            'papel' => AccessRole::Operator->value,
         ]);
         $this->assertDatabaseHas('gabinete_membros', [
             'gabinete_id' => $office->id,
             'usuario_id' => $user->id,
-            'papel' => GabineteRole::Member->value,
+            'papel' => AccessRole::Operator->value,
         ]);
         $this->assertSame(EntidadeInvitationStatus::Accepted, $result['invitation']->fresh()->status);
 
@@ -66,15 +66,15 @@ class EntidadeInvitationTest extends TestCase
     {
         Notification::fake();
         $office = Gabinete::factory()->create();
-        $actor = User::factory()->councilor()->forGabinete($office)->create();
+        $actor = User::factory()->administrator()->forGabinete($office)->create();
         $existing = User::factory()->create(['email' => 'existente@example.test']);
         $service = app(EntidadeInvitationService::class);
         $result = $service->invite(
             $office->entidade,
             $office,
             $existing->email,
-            EntidadeRole::Manager,
-            GabineteRole::Manager,
+            AccessRole::Administrator,
+            AccessRole::Administrator,
             $actor,
         );
 
@@ -93,13 +93,13 @@ class EntidadeInvitationTest extends TestCase
     {
         Notification::fake();
         $office = Gabinete::factory()->create();
-        $actor = User::factory()->councilor()->forGabinete($office)->create();
+        $actor = User::factory()->administrator()->forGabinete($office)->create();
         $service = app(EntidadeInvitationService::class);
         $result = $service->invite(
             $office->entidade,
             null,
             'expirado@example.test',
-            EntidadeRole::Auditor,
+            AccessRole::Auditor,
             null,
             $actor,
         );
@@ -125,55 +125,56 @@ class EntidadeInvitationTest extends TestCase
         Notification::fake();
         $first = Gabinete::factory()->create();
         $second = Gabinete::factory()->create();
-        $actor = User::factory()->councilor()->forGabinete($first)->create();
+        $actor = User::factory()->administrator()->forGabinete($first)->create();
 
         $this->expectException(ValidationException::class);
         app(EntidadeInvitationService::class)->invite(
             $first->entidade,
             $second,
             'fora@example.test',
-            EntidadeRole::Operator,
-            GabineteRole::Member,
+            AccessRole::Operator,
+            AccessRole::Operator,
             $actor,
         );
     }
 
-    public function test_manager_cannot_grant_entidade_administrator_role(): void
+    public function test_entidade_operator_cannot_invite(): void
     {
         Notification::fake();
         $office = Gabinete::factory()->create();
-        $manager = User::factory()->chiefOfStaff()->forGabinete($office)->create();
+        $operator = User::factory()->operator()->forGabinete($office)->create();
 
-        $this->actingAs($manager)
-            ->from(route('entidades.show', $office->entidade))
+        $this->actingAs($operator)
             ->post(route('entidades.invitations.store', $office->entidade), [
                 'email' => 'escalacao@example.test',
-                'entidade_role' => EntidadeRole::Administrator->value,
+                'entidade_role' => AccessRole::Administrator->value,
                 'gabinete_id' => null,
                 'papel_gabinete' => null,
                 'delivery_mode' => 'EMAIL',
             ])
-            ->assertRedirect(route('entidades.show', $office->entidade))
-            ->assertSessionHasErrors('entidade_role');
+            ->assertForbidden();
 
         $this->assertDatabaseMissing('entidade_convites', [
             'email' => 'escalacao@example.test',
         ]);
     }
 
-    public function test_manager_cannot_grant_access_to_another_unit_without_management_role(): void
+    public function test_office_administrator_in_city_council_cannot_invite_at_entidade_level(): void
     {
         Notification::fake();
         $managedOffice = Gabinete::factory()->create();
+        $managedOffice->entidade->forceFill(['tipo' => EntidadeType::CityCouncil])->save();
         $otherOffice = Gabinete::factory()->for($managedOffice->entidade, 'entidade')->create();
-        $manager = User::factory()->chiefOfStaff()->forGabinete($managedOffice)->create();
+        $manager = User::factory()->administrator()->forGabinete($managedOffice)->create();
+
+        $this->assertSame(AccessRole::Operator, $manager->entidadeRole($managedOffice->entidade_id));
 
         $this->actingAs($manager)
             ->post(route('entidades.invitations.store', $managedOffice->entidade), [
                 'email' => 'outro-gabinete@example.test',
-                'entidade_role' => EntidadeRole::Operator->value,
+                'entidade_role' => AccessRole::Operator->value,
                 'gabinete_id' => $otherOffice->id,
-                'papel_gabinete' => GabineteRole::Member->value,
+                'papel_gabinete' => AccessRole::Operator->value,
                 'delivery_mode' => 'EMAIL',
             ])
             ->assertForbidden();
@@ -183,22 +184,28 @@ class EntidadeInvitationTest extends TestCase
         ]);
     }
 
-    public function test_generic_invitation_cannot_assign_office_leadership(): void
+    public function test_entidade_administrator_can_invite_an_office_administrator(): void
     {
         Notification::fake();
         $office = Gabinete::factory()->create();
-        $administrator = User::factory()->councilor()->forGabinete($office)->create();
+        $administrator = User::factory()->administrator()->forGabinete($office)->create();
 
         $this->actingAs($administrator)
             ->from(route('entidades.show', $office->entidade))
             ->post(route('entidades.invitations.store', $office->entidade), [
-                'email' => 'lider@example.test',
-                'entidade_role' => EntidadeRole::Manager->value,
+                'email' => 'administrador@example.test',
+                'entidade_role' => AccessRole::Administrator->value,
                 'gabinete_id' => $office->id,
-                'papel_gabinete' => GabineteRole::Leader->value,
+                'papel_gabinete' => AccessRole::Administrator->value,
                 'delivery_mode' => 'EMAIL',
             ])
             ->assertRedirect(route('entidades.show', $office->entidade))
-            ->assertSessionHasErrors('papel_gabinete');
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('entidade_convites', [
+            'email' => 'administrador@example.test',
+            'papel_entidade' => AccessRole::Administrator->value,
+            'papel_gabinete' => AccessRole::Administrator->value,
+        ]);
     }
 }

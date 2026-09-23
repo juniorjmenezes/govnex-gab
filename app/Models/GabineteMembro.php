@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\GabineteRole;
+use App\Enums\AccessRole;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -11,7 +11,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $gabinete_id
  * @property int $usuario_id
- * @property GabineteRole $papel
+ * @property AccessRole $papel
  * @property bool $ativo
  * @property Carbon|null $ingressou_em
  * @property-read User $usuario
@@ -37,7 +37,7 @@ class GabineteMembro extends Model
     protected function casts(): array
     {
         return [
-            'papel' => GabineteRole::class,
+            'papel' => AccessRole::class,
             'ativo' => 'boolean',
             'ingressou_em' => 'datetime',
             'desativado_em' => 'datetime',

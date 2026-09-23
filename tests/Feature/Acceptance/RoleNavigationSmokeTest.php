@@ -56,31 +56,60 @@ test('tenant profiles reach the common operational journey', function (string $p
         'politics.index',
         'office-settings.edit',
         'profile.edit',
-        'security.edit',
     ];
 
     foreach ($journey as $route) {
         $this->get(route($route))->assertOk();
     }
 
+    // Senha, 2FA e passkeys são o acesso local de emergência do root
+    // (docs/INTEGRACAO_GOVNEX_HUB.md, decisões #2 e #6); os demais papéis
+    // entram pelo Govnex Hub e não têm o que gerenciar aqui.
+    $this->get(route('security.edit'))->assertRedirect(route('dashboard'));
+
     $this->get(route('admin.offices.index'))->assertForbidden();
 })->with([
-    'vereador' => 'councilor',
-    'chefe de gabinete' => 'chiefOfStaff',
-    'assessor' => 'advisor',
+    'administrador' => 'administrator',
+    'operador' => 'operator',
 ]);
+
+test('auditor reaches the read-only journey but not the creation forms', function () {
+    $office = Gabinete::factory()->create();
+    $auditor = User::factory()->auditor()->forGabinete($office)->create();
+    $this->actingAs($auditor);
+
+    foreach ([
+        'dashboard',
+        'demands.index',
+        'demands.kanban',
+        'citizens.index',
+        'categories.index',
+        'neighborhoods.index',
+        'appointments.index',
+        'attendances.index',
+        'events.index',
+        'office-settings.edit',
+        'profile.edit',
+    ] as $route) {
+        $this->get(route($route))->assertOk();
+    }
+
+    foreach (['demands.create', 'citizens.create', 'attendances.create', 'events.create'] as $route) {
+        $this->get(route($route))->assertForbidden();
+    }
+});
 
 test('management journeys respect each tenant profile', function () {
     $office = Gabinete::factory()->create();
-    $councilor = User::factory()->councilor()->forGabinete($office)->create();
-    $chief = User::factory()->chiefOfStaff()->forGabinete($office)->create();
-    $advisor = User::factory()->advisor()->forGabinete($office)->create();
+    $administrator = User::factory()->administrator()->forGabinete($office)->create();
+    $operator = User::factory()->operator()->forGabinete($office)->create();
+    $auditor = User::factory()->auditor()->forGabinete($office)->create();
 
-    foreach ([$councilor, $chief] as $manager) {
-        $this->actingAs($manager)->get(route('team.index'))->assertOk();
-        $this->get(route('reports.index'))->assertOk();
+    $this->actingAs($administrator)->get(route('team.index'))->assertOk();
+    $this->get(route('reports.index'))->assertOk();
+
+    foreach ([$operator, $auditor] as $user) {
+        $this->actingAs($user)->get(route('team.index'))->assertForbidden();
+        $this->get(route('reports.index'))->assertForbidden();
     }
-
-    $this->actingAs($advisor)->get(route('team.index'))->assertForbidden();
-    $this->get(route('reports.index'))->assertForbidden();
 });

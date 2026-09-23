@@ -75,6 +75,29 @@ return [
         'key' => env('GOVNEX_API_KEY'),
     ],
 
+    /*
+     * GOVNEX Hub — fonte da verdade de contas, vínculos e papéis
+     * (docs/INTEGRACAO_GOVNEX_HUB.md).
+     *
+     * São dois segredos com papéis distintos, e trocá-los quebra coisas
+     * diferentes: `client_secret` é do cliente OIDC (mora no Passport do Hub,
+     * criado por `hub:registrar-cliente-oidc`) e só serve ao handshake de
+     * login; `api_secret` é o `sistemas.client_secret` do Sistema GAB no Hub,
+     * e tem duplo papel — autentica a leitura de `/api/v1/*` e é a chave HMAC
+     * que valida o webhook que chega aqui.
+     */
+    'hub' => [
+        'base_url' => rtrim((string) env('HUB_BASE_URL', ''), '/'),
+        'codigo' => env('HUB_SISTEMA_CODIGO', 'GAB'),
+        'client_id' => env('HUB_OIDC_CLIENT_ID'),
+        'client_secret' => env('HUB_OIDC_CLIENT_SECRET'),
+        'redirect' => env('HUB_OIDC_REDIRECT', env('APP_URL', 'http://localhost').'/auth/hub/callback'),
+        'api_secret' => env('HUB_API_SECRET'),
+        'timeout' => env('HUB_TIMEOUT', 15),
+        // Janela de tolerância do `X-Hub-Timestamp`, em segundos.
+        'webhook_window_seconds' => env('HUB_WEBHOOK_WINDOW_SECONDS', 300),
+    ],
+
     'pollingdata' => [
         'url' => env('POLLINGDATA_URL', 'https://flex.pollingdata.com.br/api/polls/candidates'),
         'user_agent' => env('POLLINGDATA_USER_AGENT', 'GovnexGab/1.0 ('.env('APP_URL', 'http://localhost').')'),

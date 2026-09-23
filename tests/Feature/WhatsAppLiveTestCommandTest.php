@@ -192,8 +192,8 @@ final class WhatsAppLiveTestCommandTest extends TestCase
         ]);
         Categoria::factory()->for($office)->create(['ativo' => true]);
         $team = [
-            User::factory()->councilor()->forGabinete($office)->create(['name' => 'Marina Oliveira']),
-            User::factory()->chiefOfStaff()->forGabinete($office)->create(['name' => 'Chefe de Gabinete']),
+            User::factory()->administrator()->forGabinete($office)->create(['name' => 'Marina Oliveira']),
+            User::factory()->administrator()->forGabinete($office)->create(['name' => 'Chefe de Gabinete']),
         ];
         $citizens = [
             Cidadao::factory()->forGabinete($office)->create(['nome' => 'Ana Martins']),

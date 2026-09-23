@@ -184,7 +184,7 @@ class OfficeModulesTest extends TestCase
     public function test_only_platform_admin_can_manage_modules(): void
     {
         $office = Gabinete::factory()->create();
-        $tenantUser = User::factory()->chiefOfStaff()->forGabinete($office)->create();
+        $tenantUser = User::factory()->administrator()->forGabinete($office)->create();
 
         $this->actingAs($tenantUser)
             ->patch(route('admin.offices.modules.update', $office), ['modules' => []])
@@ -201,8 +201,8 @@ class OfficeModulesTest extends TestCase
         $admin = User::factory()->root()->create();
         $restrictedOffice = Gabinete::factory()->create();
         $activeOffice = Gabinete::factory()->create();
-        $restrictedUser = User::factory()->advisor()->forGabinete($restrictedOffice)->create();
-        $activeUser = User::factory()->advisor()->forGabinete($activeOffice)->create();
+        $restrictedUser = User::factory()->operator()->forGabinete($restrictedOffice)->create();
+        $activeUser = User::factory()->operator()->forGabinete($activeOffice)->create();
         $selection = array_values(array_filter(
             array_column(GabineteModule::cases(), 'value'),
             fn (string $module): bool => ! in_array($module, [
@@ -233,7 +233,7 @@ class OfficeModulesTest extends TestCase
     {
         $admin = User::factory()->root()->create();
         $office = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         $citizen = Cidadao::factory()->forGabinete($office)->create();
         Demanda::factory()->forGabinete($office, $citizen, creator: $user)->create();
 
@@ -259,7 +259,7 @@ class OfficeModulesTest extends TestCase
     {
         $admin = User::factory()->root()->create();
         $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $citizen = Cidadao::factory()->forGabinete($office)->create();
         $demand = Demanda::factory()->forGabinete($office, $citizen, creator: $user)->create();
         Evento::factory()->forGabinete($office, $user, $user)->create([

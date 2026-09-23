@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\Appointment;
 use App\Models\User;
 
@@ -20,22 +19,22 @@ class AppointmentPolicy
 
     public function create(User $user): bool
     {
-        return $user->gabinete_id !== null;
+        return $user->gabinete_id !== null && $user->role->canWrite();
     }
 
     public function update(User $user, Appointment $appointment): bool
     {
-        return $this->view($user, $appointment);
+        return $this->view($user, $appointment) && $user->role->canWrite();
     }
 
     public function cancel(User $user, Appointment $appointment): bool
     {
-        return $this->view($user, $appointment);
+        return $this->update($user, $appointment);
     }
 
     public function delete(User $user, Appointment $appointment): bool
     {
         return $this->view($user, $appointment)
-            && in_array($user->role, [UserRole::Councilor, UserRole::ChiefOfStaff], true);
+            && $user->role->isAdministrator();
     }
 }

@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\MultiEntidade;
 
-use App\Enums\GabineteRole;
+use App\Enums\AccessRole;
 use App\Models\Bairro;
 use App\Models\EntidadeBairro;
 use App\Models\Gabinete;
@@ -31,7 +31,7 @@ class EntidadeIdentityAndReferencesTest extends TestCase
             'nome' => 'Gabinete parlamentar',
             'cor_principal' => '#334455',
         ]);
-        $manager = User::factory()->councilor()->forGabinete($gabinete)->create();
+        $manager = User::factory()->administrator()->forGabinete($gabinete)->create();
 
         $this->actingAs($manager)
             ->post(route('entidades.identity.update', $gabinete->entidade), [
@@ -66,7 +66,7 @@ class EntidadeIdentityAndReferencesTest extends TestCase
     public function test_unprivileged_member_cannot_change_entidade_identity(): void
     {
         $gabinete = Gabinete::factory()->create();
-        $member = User::factory()->advisor()->forGabinete($gabinete)->create();
+        $member = User::factory()->operator()->forGabinete($gabinete)->create();
 
         $this->actingAs($member)
             ->post(route('entidades.identity.update', $gabinete->entidade), [
@@ -92,11 +92,11 @@ class EntidadeIdentityAndReferencesTest extends TestCase
             'municipio' => 'Fortaleza',
             'estado' => 'CE',
         ]);
-        $manager = User::factory()->councilor()->forGabinete($firstUnit)->create();
+        $manager = User::factory()->administrator()->forGabinete($firstUnit)->create();
         GabineteMembro::query()->create([
             'gabinete_id' => $secondUnit->id,
             'usuario_id' => $manager->id,
-            'papel' => GabineteRole::Manager,
+            'papel' => AccessRole::Administrator,
             'ativo' => true,
             'ingressou_em' => now(),
         ]);
@@ -131,7 +131,7 @@ class EntidadeIdentityAndReferencesTest extends TestCase
     {
         $allowedUnit = Gabinete::factory()->create();
         $blockedUnit = Gabinete::factory()->create();
-        $user = User::factory()->chiefOfStaff()->forGabinete($allowedUnit)->create();
+        $user = User::factory()->administrator()->forGabinete($allowedUnit)->create();
         $reference = $blockedUnit->entidade->bairros()->create([
             'nome' => 'Outro bairro',
             'municipio' => $blockedUnit->municipio,

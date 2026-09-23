@@ -1,6 +1,6 @@
 import type { GabineteModuleCode } from './modules';
 
-export type UserRole = 'root' | 'vereador' | 'chefe_gabinete' | 'assessor';
+export type UserRole = 'root' | 'administrador' | 'operador' | 'auditor';
 
 export type EntidadeModuleCode = GabineteModuleCode;
 

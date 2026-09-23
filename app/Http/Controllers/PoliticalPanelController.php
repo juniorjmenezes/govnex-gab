@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Enums\CandidateScope;
 use App\Enums\ElectionType;
-use App\Enums\UserRole;
 use App\Models\CandidatoFavorito;
 use App\Models\CandidatoPolitico;
 use App\Models\Cidadao;
@@ -211,7 +210,7 @@ class PoliticalPanelController extends Controller
                 'date' => $nextElection->primeiro_turno_em->toDateString(),
             ] : null,
             'serverNow' => now()->toIso8601String(),
-            'canFavorite' => $user->role === UserRole::Councilor,
+            'canFavorite' => $user->role->isAdministrator(),
             'polls' => $concludedMunicipal ? null : $this->polls($office, $selectedElection),
             'sync' => [
                 // Datasets globais do TSE — sempre gravados com gabinete_id
@@ -407,7 +406,7 @@ class PoliticalPanelController extends Controller
         abort_unless(
             $user instanceof User
             && $user->gabinete_id !== null
-            && $user->role === UserRole::Councilor,
+            && $user->role->isAdministrator(),
             403,
         );
         $office = Gabinete::query()->findOrFail($user->gabinete_id);
@@ -432,7 +431,7 @@ class PoliticalPanelController extends Controller
         abort_unless(
             $user instanceof User
             && $user->gabinete_id !== null
-            && $user->role === UserRole::Councilor,
+            && $user->role->isAdministrator(),
             403,
         );
         $office = Gabinete::query()->findOrFail($user->gabinete_id);

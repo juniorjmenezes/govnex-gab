@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\Categoria;
 use App\Models\User;
 
@@ -20,7 +19,7 @@ class CategoriaPolicy
 
     public function create(User $user): bool
     {
-        return in_array($user->role, [UserRole::Councilor, UserRole::ChiefOfStaff], true);
+        return $user->role->isAdministrator();
     }
 
     public function update(User $user, Categoria $categoria): bool

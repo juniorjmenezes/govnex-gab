@@ -2,9 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\AccessRole;
 use App\Enums\EntidadeInvitationStatus;
-use App\Enums\EntidadeRole;
-use App\Enums\GabineteRole;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,8 +14,8 @@ use Illuminate\Support\Carbon;
  * @property int $entidade_id
  * @property int|null $gabinete_id
  * @property string $email
- * @property EntidadeRole $papel_entidade
- * @property GabineteRole|null $papel_gabinete
+ * @property AccessRole $papel_entidade
+ * @property AccessRole|null $papel_gabinete
  * @property EntidadeInvitationStatus $status
  * @property Carbon $expira_em
  */
@@ -43,8 +42,8 @@ class EntidadeConvite extends Model
     protected function casts(): array
     {
         return [
-            'papel_entidade' => EntidadeRole::class,
-            'papel_gabinete' => GabineteRole::class,
+            'papel_entidade' => AccessRole::class,
+            'papel_gabinete' => AccessRole::class,
             'status' => EntidadeInvitationStatus::class,
             'exige_troca_senha' => 'boolean',
             'expira_em' => 'datetime',

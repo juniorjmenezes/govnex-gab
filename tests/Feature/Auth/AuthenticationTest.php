@@ -19,9 +19,14 @@ class AuthenticationTest extends TestCase
         $response->assertOk();
     }
 
-    public function test_users_can_authenticate_using_the_login_screen()
+    /**
+     * O login por senha é o acesso local de emergência, restrito a root
+     * (docs/INTEGRACAO_GOVNEX_HUB.md, decisões #2 e #6). Os demais papéis
+     * entram pelo SSO do Govnex Hub — ver tests/Feature/Hub/HubSsoLoginTest.
+     */
+    public function test_root_users_can_authenticate_using_the_login_screen()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->root()->create();
 
         $response = $this->post(route('login.store'), [
             'email' => $user->email,
@@ -41,7 +46,7 @@ class AuthenticationTest extends TestCase
             'confirmPassword' => true,
         ]);
 
-        $user = User::factory()->withTwoFactor()->create();
+        $user = User::factory()->root()->withTwoFactor()->create();
 
         $response = $this->post(route('login'), [
             'email' => $user->email,
@@ -55,11 +60,23 @@ class AuthenticationTest extends TestCase
 
     public function test_users_can_not_authenticate_with_invalid_password()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->root()->create();
 
         $this->post(route('login.store'), [
             'email' => $user->email,
             'password' => 'wrong-password',
+        ]);
+
+        $this->assertGuest();
+    }
+
+    public function test_non_root_users_can_not_authenticate_with_a_local_password()
+    {
+        $user = User::factory()->administrator()->create();
+
+        $this->post(route('login.store'), [
+            'email' => $user->email,
+            'password' => 'password',
         ]);
 
         $this->assertGuest();

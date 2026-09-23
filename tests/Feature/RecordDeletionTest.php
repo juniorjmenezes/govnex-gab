@@ -13,13 +13,13 @@ uses(RefreshDatabase::class);
 
 test('office managers can soft delete operational records', function () {
     $office = Gabinete::factory()->create();
-    $manager = User::factory()->councilor()->forGabinete($office)->create();
+    $manager = User::factory()->administrator()->forGabinete($office)->create();
     $category = Categoria::factory()->forGabinete($office)->create();
     $neighborhood = Bairro::factory()->forGabinete($office)->create();
     $citizen = Cidadao::factory()->forGabinete($office)->create();
     $demand = Demanda::factory()->forGabinete($office)->create();
     $appointment = Appointment::factory()->forGabinete($office)->create();
-    $member = User::factory()->advisor()->forGabinete($office)->create();
+    $member = User::factory()->operator()->forGabinete($office)->create();
 
     $this->actingAs($manager)
         ->delete(route('categories.destroy', $category))
@@ -61,7 +61,7 @@ test('office managers can soft delete operational records', function () {
 
 test('historical demand relations remain available after linked records are deleted', function () {
     $office = Gabinete::factory()->create();
-    $manager = User::factory()->councilor()->forGabinete($office)->create();
+    $manager = User::factory()->administrator()->forGabinete($office)->create();
     $category = Categoria::factory()->forGabinete($office)->create();
     $neighborhood = Bairro::factory()->forGabinete($office)->create();
     $citizen = Cidadao::factory()->forGabinete($office)->create(['bairro_id' => $neighborhood->id]);
@@ -85,14 +85,14 @@ test('historical demand relations remain available after linked records are dele
 
 test('advisors cannot delete records and users cannot delete themselves', function () {
     $office = Gabinete::factory()->create();
-    $advisor = User::factory()->advisor()->forGabinete($office)->create();
+    $advisor = User::factory()->operator()->forGabinete($office)->create();
     $category = Categoria::factory()->forGabinete($office)->create();
 
     $this->actingAs($advisor)
         ->delete(route('categories.destroy', $category))
         ->assertForbidden();
 
-    $manager = User::factory()->councilor()->forGabinete($office)->create();
+    $manager = User::factory()->administrator()->forGabinete($office)->create();
 
     $this->actingAs($manager)
         ->delete(route('team.destroy', $manager))
@@ -105,7 +105,7 @@ test('advisors cannot delete records and users cannot delete themselves', functi
 test('records from another office cannot be deleted', function () {
     $office = Gabinete::factory()->create();
     $otherOffice = Gabinete::factory()->create();
-    $manager = User::factory()->councilor()->forGabinete($office)->create();
+    $manager = User::factory()->administrator()->forGabinete($office)->create();
     $foreignCategory = Categoria::factory()->forGabinete($otherOffice)->create();
 
     $this->actingAs($manager)

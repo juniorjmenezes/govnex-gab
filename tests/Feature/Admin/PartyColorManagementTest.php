@@ -107,7 +107,7 @@ class PartyColorManagementTest extends TestCase
     public function test_non_root_users_cannot_access_party_color_management(): void
     {
         $gabinete = Gabinete::factory()->create();
-        $councilor = User::factory()->councilor()->forGabinete($gabinete)->create();
+        $councilor = User::factory()->administrator()->forGabinete($gabinete)->create();
         $partidoCor = PartidoCor::query()->create(['sigla' => 'PT', 'cor' => '#FF0000']);
 
         $this->actingAs($councilor)->get(route('admin.party-colors.index'))->assertForbidden();

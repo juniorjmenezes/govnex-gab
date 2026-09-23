@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\User;
 use App\Observers\UserEntidadeMembershipObserver;
+use App\Services\Hub\HubSocialiteProvider;
 use App\Services\Modules\EntidadeModuleManager;
 use App\Services\Modules\GabineteModuleManager;
 use App\Tenancy\EntidadeContext;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Laravel\Socialite\Facades\Socialite;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -32,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureHubSocialite();
         User::observe(UserEntidadeMembershipObserver::class);
 
         Event::listen(Login::class, function (Login $event): void {
@@ -44,6 +47,19 @@ class AppServiceProvider extends ServiceProvider
             Limit::perSecond(1)->by('geocoding-provider'),
             Limit::perMinute(20)->by((string) $request->user()->id),
         ]);
+    }
+
+    /**
+     * Driver `hub` do Socialite — o SSO do Govnex Hub
+     * (docs/INTEGRACAO_GOVNEX_HUB.md). Ver `HubSocialiteProvider` para por que
+     * o provider é nosso e não de pacote.
+     */
+    protected function configureHubSocialite(): void
+    {
+        Socialite::extend('hub', fn ($app) => Socialite::buildProvider(
+            HubSocialiteProvider::class,
+            (array) config('services.hub'),
+        ));
     }
 
     protected function configureDefaults(): void

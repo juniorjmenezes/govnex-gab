@@ -21,7 +21,7 @@ class ElectoralHeatmapTest extends TestCase
     public function test_shows_empty_state_when_electoral_number_is_missing(): void
     {
         $office = Gabinete::factory()->create(['numero_eleitoral' => null]);
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($user)
             ->get(route('voters.map'))
@@ -36,7 +36,7 @@ class ElectoralHeatmapTest extends TestCase
     public function test_shows_unmatched_state_when_electoral_number_has_no_tse_candidate(): void
     {
         $office = Gabinete::factory()->create(['numero_eleitoral' => '99999']);
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($user)
             ->get(route('voters.map'))
@@ -79,7 +79,7 @@ class ElectoralHeatmapTest extends TestCase
             'numero_eleitoral' => '11555',
             'candidato_titular_id' => $titular->id,
         ]);
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
 
         $location = LocalVotacaoEleitoral::query()->create([
             'eleicao_id' => $election->id,

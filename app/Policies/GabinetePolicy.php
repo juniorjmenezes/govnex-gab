@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\Gabinete;
 use App\Models\User;
 
@@ -11,7 +10,7 @@ class GabinetePolicy
     public function viewAny(User $user): bool
     {
         return $user->isRoot()
-            || in_array($user->role, [UserRole::Councilor, UserRole::ChiefOfStaff], true);
+            || $user->role->isAdministrator();
     }
 
     public function view(User $user, Gabinete $gabinete): bool
@@ -27,7 +26,7 @@ class GabinetePolicy
     public function update(User $user, Gabinete $gabinete): bool
     {
         return $user->isRoot()
-            || ($user->role === UserRole::Councilor && $user->gabinete_id === $gabinete->id);
+            || ($user->role->isAdministrator() && $user->gabinete_id === $gabinete->id);
     }
 
     public function suspend(User $user, Gabinete $gabinete): bool

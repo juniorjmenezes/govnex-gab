@@ -22,7 +22,7 @@ class EventTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         $ownEvent = Evento::factory()->forGabinete($office)->create();
         $foreignEvent = Evento::factory()->forGabinete($otherOffice)->create();
 
@@ -42,7 +42,7 @@ class EventTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         $ownCitizen = Cidadao::factory()->forGabinete($office)->create([
             'nome' => 'Ana Maria da Silva',
         ]);
@@ -68,8 +68,8 @@ class EventTest extends TestCase
         $office = Gabinete::factory()->create([
             'timezone' => 'America/Sao_Paulo',
         ]);
-        $user = User::factory()->advisor()->forGabinete($office)->create();
-        $participant = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
+        $participant = User::factory()->operator()->forGabinete($office)->create();
         $citizen = Cidadao::factory()->forGabinete($office)->create();
 
         $this->actingAs($user)
@@ -121,8 +121,8 @@ class EventTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($office)->create();
-        $foreignUser = User::factory()->advisor()->forGabinete($otherOffice)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
+        $foreignUser = User::factory()->operator()->forGabinete($otherOffice)->create();
         $foreignCitizen = Cidadao::factory()->forGabinete($otherOffice)->create();
 
         $this->actingAs($user)
@@ -146,7 +146,7 @@ class EventTest extends TestCase
     public function test_single_day_events_reject_another_date_and_multiple_day_events_use_daily_hours(): void
     {
         $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($user)
             ->post(route('events.store'), $this->payload([
@@ -182,8 +182,8 @@ class EventTest extends TestCase
     public function test_only_office_managers_can_delete_events(): void
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
-        $manager = User::factory()->councilor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
+        $manager = User::factory()->administrator()->forGabinete($office)->create();
         $event = Evento::factory()->forGabinete($office, creator: $advisor)->create();
 
         $this->actingAs($advisor)

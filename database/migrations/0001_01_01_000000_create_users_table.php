@@ -25,7 +25,8 @@ return new class extends Migration
             // carga inicial; depois disso é sempre a chave de casamento —
             // e-mail vira só dado da pessoa.
             $table->string('hub_user_id')->nullable()->unique();
-            $table->string('role')->default(UserRole::Advisor->value)->index();
+            // root · administrador · operador · auditor (App\Enums\UserRole).
+            $table->string('role')->default(UserRole::Operator->value)->index();
             $table->boolean('is_active')->default(true)->index();
             $table->timestamp('email_verified_at')->nullable();
             $table->timestamp('last_login_at')->nullable();

@@ -18,7 +18,7 @@ class DemandKanbanTest extends TestCase
     public function test_kanban_groups_only_office_demands_and_exposes_allowed_transitions(): void
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
         $demand = Demanda::factory()->forGabinete($office, creator: $advisor)->create();
         $foreignOffice = Gabinete::factory()->create();
         Demanda::factory()->forGabinete($foreignOffice)->create();
@@ -60,7 +60,7 @@ class DemandKanbanTest extends TestCase
     public function test_kanban_filters_are_processed_on_server(): void
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
         Demanda::factory()->forGabinete($office, creator: $advisor)->create([
             'titulo' => 'Iluminação da praça',
             'prioridade' => 'urgente',
@@ -137,7 +137,7 @@ class DemandKanbanTest extends TestCase
     private function demandContext(): array
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
         $demand = Demanda::factory()->forGabinete($office, creator: $advisor)->create();
 
         return [$advisor, $demand];

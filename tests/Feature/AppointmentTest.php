@@ -35,7 +35,7 @@ class AppointmentTest extends TestCase
     {
         $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
         $otherOffice = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $start = CarbonImmutable::parse('2026-08-17 14:00', 'America/Sao_Paulo')->utc();
         $event = Evento::factory()->forGabinete($office, $user, $user)->create([
             'titulo' => 'Assembleia comunitária',
@@ -72,7 +72,7 @@ class AppointmentTest extends TestCase
     public function test_multiple_day_events_are_shown_once_per_day_with_the_daily_schedule(): void
     {
         $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $start = CarbonImmutable::parse('2026-08-15 09:00', 'America/Sao_Paulo')->utc();
         $end = CarbonImmutable::parse('2026-08-17 17:00', 'America/Sao_Paulo')->utc();
         $event = Evento::factory()->forGabinete($office, $user, $user)->create([
@@ -102,7 +102,7 @@ class AppointmentTest extends TestCase
     public function test_new_appointment_opens_in_its_own_page_with_form_options(): void
     {
         $office = Gabinete::factory()->create();
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
 
         $this->actingAs($user)
             ->get(route('appointments.create', ['data' => now()->addDay()->toDateString()]))
@@ -118,7 +118,7 @@ class AppointmentTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $foreign = Appointment::factory()->forGabinete($otherOffice)->create([
             'inicio_em' => now()->startOfMonth()->addDays(3),
             'fim_em' => now()->startOfMonth()->addDays(3)->addHour(),
@@ -140,8 +140,8 @@ class AppointmentTest extends TestCase
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-10 08:00', 'America/Sao_Paulo'));
         $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
-        $user = User::factory()->councilor()->forGabinete($office)->create();
-        $participant = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
+        $participant = User::factory()->operator()->forGabinete($office)->create();
         $citizen = Cidadao::factory()->forGabinete($office)->create([
             'whatsapp' => '85999998888',
             'consentimento_contato' => true,
@@ -196,7 +196,7 @@ class AppointmentTest extends TestCase
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-10 08:00', 'America/Sao_Paulo'));
         $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $demand = Demanda::factory()->forGabinete($office)->create();
         $demand->forceFill([
             'proxima_acao_descricao' => 'Visitar Central de Regulação',
@@ -219,7 +219,7 @@ class AppointmentTest extends TestCase
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-10 08:00', 'America/Sao_Paulo'));
         $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $demand = Demanda::factory()->forGabinete($office)->create();
         $demand->forceFill([
             'proxima_acao_descricao' => 'Visitar Central de Regulação',
@@ -249,7 +249,7 @@ class AppointmentTest extends TestCase
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-10 08:00', 'America/Sao_Paulo'));
         $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $demand = Demanda::factory()->forGabinete($office)->create();
         $demand->forceFill([
             'proxima_acao_descricao' => 'Visitar Central de Regulação',
@@ -273,7 +273,7 @@ class AppointmentTest extends TestCase
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-10 08:00', 'America/Sao_Paulo'));
         $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $demand = Demanda::factory()->forGabinete($office)->create();
 
         $this->actingAs($user)
@@ -292,7 +292,7 @@ class AppointmentTest extends TestCase
     public function test_appointments_cannot_be_created_on_previous_days_but_today_is_allowed(): void
     {
         $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $this->travelTo(CarbonImmutable::parse('2026-08-10 15:00', 'America/Sao_Paulo'));
 
         $this->actingAs($user)
@@ -315,7 +315,7 @@ class AppointmentTest extends TestCase
     public function test_past_appointments_only_allow_status_changes(): void
     {
         $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $this->travelTo(CarbonImmutable::parse('2026-08-10 15:00', 'America/Sao_Paulo'));
         $appointment = Appointment::factory()->forGabinete($office)->create([
             'criado_por_id' => $user->id,
@@ -349,8 +349,8 @@ class AppointmentTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $user = User::factory()->councilor()->forGabinete($office)->create();
-        $foreignUser = User::factory()->advisor()->forGabinete($otherOffice)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
+        $foreignUser = User::factory()->operator()->forGabinete($otherOffice)->create();
         $foreignCitizen = Cidadao::factory()->forGabinete($otherOffice)->create();
 
         $this->actingAs($user)
@@ -367,7 +367,7 @@ class AppointmentTest extends TestCase
     public function test_rescheduling_cancels_old_reminders_and_creates_recalculated_ones(): void
     {
         $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $start = CarbonImmutable::now($office->timezone)->addMonth()->startOfDay()->setTime(15, 0);
         $end = $start->addHour();
         $appointment = Appointment::factory()->forGabinete($office)->create([
@@ -409,7 +409,7 @@ class AppointmentTest extends TestCase
     public function test_cancelling_an_appointment_cancels_pending_reminders(): void
     {
         $office = Gabinete::factory()->create();
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $appointment = Appointment::factory()->forGabinete($office)->create([
             'criado_por_id' => $user->id,
         ]);
@@ -434,7 +434,7 @@ class AppointmentTest extends TestCase
     public function test_internal_reminder_is_processed_once_and_creates_a_database_notification(): void
     {
         $office = Gabinete::factory()->create();
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $appointment = Appointment::factory()->forGabinete($office)->create([
             'criado_por_id' => $user->id,
             'recorrencia' => AppointmentRecurrence::Weekly,
@@ -463,7 +463,7 @@ class AppointmentTest extends TestCase
     {
         Http::fake();
         $office = Gabinete::factory()->create();
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $citizen = Cidadao::factory()->forGabinete($office)->create([
             'whatsapp' => '(85) 99999-8888',
             'consentimento_contato' => true,
@@ -492,7 +492,7 @@ class AppointmentTest extends TestCase
     {
         $admin = User::factory()->root()->create();
         $office = Gabinete::factory()->create();
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $appointment = Appointment::factory()->forGabinete($office)->create([
             'criado_por_id' => $user->id,
         ]);
@@ -514,8 +514,8 @@ class AppointmentTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $owner = User::factory()->councilor()->forGabinete($office)->create();
-        $outsider = User::factory()->councilor()->forGabinete($otherOffice)->create();
+        $owner = User::factory()->administrator()->forGabinete($office)->create();
+        $outsider = User::factory()->administrator()->forGabinete($otherOffice)->create();
         $appointment = Appointment::factory()->forGabinete($office)->create([
             'criado_por_id' => $owner->id,
         ]);

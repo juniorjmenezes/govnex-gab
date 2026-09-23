@@ -17,7 +17,7 @@ class PlatformPerformanceTest extends TestCase
         $admin = User::factory()->root()->create();
 
         Gabinete::factory()->count(15)->create()->each(function (Gabinete $office): void {
-            User::factory()->forGabinete($office)->councilor()->create();
+            User::factory()->forGabinete($office)->administrator()->create();
         });
 
         DB::flushQueryLog();

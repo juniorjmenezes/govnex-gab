@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\MultiEntidade;
 
-use App\Enums\EntidadeRole;
+use App\Enums\AccessRole;
 use App\Models\Entidade;
 use App\Models\EntidadeMembro;
 use App\Models\Gabinete;
@@ -66,7 +66,7 @@ class EntidadeDirectoryTest extends TestCase
         $blockedOffice = Gabinete::factory()
             ->for($allowedOffice->entidade, 'entidade')
             ->create(['nome' => 'Gabinete Confidencial']);
-        $user = User::factory()->advisor()->forGabinete($allowedOffice)->create();
+        $user = User::factory()->operator()->forGabinete($allowedOffice)->create();
 
         $this->actingAs($user)
             ->get(route('entidades.index', ['q' => 'Confidencial']))
@@ -87,7 +87,7 @@ class EntidadeDirectoryTest extends TestCase
         EntidadeMembro::query()->create([
             'entidade_id' => $entidade->id,
             'usuario_id' => $user->id,
-            'papel' => EntidadeRole::Operator,
+            'papel' => AccessRole::Operator,
             'ativo' => true,
             'ingressou_em' => now(),
         ]);

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\PasswordUpdateRequest;
 use App\Http\Requests\Settings\TwoFactorAuthenticationRequest;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -14,10 +15,30 @@ use Laravel\Fortify\Features;
 class SecurityController extends Controller
 {
     /**
+     * Senha, 2FA e passkeys são o acesso local de emergência, e ele é só de
+     * root (docs/INTEGRACAO_GOVNEX_HUB.md, decisões #2 e #6).
+     *
+     * Os demais papéis entram pelo Govnex Hub — `Fortify::authenticateUsing` já
+     * recusa a senha deles — então gerenciar essas credenciais aqui não teria
+     * efeito nenhum sobre como eles entram. O redirecionamento evita a tela
+     * inútil; quem protege de fato é o login.
+     */
+    private function ensureRoot(Request $request): ?RedirectResponse
+    {
+        return $request->user()?->isRoot()
+            ? null
+            : redirect()->route('dashboard');
+    }
+
+    /**
      * Show the user's security settings page.
      */
-    public function edit(TwoFactorAuthenticationRequest $request): Response
+    public function edit(TwoFactorAuthenticationRequest $request): Response|RedirectResponse
     {
+        if ($redirect = $this->ensureRoot($request)) {
+            return $redirect;
+        }
+
         $props = [
             'canManageTwoFactor' => Features::canManageTwoFactorAuthentication(),
             'canManagePasskeys' => Features::canManagePasskeys(),
@@ -55,6 +76,10 @@ class SecurityController extends Controller
      */
     public function update(PasswordUpdateRequest $request): RedirectResponse
     {
+        if ($redirect = $this->ensureRoot($request)) {
+            return $redirect;
+        }
+
         $request->user()->update([
             'password' => $request->password,
         ]);

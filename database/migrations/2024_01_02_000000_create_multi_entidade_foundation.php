@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('entidade_id')->constrained('entidades')->cascadeOnDelete();
             $table->foreignId('usuario_id')->constrained('users')->cascadeOnDelete();
-            $table->string('papel', 30);
+            $table->string('papel', 30)->comment('ADMINISTRADOR, OPERADOR ou AUDITOR (App\Enums\AccessRole)');
             $table->boolean('ativo')->default(true);
             $table->timestamp('ingressou_em');
             $table->timestamp('desativado_em')->nullable();
@@ -26,7 +26,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('gabinete_id')->constrained('gabinetes')->cascadeOnDelete();
             $table->foreignId('usuario_id')->constrained('users')->cascadeOnDelete();
-            $table->string('papel', 20);
+            $table->string('papel', 20)->comment('ADMINISTRADOR, OPERADOR ou AUDITOR (App\Enums\AccessRole)');
             $table->boolean('ativo')->default(true);
             $table->timestamp('ingressou_em');
             $table->timestamp('desativado_em')->nullable();
@@ -36,27 +36,13 @@ return new class extends Migration
             $table->index(['gabinete_id', 'papel', 'ativo'], 'gabinete_membros_papel_ativo_index');
         });
 
-        Schema::create('gabinete_liderancas', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('entidade_id')->constrained('entidades')->cascadeOnDelete();
-            $table->foreignId('gabinete_id')->constrained('gabinetes')->cascadeOnDelete();
-            $table->foreignId('usuario_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('nome_snapshot', 180);
-            $table->string('rotulo', 80);
-            $table->date('inicio_em');
-            $table->date('fim_em')->nullable();
-            $table->foreignId('registrado_por')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamps();
-            $table->index(['gabinete_id', 'inicio_em', 'fim_em'], 'gabinete_liderancas_periodo_index');
-        });
-
         Schema::create('entidade_convites', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->foreignId('entidade_id')->constrained('entidades')->cascadeOnDelete();
             $table->foreignId('gabinete_id')->nullable()->constrained('gabinetes')->cascadeOnDelete();
             $table->string('email');
-            $table->string('papel_entidade', 30);
-            $table->string('papel_gabinete', 20)->nullable();
+            $table->string('papel_entidade', 30)->comment('ADMINISTRADOR, OPERADOR ou AUDITOR (App\Enums\AccessRole)');
+            $table->string('papel_gabinete', 20)->nullable()->comment('ADMINISTRADOR, OPERADOR ou AUDITOR (App\Enums\AccessRole)');
             $table->char('token_hash', 64)->unique();
             $table->string('status', 20)->index();
             $table->string('modo_entrega', 30)->default('EMAIL');
@@ -91,7 +77,6 @@ return new class extends Migration
     {
         Schema::dropIfExists('contexto_acesso_eventos');
         Schema::dropIfExists('entidade_convites');
-        Schema::dropIfExists('gabinete_liderancas');
         Schema::dropIfExists('gabinete_membros');
         Schema::dropIfExists('entidade_membros');
     }

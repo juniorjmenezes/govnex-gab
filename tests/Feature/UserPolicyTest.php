@@ -16,9 +16,9 @@ class UserPolicyTest extends TestCase
     {
         $gabinete = Gabinete::factory()->create();
         $otherGabinete = Gabinete::factory()->create();
-        $chief = User::factory()->chiefOfStaff()->forGabinete($gabinete)->create();
-        $ownAdvisor = User::factory()->advisor()->forGabinete($gabinete)->create();
-        $otherAdvisor = User::factory()->advisor()->forGabinete($otherGabinete)->create();
+        $chief = User::factory()->administrator()->forGabinete($gabinete)->create();
+        $ownAdvisor = User::factory()->operator()->forGabinete($gabinete)->create();
+        $otherAdvisor = User::factory()->operator()->forGabinete($otherGabinete)->create();
 
         $this->assertTrue(Gate::forUser($chief)->allows('update', $ownAdvisor));
         $this->assertFalse(Gate::forUser($chief)->allows('update', $otherAdvisor));
@@ -27,8 +27,8 @@ class UserPolicyTest extends TestCase
     public function test_advisor_cannot_manage_team(): void
     {
         $gabinete = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($gabinete)->create();
-        $teammate = User::factory()->advisor()->forGabinete($gabinete)->create();
+        $advisor = User::factory()->operator()->forGabinete($gabinete)->create();
+        $teammate = User::factory()->operator()->forGabinete($gabinete)->create();
 
         $this->assertFalse(Gate::forUser($advisor)->allows('update', $teammate));
         $this->assertFalse(Gate::forUser($advisor)->allows('create', User::class));

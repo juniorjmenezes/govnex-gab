@@ -33,7 +33,8 @@ class TwoFactorChallengeTest extends TestCase
             'confirmPassword' => true,
         ]);
 
-        $user = User::factory()->withTwoFactor()->create();
+        // Só root autentica por senha desde o corte para o SSO do Hub.
+        $user = User::factory()->root()->withTwoFactor()->create();
 
         $this->post(route('login'), [
             'email' => $user->email,

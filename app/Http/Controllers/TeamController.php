@@ -2,9 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\EntidadeRole;
-use App\Enums\GabineteRole;
-use App\Enums\UserRole;
+use App\Enums\AccessRole;
 use App\Http\Requests\Team\ResetTeamMemberPasswordRequest;
 use App\Http\Requests\Team\StoreTeamMemberRequest;
 use App\Http\Requests\Team\UpdateTeamMemberRequest;
@@ -26,17 +24,13 @@ class TeamController extends Controller
     {
         $this->authorize('viewAny', User::class);
         $gabineteId = (int) $request->user()->gabinete_id;
-        $actorRole = $request->user()->gabineteRole($gabineteId);
-        $allowedRoles = $actorRole === GabineteRole::Manager
-            ? [GabineteRole::Member]
-            : [GabineteRole::Manager, GabineteRole::Member];
 
         return Inertia::render('team/index', [
             'canManage' => $request->user()->canManageGabinete($gabineteId),
             'members' => GabineteMembro::query()
                 ->with('usuario:id,name,email,role,is_active,last_login_at,created_at')
                 ->where('gabinete_id', $gabineteId)
-                ->orderByRaw("CASE papel WHEN 'LIDER' THEN 1 WHEN 'GESTOR' THEN 2 WHEN 'MEMBRO' THEN 3 ELSE 4 END")
+                ->orderByRaw("CASE papel WHEN 'ADMINISTRADOR' THEN 1 WHEN 'OPERADOR' THEN 2 WHEN 'AUDITOR' THEN 3 ELSE 4 END")
                 ->get()
                 ->filter(fn (GabineteMembro $membership): bool => ! $membership->usuario->isRoot())
                 ->map(fn (GabineteMembro $membership): array => [
@@ -49,10 +43,10 @@ class TeamController extends Controller
                     'last_login_at' => $membership->usuario->last_login_at?->toIso8601String(),
                     'created_at' => $membership->ingressou_em?->toIso8601String(),
                 ])->values()->all(),
-            'allowedRoles' => array_map(fn (GabineteRole $role): array => [
+            'allowedRoles' => array_map(fn (AccessRole $role): array => [
                 'value' => $role->value,
-                'label' => $role === GabineteRole::Manager ? 'Gestor(a)' : 'Membro',
-            ], $allowedRoles),
+                'label' => $role->label(),
+            ], AccessRole::cases()),
         ]);
     }
 
@@ -60,7 +54,7 @@ class TeamController extends Controller
     {
         $validated = $request->validated();
         $gabinete = Gabinete::withoutGlobalScopes()->findOrFail($request->user()->gabinete_id);
-        $role = GabineteRole::from($validated['role']);
+        $role = AccessRole::from($validated['role']);
         $email = Str::lower($validated['email']);
 
         DB::transaction(function () use ($request, $validated, $gabinete, $role, $email): void {
@@ -78,9 +72,7 @@ class TeamController extends Controller
                     'email' => $email,
                     'password' => $validated['password'],
                     'gabinete_id' => $gabinete->id,
-                    'role' => $role === GabineteRole::Manager
-                        ? UserRole::ChiefOfStaff
-                        : UserRole::Advisor,
+                    'role' => $role->userRole(),
                     'is_active' => true,
                     'email_verified_at' => now(),
                 ])->save();
@@ -91,7 +83,7 @@ class TeamController extends Controller
                 'usuario_id' => $user->id,
             ]);
             $entidadeMembership->forceFill([
-                ...($entidadeMembership->exists ? [] : ['papel' => EntidadeRole::Operator]),
+                ...($entidadeMembership->exists ? [] : ['papel' => $role->forEntidadeOfUnit($gabinete->entidade?->tipo)]),
                 'ativo' => true,
                 'ingressou_em' => $entidadeMembership->ingressou_em ?? now(),
                 'desativado_em' => null,
@@ -122,7 +114,7 @@ class TeamController extends Controller
             ->where('usuario_id', $usuario->id)
             ->firstOrFail()
             ->forceFill([
-                'papel' => GabineteRole::from($request->validated('role')),
+                'papel' => AccessRole::from($request->validated('role')),
                 'ativo' => $request->validated('is_active'),
                 'desativado_em' => $request->validated('is_active') ? null : now(),
             ])->save();
@@ -147,12 +139,6 @@ class TeamController extends Controller
             ->where('usuario_id', $usuario->id)
             ->firstOrFail();
         abort_unless($request->user()->canManageGabinete((int) $request->user()->gabinete_id), 403);
-        abort_if($membership->papel === GabineteRole::Leader, 403);
-        abort_if(
-            $request->user()->gabineteRole((int) $request->user()->gabinete_id) === GabineteRole::Manager
-                && $membership->papel !== GabineteRole::Member,
-            403,
-        );
         $membership->forceFill(['ativo' => false, 'desativado_em' => now()])->save();
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Acesso do membro removido deste gabinete.']);
 

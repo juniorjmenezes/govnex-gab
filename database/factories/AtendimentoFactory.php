@@ -38,7 +38,7 @@ class AtendimentoFactory extends Factory
         ?User $creator = null,
     ): static {
         $citizen ??= Cidadao::factory()->forGabinete($gabinete)->create();
-        $attendant ??= User::factory()->advisor()->forGabinete($gabinete)->create();
+        $attendant ??= User::factory()->operator()->forGabinete($gabinete)->create();
         $creator ??= $attendant;
 
         return $this->state(fn (): array => [

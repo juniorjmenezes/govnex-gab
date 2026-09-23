@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\Cidadao;
 use App\Models\User;
 
@@ -20,17 +19,17 @@ class CidadaoPolicy
 
     public function create(User $user): bool
     {
-        return $user->gabinete_id !== null;
+        return $user->gabinete_id !== null && $user->role->canWrite();
     }
 
     public function update(User $user, Cidadao $cidadao): bool
     {
-        return $this->view($user, $cidadao);
+        return $this->view($user, $cidadao) && $user->role->canWrite();
     }
 
     public function delete(User $user, Cidadao $cidadao): bool
     {
         return $this->view($user, $cidadao)
-            && in_array($user->role, [UserRole::Councilor, UserRole::ChiefOfStaff], true);
+            && $user->role->isAdministrator();
     }
 }

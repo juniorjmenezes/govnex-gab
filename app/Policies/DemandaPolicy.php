@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\Demanda;
 use App\Models\User;
 
@@ -20,17 +19,17 @@ class DemandaPolicy
 
     public function create(User $user): bool
     {
-        return $user->gabinete_id !== null;
+        return $user->gabinete_id !== null && $user->role->canWrite();
     }
 
     public function update(User $user, Demanda $demanda): bool
     {
-        return $this->view($user, $demanda);
+        return $this->view($user, $demanda) && $user->role->canWrite();
     }
 
     public function delete(User $user, Demanda $demanda): bool
     {
         return $this->view($user, $demanda)
-            && in_array($user->role, [UserRole::Councilor, UserRole::ChiefOfStaff], true);
+            && $user->role->isAdministrator();
     }
 }

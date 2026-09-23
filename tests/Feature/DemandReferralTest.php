@@ -159,7 +159,7 @@ class DemandReferralTest extends TestCase
     private function demandContext(): array
     {
         $office = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         $demand = Demanda::factory()->forGabinete($office, creator: $user)->create();
 
         return [$user, $demand];

@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\MultiEntidade;
 
-use App\Enums\GabineteRole;
+use App\Enums\AccessRole;
 use App\Enums\GabineteType;
 use App\Models\Gabinete;
 use App\Models\GabineteMembro;
@@ -32,12 +32,12 @@ class LegacyEntryAfterMembershipChangeTest extends TestCase
         $other = Gabinete::factory()->for($origin->entidade, 'entidade')->create([
             'tipo_gabinete' => GabineteType::AdministrativeDepartment,
         ]);
-        $user = User::factory()->advisor()->forGabinete($origin)->create();
+        $user = User::factory()->operator()->forGabinete($origin)->create();
 
         GabineteMembro::query()->create([
             'gabinete_id' => $other->id,
             'usuario_id' => $user->id,
-            'papel' => GabineteRole::Member,
+            'papel' => AccessRole::Operator,
             'ativo' => true,
             'ingressou_em' => now(),
         ]);
@@ -55,7 +55,7 @@ class LegacyEntryAfterMembershipChangeTest extends TestCase
     public function test_user_without_any_active_office_goes_to_the_directory(): void
     {
         $origin = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($origin)->create();
+        $user = User::factory()->operator()->forGabinete($origin)->create();
         $this->removeFrom($origin, $user);
 
         $this->actingAs($user)
@@ -66,7 +66,7 @@ class LegacyEntryAfterMembershipChangeTest extends TestCase
     public function test_active_origin_office_keeps_being_the_entry_point(): void
     {
         $origin = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($origin)->create();
+        $user = User::factory()->operator()->forGabinete($origin)->create();
 
         $this->actingAs($user)
             ->get('/dashboard')

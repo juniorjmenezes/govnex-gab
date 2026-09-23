@@ -200,7 +200,7 @@ class WhatsAppEventIntegrationTest extends TestCase
     {
         [$office, $councilor] = $this->eligibleTeamContact([], councilor: true);
         $otherOffice = Gabinete::factory()->create();
-        $otherCouncilor = User::factory()->councilor()->forGabinete($otherOffice)->create();
+        $otherCouncilor = User::factory()->administrator()->forGabinete($otherOffice)->create();
         app(WhatsAppContactService::class)->declareForUser($otherCouncilor, '(85) 96666-7654', $otherCouncilor);
         $election = Eleicao::query()->firstOrFail();
         $candidate = CandidatoPolitico::query()->create([
@@ -267,7 +267,7 @@ class WhatsAppEventIntegrationTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $factory = User::factory()->forGabinete($office);
-        $user = ($councilor ? $factory->councilor() : $factory)->create();
+        $user = ($councilor ? $factory->administrator() : $factory)->create();
         app(WhatsAppContactService::class)->declareForUser($user, '(88) 99999-1234', $user);
         $this->entidadeWhatsAppConnection($office);
         app(WhatsAppConfigurationService::class)->update(

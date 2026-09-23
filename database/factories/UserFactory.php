@@ -20,7 +20,7 @@ class UserFactory extends Factory
             'gabinete_id' => Gabinete::factory(),
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
-            'role' => UserRole::Advisor,
+            'role' => UserRole::Operator,
             'is_active' => true,
             'email_verified_at' => now(),
             'last_login_at' => null,
@@ -45,19 +45,19 @@ class UserFactory extends Factory
         ]);
     }
 
-    public function councilor(): static
+    public function administrator(): static
     {
-        return $this->state(fn (): array => ['role' => UserRole::Councilor]);
+        return $this->state(fn (): array => ['role' => UserRole::Administrator]);
     }
 
-    public function chiefOfStaff(): static
+    public function operator(): static
     {
-        return $this->state(fn (): array => ['role' => UserRole::ChiefOfStaff]);
+        return $this->state(fn (): array => ['role' => UserRole::Operator]);
     }
 
-    public function advisor(): static
+    public function auditor(): static
     {
-        return $this->state(fn (): array => ['role' => UserRole::Advisor]);
+        return $this->state(fn (): array => ['role' => UserRole::Auditor]);
     }
 
     public function inactive(): static

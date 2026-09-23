@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\Evento;
 use App\Models\User;
 
@@ -20,17 +19,17 @@ class EventoPolicy
 
     public function create(User $user): bool
     {
-        return $user->gabinete_id !== null;
+        return $user->gabinete_id !== null && $user->role->canWrite();
     }
 
     public function update(User $user, Evento $evento): bool
     {
-        return $this->view($user, $evento);
+        return $this->view($user, $evento) && $user->role->canWrite();
     }
 
     public function delete(User $user, Evento $evento): bool
     {
         return $this->view($user, $evento)
-            && in_array($user->role, [UserRole::Councilor, UserRole::ChiefOfStaff], true);
+            && $user->role->isAdministrator();
     }
 }

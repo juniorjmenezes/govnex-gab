@@ -6,8 +6,8 @@ Este roteiro valida o MVP antes de uma futura publicação. Ele não executa dep
 
 - Visitantes são redirecionados ao login nas áreas protegidas.
 - O administrador acessa o painel global e a gestão cadastral; só entra nos módulos operacionais depois de escolher explicitamente entidade e gabinete, com contexto isolado, entrada auditada e retorno visível à plataforma.
-- Vereador, chefe de gabinete e assessor acessam dashboard, demandas, Kanban, cidadãos, categorias, bairros, agenda e configurações de conta.
-- Vereador e chefe acessam equipe e relatórios; assessor recebe bloqueio do backend.
+- Administrador e operador acessam dashboard, demandas, Kanban, cidadãos, categorias, bairros, agenda e configurações de conta; o auditor consulta as mesmas telas, mas recebe 403 em qualquer escrita e nos formulários de criação.
+- Administrador acessa equipe e relatórios; operador e auditor recebem bloqueio do backend.
 - Todos os perfis de gabinete são bloqueados na administração da plataforma.
 - Cabeçalhos de segurança, isolamento entre gabinetes, IDOR, arquivos privados, filas, lembretes, exportações e consultas sem N+1 permanecem cobertos pela suíte.
 
@@ -49,29 +49,29 @@ Use apenas o ambiente local com os usuários descritos no README.
 - Confirmar que callbacks WhatsApp continuam aceitos e idempotentes enquanto novos envios permanecem suprimidos.
 - Confirmar que jobs pendentes de relatório, lembrete, TSE e WhatsApp não produzem efeito externo após a desativação.
 
-### Vereador
+### Administrador (vereador, chefe de gabinete)
 
 - Conferir indicadores do dashboard e alternar o período.
 - Criar cidadão e demanda; confirmar protocolo automático.
 - Mover a demanda no Kanban, resolver, encerrar e reabrir.
-- Cadastrar membro da equipe, categoria e bairro.
+- Distribuir uma demanda para um operador; registrar encaminhamento, próxima ação e retorno recebido.
+- Criar, reagendar e cancelar um compromisso.
+- Cadastrar membro da equipe (administrador, operador ou auditor), categoria e bairro.
 - Alterar configurações do gabinete.
 - Solicitar exportações PDF e XLSX e processar a fila local.
 
-### Chefe de gabinete
-
-- Distribuir uma demanda para um assessor.
-- Registrar encaminhamento, próxima ação e retorno recebido.
-- Criar, reagendar e cancelar um compromisso.
-- Gerenciar assessores e consultar relatórios.
-- Confirmar que configurações exclusivas do vereador permanecem somente leitura.
-
-### Assessor
+### Operador (assessor)
 
 - Criar cidadão e demanda.
 - Atualizar demanda atribuída, adicionar atualização e anexo.
 - Confirmar bloqueio à exclusão de demandas, gestão da equipe e relatórios.
 - Verificar notificações e agenda.
+
+### Auditor
+
+- Consultar dashboard, demandas, cidadãos, agenda, atendimentos e eventos.
+- Confirmar 403 ao criar, alterar ou excluir qualquer registro, e que os formulários de criação são bloqueados.
+- Marcar notificações como lidas, editar o próprio perfil e sair normalmente.
 
 ### Responsividade e acessibilidade
 

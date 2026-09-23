@@ -21,7 +21,7 @@ class EntidadeModulesTest extends TestCase
     public function test_entidade_administrator_cannot_toggle_institutional_modules(): void
     {
         $gabinete = Gabinete::factory()->create();
-        $councilor = User::factory()->councilor()->forGabinete($gabinete)->create();
+        $councilor = User::factory()->administrator()->forGabinete($gabinete)->create();
 
         $this->actingAs($councilor)
             ->patch(route('entidades.modules.update', $gabinete->entidade), [
@@ -54,7 +54,7 @@ class EntidadeModulesTest extends TestCase
     public function test_entidade_show_hides_module_section_from_non_root_but_keeps_other_management(): void
     {
         $gabinete = Gabinete::factory()->create();
-        $councilor = User::factory()->councilor()->forGabinete($gabinete)->create();
+        $councilor = User::factory()->administrator()->forGabinete($gabinete)->create();
 
         $response = $this->actingAs($councilor)
             ->get(route('entidades.show', $gabinete->entidade));

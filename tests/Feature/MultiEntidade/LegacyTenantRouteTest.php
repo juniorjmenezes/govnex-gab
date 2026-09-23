@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\MultiEntidade;
 
-use App\Enums\GabineteRole;
+use App\Enums\AccessRole;
 use App\Models\Gabinete;
 use App\Models\GabineteMembro;
 use App\Models\User;
@@ -30,7 +30,7 @@ class LegacyTenantRouteTest extends TestCase
     {
         $this->withoutFollowingLegacyTenantRedirects();
         $gabinete = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($gabinete)->create();
+        $user = User::factory()->operator()->forGabinete($gabinete)->create();
         $expected = "/entidades/{$gabinete->entidade->slug}/gabinetes/{$gabinete->slug}/cidadaos?q=Maria";
 
         $this->actingAs($user)
@@ -52,7 +52,7 @@ class LegacyTenantRouteTest extends TestCase
     {
         $this->withoutFollowingLegacyTenantRedirects();
         $gabinete = Gabinete::factory()->create();
-        $user = User::factory()->chiefOfStaff()->forGabinete($gabinete)->create();
+        $user = User::factory()->administrator()->forGabinete($gabinete)->create();
         $expected = "/entidades/{$gabinete->entidade->slug}/gabinetes/{$gabinete->slug}/bairros";
 
         $this->actingAs($user)
@@ -73,7 +73,7 @@ class LegacyTenantRouteTest extends TestCase
     public function test_explicit_context_does_not_create_legacy_route_event(): void
     {
         $gabinete = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($gabinete)->create();
+        $user = User::factory()->operator()->forGabinete($gabinete)->create();
 
         $this->actingAs($user)
             ->get(route('context.citizens.index', [
@@ -93,11 +93,11 @@ class LegacyTenantRouteTest extends TestCase
         $this->withoutFollowingLegacyTenantRedirects();
         $primary = Gabinete::factory()->create();
         $secondary = Gabinete::factory()->for($primary->entidade, 'entidade')->create();
-        $user = User::factory()->advisor()->forGabinete($primary)->create();
+        $user = User::factory()->operator()->forGabinete($primary)->create();
         GabineteMembro::query()->create([
             'gabinete_id' => $secondary->id,
             'usuario_id' => $user->id,
-            'papel' => GabineteRole::Member,
+            'papel' => AccessRole::Operator,
             'ativo' => true,
             'ingressou_em' => now(),
         ]);

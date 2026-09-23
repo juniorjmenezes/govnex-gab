@@ -40,8 +40,8 @@ class ReportTest extends TestCase
     public function test_reports_are_available_to_office_managers_but_not_advisors(): void
     {
         $office = Gabinete::factory()->create();
-        $councilor = User::factory()->councilor()->forGabinete($office)->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $councilor = User::factory()->administrator()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($councilor)
             ->get(route('reports.index'))
@@ -58,7 +58,7 @@ class ReportTest extends TestCase
         Carbon::setTestNow('2026-07-24 12:00:00');
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $user = User::factory()->chiefOfStaff()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
 
         Demanda::factory()->forGabinete($office)->create([
             'titulo' => 'Resolvida no período',
@@ -120,7 +120,7 @@ class ReportTest extends TestCase
     {
         Queue::fake();
         $office = Gabinete::factory()->create();
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
 
         $this->actingAs($user)
             ->post(route('reports.exports.store'), [
@@ -153,7 +153,7 @@ class ReportTest extends TestCase
             'cor_principal' => '#0F766E',
             'logo_path' => $logoPath,
         ]);
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         Demanda::factory()->forGabinete($office)->status(DemandStatus::Resolved)->create([
             'titulo' => 'Solicitação para exportação',
             'aberta_em' => now()->subDays(2),
@@ -232,8 +232,8 @@ class ReportTest extends TestCase
         Storage::fake('local');
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $owner = User::factory()->councilor()->forGabinete($office)->create();
-        $outsider = User::factory()->councilor()->forGabinete($otherOffice)->create();
+        $owner = User::factory()->administrator()->forGabinete($office)->create();
+        $outsider = User::factory()->administrator()->forGabinete($otherOffice)->create();
         Storage::disk('local')->put('reports/1/report.pdf', '%PDF-test');
 
         $export = ReportExport::forceCreate([
@@ -265,7 +265,7 @@ class ReportTest extends TestCase
     {
         $admin = User::factory()->root()->create();
         $office = Gabinete::factory()->create();
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $modules = app(GabineteModuleManager::class);
         $modules->sync($office, [GabineteModule::Relationship->value], $admin);
         $export = ReportExport::forceCreate([
@@ -289,7 +289,7 @@ class ReportTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $user = User::factory()->councilor()->forGabinete($office)->create();
+        $user = User::factory()->administrator()->forGabinete($office)->create();
         $foreignMember = User::factory()->forGabinete($otherOffice)->create();
 
         $this->actingAs($user)

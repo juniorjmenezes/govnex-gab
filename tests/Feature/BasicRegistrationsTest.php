@@ -22,7 +22,7 @@ class BasicRegistrationsTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
         $neighborhood = Bairro::factory()->forGabinete($office)->create();
         $foreignNeighborhood = Bairro::factory()->forGabinete($otherOffice)->create();
 
@@ -59,7 +59,7 @@ class BasicRegistrationsTest extends TestCase
     public function test_advisor_can_search_an_address_for_citizen_location(): void
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
         Http::fake([
             '*' => Http::response([
                 [
@@ -220,7 +220,7 @@ class BasicRegistrationsTest extends TestCase
     public function test_citizen_location_requires_both_coordinates(): void
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($advisor)->post(route('citizens.store'), [
             'nome' => 'Localização incompleta',
@@ -233,7 +233,7 @@ class BasicRegistrationsTest extends TestCase
     public function test_advisor_can_update_citizen_voter_status(): void
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
         $citizen = Cidadao::factory()->forGabinete($office)->create([
             'eleitor' => true,
             'latitude' => -3.731862,
@@ -257,7 +257,7 @@ class BasicRegistrationsTest extends TestCase
     public function test_possible_duplicate_warns_but_does_not_block_registration(): void
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
         Cidadao::factory()->forGabinete($office)->create(['telefone' => '85988887777']);
 
         $response = $this->actingAs($advisor)->post(route('citizens.store'), [
@@ -277,14 +277,14 @@ class BasicRegistrationsTest extends TestCase
         $cpf = '12345678901';
         Cidadao::factory()->forGabinete($first)->create(['cpf' => $cpf]);
 
-        $this->actingAs(User::factory()->advisor()->forGabinete($first)->create())
+        $this->actingAs(User::factory()->operator()->forGabinete($first)->create())
             ->post(route('citizens.store'), [
                 'nome' => 'Duplicado local',
                 'cpf' => $cpf,
                 'consentimento_contato' => false,
             ])->assertSessionHasErrors('cpf');
 
-        $this->actingAs(User::factory()->advisor()->forGabinete($second)->create())
+        $this->actingAs(User::factory()->operator()->forGabinete($second)->create())
             ->post(route('citizens.store'), [
                 'nome' => 'Cadastro permitido',
                 'cpf' => $cpf,
@@ -295,8 +295,8 @@ class BasicRegistrationsTest extends TestCase
     public function test_only_office_managers_can_manage_categories_and_neighborhoods(): void
     {
         $office = Gabinete::factory()->create();
-        $chief = User::factory()->chiefOfStaff()->forGabinete($office)->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $chief = User::factory()->administrator()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($chief)->post(route('categories.store'), [
             'nome' => 'Saúde',
@@ -337,13 +337,13 @@ class BasicRegistrationsTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $chief = User::factory()->chiefOfStaff()->forGabinete($office)->create();
-        $foreignUser = User::factory()->advisor()->forGabinete($otherOffice)->create();
+        $chief = User::factory()->administrator()->forGabinete($office)->create();
+        $foreignUser = User::factory()->operator()->forGabinete($otherOffice)->create();
 
         $this->actingAs($chief)->post(route('team.store'), [
             'name' => 'Nova Assessora',
             'email' => 'nova@example.test',
-            'role' => UserRole::Advisor->value,
+            'role' => UserRole::Operator->value,
             'password' => 'Senha123!',
             'password_confirmation' => 'Senha123!',
         ])->assertRedirect(route('team.index'));
@@ -352,17 +352,25 @@ class BasicRegistrationsTest extends TestCase
         $this->assertSame($office->id, $member->gabinete_id);
 
         $this->actingAs($chief)->post(route('team.store'), [
-            'name' => 'Chefia indevida',
-            'email' => 'chefia@example.test',
-            'role' => UserRole::ChiefOfStaff->value,
+            'name' => 'Papel inexistente',
+            'email' => 'papel@example.test',
+            'role' => 'vereador',
             'password' => 'Senha123!',
             'password_confirmation' => 'Senha123!',
         ])->assertSessionHasErrors('role');
 
+        $this->actingAs($member)->post(route('team.store'), [
+            'name' => 'Cadastro por operador',
+            'email' => 'operador@example.test',
+            'role' => UserRole::Operator->value,
+            'password' => 'Senha123!',
+            'password_confirmation' => 'Senha123!',
+        ])->assertForbidden();
+
         $this->actingAs($chief)->put(route('team.update', $foreignUser), [
             'name' => 'Tentativa externa',
             'email' => $foreignUser->email,
-            'role' => UserRole::Advisor->value,
+            'role' => UserRole::Operator->value,
             'is_active' => false,
         ])->assertNotFound();
 

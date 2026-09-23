@@ -40,6 +40,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { accessRoleLabel } from '@/lib/access-roles';
 import { checkRequiredFields } from '@/lib/required-fields';
 
 const SYSTEM_PRIMARY_COLOR = '#ca3500';
@@ -517,7 +518,7 @@ export default function EntidadeShow({
                                         }
                                         options={entidadeRoles.map((role) => ({
                                             value: role,
-                                            label: role,
+                                            label: accessRoleLabel(role),
                                         }))}
                                     />
                                     <FieldError
@@ -575,7 +576,9 @@ export default function EntidadeShow({
                                             options={gabineteRoles.map(
                                                 (role) => ({
                                                     value: role,
-                                                    label: role,
+                                                    label: accessRoleLabel(
+                                                        role,
+                                                    ),
                                                 }),
                                             )}
                                         />
@@ -603,7 +606,7 @@ export default function EntidadeShow({
                                                 {member.name}
                                             </p>
                                             <Badge variant="outline">
-                                                {member.role}
+                                                {accessRoleLabel(member.role)}
                                             </Badge>
                                         </div>
                                         <p className="truncate text-sm text-muted-foreground">

@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Enums\GabineteRole;
 use App\Enums\UserRole;
 use App\Models\ContextoAcessoEvento;
 use App\Models\Entidade;
@@ -16,6 +15,18 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ResolveEntidadeContext
 {
+    /**
+     * Ações pessoais que o auditor pode executar apesar de não serem GET: não
+     * alteram dado do gabinete, só o estado de leitura da própria pessoa.
+     *
+     * @var list<string>
+     */
+    private const AUDITOR_PERSONAL_ROUTES = [
+        'context.notifications.read',
+        'context.notifications.read-all',
+        'context.knowledge.progress',
+    ];
+
     public function __construct(
         private readonly EntidadeContext $entidades,
         private readonly GabineteContext $gabinetes,
@@ -68,6 +79,7 @@ class ResolveEntidadeContext
             $this->gabinetes->setUnit($gabinete);
             $request->route()?->setParameter('gabinete', $gabinete);
             $this->applyLegacyRequestCompatibility($user, $gabinete);
+            $this->ensureAuditorIsReadOnly($request, $user);
         }
 
         $this->auditContextChange($request, $user, $entidade, $gabinete);
@@ -128,13 +140,26 @@ class ResolveEntidadeContext
             return;
         }
 
-        $role = $user->gabineteRole($gabinete->id);
-        $user->setAttribute('role', match ($role) {
-            GabineteRole::Leader => UserRole::Councilor,
-            GabineteRole::Manager => UserRole::ChiefOfStaff,
-            GabineteRole::Member => UserRole::Advisor,
-            default => $user->role,
-        });
+        $user->setAttribute('role', $user->gabineteRole($gabinete->id)?->userRole() ?? $user->role);
+    }
+
+    /**
+     * Somente leitura do auditor, aplicada num ponto só: qualquer método que
+     * não seja de leitura é recusado aqui, antes de chegar ao controller. As
+     * Policies (`canWrite`) são a segunda camada.
+     */
+    private function ensureAuditorIsReadOnly(Request $request, User $user): void
+    {
+        if ($user->role !== UserRole::Auditor
+            || in_array($request->getMethod(), ['GET', 'HEAD', 'OPTIONS'], true)) {
+            return;
+        }
+
+        if (in_array($request->route()?->getName(), self::AUDITOR_PERSONAL_ROUTES, true)) {
+            return;
+        }
+
+        abort(403, 'Seu perfil de auditor permite apenas consultar as informações deste gabinete.');
     }
 
     private function auditContextChange(

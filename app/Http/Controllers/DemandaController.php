@@ -116,7 +116,7 @@ class DemandaController extends Controller
 
         return Inertia::render('demands/index', [
             'demands' => $demands,
-            'canDelete' => in_array($user->role, [UserRole::Councilor, UserRole::ChiefOfStaff], true),
+            'canDelete' => $user->role->isAdministrator(),
             'filters' => $filters,
             'tabCounts' => $this->tabCounts($user),
             'options' => $this->filterOptions(),

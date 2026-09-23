@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\EntidadeRole;
+use App\Enums\AccessRole;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $entidade_id
  * @property int $usuario_id
- * @property EntidadeRole $papel
+ * @property AccessRole $papel
  * @property bool $ativo
  */
 class EntidadeMembro extends Model
@@ -34,7 +34,7 @@ class EntidadeMembro extends Model
     protected function casts(): array
     {
         return [
-            'papel' => EntidadeRole::class,
+            'papel' => AccessRole::class,
             'ativo' => 'boolean',
             'ingressou_em' => 'datetime',
             'desativado_em' => 'datetime',

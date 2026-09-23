@@ -18,7 +18,7 @@ class VoterProspectingMapTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $user = User::factory()->advisor()->forGabinete($office)->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
         $neighborhood = Bairro::factory()->forGabinete($office)->create();
         $locatedVoter = Cidadao::factory()
             ->forGabinete($office, $neighborhood)

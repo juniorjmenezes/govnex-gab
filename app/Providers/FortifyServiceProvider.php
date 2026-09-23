@@ -35,6 +35,18 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
     }
 
+    /**
+     * Login local por senha, restrito a `root`.
+     *
+     * Com o SSO do Govnex Hub como caminho padrão (decisão #2, corte direto), o
+     * login local deixa de ser a porta de entrada e passa a ser só o acesso
+     * administrativo de emergência de quando o Hub estiver fora do ar
+     * (decisões #6 e #10). A infraestrutura do Fortify — senha, 2FA, passkeys,
+     * redefinição — continua inteira: o que muda é quem pode usá-la.
+     *
+     * A restrição fica aqui, e não numa rota nova, porque é a única passagem
+     * obrigatória de todos os fluxos de senha do Fortify.
+     */
     private function configureAuthentication(): void
     {
         Fortify::authenticateUsing(function (Request $request): ?User {
@@ -45,7 +57,7 @@ class FortifyServiceProvider extends ServiceProvider
                 return null;
             }
 
-            if (! $user->is_active) {
+            if (! $user->is_active || ! $user->isRoot()) {
                 return null;
             }
 
@@ -58,6 +70,12 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::loginView(fn (Request $request) => Inertia::render('auth/login', [
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
             'status' => $request->session()->get('status'),
+            // Sem as credenciais do Hub configuradas, a tela não oferece um
+            // botão que só levaria a um erro — ambiente novo continua entrando
+            // pelo acesso local até o SSO ser configurado.
+            'hubEnabled' => filled(config('services.hub.base_url'))
+                && filled(config('services.hub.client_id'))
+                && filled(config('services.hub.client_secret')),
         ]));
 
         Fortify::resetPasswordView(fn (Request $request) => Inertia::render('auth/reset-password', [

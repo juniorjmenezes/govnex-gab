@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
 import {
     LockKeyholeIcon,
@@ -13,13 +13,7 @@ import { cn, toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
-import type { NavItem } from '@/types';
-
-const sidebarNavItems: NavItem[] = [
-    { title: 'Perfil', href: edit(), icon: UserRoundedIcon },
-    { title: 'Segurança', href: editSecurity(), icon: LockKeyholeIcon },
-    { title: 'Aparência', href: editAppearance(), icon: PaletteIcon },
-];
+import type { Auth, NavItem } from '@/types';
 
 /**
  * Área de configurações da conta no mesmo padrão das demais páginas:
@@ -28,6 +22,25 @@ const sidebarNavItems: NavItem[] = [
  */
 export default function SettingsLayout({ children }: PropsWithChildren) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
+    const { auth } = usePage<{ auth: Auth }>().props;
+
+    // Senha, 2FA e passkeys são do acesso local de emergência, restrito a root
+    // (docs/INTEGRACAO_GOVNEX_HUB.md, decisão #6). Os demais papéis entram pelo
+    // Govnex Hub e gerenciam essas credenciais lá — `SecurityController` já
+    // redireciona, aqui só não anunciamos o caminho.
+    const sidebarNavItems: NavItem[] = [
+        { title: 'Perfil', href: edit(), icon: UserRoundedIcon },
+        ...(auth.user.role === 'root'
+            ? [
+                  {
+                      title: 'Segurança',
+                      href: editSecurity(),
+                      icon: LockKeyholeIcon,
+                  },
+              ]
+            : []),
+        { title: 'Aparência', href: editAppearance(), icon: PaletteIcon },
+    ];
 
     return (
         <PageContainer>

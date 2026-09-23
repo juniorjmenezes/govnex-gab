@@ -2,7 +2,7 @@
 
 namespace App\Services\Entidades;
 
-use App\Enums\EntidadeRole;
+use App\Enums\AccessRole;
 use App\Enums\EntidadeStatus;
 use App\Enums\GabineteModule;
 use App\Enums\GabineteTransferEvent;
@@ -143,10 +143,6 @@ class GabineteTransferService
             $members = $this->moveMemberships($gabinete, $source, $destination, $actor);
 
             $gabinete->forceFill(['entidade_id' => $destination->id])->save();
-            DB::table('gabinete_liderancas')->where('gabinete_id', $gabinete->id)->update([
-                'entidade_id' => $destination->id,
-                'updated_at' => now(),
-            ]);
             $disabledModules = $this->recalculateModules($gabinete, $destination, $actor);
             $this->disableWhatsApp($gabinete, $destination);
 
@@ -249,7 +245,7 @@ class GabineteTransferService
             ]);
             if (! $destinationMembership->exists) {
                 $destinationMembership->forceFill([
-                    'papel' => EntidadeRole::Operator,
+                    'papel' => AccessRole::Operator,
                     'ingressou_em' => now(),
                     'criado_por' => $actor->id,
                 ]);
@@ -262,7 +258,7 @@ class GabineteTransferService
                 ->where('usuario_id', $member->usuario_id)
                 ->lockForUpdate()
                 ->first();
-            if ($sourceMembership?->papel !== EntidadeRole::Operator) {
+            if ($sourceMembership?->papel !== AccessRole::Operator) {
                 continue;
             }
             $hasAnotherSourceUnit = GabineteMembro::query()

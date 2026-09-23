@@ -1,0 +1,203 @@
+<?php
+
+use App\Enums\AccessRole;
+use App\Models\Entidade;
+use App\Models\Gabinete;
+use App\Models\GabineteMembro;
+use App\Models\User;
+use App\Services\Hub\HubVinculoSyncService;
+use Illuminate\Support\Str;
+
+const HUB_WEBHOOK_PATH = '/api/integrations/hub/webhook';
+
+beforeEach(function () {
+    config([
+        'services.hub.codigo' => 'GAB',
+        'services.hub.api_secret' => str_repeat('k', 40),
+        'services.hub.webhook_window_seconds' => 300,
+    ]);
+});
+
+/**
+ * Reproduz o `AssinadorDeWebhook` do Hub: canônico
+ * `MÉTODO\nCAMINHO\nTIMESTAMP\nNONCE\nsha256(corpo)`.
+ *
+ * @return array<string, string>
+ */
+function assinarWebhookDoHub(string $corpo, ?string $segredo = null, ?int $timestamp = null): array
+{
+    $timestamp ??= time();
+    $nonce = Str::random(32);
+    $canonico = implode("\n", ['POST', HUB_WEBHOOK_PATH, (string) $timestamp, $nonce, hash('sha256', $corpo)]);
+
+    return [
+        'X-Hub-Timestamp' => (string) $timestamp,
+        'X-Hub-Nonce' => $nonce,
+        'X-Hub-Signature' => 'sha256='.hash_hmac('sha256', $canonico, $segredo ?? config('services.hub.api_secret')),
+        'Content-Type' => 'application/json',
+    ];
+}
+
+/** @param  array<string, mixed>  $payload */
+function enviarWebhookDoHub(array $payload, ?string $segredo = null, ?int $timestamp = null)
+{
+    $corpo = (string) json_encode($payload);
+
+    return test()->call(
+        'POST',
+        HUB_WEBHOOK_PATH,
+        [],
+        [],
+        [],
+        collect(assinarWebhookDoHub($corpo, $segredo, $timestamp))
+            ->mapWithKeys(fn (string $v, string $k): array => ['HTTP_'.str_replace('-', '_', strtoupper($k)) => $v])
+            ->all(),
+        $corpo,
+    );
+}
+
+/** @param  array<string, mixed>  $dados */
+function eventoDoHub(string $tipo, array $dados): array
+{
+    return [
+        'id' => (string) Str::uuid(),
+        'tipo' => $tipo,
+        'sistema' => 'GAB',
+        'ocorrido_em' => now()->toIso8601String(),
+        'dados' => $dados,
+    ];
+}
+
+/** @return array<string, mixed> */
+function pessoaDoHub(string $id = '42', bool $ativo = true): array
+{
+    return [
+        'id' => $id,
+        'nome' => 'Ana Sousa',
+        'email' => 'ana@exemplo.gov.br',
+        'ativo' => $ativo,
+        'email_verificado' => true,
+        'atualizado_em' => now()->toIso8601String(),
+    ];
+}
+
+it('recusa assinatura inválida', function () {
+    enviarWebhookDoHub(
+        eventoDoHub('pessoa.criada', ['pessoa' => pessoaDoHub()]),
+        segredo: str_repeat('x', 40),
+    )->assertStatus(401);
+
+    expect(User::query()->where('hub_user_id', '42')->exists())->toBeFalse();
+});
+
+it('recusa assinatura fora da janela de tolerância', function () {
+    enviarWebhookDoHub(
+        eventoDoHub('pessoa.criada', ['pessoa' => pessoaDoHub()]),
+        timestamp: time() - 3600,
+    )->assertStatus(401);
+});
+
+it('recusa tipo de evento fora do vocabulário', function () {
+    $evento = eventoDoHub('pessoa.criada', ['pessoa' => pessoaDoHub()]);
+    $evento['tipo'] = 'pessoa.explodida';
+
+    enviarWebhookDoHub($evento)->assertStatus(422);
+});
+
+it('recusa evento endereçado a outro sistema', function () {
+    $evento = eventoDoHub('pessoa.criada', ['pessoa' => pessoaDoHub()]);
+    $evento['sistema'] = 'GRI';
+
+    enviarWebhookDoHub($evento)->assertStatus(422);
+});
+
+it('cria a pessoa em pessoa.criada', function () {
+    enviarWebhookDoHub(eventoDoHub('pessoa.criada', ['pessoa' => pessoaDoHub()]))
+        ->assertOk()
+        ->assertJson(['ok' => true, 'acao' => 'pessoa_sincronizada']);
+
+    $user = User::query()->where('hub_user_id', '42')->first();
+
+    expect($user)->not->toBeNull()
+        ->and($user->email)->toBe('ana@exemplo.gov.br')
+        ->and($user->is_active)->toBeTrue();
+});
+
+it('atualiza nome e e-mail em pessoa.alterada', function () {
+    User::factory()->create(['hub_user_id' => '42', 'name' => 'Ana', 'email' => 'antigo@exemplo.gov.br']);
+
+    enviarWebhookDoHub(eventoDoHub('pessoa.alterada', ['pessoa' => pessoaDoHub()]))->assertOk();
+
+    $user = User::query()->where('hub_user_id', '42')->first();
+
+    expect($user->name)->toBe('Ana Sousa')
+        ->and($user->email)->toBe('ana@exemplo.gov.br');
+});
+
+it('desativa conta e vínculos em pessoa.desligada', function () {
+    $entidade = Entidade::factory()->create(['hub_entidade_id' => '3']);
+    $gabinete = Gabinete::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '12']);
+    $user = User::factory()->create(['hub_user_id' => '42', 'email' => 'ana@exemplo.gov.br']);
+    app(HubVinculoSyncService::class)->aplicar($user, [[
+        'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'operador', 'ativo' => true,
+    ]]);
+
+    enviarWebhookDoHub(eventoDoHub('pessoa.desligada', ['pessoa' => pessoaDoHub(ativo: false)]))
+        ->assertOk()
+        ->assertJson(['acao' => 'pessoa_desligada']);
+
+    expect($user->fresh()->is_active)->toBeFalse()
+        ->and(GabineteMembro::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->value('ativo'))->toBeFalsy();
+});
+
+it('aplica vinculo.criado e vinculo.alterado', function () {
+    $entidade = Entidade::factory()->create(['hub_entidade_id' => '3']);
+    $gabinete = Gabinete::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '12']);
+
+    $vinculo = [
+        'id' => '7', 'entidade_id' => '3', 'unidade_id' => '12',
+        'papel' => 'operador', 'escopo_hierarquico' => false, 'ativo' => true,
+        'inicio_em' => null, 'fim_em' => null,
+    ];
+
+    enviarWebhookDoHub(eventoDoHub('vinculo.criado', [
+        'pessoa' => pessoaDoHub(), 'vinculo' => $vinculo,
+    ]))->assertOk()->assertJson(['acao' => 'vinculo_aplicado']);
+
+    $user = User::query()->where('hub_user_id', '42')->first();
+    expect($user->gabineteRole($gabinete->id))->toBe(AccessRole::Operator);
+
+    enviarWebhookDoHub(eventoDoHub('vinculo.alterado', [
+        'pessoa' => pessoaDoHub(), 'vinculo' => [...$vinculo, 'papel' => 'administrador'],
+    ]))->assertOk();
+
+    expect($user->fresh()->gabineteRole($gabinete->id))->toBe(AccessRole::Administrator);
+});
+
+it('encerra o vínculo em vinculo.encerrado mesmo se o retrato disser ativo', function () {
+    $entidade = Entidade::factory()->create(['hub_entidade_id' => '3']);
+    $gabinete = Gabinete::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '12']);
+    $vinculo = ['id' => '7', 'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'operador', 'ativo' => true];
+
+    enviarWebhookDoHub(eventoDoHub('vinculo.criado', ['pessoa' => pessoaDoHub(), 'vinculo' => $vinculo]))->assertOk();
+    enviarWebhookDoHub(eventoDoHub('vinculo.encerrado', ['pessoa' => pessoaDoHub(), 'vinculo' => $vinculo]))->assertOk();
+
+    $user = User::query()->where('hub_user_id', '42')->first();
+
+    expect($user->gabineteRole($gabinete->id))->toBeNull()
+        ->and(GabineteMembro::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->exists())->toBeTrue();
+});
+
+it('descarta a reentrega do mesmo evento', function () {
+    $evento = eventoDoHub('pessoa.criada', ['pessoa' => pessoaDoHub()]);
+
+    enviarWebhookDoHub($evento)->assertOk()->assertJson(['acao' => 'pessoa_sincronizada']);
+    enviarWebhookDoHub($evento)->assertOk()->assertJson(['duplicado' => true]);
+
+    expect(User::query()->where('hub_user_id', '42')->count())->toBe(1);
+});
+
+it('recusa evento de vínculo sem bloco de vínculo', function () {
+    enviarWebhookDoHub(eventoDoHub('vinculo.criado', ['pessoa' => pessoaDoHub()]))
+        ->assertStatus(409);
+});

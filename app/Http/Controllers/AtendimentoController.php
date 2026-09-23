@@ -236,10 +236,6 @@ class AtendimentoController extends Controller
 
     private function canDelete(Request $request): bool
     {
-        return in_array(
-            $request->user()->role,
-            [UserRole::Councilor, UserRole::ChiefOfStaff],
-            true,
-        );
+        return $request->user()->role->isAdministrator();
     }
 }

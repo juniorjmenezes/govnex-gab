@@ -30,12 +30,14 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
+import { accessRoleLabels } from '@/lib/access-roles';
+import type { AccessRole } from '@/lib/access-roles';
 import { cn } from '@/lib/utils';
 type Member = {
     id: number;
     name: string;
     email: string;
-    role: 'LIDER' | 'GESTOR' | 'MEMBRO';
+    role: AccessRole;
     is_active: boolean;
     account_active: boolean;
     last_login_at: string | null;
@@ -46,7 +48,7 @@ const schema = z
     .object({
         name: z.string().min(2, 'Informe o nome.'),
         email: z.email('E-mail inválido.'),
-        role: z.string().min(1, 'Selecione a função.'),
+        role: z.string().min(1, 'Selecione o papel.'),
         password: z
             .string()
             .refine(
@@ -60,11 +62,6 @@ const schema = z
         message: 'As senhas não coincidem.',
     });
 type Values = z.infer<typeof schema>;
-const roleLabels: Record<Member['role'], string> = {
-    LIDER: 'Líder',
-    GESTOR: 'Gestor(a)',
-    MEMBRO: 'Membro',
-};
 export default function Team({
     members,
     allowedRoles,
@@ -87,7 +84,10 @@ export default function Team({
         defaultValues: {
             name: '',
             email: '',
-            role: allowedRoles[0]?.value ?? '',
+            role:
+                allowedRoles.find((role) => role.value === 'OPERADOR')?.value ??
+                allowedRoles[0]?.value ??
+                '',
             password: '',
             password_confirmation: '',
         },
@@ -144,7 +144,7 @@ export default function Team({
                                         </span>
                                     </TableHead>
                                     <TableHead>Nome</TableHead>
-                                    <TableHead>Função</TableHead>
+                                    <TableHead>Papel</TableHead>
                                     {canManage && (
                                         <TableHead className="text-right">
                                             Ações
@@ -170,7 +170,7 @@ export default function Team({
                                         </TableCell>
                                         <TableCell>
                                             <span className="block">
-                                                {roleLabels[member.role]}
+                                                {accessRoleLabels[member.role]}
                                             </span>
                                             <span className="block text-xs text-muted-foreground">
                                                 {member.last_login_at
@@ -261,7 +261,7 @@ export default function Team({
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <Label htmlFor="team-role">Função</Label>
+                                    <Label htmlFor="team-role">Papel</Label>
                                     <Controller
                                         control={control}
                                         name="role"

@@ -21,10 +21,10 @@ class ConhecimentoDocumentoPolicy
         return $user->gabinete_id === $document->gabinete_id;
     }
 
-    /** Envio pelo gabinete: qualquer integrante no contexto dele. */
+    /** Envio pelo gabinete: qualquer integrante no contexto dele, exceto o auditor. */
     public function create(User $user): bool
     {
-        return $user->gabinete_id !== null;
+        return $user->gabinete_id !== null && $user->role->canWrite();
     }
 
     public function createPlatform(User $user): bool
@@ -43,6 +43,7 @@ class ConhecimentoDocumentoPolicy
         }
 
         return $user->gabinete_id === $document->gabinete_id
+            && $user->role->canWrite()
             && ($document->enviado_por_id === $user->id
                 || $user->canManageGabinete($document->gabinete_id));
     }

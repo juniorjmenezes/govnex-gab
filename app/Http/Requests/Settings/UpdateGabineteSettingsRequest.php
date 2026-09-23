@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Settings;
 
-use App\Enums\UserRole;
 use App\Rules\MunicipalityInState;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -12,7 +11,7 @@ class UpdateGabineteSettingsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->gabinete_id !== null && $this->user()->role === UserRole::Councilor;
+        return $this->user()->gabinete_id !== null && $this->user()->role->isAdministrator();
     }
 
     /** @return array<string, array<int, mixed>> */

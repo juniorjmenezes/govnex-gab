@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\RootUserController;
 use App\Http\Controllers\Admin\RssSourceController;
 use App\Http\Controllers\Admin\SystemCheckController;
 use App\Http\Controllers\Admin\WhatsAppController;
+use App\Http\Controllers\Auth\HubAuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EntidadeController;
 use App\Http\Controllers\EntidadeDirectoryController;
@@ -25,6 +26,15 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', static function () {
     return redirect()->route(Auth::check() ? 'dashboard' : 'login');
 })->name('home');
+
+// SSO pelo Govnex Hub — caminho padrão de entrada (docs/INTEGRACAO_GOVNEX_HUB.md).
+// O login local do Fortify continua existindo, restrito a root.
+Route::get('auth/hub/redirect', [HubAuthController::class, 'redirect'])
+    ->middleware('throttle:30,1')
+    ->name('hub.redirect');
+Route::get('auth/hub/callback', [HubAuthController::class, 'callback'])
+    ->middleware('throttle:30,1')
+    ->name('hub.callback');
 
 Route::get('convites/entidade/{credential}', [EntidadeInvitationAcceptController::class, 'show'])
     ->middleware('throttle:30,1')

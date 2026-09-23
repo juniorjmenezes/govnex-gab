@@ -54,29 +54,22 @@ O nome é livre. Rótulos de líder são contextuais: Vereador, Prefeito, Secret
 
 ### Vínculos e liderança
 
-Papéis da entidade:
+Papéis de acesso, iguais na entidade e no gabinete (`App\Enums\AccessRole`, padrão do ecossistema GOVNEX — ver `docs/INTEGRACAO_GOVNEX_HUB.md`, decisão #5):
 
-- `ADMINISTRADOR`;
-- `GESTOR`;
-- `OPERADOR`;
-- `AUDITOR`.
+- `ADMINISTRADOR`: gerencia o contexto (equipe, convites, configurações, exclusões);
+- `OPERADOR`: cria e altera registros operacionais;
+- `AUDITOR`: somente leitura.
 
-Papéis do gabinete:
+O administrador da plataforma (`root`) é conta local, com acesso global sem vínculo artificial.
 
-- `LIDER`;
-- `GESTOR`;
-- `MEMBRO`.
+Um usuário pode possuir vários vínculos. O gabinete permanece estável quando o agente político muda; o titular é dado de domínio do gabinete (`vereador_nome`, `candidato_titular_id`), não papel de acesso. O histórico de lideranças (`gabinete_liderancas`) foi removido em 23/09/2026.
 
-Um usuário pode possuir vários vínculos. Períodos de liderança são históricos e o gabinete permanece estável quando o agente político muda.
+Mapeamento dos papéis antigos:
 
-Mapeamento do backfill para gabinetes independentes existentes:
+- Vereador e chefe de gabinete: administrador do gabinete;
+- Assessor: operador do gabinete.
 
-- Vereador atual: administrador da entidade e líder do gabinete;
-- Chefe de gabinete: gestor da entidade e do gabinete;
-- Assessor: operador da entidade e membro do gabinete;
-- Administrador da plataforma: acesso global sem vínculo artificial.
-
-Em novas Câmaras e Prefeituras, a liderança criada com o gabinete nasce como `OPERADOR` da entidade e `LIDER` do gabinete. Papéis institucionais elevados são atribuídos explicitamente por convite e não são rebaixados por atualizações dos campos legados do usuário.
+Administrador de gabinete só é administrador da entidade quando ela é gabinete independente. Em Câmaras e Prefeituras, o responsável criado com o gabinete nasce como `OPERADOR` da entidade e `ADMINISTRADOR` do gabinete. Papéis institucionais elevados são atribuídos explicitamente por convite e não são rebaixados por atualizações dos campos legados do usuário.
 
 Convites usam token de uso único, validade e aceite por e-mail. A contingência por senha temporária é auditada e exige troca no primeiro acesso.
 

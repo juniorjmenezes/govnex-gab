@@ -29,7 +29,7 @@ class KnowledgeBaseTest extends TestCase
     public function test_office_member_uploads_a_pdf_to_the_office_library(): void
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($advisor)
             ->post('/conhecimento', [
@@ -51,7 +51,7 @@ class KnowledgeBaseTest extends TestCase
     public function test_upload_rejects_files_that_are_not_pdfs(): void
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($advisor)
             ->post('/conhecimento', [
@@ -74,7 +74,7 @@ class KnowledgeBaseTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
         $platform = $this->document(null, 'Manual da plataforma');
         $own = $this->document($office, 'Documento do gabinete');
         $this->document($otherOffice, 'Documento de outro gabinete');
@@ -96,7 +96,7 @@ class KnowledgeBaseTest extends TestCase
     {
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
         $own = $this->document($office);
         $platform = $this->document(null);
         $foreign = $this->document($otherOffice);
@@ -119,7 +119,7 @@ class KnowledgeBaseTest extends TestCase
     public function test_module_must_be_active_for_the_office(): void
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
         DB::table('gabinete_modulos')
             ->where('gabinete_id', $office->id)
             ->where('modulo', GabineteModule::KnowledgeBase->value)
@@ -131,8 +131,8 @@ class KnowledgeBaseTest extends TestCase
     public function test_reading_completes_once_per_person_and_counts_globally(): void
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
-        $chief = User::factory()->chiefOfStaff()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
+        $chief = User::factory()->administrator()->forGabinete($office)->create();
         $document = $this->document(null);
 
         foreach ([1, 2, 2] as $page) {
@@ -169,7 +169,7 @@ class KnowledgeBaseTest extends TestCase
     public function test_page_beyond_the_known_total_is_rejected(): void
     {
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
         $document = $this->document($office);
         $document->forceFill(['total_paginas' => 2])->save();
 
@@ -180,9 +180,9 @@ class KnowledgeBaseTest extends TestCase
     public function test_office_documents_are_removed_by_the_uploader_or_a_manager(): void
     {
         $office = Gabinete::factory()->create();
-        $author = User::factory()->advisor()->forGabinete($office)->create();
-        $colleague = User::factory()->advisor()->forGabinete($office)->create();
-        $chief = User::factory()->chiefOfStaff()->forGabinete($office)->create();
+        $author = User::factory()->operator()->forGabinete($office)->create();
+        $colleague = User::factory()->operator()->forGabinete($office)->create();
+        $chief = User::factory()->administrator()->forGabinete($office)->create();
         $mine = $this->document($office, uploader: $author);
         $theirs = $this->document($office, uploader: $colleague);
         $platform = $this->document(null);
@@ -202,7 +202,7 @@ class KnowledgeBaseTest extends TestCase
     {
         $root = User::factory()->root()->create();
         $office = Gabinete::factory()->create();
-        $advisor = User::factory()->advisor()->forGabinete($office)->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($advisor)->get('/admin/conhecimento')->assertForbidden();
 

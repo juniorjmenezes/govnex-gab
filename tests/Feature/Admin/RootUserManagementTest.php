@@ -62,7 +62,7 @@ class RootUserManagementTest extends TestCase
     public function test_non_root_users_cannot_access_root_user_management(): void
     {
         $gabinete = Gabinete::factory()->create();
-        $councilor = User::factory()->councilor()->forGabinete($gabinete)->create();
+        $councilor = User::factory()->administrator()->forGabinete($gabinete)->create();
         $target = User::factory()->root()->create();
 
         $this->actingAs($councilor)->get(route('admin.users.index'))->assertForbidden();

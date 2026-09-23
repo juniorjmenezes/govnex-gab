@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\User;
 
 class UserPolicy
@@ -32,11 +31,9 @@ class UserPolicy
             return false;
         }
 
-        return match ($user->role) {
-            UserRole::Councilor => true,
-            UserRole::ChiefOfStaff => $target->role === UserRole::Advisor,
-            default => false,
-        };
+        // Administrador gerencia operadores, auditores e os demais
+        // administradores do gabinete; root é conta local e nunca é gerida aqui.
+        return $user->role->isAdministrator() && ! $target->isRoot();
     }
 
     public function delete(User $user, User $target): bool

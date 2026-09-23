@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\AccessRole;
 use App\Enums\DemandStatus;
 use App\Enums\EntidadeStatus;
 use App\Enums\EntidadeType;
 use App\Enums\GabineteModule;
-use App\Enums\GabineteRole;
 use App\Enums\GabineteStatus;
 use App\Enums\GabineteType;
 use App\Enums\UserRole;
@@ -66,9 +66,12 @@ class OfficeController extends Controller
 
         $office->load([
             'entidade',
+            // Responsável = administrador ativo mais antigo do gabinete.
             'membros' => fn ($query) => $query
-                ->where('papel', GabineteRole::Leader)
+                ->where('papel', AccessRole::Administrator)
                 ->where('ativo', true)
+                ->orderBy('ingressou_em')
+                ->orderBy('id')
                 ->with('usuario'),
         ]);
 
@@ -124,8 +127,10 @@ class OfficeController extends Controller
             ->with([
                 'entidade:id,nome,slug,tipo,status',
                 'membros' => fn ($query) => $query
-                    ->where('papel', GabineteRole::Leader)
+                    ->where('papel', AccessRole::Administrator)
                     ->where('ativo', true)
+                    ->orderBy('ingressou_em')
+                    ->orderBy('id')
                     ->with('usuario:id,name,email,is_active,last_login_at'),
                 'municipioEleitoral:id,codigo_tse,codigo_ibge,nome,uf',
                 'candidatoTitular:id,nome,nome_urna,numero,partido_sigla',
@@ -392,7 +397,7 @@ class OfficeController extends Controller
                 'name' => $validated['responsavel_nome'],
                 'email' => Str::lower($validated['responsavel_email']),
                 'password' => $validated['responsavel_password'],
-                'role' => UserRole::Councilor,
+                'role' => UserRole::Administrator,
                 'is_active' => true,
                 'email_verified_at' => now(),
             ])->save();
@@ -475,15 +480,17 @@ class OfficeController extends Controller
 
             $leadMembership = GabineteMembro::query()
                 ->where('gabinete_id', $office->id)
-                ->where('papel', GabineteRole::Leader)
+                ->where('papel', AccessRole::Administrator)
                 ->where('ativo', true)
+                ->orderBy('ingressou_em')
+                ->orderBy('id')
                 ->with('usuario')
                 ->first();
             $responsible = $leadMembership === null ? new User : $leadMembership->usuario;
             $responsible->forceFill([
                 ...($responsible->exists ? [] : [
                     'gabinete_id' => $office->id,
-                    'role' => UserRole::Councilor,
+                    'role' => UserRole::Administrator,
                 ]),
                 'name' => $validated['responsavel_nome'],
                 'email' => Str::lower($validated['responsavel_email']),

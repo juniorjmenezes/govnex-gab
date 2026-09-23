@@ -2,8 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\EntidadeRole;
-use App\Enums\GabineteRole;
+use App\Enums\AccessRole;
 use App\Models\Entidade;
 use App\Models\Gabinete;
 use App\Services\Entidades\EntidadeInvitationService;
@@ -21,9 +20,9 @@ class EntidadeInvitationController extends Controller
         abort_unless($request->user()->canManageEntidade($entidade->id), 403);
         $validated = $request->validate([
             'email' => ['required', 'email:rfc', 'max:255'],
-            'entidade_role' => ['required', Rule::enum(EntidadeRole::class)],
+            'entidade_role' => ['required', Rule::enum(AccessRole::class)],
             'gabinete_id' => ['nullable', 'integer'],
-            'papel_gabinete' => ['nullable', Rule::enum(GabineteRole::class)],
+            'papel_gabinete' => ['nullable', Rule::enum(AccessRole::class)],
             'delivery_mode' => ['required', Rule::in(['EMAIL', 'SENHA_TEMPORARIA'])],
         ]);
         $gabinete = isset($validated['gabinete_id'])
@@ -33,8 +32,8 @@ class EntidadeInvitationController extends Controller
             $entidade,
             $gabinete,
             $validated['email'],
-            EntidadeRole::from($validated['entidade_role']),
-            isset($validated['papel_gabinete']) ? GabineteRole::from($validated['papel_gabinete']) : null,
+            AccessRole::from($validated['entidade_role']),
+            isset($validated['papel_gabinete']) ? AccessRole::from($validated['papel_gabinete']) : null,
             $request->user(),
             $validated['delivery_mode'],
         );

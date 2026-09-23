@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\Atendimento;
 use App\Models\User;
 
@@ -20,17 +19,17 @@ class AtendimentoPolicy
 
     public function create(User $user): bool
     {
-        return $user->gabinete_id !== null;
+        return $user->gabinete_id !== null && $user->role->canWrite();
     }
 
     public function update(User $user, Atendimento $atendimento): bool
     {
-        return $this->view($user, $atendimento);
+        return $this->view($user, $atendimento) && $user->role->canWrite();
     }
 
     public function delete(User $user, Atendimento $atendimento): bool
     {
         return $this->view($user, $atendimento)
-            && in_array($user->role, [UserRole::Councilor, UserRole::ChiefOfStaff], true);
+            && $user->role->isAdministrator();
     }
 }

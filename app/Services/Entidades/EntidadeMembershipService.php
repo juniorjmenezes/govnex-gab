@@ -2,15 +2,11 @@
 
 namespace App\Services\Entidades;
 
-use App\Enums\EntidadeRole;
+use App\Enums\AccessRole;
 use App\Enums\EntidadeType;
-use App\Enums\GabineteRole;
-use App\Enums\GabineteType;
-use App\Enums\UserRole;
 use App\Models\Entidade;
 use App\Models\EntidadeMembro;
 use App\Models\Gabinete;
-use App\Models\GabineteLideranca;
 use App\Models\GabineteMembro;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -33,17 +29,10 @@ class EntidadeMembershipService
             return;
         }
 
-        [$entidadeRole, $gabineteRole] = match ($user->role) {
-            UserRole::Councilor => [
-                $entidade->tipo === EntidadeType::IndependentOffice
-                    ? EntidadeRole::Administrator
-                    : EntidadeRole::Operator,
-                GabineteRole::Leader,
-            ],
-            UserRole::ChiefOfStaff => [EntidadeRole::Manager, GabineteRole::Manager],
-            UserRole::Advisor => [EntidadeRole::Operator, GabineteRole::Member],
-            default => [EntidadeRole::Operator, GabineteRole::Member],
-        };
+        // O papel da conta vale para o gabinete; na entidade, administrador só
+        // continua administrador se ela for um gabinete independente.
+        $gabineteRole = $user->role->accessRole() ?? AccessRole::Operator;
+        $entidadeRole = $gabineteRole->forEntidadeOfUnit($entidade->tipo);
 
         DB::transaction(function () use ($user, $gabinete, $entidade, $entidadeRole, $gabineteRole, $actor): void {
             $entidadeMembership = EntidadeMembro::query()->firstOrNew([
@@ -70,35 +59,6 @@ class EntidadeMembershipService
                     'criado_por' => $actor?->id,
                 ],
             );
-
-            if ($gabineteRole === GabineteRole::Leader && $user->is_active) {
-                GabineteLideranca::query()
-                    ->where('gabinete_id', $gabinete->id)
-                    ->whereNull('fim_em')
-                    ->where('usuario_id', '!=', $user->id)
-                    ->update(['fim_em' => now()->subDay()->toDateString()]);
-
-                GabineteLideranca::query()->firstOrCreate(
-                    [
-                        'gabinete_id' => $gabinete->id,
-                        'usuario_id' => $user->id,
-                        'fim_em' => null,
-                    ],
-                    [
-                        'entidade_id' => $gabinete->entidade_id,
-                        'nome_snapshot' => $user->name,
-                        'rotulo' => ($gabinete->tipo_gabinete ?? GabineteType::IndependentOffice)->leaderLabel(),
-                        'inicio_em' => now()->toDateString(),
-                        'registrado_por' => $actor?->id,
-                    ],
-                );
-            } else {
-                GabineteLideranca::query()
-                    ->where('gabinete_id', $gabinete->id)
-                    ->where('usuario_id', $user->id)
-                    ->whereNull('fim_em')
-                    ->update(['fim_em' => now()->toDateString()]);
-            }
         });
     }
 }

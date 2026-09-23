@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\DemandStatus;
-use App\Enums\UserRole;
 use App\Http\Requests\Citizens\StoreCitizenRequest;
 use App\Http\Requests\Citizens\UpdateCitizenRequest;
 use App\Models\Bairro;
@@ -27,7 +26,7 @@ class CidadaoController extends Controller
 
         return Inertia::render('citizens/index', [
             'filters' => ['q' => $search],
-            'canDelete' => in_array($request->user()->role, [UserRole::Councilor, UserRole::ChiefOfStaff], true),
+            'canDelete' => $request->user()->role->isAdministrator(),
             'citizens' => Cidadao::query()
                 ->select(['id', 'nome', 'telefone', 'whatsapp', 'email', 'bairro_id', 'consentimento_contato', 'eleitor', 'cadastrado_em'])
                 ->with('bairro:id,nome')

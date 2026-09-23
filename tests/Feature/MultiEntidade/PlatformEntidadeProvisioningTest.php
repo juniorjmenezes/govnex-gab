@@ -2,10 +2,9 @@
 
 namespace Tests\Feature\MultiEntidade;
 
-use App\Enums\EntidadeRole;
+use App\Enums\AccessRole;
 use App\Enums\EntidadeStatus;
 use App\Enums\EntidadeType;
-use App\Enums\GabineteRole;
 use App\Enums\GabineteType;
 use App\Models\Entidade;
 use App\Models\EntidadeMembro;
@@ -63,12 +62,12 @@ class PlatformEntidadeProvisioningTest extends TestCase
         $this->assertDatabaseHas('entidade_membros', [
             'entidade_id' => $entidade->id,
             'usuario_id' => $leader->id,
-            'papel' => EntidadeRole::Administrator->value,
+            'papel' => AccessRole::Administrator->value,
         ]);
         $this->assertDatabaseHas('gabinete_membros', [
             'gabinete_id' => $gabinete->id,
             'usuario_id' => $leader->id,
-            'papel' => GabineteRole::Leader->value,
+            'papel' => AccessRole::Administrator->value,
         ]);
     }
 
@@ -115,12 +114,12 @@ class PlatformEntidadeProvisioningTest extends TestCase
         $this->assertDatabaseHas('entidade_membros', [
             'entidade_id' => $entidade->id,
             'usuario_id' => $leader->id,
-            'papel' => EntidadeRole::Operator->value,
+            'papel' => AccessRole::Operator->value,
         ]);
         $this->assertDatabaseHas('gabinete_membros', [
             'gabinete_id' => $gabinete->id,
             'usuario_id' => $leader->id,
-            'papel' => GabineteRole::Leader->value,
+            'papel' => AccessRole::Administrator->value,
         ]);
     }
 
@@ -299,18 +298,18 @@ class PlatformEntidadeProvisioningTest extends TestCase
         $gabinete = Gabinete::factory()->for($entidade, 'entidade')->create([
             'tipo_gabinete' => GabineteType::CouncilorOffice,
         ]);
-        $leader = User::factory()->councilor()->forGabinete($gabinete)->create();
+        $leader = User::factory()->administrator()->forGabinete($gabinete)->create();
         $membership = EntidadeMembro::query()
             ->where('entidade_id', $entidade->id)
             ->where('usuario_id', $leader->id)
             ->firstOrFail();
-        $membership->forceFill(['papel' => EntidadeRole::Administrator])->save();
+        $membership->forceFill(['papel' => AccessRole::Administrator])->save();
 
         $leader->forceFill(['name' => 'Liderança Atualizada'])->save();
 
         $this->assertDatabaseHas('entidade_membros', [
             'id' => $membership->id,
-            'papel' => EntidadeRole::Administrator->value,
+            'papel' => AccessRole::Administrator->value,
         ]);
     }
 

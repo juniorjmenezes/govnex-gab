@@ -48,7 +48,7 @@ class DemandaFactory extends Factory
     ): static {
         $cidadao ??= Cidadao::factory()->forGabinete($gabinete, $bairro)->create();
         $categoria ??= Categoria::factory()->forGabinete($gabinete)->create();
-        $creator ??= User::factory()->advisor()->forGabinete($gabinete)->create();
+        $creator ??= User::factory()->operator()->forGabinete($gabinete)->create();
 
         return $this->state(fn (): array => [
             'gabinete_id' => $gabinete->id,

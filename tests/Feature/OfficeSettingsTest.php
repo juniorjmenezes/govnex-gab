@@ -36,7 +36,7 @@ test('councilor updates office address and visual identity', function () {
         'municipio' => 'Caucaia',
         'estado' => 'CE',
     ]);
-    $councilor = User::factory()->councilor()->forGabinete($office)->create();
+    $councilor = User::factory()->administrator()->forGabinete($office)->create();
 
     $this->actingAs($councilor)
         ->put(route('office-settings.update'), [
@@ -93,7 +93,7 @@ test('councilor updates office address and visual identity', function () {
 
 test('councilor can view the configured electoral number', function () {
     $office = Gabinete::factory()->create(['numero_eleitoral' => '98765']);
-    $councilor = User::factory()->councilor()->forGabinete($office)->create();
+    $councilor = User::factory()->administrator()->forGabinete($office)->create();
 
     $this->actingAs($councilor)
         ->get(route('office-settings.edit'))
@@ -133,7 +133,7 @@ test('councilor sees the matched tse candidate once resolved', function () {
         'numero_eleitoral' => '11555',
         'candidato_titular_id' => $titular->id,
     ]);
-    $councilor = User::factory()->councilor()->forGabinete($office)->create();
+    $councilor = User::factory()->administrator()->forGabinete($office)->create();
 
     $this->actingAs($councilor)
         ->get(route('office-settings.edit'))
@@ -154,7 +154,7 @@ test('councilor restores the system identity and deletes the custom logo', funct
         'logo_path' => $logoPath,
         'cor_principal' => '#0F766E',
     ]);
-    $councilor = User::factory()->councilor()->forGabinete($office)->create();
+    $councilor = User::factory()->administrator()->forGabinete($office)->create();
 
     $this->actingAs($councilor)
         ->put(route('office-settings.update'), [
