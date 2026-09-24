@@ -42,6 +42,8 @@ class GabineteSettingsController extends Controller
                 'formato_protocolo',
                 'cabecalho_relatorios',
             ]),
+            // Nome de gabinete ligado ao Govnex Hub é alterado lá.
+            'nameManagedByHub' => $gabinete->hub_unidade_id !== null,
             'settings' => $configuracao->only(['partido', 'legislatura']),
             'canUpdate' => $request->user()->can('update', $configuracao),
             // O número eleitoral e o candidato titular são definidos pela

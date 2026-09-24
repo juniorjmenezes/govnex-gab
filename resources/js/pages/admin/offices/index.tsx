@@ -65,6 +65,11 @@ type Props = {
     moduleCatalog: GabineteModuleDefinition[];
 };
 
+const statusActionLabel = (office: AdminOffice) =>
+    office.hub_linked
+        ? `Situação de ${office.name}: definida no Govnex Hub — altere lá`
+        : `${office.status === 'ativo' ? 'Suspender' : 'Reativar'} ${office.name}`;
+
 export default function Offices({
     offices,
     filters,
@@ -361,7 +366,10 @@ export default function Offices({
                                                             ? 'destructive'
                                                             : 'outline'
                                                     }
-                                                    label={`${office.status === 'ativo' ? 'Suspender' : 'Reativar'} ${office.name}`}
+                                                    label={statusActionLabel(
+                                                        office,
+                                                    )}
+                                                    disabled={office.hub_linked}
                                                     onClick={() =>
                                                         setStatusTarget(office)
                                                     }
@@ -445,7 +453,8 @@ export default function Offices({
                                                 ? 'destructive'
                                                 : 'outline'
                                         }
-                                        label={`${office.status === 'ativo' ? 'Suspender' : 'Reativar'} ${office.name}`}
+                                        label={statusActionLabel(office)}
+                                        disabled={office.hub_linked}
                                         onClick={() => setStatusTarget(office)}
                                     >
                                         <PowerIcon aria-hidden="true" />

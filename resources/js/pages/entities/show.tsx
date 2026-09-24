@@ -26,6 +26,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { FieldDescription } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -92,6 +93,7 @@ type Entidade = {
     primary_color: string | null;
     secondary_color: string | null;
     simplified_interface: boolean;
+    hub_linked: boolean;
 };
 
 type SharedNeighborhood = {
@@ -733,6 +735,7 @@ export default function EntidadeShow({
                                         <Input
                                             id="entidade-name"
                                             aria-required="true"
+                                            disabled={entidade.hub_linked}
                                             value={settings.data.name}
                                             onChange={(event) =>
                                                 settings.setData(
@@ -741,6 +744,12 @@ export default function EntidadeShow({
                                                 )
                                             }
                                         />
+                                        {entidade.hub_linked && (
+                                            <FieldDescription>
+                                                Definido no Govnex Hub — altere
+                                                lá.
+                                            </FieldDescription>
+                                        )}
                                         <FieldError
                                             message={settings.errors.name}
                                         />

@@ -61,7 +61,7 @@ class DatabaseSeeder extends Seeder
     private function seed(array $accounts, bool $deployment): void
     {
         $fortaleza = $this->upsertIndependentOffice('gabinete-modelo-fortaleza', [
-            'nome' => 'Gabinete Modelo de Fortaleza',
+            'nome' => 'Gabinete Santos',
             'status' => GabineteStatus::Active,
             'vereador_nome' => 'Marina Oliveira',
             'municipio' => 'Fortaleza',

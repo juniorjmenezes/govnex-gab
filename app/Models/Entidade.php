@@ -25,6 +25,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $cor_secundaria
  * @property bool $interface_simplificada
  * @property string|null $hub_entidade_id
+ * @property Carbon|null $hub_sincronizado_em
+ * @property Carbon|null $suspensa_em
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -109,6 +111,7 @@ class Entidade extends Model
             'interface_simplificada' => 'boolean',
             'configuracoes' => 'array',
             'suspensa_em' => 'datetime',
+            'hub_sincronizado_em' => 'datetime',
         ];
     }
 }

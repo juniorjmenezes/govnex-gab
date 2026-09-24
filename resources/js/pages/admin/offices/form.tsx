@@ -18,6 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { FieldDescription } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
@@ -66,6 +67,7 @@ type Office = {
     complemento: string | null;
     bairro: string | null;
     cep: string | null;
+    hub_unidade_id: string | null;
 };
 type Responsible = { name: string; email: string } | null;
 
@@ -158,6 +160,7 @@ export default function OfficeForm({
     modules,
 }: Props) {
     const editing = office !== null;
+    const nameManagedByHub = office?.hub_unidade_id != null;
     const {
         control,
         register,
@@ -305,7 +308,12 @@ export default function OfficeForm({
         };
 
         if (editing) {
-            router.put(`/admin/gabinetes/${office.id}`, values, options);
+            // Campo desabilitado quando o nome vem do Govnex Hub: reenvia o atual.
+            router.put(
+                `/admin/gabinetes/${office.id}`,
+                nameManagedByHub ? { ...values, nome: office.nome } : values,
+                options,
+            );
         } else {
             router.post('/admin/gabinetes', values, options);
         }
@@ -315,12 +323,19 @@ export default function OfficeForm({
         label: string,
         type = 'text',
         description?: string,
+        hint?: string,
     ) => (
         <div className="space-y-1">
             <FieldLabel htmlFor={name} help={description} helpTitle={label}>
                 {label}
             </FieldLabel>
-            <Input id={name} type={type} {...register(name)} />
+            <Input
+                id={name}
+                type={type}
+                disabled={hint !== undefined}
+                {...register(name)}
+            />
+            {hint !== undefined && <FieldDescription>{hint}</FieldDescription>}
             <FieldError message={errors[name]?.message as string | undefined} />
         </div>
     );
@@ -505,6 +520,9 @@ export default function OfficeForm({
                                 'Nome do gabinete',
                                 'text',
                                 'Identifica o gabinete dentro da entidade.',
+                                nameManagedByHub
+                                    ? 'Definido no Govnex Hub — altere lá.'
+                                    : undefined,
                             )}
                             {field(
                                 'vereador_nome',

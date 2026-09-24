@@ -10,6 +10,7 @@ use App\Enums\UserRole;
 use App\Models\Entidade;
 use App\Models\Gabinete;
 use App\Models\User;
+use App\Rules\DefinidoNoHub;
 use App\Rules\MunicipalityInState;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -61,7 +62,12 @@ class OfficeRequest extends FormRequest
                 ],
                 'tipo_gabinete' => ['required', Rule::enum(GabineteType::class)],
             ] : []),
-            'nome' => ['required', 'string', 'min:2', 'max:180'],
+            'nome' => [
+                'required', 'string', 'min:2', 'max:180',
+                ...($office instanceof Gabinete
+                    ? [new DefinidoNoHub($office->hub_unidade_id !== null, $office->nome)]
+                    : []),
+            ],
             'vereador_nome' => ['required', 'string', 'min:2', 'max:180'],
             'numero_eleitoral' => ['nullable', 'string', 'regex:/^\d+$/', 'max:20'],
             'municipio' => $creating

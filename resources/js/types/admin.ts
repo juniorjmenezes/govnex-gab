@@ -31,6 +31,8 @@ export type AdminOffice = {
     slug: string;
     status: 'ativo' | 'suspenso';
     status_label: string;
+    /** Ligado ao Govnex Hub: nome e situação são definidos lá. */
+    hub_linked: boolean;
     entidade: {
         id: number;
         name: string;

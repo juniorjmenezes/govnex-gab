@@ -85,23 +85,31 @@ class GovnexHubApiClient
     }
 
     /**
-     * Entidades de uma conta (inclui `slug`).
+     * Entidades de uma conta (inclui `slug`; `status` e `atualizado_em` a
+     * partir do contrato de estrutura). O Hub esconde as suspensas por
+     * padrão — a reconciliação pede todas.
      *
      * @return array<int, array<string, mixed>>
      */
-    public function entidadesDaConta(string|int $contaId): array
+    public function entidadesDaConta(string|int $contaId, bool $somenteAtivas = true): array
     {
-        return $this->lista('/api/v1/contas/'.rawurlencode((string) $contaId).'/entidades');
+        return $this->lista('/api/v1/contas/'.rawurlencode((string) $contaId).'/entidades'.$this->filtroAtivas($somenteAtivas));
     }
 
     /**
-     * Unidades de uma entidade, já aninhadas em `unidades` (inclui `slug`).
+     * Unidades de uma entidade, já aninhadas em `unidades` (inclui `slug`,
+     * `ativa` e, a partir do contrato de estrutura, `atualizado_em`).
      *
      * @return array<int, array<string, mixed>>
      */
-    public function unidadesDaEntidade(string|int $entidadeId): array
+    public function unidadesDaEntidade(string|int $entidadeId, bool $somenteAtivas = true): array
     {
-        return $this->lista('/api/v1/entidades/'.rawurlencode((string) $entidadeId).'/unidades');
+        return $this->lista('/api/v1/entidades/'.rawurlencode((string) $entidadeId).'/unidades'.$this->filtroAtivas($somenteAtivas));
+    }
+
+    private function filtroAtivas(bool $somenteAtivas): string
+    {
+        return $somenteAtivas ? '' : '?somente_ativas=false';
     }
 
     /**

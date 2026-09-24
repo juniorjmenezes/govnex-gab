@@ -18,6 +18,9 @@ use RuntimeException;
  * Eventos de vínculo mexem só no vínculo citado. Um aviso isolado não afirma
  * nada sobre os outros vínculos da pessoa; quem afirma a lista completa é a API
  * de leitura, no login.
+ *
+ * Eventos de estrutura (`entidade.*`/`unidade.*`) não envolvem pessoa e vão
+ * direto para `HubEstruturaSyncService`.
  */
 class HubEventProcessor
 {
@@ -29,11 +32,18 @@ class HubEventProcessor
         'vinculo.criado',
         'vinculo.alterado',
         'vinculo.encerrado',
+        'entidade.criada',
+        'entidade.alterada',
+        'entidade.removida',
+        'unidade.criada',
+        'unidade.alterada',
+        'unidade.removida',
     ];
 
     public function __construct(
         private readonly HubProvisioningService $pessoas,
         private readonly HubVinculoSyncService $vinculos,
+        private readonly HubEstruturaSyncService $estrutura,
     ) {}
 
     /**
@@ -44,6 +54,13 @@ class HubEventProcessor
     {
         $tipo = (string) $evento['tipo'];
         $dados = (array) ($evento['dados'] ?? []);
+
+        // Eventos de estrutura não trazem pessoa: precisam sair antes da
+        // exigência do bloco `pessoa` logo abaixo.
+        if (str_starts_with($tipo, 'entidade.') || str_starts_with($tipo, 'unidade.')) {
+            return $this->aplicarEstrutura($tipo, $dados);
+        }
+
         $pessoa = is_array($dados['pessoa'] ?? null) ? $dados['pessoa'] : [];
 
         if ($pessoa === []) {
@@ -64,6 +81,40 @@ class HubEventProcessor
             'pessoa.desligada' => $this->desligar($user),
             default => $this->aplicarVinculo($user, $tipo, $dados),
         };
+    }
+
+    /**
+     * Nome e situação de entidade/unidade já ligada. Criação fica para a fase
+     * seguinte: o aviso é aceito (200) e ignorado, para o Hub não o tratar
+     * como falha.
+     *
+     * @param  array<string, mixed>  $dados
+     * @return array<string, mixed>
+     */
+    private function aplicarEstrutura(string $tipo, array $dados): array
+    {
+        [$recurso, $acao] = explode('.', $tipo, 2);
+
+        if ($acao === 'criada') {
+            Log::info('Criação de estrutura no Hub ainda não é espelhada no GAB; aviso ignorado.', [
+                'tipo' => $tipo,
+                'hub_id' => is_array($dados[$recurso] ?? null) ? ($dados[$recurso]['id'] ?? null) : null,
+            ]);
+
+            return ['acao' => 'estrutura_ignorada', 'tipo' => $tipo];
+        }
+
+        $bloco = is_array($dados[$recurso] ?? null) ? $dados[$recurso] : null;
+
+        if ($bloco === null) {
+            throw new RuntimeException("Evento de {$recurso} do Hub sem bloco de {$recurso}.");
+        }
+
+        $removida = $acao === 'removida';
+
+        return $recurso === 'entidade'
+            ? $this->estrutura->aplicarEntidade($bloco, $removida)
+            : $this->estrutura->aplicarUnidade($bloco, $removida);
     }
 
     /** @return array<string, mixed> */

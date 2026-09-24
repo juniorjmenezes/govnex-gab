@@ -9,6 +9,7 @@ use App\Models\Entidade;
 use App\Models\EntidadeBairro;
 use App\Models\EntidadeConvite;
 use App\Models\User;
+use App\Rules\DefinidoNoHub;
 use App\Services\Entidades\EntidadeInvitationService;
 use App\Services\Entidades\EntidadeQuotaService;
 use App\Services\Modules\EntidadeModuleManager;
@@ -62,6 +63,7 @@ class EntidadeController extends Controller
                 'primary_color' => $entidade->cor_principal,
                 'secondary_color' => $entidade->cor_secundaria,
                 'simplified_interface' => $entidade->interface_simplificada,
+                'hub_linked' => $entidade->hub_entidade_id !== null,
             ],
             'gabinetes' => $entidade->gabinetes->map(fn ($gabinete): array => [
                 'id' => $gabinete->id,
@@ -128,7 +130,7 @@ class EntidadeController extends Controller
     {
         abort_unless($request->user()->canManageEntidade($entidade->id), 403);
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:180'],
+            'name' => ['required', 'string', 'max:180', $this->nomeDefinidoNoHub($entidade)],
             'timezone' => ['required', 'timezone'],
             'primary_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'secondary_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
@@ -144,7 +146,7 @@ class EntidadeController extends Controller
     {
         abort_unless($request->user()->canManageEntidade($entidade->id), 403);
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:180'],
+            'name' => ['required', 'string', 'max:180', $this->nomeDefinidoNoHub($entidade)],
             'timezone' => ['required', 'timezone'],
             'primary_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'secondary_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
@@ -226,6 +228,12 @@ class EntidadeController extends Controller
         $modules->syncActivation($entidade, $validated['modules'], $request->user());
 
         return back()->with('success', 'Módulos da organização atualizados.');
+    }
+
+    /** Nome de entidade ligada ao Hub é alterado lá (docs/INTEGRACAO_GOVNEX_HUB.md). */
+    private function nomeDefinidoNoHub(Entidade $entidade): DefinidoNoHub
+    {
+        return new DefinidoNoHub($entidade->hub_entidade_id !== null, $entidade->nome);
     }
 
     /** @param array<string, mixed> $validated */

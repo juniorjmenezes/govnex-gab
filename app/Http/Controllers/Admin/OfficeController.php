@@ -199,6 +199,7 @@ class OfficeController extends Controller
                 'slug' => $office->slug,
                 'status' => $office->status->value,
                 'status_label' => $office->status->label(),
+                'hub_linked' => $office->hub_unidade_id !== null,
                 'entidade' => $office->entidade ? [
                     'id' => $office->entidade->id,
                     'name' => $office->entidade->nome,
@@ -503,7 +504,10 @@ class OfficeController extends Controller
 
             if ($office->entidade?->tipo === EntidadeType::IndependentOffice) {
                 $office->entidade->forceFill([
-                    'nome' => $validated['nome'],
+                    // Entidade ligada ao Hub recebe o nome de lá, por webhook.
+                    ...($office->entidade->hub_entidade_id === null
+                        ? ['nome' => $validated['nome']]
+                        : []),
                     'municipio' => $validated['municipio'],
                     'estado' => $validated['estado'],
                     'timezone' => $validated['timezone'],
@@ -537,7 +541,9 @@ class OfficeController extends Controller
             'suspended_at' => $status === GabineteStatus::Suspended ? now() : null,
         ])->save();
 
-        if ($office->entidade?->tipo === EntidadeType::IndependentOffice) {
+        // Situação de entidade ligada ao Hub é definida lá, por webhook.
+        if ($office->entidade?->tipo === EntidadeType::IndependentOffice
+            && $office->entidade->hub_entidade_id === null) {
             $office->entidade->forceFill([
                 'status' => $status === GabineteStatus::Active
                     ? EntidadeStatus::Active

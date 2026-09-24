@@ -1,6 +1,8 @@
 <?php
 
 use App\Enums\AccessRole;
+use App\Enums\EntidadeStatus;
+use App\Enums\GabineteStatus;
 use App\Models\Entidade;
 use App\Models\Gabinete;
 use App\Models\GabineteMembro;
@@ -199,5 +201,153 @@ it('descarta a reentrega do mesmo evento', function () {
 
 it('recusa evento de vínculo sem bloco de vínculo', function () {
     enviarWebhookDoHub(eventoDoHub('vinculo.criado', ['pessoa' => pessoaDoHub()]))
+        ->assertStatus(409);
+});
+
+/** @return array<string, mixed> */
+function entidadeDoHub(array $overrides = []): array
+{
+    return [
+        'id' => '3', 'conta_id' => '1', 'nome' => 'Gabinete Santos Renomeado',
+        'slug' => 'gabinete-santos-renomeado', 'tipo' => 'CAMARA_MUNICIPAL',
+        'status' => 'ativa', 'municipio' => 'Fortaleza', 'estado' => 'CE',
+        'atualizado_em' => now()->toIso8601String(),
+        ...$overrides,
+    ];
+}
+
+/** @return array<string, mixed> */
+function unidadeDoHub(array $overrides = []): array
+{
+    return [
+        'id' => '12', 'entidade_id' => '3', 'unidade_pai_id' => null,
+        'nome' => 'Gabinete do Vereador Santos', 'slug' => 'gabinete-do-vereador-santos',
+        'tipo' => 'GABINETE', 'ativa' => true,
+        'atualizado_em' => now()->toIso8601String(),
+        ...$overrides,
+    ];
+}
+
+it('renomeia a entidade ligada em entidade.alterada sem mexer no slug', function () {
+    $entidade = Entidade::factory()->create(['hub_entidade_id' => '3', 'nome' => 'Gabinete Santos', 'slug' => 'gabinete-santos']);
+
+    enviarWebhookDoHub(eventoDoHub('entidade.alterada', ['entidade' => entidadeDoHub()]))
+        ->assertOk()
+        ->assertJson(['ok' => true, 'acao' => 'entidade_sincronizada']);
+
+    $entidade->refresh();
+
+    expect($entidade->nome)->toBe('Gabinete Santos Renomeado')
+        ->and($entidade->slug)->toBe('gabinete-santos')
+        ->and($entidade->hub_sincronizado_em)->not->toBeNull();
+});
+
+it('suspende e reativa a entidade ligada conforme o status do Hub', function () {
+    $entidade = Entidade::factory()->create(['hub_entidade_id' => '3']);
+
+    enviarWebhookDoHub(eventoDoHub('entidade.alterada', ['entidade' => entidadeDoHub(['status' => 'suspensa'])]))->assertOk();
+
+    expect($entidade->fresh()->status)->toBe(EntidadeStatus::Suspended)
+        ->and($entidade->fresh()->suspensa_em)->not->toBeNull();
+
+    enviarWebhookDoHub(eventoDoHub('entidade.alterada', ['entidade' => entidadeDoHub([
+        'status' => 'ativa', 'atualizado_em' => now()->addMinute()->toIso8601String(),
+    ])]))->assertOk();
+
+    expect($entidade->fresh()->status)->toBe(EntidadeStatus::Active)
+        ->and($entidade->fresh()->suspensa_em)->toBeNull();
+});
+
+it('suspende, sem apagar, a entidade removida no Hub', function () {
+    $entidade = Entidade::factory()->create(['hub_entidade_id' => '3']);
+
+    enviarWebhookDoHub(eventoDoHub('entidade.removida', ['entidade' => entidadeDoHub(['status' => 'ativa'])]))
+        ->assertOk()
+        ->assertJson(['acao' => 'entidade_sincronizada']);
+
+    expect(Entidade::query()->find($entidade->id))->not->toBeNull()
+        ->and($entidade->fresh()->status)->toBe(EntidadeStatus::Suspended);
+});
+
+it('descarta evento de entidade mais antigo que o último aplicado', function () {
+    $entidade = Entidade::factory()->create([
+        'hub_entidade_id' => '3', 'nome' => 'Nome Atual', 'hub_sincronizado_em' => now(),
+    ]);
+
+    enviarWebhookDoHub(eventoDoHub('entidade.alterada', ['entidade' => entidadeDoHub([
+        'nome' => 'Nome Velho', 'status' => 'suspensa',
+        'atualizado_em' => now()->subHour()->toIso8601String(),
+    ])]))->assertOk()->assertJson(['acao' => 'evento_antigo_descartado']);
+
+    expect($entidade->fresh()->nome)->toBe('Nome Atual')
+        ->and($entidade->fresh()->status)->toBe(EntidadeStatus::Active);
+});
+
+it('ignora com 200 a entidade que não está ligada', function () {
+    $entidade = Entidade::factory()->create(['nome' => 'Sem Ligação', 'slug' => 'gabinete-santos-renomeado']);
+
+    enviarWebhookDoHub(eventoDoHub('entidade.alterada', ['entidade' => entidadeDoHub()]))
+        ->assertOk()
+        ->assertJson(['ok' => true, 'acao' => 'entidade_ignorada']);
+
+    expect($entidade->fresh()->nome)->toBe('Sem Ligação');
+});
+
+it('aceita e ignora com 200 a criação de entidade e de unidade', function (string $tipo, string $recurso) {
+    $bloco = $recurso === 'entidade' ? entidadeDoHub() : unidadeDoHub();
+
+    enviarWebhookDoHub(eventoDoHub($tipo, [$recurso => $bloco]))
+        ->assertOk()
+        ->assertJson(['ok' => true, 'acao' => 'estrutura_ignorada']);
+
+    expect(Entidade::query()->count())->toBe(0);
+})->with([
+    ['entidade.criada', 'entidade'],
+    ['unidade.criada', 'unidade'],
+]);
+
+it('renomeia, suspende e reativa o gabinete ligado pelos eventos de unidade', function () {
+    $gabinete = Gabinete::factory()->create(['hub_unidade_id' => '12', 'nome' => 'Gabinete Antigo', 'slug' => 'gabinete-antigo']);
+
+    enviarWebhookDoHub(eventoDoHub('unidade.alterada', ['unidade' => unidadeDoHub(['ativa' => false])]))
+        ->assertOk()
+        ->assertJson(['acao' => 'unidade_sincronizada']);
+
+    $gabinete = Gabinete::withoutGlobalScopes()->find($gabinete->id);
+
+    expect($gabinete->nome)->toBe('Gabinete do Vereador Santos')
+        ->and($gabinete->slug)->toBe('gabinete-antigo')
+        ->and($gabinete->status)->toBe(GabineteStatus::Suspended)
+        ->and($gabinete->suspended_at)->not->toBeNull();
+
+    enviarWebhookDoHub(eventoDoHub('unidade.alterada', ['unidade' => unidadeDoHub([
+        'ativa' => true, 'atualizado_em' => now()->addMinute()->toIso8601String(),
+    ])]))->assertOk();
+
+    $gabinete = Gabinete::withoutGlobalScopes()->find($gabinete->id);
+
+    expect($gabinete->status)->toBe(GabineteStatus::Active)
+        ->and($gabinete->suspended_at)->toBeNull();
+});
+
+it('suspende, sem apagar, o gabinete da unidade removida no Hub', function () {
+    $gabinete = Gabinete::factory()->create(['hub_unidade_id' => '12']);
+
+    enviarWebhookDoHub(eventoDoHub('unidade.removida', ['unidade' => unidadeDoHub()]))->assertOk();
+
+    $gabinete = Gabinete::withoutGlobalScopes()->find($gabinete->id);
+
+    expect($gabinete)->not->toBeNull()
+        ->and($gabinete->status)->toBe(GabineteStatus::Suspended);
+});
+
+it('ignora com 200 a unidade sem gabinete ligado', function () {
+    enviarWebhookDoHub(eventoDoHub('unidade.alterada', ['unidade' => unidadeDoHub()]))
+        ->assertOk()
+        ->assertJson(['acao' => 'unidade_ignorada']);
+});
+
+it('recusa evento de estrutura sem o bloco correspondente', function () {
+    enviarWebhookDoHub(eventoDoHub('entidade.alterada', ['unidade' => unidadeDoHub()]))
         ->assertStatus(409);
 });

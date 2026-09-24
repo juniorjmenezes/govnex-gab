@@ -20,6 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { FieldDescription } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MaskedInput } from '@/components/ui/masked-input';
@@ -87,13 +88,16 @@ type ElectoralCandidate = {
 };
 const value = (item: string | null) => item ?? '';
 const SYSTEM_PRIMARY_COLOR = '#C44F00';
+const HUB_MANAGED_HINT = 'Definido no Govnex Hub — altere lá.';
 export default function OfficeSettings({
     office,
     settings,
     canUpdate,
+    nameManagedByHub,
     electoralCandidate,
 }: {
     office: Office;
+    nameManagedByHub: boolean;
     settings: { partido: string | null; legislatura: string | null };
     canUpdate: boolean;
     electoralCandidate: ElectoralCandidate;
@@ -142,7 +146,11 @@ export default function OfficeSettings({
 
     const submit = (values: Values) => {
         const data = new FormData();
-        Object.entries(values).forEach(([key, item]) => {
+        // Campo desabilitado quando o nome vem do Govnex Hub: reenvia o atual.
+        const payload = nameManagedByHub
+            ? { ...values, nome: office.nome }
+            : values;
+        Object.entries(payload).forEach(([key, item]) => {
             if (key !== 'logo') {
                 data.append(
                     key,
@@ -174,6 +182,7 @@ export default function OfficeSettings({
         label: string,
         type = 'text',
         mask?: MaskType,
+        hint?: string,
     ) => (
         <div className="space-y-1">
             <Label className="grid items-start gap-1">
@@ -181,17 +190,18 @@ export default function OfficeSettings({
                 {mask ? (
                     <MaskedInput
                         mask={mask}
-                        disabled={!canUpdate}
+                        disabled={!canUpdate || hint !== undefined}
                         {...register(name)}
                     />
                 ) : (
                     <Input
                         type={type}
-                        disabled={!canUpdate}
+                        disabled={!canUpdate || hint !== undefined}
                         {...register(name)}
                     />
                 )}
             </Label>
+            {hint !== undefined && <FieldDescription>{hint}</FieldDescription>}
             <FieldError message={errors[name]?.message} />
         </div>
     );
@@ -225,7 +235,15 @@ export default function OfficeSettings({
                         </SurfaceHeader>
                         <div className="p-5">
                             <div className="grid gap-5 md:grid-cols-2">
-                                {input('nome', 'Nome do gabinete')}
+                                {input(
+                                    'nome',
+                                    'Nome do gabinete',
+                                    'text',
+                                    undefined,
+                                    nameManagedByHub
+                                        ? HUB_MANAGED_HINT
+                                        : undefined,
+                                )}
                                 {input('vereador_nome', 'Vereador(a)')}
                                 {input('partido', 'Partido')}
                                 <div className="space-y-1">

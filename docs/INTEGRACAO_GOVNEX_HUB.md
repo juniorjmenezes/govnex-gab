@@ -145,7 +145,9 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    `MÉTODO\nCAMINHO?QUERY\nTIMESTAMP\nNONCE\nsha256(corpo)` — o mesmo esquema que o
    GAB já valida em `WhatsAppCallbackSignatureValidator`. Tipos de evento:
    `pessoa.criada`, `pessoa.alterada`, `pessoa.desligada`, `vinculo.criado`,
-   `vinculo.alterado`, `vinculo.encerrado`.
+   `vinculo.alterado`, `vinculo.encerrado` e, desde 24/09/2026, os de estrutura
+   `entidade.criada|alterada|removida` e `unidade.criada|alterada|removida`
+   (ver "Estrutura definida pelo Hub" abaixo).
 
    ```json
    {
@@ -247,6 +249,83 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    passo, vínculos não mapeáveis são ignorados com aviso em log e o login
    **não desativa** os vínculos locais existentes (só uma lista vazia
    deliberada, ou `pessoa.desligada`, desliga tudo).
+
+   ### Estrutura definida pelo Hub (24/09/2026)
+
+   O Hub é a fonte da verdade do **nome e da situação** das entidades e
+   unidades **já ligadas** (`entidades.hub_entidade_id`,
+   `gabinetes.hub_unidade_id`). Renomear, suspender ou reativar no Hub chega ao
+   GAB pelo webhook. Todo o resto — slug, tipo, cores, módulos, licença,
+   timezone — continua do GAB.
+
+   **Eventos.** `entidade.criada`, `entidade.alterada`, `entidade.removida`,
+   `unidade.criada`, `unidade.alterada`, `unidade.removida`. O Hub os emite
+   para **todos** os sistemas notificáveis (não só os que têm vínculo na
+   entidade) e só quando muda campo relevante (`nome, slug, sigla, tipo,
+   municipio, estado, status` na entidade; `nome, slug, tipo, ativa,
+   unidade_pai_id` na unidade) ou a exclusão.
+
+   ```json
+   {
+     "id": "<uuid>", "tipo": "entidade.alterada", "sistema": "GAB",
+     "ocorrido_em": "2026-09-24T10:00:00-03:00",
+     "dados": {
+       "entidade": {
+         "id": "3", "conta_id": "1", "nome": "Gabinete Santos",
+         "slug": "gabinete-santos", "tipo": "CAMARA_MUNICIPAL",
+         "status": "ativa", "municipio": "Fortaleza", "estado": "CE",
+         "atualizado_em": "2026-09-24T10:00:00-03:00"
+       }
+     }
+   }
+   ```
+
+   Eventos de unidade trazem `dados.unidade` =
+   `{id, entidade_id, unidade_pai_id, nome, slug, tipo, ativa, atualizado_em}`.
+   Ids são string; `atualizado_em` é o `updated_at` do registro no Hub. Não há
+   bloco `pessoa`.
+
+   **Como o GAB aplica** (`HubEstruturaSyncService`, chamado pelo
+   `HubEventProcessor` antes da exigência de `pessoa`):
+
+   | Situação | Resultado |
+   |---|---|
+   | `*.alterada` de item ligado | Aplica `nome` e situação: entidade `status = ativa` → `ATIVA`, qualquer outro → `SUSPENSA` (com `suspensa_em`); unidade `ativa` → gabinete `ativo`/`suspenso` (com `suspended_at`). Slug **nunca** é alterado. |
+   | `*.removida` de item ligado | **Suspende**, nunca apaga (reversível; os dados operacionais ficam). |
+   | Item não ligado | `Log::info` e **200** (`entidade_ignorada`/`unidade_ignorada`). Nunca 409/422. |
+   | `*.criada` | Aceito com **200** e ignorado (`estrutura_ignorada`) — fase seguinte. |
+   | `atualizado_em` mais antigo que `hub_sincronizado_em` | Descartado (`evento_antigo_descartado`). Igual é reaplicado — `updated_at` tem resolução de segundo e o retrato é idempotente. |
+   | Bloco `entidade`/`unidade` ausente ou sem `id` | 409 (payload inaplicável), como vínculo sem bloco. |
+
+   `entidades.hub_sincronizado_em` e `gabinetes.hub_sincronizado_em` guardam o
+   `atualizado_em` do último retrato aplicado.
+
+   **Edição local bloqueada.** Para item ligado, nome (Administração →
+   Gabinetes, Configurações do gabinete, identidade da entidade) e situação do
+   gabinete (suspender/reativar na administração) ficam desabilitados com a dica
+   "Definido no Govnex Hub — altere lá", e o backend recusa valor diferente do
+   atual (`App\Rules\DefinidoNoHub`). A edição do gabinete independente deixa de
+   copiar nome e situação para a entidade quando ela está ligada. Itens não
+   ligados continuam editáveis.
+
+   **Rede de segurança.** `php artisan hub:espelhar-estrutura --atualizar`
+   (com `--dry-run` para só listar divergências) aplica nome e situação do Hub
+   aos itens ligados, pedindo à API inclusive os suspensos
+   (`?somente_ativas=false`). Cobre aviso perdido ou expirado e divergências
+   antigas. O comando casa item já ligado pelo id do Hub; o slug só é usado para
+   ligar pela primeira vez. A API do Hub passou a devolver `status` e
+   `atualizado_em` nas entidades e `atualizado_em` nas unidades (aditivo).
+
+   **Ordem de deploy: GAB antes do Hub.** O GAB antigo responde 422 a tipo
+   desconhecido e o Hub trata 4xx como falha permanente: se o Hub subir antes,
+   os eventos de estrutura ficam `Falhou`. Depois de publicar os dois, rode
+   `hub:espelhar-estrutura --atualizar --dry-run` e, se coerente, sem
+   `--dry-run`.
+
+   **Fora de escopo (fase seguinte).** Estrutura criada no Hub nascer no GAB
+   (exige inferir `tipo_gabinete`, provisionar licença, módulos e quotas da
+   entidade e criar administrador; o mapeamento Hub→GAB é ambíguo), Conta (o GAB
+   não a conhece), timezone, tipos e unidades aninhadas (o GAB é plano).
 3. **Carga inicial:** vincular as contas existentes por e-mail (decisão #7) e revisar as divergências (duplicados, e-mails que não batem).
 4. **Corte:** login local do GAB desativado; SSO pelo Hub vira obrigatório (decisão #2). Telas de gestão de usuários do GAB passam a somente leitura. Sessões já abertas continuam até expirar se o Hub cair (decisão #10); root continua local (decisão #6).
 5. **Limpeza:** remover senha, 2FA e passkeys locais do GAB, `users.role` como dado editável e as rotas legadas que dependem de `users.gabinete_id`.

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Settings;
 
+use App\Rules\DefinidoNoHub;
 use App\Rules\MunicipalityInState;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -17,8 +18,13 @@ class UpdateGabineteSettingsRequest extends FormRequest
     /** @return array<string, array<int, mixed>> */
     public function rules(): array
     {
+        $gabinete = $this->user()->gabinete()->first();
+
         return [
-            'nome' => ['required', 'string', 'max:255'],
+            'nome' => [
+                'required', 'string', 'max:255',
+                new DefinidoNoHub($gabinete?->hub_unidade_id !== null, $gabinete?->nome),
+            ],
             'vereador_nome' => ['required', 'string', 'max:255'],
             'partido' => ['nullable', 'string', 'max:30'],
             'legislatura' => ['nullable', 'string', 'max:50'],

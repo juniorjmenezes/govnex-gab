@@ -29,6 +29,9 @@ return new class extends Migration
             // Identificador da Entidade correspondente no Govnex Hub
             // (docs/INTEGRACAO_GOVNEX_HUB.md). Nulo até a carga inicial.
             $table->string('hub_entidade_id')->nullable()->unique();
+            // `atualizado_em` do último retrato do Hub aplicado aqui: evento
+            // mais antigo que ele é descartado (a fila não garante ordem).
+            $table->timestamp('hub_sincronizado_em')->nullable();
             $table->timestamp('suspensa_em')->nullable();
             $table->timestamps();
             $table->softDeletes();
@@ -64,6 +67,7 @@ return new class extends Migration
             // Identificador da Unidade correspondente no Govnex Hub
             // (docs/INTEGRACAO_GOVNEX_HUB.md). Nulo até a carga inicial.
             $table->string('hub_unidade_id')->nullable()->unique();
+            $table->timestamp('hub_sincronizado_em')->nullable();
             $table->timestamp('suspended_at')->nullable();
             $table->timestamps();
             $table->softDeletes();

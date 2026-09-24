@@ -31,6 +31,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $candidato_titular_id
  * @property string|null $timezone
  * @property string|null $hub_unidade_id
+ * @property Carbon|null $hub_sincronizado_em
  * @property Carbon|null $suspended_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -155,6 +156,7 @@ class Gabinete extends Model
             'status' => GabineteStatus::class,
             'tipo_gabinete' => GabineteType::class,
             'suspended_at' => 'datetime',
+            'hub_sincronizado_em' => 'datetime',
         ];
     }
 }

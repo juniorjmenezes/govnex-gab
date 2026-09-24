@@ -14,7 +14,8 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Recebe os avisos de pessoa e vínculo do Govnex Hub.
+ * Recebe os avisos de pessoa, vínculo e estrutura (entidade/unidade) do
+ * Govnex Hub.
  *
  * Mesma forma do receptor de callbacks do WhatsApp: assinatura primeiro,
  * formato depois, idempotência antes de tocar no banco. A ordem importa —
