@@ -10,6 +10,7 @@ use App\Models\GabineteMembro;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Aplica no GAB os vínculos que o Hub declara para uma pessoa.
@@ -32,7 +33,10 @@ use Illuminate\Support\Facades\Log;
  */
 class HubVinculoSyncService
 {
-    public function __construct(private readonly HubPapelMapper $papeis) {}
+    public function __construct(
+        private readonly HubPapelMapper $papeis,
+        private readonly HubEstruturaSyncService $estrutura,
+    ) {}
 
     /**
      * Retrato completo: aplica todos os vínculos recebidos, desativa os que
@@ -42,6 +46,12 @@ class HubVinculoSyncService
      */
     public function aplicar(User $user, array $vinculos): void
     {
+        foreach ($vinculos as $vinculo) {
+            if (! $this->papeis->isRoot($this->texto($vinculo['papel'] ?? null))) {
+                $this->garantirEstrutura($user, $vinculo);
+            }
+        }
+
         DB::transaction(function () use ($user, $vinculos): void {
             $entidadesVistas = [];
             $gabinetesVistos = [];
@@ -98,6 +108,8 @@ class HubVinculoSyncService
             return;
         }
 
+        $this->garantirEstrutura($user, $vinculo);
+
         DB::transaction(function () use ($user, $vinculo): void {
             $this->escrever($user, $vinculo);
             $this->reprojetarContextoLegado($user);
@@ -108,6 +120,47 @@ class HubVinculoSyncService
     public function desativarTodos(User $user): void
     {
         $this->aplicar($user, []);
+    }
+
+    /**
+     * Entidade ou unidade do vínculo que ainda não está espelhada é criada
+     * sob demanda pela API do Hub (respeitando a habilitação do GAB na
+     * entidade e os tipos com equivalente) — a fila não garante que o
+     * `*.criada` chegue antes do vínculo. Fica fora da transação dos vínculos
+     * porque envolve HTTP. Se não der (Hub fora do ar, GAB não habilitado,
+     * tipo sem equivalente), `escrever()` ignora o vínculo como antes.
+     *
+     * @param  array<string, mixed>  $vinculo
+     */
+    private function garantirEstrutura(User $user, array $vinculo): void
+    {
+        $hubEntidadeId = $this->texto($vinculo['entidade_id'] ?? null);
+        $hubUnidadeId = $this->texto($vinculo['unidade_id'] ?? null);
+
+        if ($hubEntidadeId === null) {
+            return;
+        }
+
+        try {
+            if ($hubUnidadeId !== null) {
+                $this->estrutura->resolverUnidade($hubEntidadeId, $hubUnidadeId);
+            } else {
+                $this->estrutura->resolverEntidade($hubEntidadeId);
+            }
+        } catch (Throwable $e) {
+            // Falhar aqui não pode derrubar o login nem os demais vínculos:
+            // o vínculo só fica sem espelho, como se a estrutura não existisse.
+            if (! $e instanceof HubIndisponivelException) {
+                report($e);
+            }
+
+            Log::warning('Estrutura do vínculo não resolvida no Govnex Hub.', [
+                'hub_entidade_id' => $hubEntidadeId,
+                'hub_unidade_id' => $hubUnidadeId,
+                'usuario_id' => $user->id,
+                'erro' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -126,9 +179,9 @@ class HubVinculoSyncService
         $entidade = Entidade::query()->where('hub_entidade_id', $hubEntidadeId)->first();
 
         if ($entidade === null) {
-            // Estrutura ainda não espelhada aqui. Não é erro de execução: a
-            // entidade pode existir no Hub e ainda não ter sido criada no GAB.
-            // Ignorar o vínculo é preferível a inventar uma entidade local.
+            // Nem sob demanda deu para espelhar (Hub fora do ar, GAB não
+            // habilitado na entidade, tipo sem equivalente). Ignorar o
+            // vínculo é preferível a inventar uma entidade local.
             Log::warning('Vínculo do Hub ignorado: entidade não espelhada no GAB.', [
                 'hub_entidade_id' => $hubEntidadeId,
                 'usuario_id' => $user->id,

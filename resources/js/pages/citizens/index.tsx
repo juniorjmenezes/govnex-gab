@@ -27,6 +27,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useCanWrite } from '@/hooks/use-can-write';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { maskPhone } from '@/lib/masks';
 import { preservedListParams } from '@/lib/pagination';
@@ -43,6 +44,7 @@ export default function CitizensIndex({
     canDelete: boolean;
 }) {
     const tenantUrl = useTenantUrl();
+    const canWrite = useCanWrite();
     const [query, setQuery] = useState(filters.q);
     const isFirstRender = useRef(true);
 
@@ -75,12 +77,14 @@ export default function CitizensIndex({
                     title="Cidadãos"
                     description="Base de contatos atendidos pelo gabinete, isolada por equipe."
                     actions={
-                        <Button asChild>
-                            <Link href={tenantUrl('/cidadaos/create')}>
-                                <AddIcon />
-                                Novo cidadão
-                            </Link>
-                        </Button>
+                        canWrite ? (
+                            <Button asChild>
+                                <Link href={tenantUrl('/cidadaos/create')}>
+                                    <AddIcon />
+                                    Novo cidadão
+                                </Link>
+                            </Button>
+                        ) : undefined
                     }
                 />
                 <form
@@ -184,18 +188,20 @@ export default function CitizensIndex({
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex justify-end gap-2">
-                                                    <TableActionButton
-                                                        asChild
-                                                        label={`Editar ${citizen.nome}`}
-                                                    >
-                                                        <Link
-                                                            href={tenantUrl(
-                                                                `/cidadaos/${citizen.id}/edit`,
-                                                            )}
+                                                    {canWrite && (
+                                                        <TableActionButton
+                                                            asChild
+                                                            label={`Editar ${citizen.nome}`}
                                                         >
-                                                            <PenIcon aria-hidden="true" />
-                                                        </Link>
-                                                    </TableActionButton>
+                                                            <Link
+                                                                href={tenantUrl(
+                                                                    `/cidadaos/${citizen.id}/edit`,
+                                                                )}
+                                                            >
+                                                                <PenIcon aria-hidden="true" />
+                                                            </Link>
+                                                        </TableActionButton>
+                                                    )}
                                                     {canDelete && (
                                                         <DeleteRecordButton
                                                             url={tenantUrl(

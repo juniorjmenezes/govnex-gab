@@ -2,10 +2,13 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\EntidadeType;
 use App\Models\Entidade;
 use App\Models\Gabinete;
 use App\Services\Hub\GovnexHubApiClient;
 use App\Services\Hub\HubEstruturaSyncService;
+use App\Services\Hub\HubIndisponivelException;
+use App\Services\Hub\HubTipoMapper;
 use Illuminate\Console\Command;
 use RuntimeException;
 
@@ -27,25 +30,36 @@ use RuntimeException;
  * segurança para aviso perdido ou expirado e para divergências antigas; pede
  * ao Hub inclusive as suspensas. Depois de ligado, o casamento é pelo id do
  * Hub — o slug local nunca é alterado.
+ *
+ * Com `--criar`, cria no GAB a estrutura do Hub que ainda não tem espelho —
+ * só entidade com o GAB habilitado e tipo com equivalente, e só unidade raiz
+ * com tipo com equivalente —, pelo mesmo caminho do webhook
+ * (`HubEstruturaSyncService::criarEntidade`/`criarUnidade`). É a rede de
+ * segurança para `*.criada` perdido e para entidades em que o GAB foi
+ * habilitado depois de criadas. Com `--dry-run`, só lista o que nasceria.
  */
 class EspelharEstruturaHub extends Command
 {
     protected $signature = 'hub:espelhar-estrutura
         {--dry-run : Mostra o que seria preenchido sem gravar}
-        {--atualizar : Aplica nome e situação do Hub aos itens ligados}';
+        {--atualizar : Aplica nome e situação do Hub aos itens ligados}
+        {--criar : Cria no GAB a estrutura habilitada no Hub que ainda não tem espelho}';
 
     protected $description = 'Preenche hub_entidade_id e hub_unidade_id casando a estrutura do Hub por slug';
 
     private bool $atualizar = false;
 
+    private bool $criar = false;
+
     public function handle(GovnexHubApiClient $hub, HubEstruturaSyncService $estrutura): int
     {
         $dryRun = (bool) $this->option('dry-run');
         $this->atualizar = (bool) $this->option('atualizar');
+        $this->criar = (bool) $this->option('criar');
         $r = [
             'casadas' => 0, 'ja_preenchidas' => 0, 'sem_local' => [], 'conflitos' => [],
             'unidades_casadas' => 0, 'unidades_ja_preenchidas' => 0, 'unidades_sem_local' => [],
-            'atualizacoes' => [],
+            'atualizacoes' => [], 'criacoes' => [],
         ];
         $entidadesVistas = [];
         $gabinetesVistos = [];
@@ -56,7 +70,7 @@ class EspelharEstruturaHub extends Command
                     $this->espelharEntidade($hub, $estrutura, $eh, $dryRun, $r, $entidadesVistas, $gabinetesVistos);
                 }
             }
-        } catch (RuntimeException $e) {
+        } catch (RuntimeException|HubIndisponivelException $e) {
             $this->error($e->getMessage());
 
             return self::FAILURE;
@@ -79,6 +93,14 @@ class EspelharEstruturaHub extends Command
 
             foreach ($r['atualizacoes'] as $atualizacao) {
                 $this->line("  {$atualizacao}");
+            }
+        }
+
+        if ($this->criar) {
+            $this->line(($dryRun ? 'Seriam criados no GAB' : 'Criados no GAB').': '.count($r['criacoes']));
+
+            foreach ($r['criacoes'] as $criacao) {
+                $this->line("  {$criacao}");
             }
         }
 
@@ -107,7 +129,16 @@ class EspelharEstruturaHub extends Command
             ?? ($slug === '' ? null : Entidade::query()->where('slug', $slug)->first());
 
         if ($entidade === null) {
-            $r['sem_local'][] = $slug !== '' ? $slug : "#{$hubId}";
+            if ($this->criar) {
+                $entidade = $this->criarEntidadeFaltante($hub, $estrutura, $eh, $dryRun, $r);
+            } else {
+                $r['sem_local'][] = $slug !== '' ? $slug : "#{$hubId}";
+            }
+
+            if ($entidade !== null) {
+                $entidadesVistas[] = $entidade->id;
+                $this->espelharUnidades($hub, $estrutura, $entidade, $hubId, $slug, $dryRun, $r, $gabinetesVistos);
+            }
 
             return;
         }
@@ -140,6 +171,70 @@ class EspelharEstruturaHub extends Command
             $this->atualizarEntidade($estrutura, $entidade, $eh, $dryRun, $r);
         }
 
+        $this->espelharUnidades($hub, $estrutura, $entidade, $hubId, $slug, $dryRun, $r, $gabinetesVistos);
+    }
+
+    /**
+     * Entidade do Hub sem espelho, com `--criar`: consulta a entidade (para
+     * saber se o GAB está habilitado nela, fuso e município resolvidos) e a
+     * cria pelo mesmo caminho do webhook. Em `--dry-run` só relata — e relata
+     * também as unidades que nasceriam junto.
+     *
+     * @param  array<string, mixed>  $eh
+     * @param  array<string, mixed>  $r
+     */
+    private function criarEntidadeFaltante(GovnexHubApiClient $hub, HubEstruturaSyncService $estrutura, array $eh, bool $dryRun, array &$r): ?Entidade
+    {
+        $hubId = (string) $eh['id'];
+        $rotulo = (string) ($eh['slug'] ?? '') !== '' ? (string) $eh['slug'] : "#{$hubId}";
+        $detalhe = $hub->entidade($hubId);
+
+        if ($detalhe === null) {
+            $r['sem_local'][] = "{$rotulo} (desconhecida pelo Hub)";
+
+            return null;
+        }
+
+        $detalhe = ['id' => $hubId] + $detalhe;
+        $motivo = $estrutura->motivoParaNaoCriarEntidade($detalhe);
+
+        if ($motivo !== null) {
+            $r['sem_local'][] = "{$rotulo} ({$motivo})";
+
+            return null;
+        }
+
+        $r['criacoes'][] = "Entidade '{$rotulo}'";
+
+        if ($dryRun) {
+            /** @var EntidadeType $tipo */
+            $tipo = app(HubTipoMapper::class)->entidadeType($estrutura->tipoDaEntidadeNoHub($detalhe));
+
+            foreach ($this->achatar($hub->unidadesDaEntidade($hubId)) as $uh) {
+                $uRotulo = "{$rotulo}/".((string) ($uh['slug'] ?? '') !== '' ? $uh['slug'] : "#{$uh['id']}");
+                $uMotivo = $estrutura->motivoParaNaoCriarUnidade($tipo, $uh);
+
+                if ($uMotivo === null) {
+                    $r['criacoes'][] = "Gabinete '{$uRotulo}'";
+                } else {
+                    $r['unidades_sem_local'][] = "{$uRotulo} ({$uMotivo})";
+                }
+            }
+
+            return null;
+        }
+
+        $estrutura->criarEntidade($detalhe);
+
+        return Entidade::query()->where('hub_entidade_id', $hubId)->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $r
+     * @param  array<int, int>  $gabinetesVistos
+     */
+    private function espelharUnidades(GovnexHubApiClient $hub, HubEstruturaSyncService $estrutura, Entidade $entidade, string $hubId, string $slug, bool $dryRun, array &$r, array &$gabinetesVistos): void
+    {
         foreach ($this->achatar($hub->unidadesDaEntidade($hubId, ! $this->atualizar)) as $uh) {
             $uId = (string) $uh['id'];
             $uSlug = (string) ($uh['slug'] ?? '');
@@ -148,7 +243,13 @@ class EspelharEstruturaHub extends Command
                     ->where('entidade_id', $entidade->id)->where('slug', $uSlug)->first());
 
             if ($gabinete === null) {
-                $r['unidades_sem_local'][] = "{$slug}/".($uSlug !== '' ? $uSlug : "#{$uId}");
+                $uRotulo = "{$slug}/".($uSlug !== '' ? $uSlug : "#{$uId}");
+
+                if ($this->criar) {
+                    $this->criarUnidadeFaltante($estrutura, $entidade, $hubId, $uh, $uRotulo, $dryRun, $r, $gabinetesVistos);
+                } else {
+                    $r['unidades_sem_local'][] = $uRotulo;
+                }
 
                 continue;
             }
@@ -175,6 +276,41 @@ class EspelharEstruturaHub extends Command
                 $this->atualizarGabinete($estrutura, $gabinete, $uh, $dryRun, $r);
             }
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $uh
+     * @param  array<string, mixed>  $r
+     * @param  array<int, int>  $gabinetesVistos
+     */
+    private function criarUnidadeFaltante(HubEstruturaSyncService $estrutura, Entidade $entidade, string $hubEntidadeId, array $uh, string $rotulo, bool $dryRun, array &$r, array &$gabinetesVistos): void
+    {
+        $motivo = $estrutura->motivoParaNaoCriarUnidade($entidade->tipo, $uh);
+
+        if ($motivo === null && $entidade->tipo === EntidadeType::IndependentOffice
+            && $entidade->gabinetes()->withoutGlobalScopes()->exists()) {
+            $motivo = 'entidade_nao_aceita';
+        }
+
+        if ($motivo !== null) {
+            $r['unidades_sem_local'][] = "{$rotulo} ({$motivo})";
+
+            return;
+        }
+
+        if (! $dryRun) {
+            $resultado = $estrutura->criarUnidade(['entidade_id' => $hubEntidadeId] + $uh);
+
+            if (($resultado['acao'] ?? null) !== 'unidade_criada') {
+                $r['unidades_sem_local'][] = "{$rotulo} (".($resultado['motivo'] ?? $resultado['acao'] ?? 'ignorada').')';
+
+                return;
+            }
+
+            $gabinetesVistos[] = (int) $resultado['gabinete_id'];
+        }
+
+        $r['criacoes'][] = "Gabinete '{$rotulo}'";
     }
 
     /**

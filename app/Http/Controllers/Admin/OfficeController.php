@@ -9,7 +9,6 @@ use App\Enums\EntidadeType;
 use App\Enums\GabineteModule;
 use App\Enums\GabineteStatus;
 use App\Enums\GabineteType;
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\OfficeRequest;
 use App\Http\Requests\Admin\UpdateOfficeModulesRequest;
@@ -17,12 +16,9 @@ use App\Http\Requests\Admin\UpdateOfficeStatusRequest;
 use App\Jobs\SyncOfficeSectionVotesFromGovnexApi;
 use App\Models\Entidade;
 use App\Models\Gabinete;
-use App\Models\GabineteMembro;
 use App\Models\GabineteModulo;
 use App\Models\GabineteModuloEvento;
 use App\Models\SincronizacaoTse;
-use App\Models\User;
-use App\Services\Entidades\EntidadeMembershipService;
 use App\Services\Modules\GabineteModuleCatalog;
 use App\Services\Modules\GabineteModuleManager;
 use App\Services\Politics\OfficeHolderCandidateResolver;
@@ -33,35 +29,18 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * Administração dos gabinetes. Criar entidade ou gabinete não acontece mais
+ * aqui: a estrutura nasce no Govnex Hub (`EstruturaNoHubController`,
+ * `HubEstruturaSyncService`).
+ */
 class OfficeController extends Controller
 {
-    public function create(Request $request, GabineteModuleCatalog $moduleCatalog): Response
+    public function edit(Gabinete $office): Response
     {
-        $this->authorize('create', Gabinete::class);
-        $entidades = $this->availableEntidades();
-        $selectedId = $request->integer('entidade');
-        $selected = collect($entidades)->firstWhere('id', $selectedId);
-
-        return Inertia::render('admin/offices/form', [
-            'office' => null,
-            'responsible' => null,
-            'entidade' => $selected,
-            'entidades' => $entidades,
-            'moduleCatalog' => array_values($moduleCatalog->definitions()),
-            'modules' => $moduleCatalog->values(),
-        ]);
-    }
-
-    public function edit(
-        Gabinete $office,
-        GabineteModuleCatalog $moduleCatalog,
-        GabineteModuleManager $modules,
-    ): Response {
         $this->authorize('update', $office);
 
         $office->load([
@@ -93,9 +72,6 @@ class OfficeController extends Controller
                     'leader_label' => $gabineteType->leaderLabel(),
                 ], $office->entidade->tipo->allowedGabineteTypes()),
             ] : null,
-            'entidades' => [],
-            'moduleCatalog' => array_values($moduleCatalog->definitions()),
-            'modules' => $modules->activeFor($office),
         ]);
     }
 
@@ -332,106 +308,6 @@ class OfficeController extends Controller
         ]);
     }
 
-    public function store(
-        OfficeRequest $request,
-        OfficeHolderCandidateResolver $holderResolver,
-        GabineteModuleManager $modules,
-        EntidadeMembershipService $memberships,
-        TsePoliticalDataSyncService $politicalDataSync,
-    ): RedirectResponse {
-        $validated = $request->validated();
-        $selection = $modules->validateSelection($validated['modules'] ?? $modules->allEnabled());
-
-        $office = DB::transaction(function () use (
-            $validated,
-            $selection,
-            $modules,
-            $request,
-            $memberships,
-            $politicalDataSync,
-        ): Gabinete {
-            $entidade = Entidade::query()
-                ->whereKey((int) $validated['entidade_id'])
-                ->where('status', EntidadeStatus::Active->value)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $gabineteType = GabineteType::from($validated['tipo_gabinete']);
-            if (! $entidade->tipo->accepts($gabineteType)
-                || ($entidade->tipo === EntidadeType::IndependentOffice
-                    && $entidade->gabinetes()->withoutGlobalScopes()->exists())) {
-                throw ValidationException::withMessages([
-                    'tipo_gabinete' => 'A entidade não aceita este tipo de gabinete.',
-                ]);
-            }
-
-            $office = new Gabinete;
-            $office->forceFill([
-                'entidade_id' => $entidade->id,
-                'tipo_gabinete' => $gabineteType,
-                ...collect($validated)->only([
-                    'nome', 'vereador_nome',
-                    'telefone', 'email', 'endereco', 'numero', 'complemento', 'bairro', 'cep',
-                ])->all(),
-                'municipio' => $entidade->municipio,
-                'estado' => $entidade->estado,
-                'timezone' => $entidade->timezone,
-                'numero_eleitoral' => in_array($gabineteType, [
-                    GabineteType::IndependentOffice,
-                    GabineteType::CouncilorOffice,
-                    GabineteType::MayorOffice,
-                ], true) ? $validated['numero_eleitoral'] : null,
-                'slug' => $this->uniqueGabineteSlug($validated['nome']),
-                'status' => GabineteStatus::Active,
-                'suspended_at' => null,
-            ])->save();
-
-            // Município/eleitorado/candidatos já cobrem o Brasil inteiro
-            // independente de gabinete cadastrado — só falta vincular este
-            // gabinete ao registro correspondente, se ele já existir.
-            $municipality = $politicalDataSync->resolveMunicipality($office->estado, $office->municipio);
-            $office->forceFill(['municipio_eleitoral_id' => $municipality?->id])->save();
-
-            $user = new User;
-            $user->forceFill([
-                'gabinete_id' => $office->id,
-                'name' => $validated['responsavel_nome'],
-                'email' => Str::lower($validated['responsavel_email']),
-                'password' => $validated['responsavel_password'],
-                'role' => UserRole::Administrator,
-                'is_active' => true,
-                'email_verified_at' => now(),
-            ])->save();
-            $memberships->syncLegacyUser($user, $request->user());
-
-            $modules->sync($office, $selection, $request->user(), [
-                'origem' => 'CADASTRO_GABINETE',
-            ]);
-
-            return $office;
-        });
-
-        Log::info('Gabinete criado pela administração da plataforma.', [
-            'gabinete_id' => $office->id,
-            'entidade_id' => $office->entidade_id,
-            'tipo_gabinete' => $office->tipo_gabinete->value,
-            'administrador_id' => $request->user()->id,
-        ]);
-
-        $holderResolver->resolveOffice($office);
-
-        if ($modules->isActive($office, GabineteModule::Politics)) {
-            SyncOfficeSectionVotesFromGovnexApi::dispatch($office->id);
-        }
-
-        Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => 'Gabinete e responsável cadastrados.',
-        ]);
-
-        return to_route('admin.offices.index');
-    }
-
     public function updateModules(
         UpdateOfficeModulesRequest $request,
         Gabinete $office,
@@ -479,29 +355,8 @@ class OfficeController extends Controller
                 $office->forceFill(['municipio_eleitoral_id' => $municipality?->id])->save();
             }
 
-            $leadMembership = GabineteMembro::query()
-                ->where('gabinete_id', $office->id)
-                ->where('papel', AccessRole::Administrator)
-                ->where('ativo', true)
-                ->orderBy('ingressou_em')
-                ->orderBy('id')
-                ->with('usuario')
-                ->first();
-            $responsible = $leadMembership === null ? new User : $leadMembership->usuario;
-            $responsible->forceFill([
-                ...($responsible->exists ? [] : [
-                    'gabinete_id' => $office->id,
-                    'role' => UserRole::Administrator,
-                ]),
-                'name' => $validated['responsavel_nome'],
-                'email' => Str::lower($validated['responsavel_email']),
-                'is_active' => true,
-                'email_verified_at' => $responsible->email_verified_at ?? now(),
-                ...(! empty($validated['responsavel_password'])
-                    ? ['password' => $validated['responsavel_password']]
-                    : []),
-            ])->save();
-
+            // Conta e vínculo do responsável vêm do Govnex Hub: esta tela não
+            // cria nem altera usuário (docs/INTEGRACAO_GOVNEX_HUB.md).
             if ($office->entidade?->tipo === EntidadeType::IndependentOffice) {
                 $office->entidade->forceFill([
                     // Entidade ligada ao Hub recebe o nome de lá, por webhook.
@@ -565,59 +420,5 @@ class OfficeController extends Controller
         ]);
 
         return back();
-    }
-
-    /** @return list<array<string, mixed>> */
-    private function availableEntidades(): array
-    {
-        return array_values(Entidade::query()
-            ->where('status', EntidadeStatus::Active->value)
-            ->where(function (Builder $query): void {
-                $query->whereIn('tipo', [EntidadeType::CityCouncil->value, EntidadeType::CityHall->value])
-                    ->orWhere(function (Builder $query): void {
-                        $query->where('tipo', EntidadeType::IndependentOffice->value)
-                            ->whereDoesntHave('gabinetes');
-                    });
-            })
-            ->withCount('gabinetes')
-            ->orderBy('nome')
-            ->get()
-            ->map(fn (Entidade $entidade): array => [
-                'id' => $entidade->id,
-                'name' => $entidade->nome,
-                'type' => $entidade->tipo->value,
-                'type_label' => $entidade->tipo->label(),
-                'city' => $entidade->municipio,
-                'state' => $entidade->estado,
-                'timezone' => $entidade->timezone,
-                'gabinetes_count' => (int) $entidade->getAttribute('gabinetes_count'),
-                'tipos_gabinete' => array_map(fn (GabineteType $gabineteType): array => [
-                    'value' => $gabineteType->value,
-                    'label' => $gabineteType->label(),
-                    'leader_label' => $gabineteType->leaderLabel(),
-                ], $entidade->tipo->allowedGabineteTypes()),
-            ])
-            ->values()
-            ->all());
-    }
-
-    private function uniqueGabineteSlug(string $name): string
-    {
-        return $this->uniqueSlugFor($name, Gabinete::withoutGlobalScopes());
-    }
-
-    /** @param Builder<Entidade>|Builder<Gabinete> $query */
-    private function uniqueSlugFor(string $name, Builder $query): string
-    {
-        $base = Str::slug($name) ?: 'gabinete';
-        $slug = $base;
-        $suffix = 2;
-
-        while ((clone $query)->where('slug', $slug)->exists()) {
-            $slug = "{$base}-{$suffix}";
-            $suffix++;
-        }
-
-        return $slug;
     }
 }

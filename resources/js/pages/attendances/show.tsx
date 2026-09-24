@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
+import { useCanWrite } from '@/hooks/use-can-write';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { maskPhone } from '@/lib/masks';
 import { hasModule } from '@/lib/modules';
@@ -43,6 +44,7 @@ export default function AttendanceShow({
 }) {
     const { auth } = usePage<{ auth: Auth }>().props;
     const tenantUrl = useTenantUrl();
+    const canWrite = useCanWrite();
     const demandsEnabled = hasModule(auth.modules, 'DEMANDAS');
 
     return (
@@ -54,16 +56,18 @@ export default function AttendanceShow({
                     description={`${attendance.cidadao.nome} • ${formatDateTime(attendance.atendido_em)}`}
                     actions={
                         <div className="flex gap-2">
-                            <Button variant="outline" asChild>
-                                <Link
-                                    href={tenantUrl(
-                                        `/atendimentos/${attendance.id}/edit`,
-                                    )}
-                                >
-                                    <PenIcon />
-                                    Editar
-                                </Link>
-                            </Button>
+                            {canWrite && (
+                                <Button variant="outline" asChild>
+                                    <Link
+                                        href={tenantUrl(
+                                            `/atendimentos/${attendance.id}/edit`,
+                                        )}
+                                    >
+                                        <PenIcon />
+                                        Editar
+                                    </Link>
+                                </Button>
+                            )}
                             {canDelete && (
                                 <DeleteRecordButton
                                     url={tenantUrl(

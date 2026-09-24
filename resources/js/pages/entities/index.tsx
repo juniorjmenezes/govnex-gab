@@ -1,9 +1,9 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import { HubStructureLink } from '@/components/common/hub-structure-link';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import { EmptyState } from '@/components/feedback/empty-state';
 import {
-    AddIcon,
     AltArrowRightIcon,
     Buildings2Icon,
     CloseIcon,
@@ -82,15 +82,7 @@ export default function Entidades({
                     description="Escolha uma entidade para visualizar seus gabinetes e então entrar no ambiente de trabalho desejado."
                     actions={
                         isRoot ? (
-                            <Button asChild>
-                                <Link href="/admin/entidades/nova">
-                                    <AddIcon
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Nova entidade
-                                </Link>
-                            </Button>
+                            <HubStructureLink label="Nova entidade no Hub" />
                         ) : undefined
                     }
                 />
@@ -206,17 +198,7 @@ export default function Entidades({
                                                 </Link>
                                             </Button>
                                             {entidade.can_create_gabinete && (
-                                                <Button asChild>
-                                                    <Link
-                                                        href={`/admin/gabinetes/novo?entidade=${entidade.id}`}
-                                                    >
-                                                        <AddIcon
-                                                            className="size-4"
-                                                            aria-hidden="true"
-                                                        />
-                                                        Novo gabinete
-                                                    </Link>
-                                                </Button>
+                                                <HubStructureLink label="Novo gabinete no Hub" />
                                             )}
                                         </div>
                                     </div>

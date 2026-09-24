@@ -9,6 +9,7 @@ use App\Models\Gabinete;
 use App\Models\GabineteMembro;
 use App\Models\User;
 use App\Services\Hub\HubVinculoSyncService;
+use Illuminate\Support\Facades\Http;
 
 function hubSync(): HubVinculoSyncService
 {
@@ -277,4 +278,72 @@ it('preserva o administrador ao receber depois um vínculo de operador em outra 
         ->and($user->fresh()->role)->toBe(UserRole::Administrator)
         ->and($user->fresh()->gabineteRole($gabinete->id))->toBe(AccessRole::Administrator)
         ->and($user->fresh()->gabineteRole($segundo->id))->toBe(AccessRole::Operator);
+});
+
+/** Hub com uma Câmara (3) habilitada ou não para o GAB e seu gabinete raiz (12). */
+function fingirEstruturaSobDemanda(bool $habilitado = true): void
+{
+    config([
+        'services.hub.base_url' => 'https://hub.teste',
+        'services.hub.api_secret' => str_repeat('k', 40),
+    ]);
+
+    Http::fake([
+        'hub.teste/api/v1/entidades/3' => Http::response(['data' => [
+            'id' => 3, 'nome' => 'Câmara de Sobral', 'slug' => 'camara-de-sobral',
+            'classificacoes' => ['tipo' => 'CAMARA_MUNICIPAL'], 'status' => 'ativa',
+            'municipio' => 'Sobral', 'estado' => 'CE', 'timezone' => 'America/Fortaleza',
+            'habilitado' => $habilitado, 'atualizado_em' => now()->toIso8601String(),
+        ]]),
+        'hub.teste/api/v1/unidades/12' => Http::response(['data' => [
+            'id' => 12, 'entidade_id' => 3, 'unidade_pai_id' => null,
+            'nome' => 'Gabinete do Vereador Santos', 'slug' => 'gabinete-do-vereador-santos',
+            'tipo' => 'GABINETE', 'ativa' => true, 'atualizado_em' => now()->toIso8601String(),
+        ]]),
+    ]);
+}
+
+it('cria sob demanda a entidade e o gabinete do vínculo ainda não espelhados', function () {
+    fingirEstruturaSobDemanda();
+    $user = User::factory()->create(['gabinete_id' => null]);
+
+    hubSync()->aplicar($user, [[
+        'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'administrador', 'ativo' => true,
+    ]]);
+
+    $entidade = Entidade::query()->where('hub_entidade_id', '3')->firstOrFail();
+    $gabinete = Gabinete::withoutGlobalScopes()->where('hub_unidade_id', '12')->firstOrFail();
+
+    expect($entidade->tipo)->toBe(EntidadeType::CityCouncil)
+        ->and($gabinete->entidade_id)->toBe($entidade->id)
+        ->and($user->fresh()->gabineteRole($gabinete->id))->toBe(AccessRole::Administrator)
+        ->and($user->fresh()->entidadeRole($entidade->id))->toBe(AccessRole::Operator)
+        ->and($user->fresh()->gabinete_id)->toBe($gabinete->id);
+});
+
+it('cria sob demanda só a entidade quando o vínculo é de entidade', function () {
+    fingirEstruturaSobDemanda();
+    $user = User::factory()->create(['gabinete_id' => null]);
+
+    hubSync()->aplicarVinculo($user, [
+        'entidade_id' => '3', 'unidade_id' => null, 'papel' => 'operador', 'ativo' => true,
+    ]);
+
+    $entidade = Entidade::query()->where('hub_entidade_id', '3')->firstOrFail();
+
+    expect($user->fresh()->entidadeRole($entidade->id))->toBe(AccessRole::Operator)
+        ->and(Gabinete::withoutGlobalScopes()->count())->toBe(0);
+});
+
+it('descarta o vínculo quando o Hub diz que o GAB não está habilitado na entidade', function () {
+    fingirEstruturaSobDemanda(habilitado: false);
+    $user = User::factory()->create(['gabinete_id' => null]);
+
+    hubSync()->aplicar($user, [[
+        'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'administrador', 'ativo' => true,
+    ]]);
+
+    expect(Entidade::query()->count())->toBe(0)
+        ->and(Gabinete::withoutGlobalScopes()->count())->toBe(0)
+        ->and(EntidadeMembro::query()->where('usuario_id', $user->id)->count())->toBe(0);
 });

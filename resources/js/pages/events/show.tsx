@@ -18,6 +18,7 @@ import {
     SurfaceTitle,
     SurfaceDescription,
 } from '@/components/ui/surface';
+import { useCanWrite } from '@/hooks/use-can-write';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { EventStatus, OfficeEvent } from '@/types';
 
@@ -66,6 +67,7 @@ export default function EventShow({
     canDelete: boolean;
 }) {
     const tenantUrl = useTenantUrl();
+    const canWrite = useCanWrite();
     const userParticipants = event.participantes_usuarios ?? [];
     const citizenParticipants = event.participantes_cidadaos ?? [];
 
@@ -78,16 +80,18 @@ export default function EventShow({
                     description={typeLabels[event.tipo]}
                     actions={
                         <div className="flex gap-2">
-                            <Button variant="outline" asChild>
-                                <Link
-                                    href={tenantUrl(
-                                        `/eventos/${event.id}/edit`,
-                                    )}
-                                >
-                                    <PenIcon />
-                                    Editar
-                                </Link>
-                            </Button>
+                            {canWrite && (
+                                <Button variant="outline" asChild>
+                                    <Link
+                                        href={tenantUrl(
+                                            `/eventos/${event.id}/edit`,
+                                        )}
+                                    >
+                                        <PenIcon />
+                                        Editar
+                                    </Link>
+                                </Button>
+                            )}
                             {canDelete && (
                                 <DeleteRecordButton
                                     url={tenantUrl(`/eventos/${event.id}`)}

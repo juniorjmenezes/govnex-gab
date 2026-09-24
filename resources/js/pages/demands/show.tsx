@@ -38,6 +38,7 @@ import {
     SurfaceTitle,
     SurfaceDescription,
 } from '@/components/ui/surface';
+import { useCanWrite } from '@/hooks/use-can-write';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { maskPhone } from '@/lib/masks';
 import { cn } from '@/lib/utils';
@@ -84,6 +85,7 @@ export default function DemandShow({
     canDelete: boolean;
     members: DemandMember[];
 }) {
+    const canWrite = useCanWrite();
     const [sheet, setSheet] = useState<SheetKind>(null);
     const address =
         [
@@ -111,32 +113,34 @@ export default function DemandShow({
                         </span>
                     }
                     actions={
-                        <>
-                            <Button onClick={() => setSheet('update')}>
-                                <ChatSquareIcon />
-                                Atualizar
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={() => setSheet('referral')}
-                            >
-                                <ChatSquareArrowIcon />
-                                Encaminhar
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={() => setSheet('response')}
-                            >
-                                <ClipboardCheckIcon />
-                                Registrar retorno
-                            </Button>
-                            <DemandStatusActions
-                                demand={demand}
-                                allowedTransitions={allowedTransitions}
-                                resultados={resultados}
-                                canDelete={canDelete}
-                            />
-                        </>
+                        canWrite ? (
+                            <>
+                                <Button onClick={() => setSheet('update')}>
+                                    <ChatSquareIcon />
+                                    Atualizar
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setSheet('referral')}
+                                >
+                                    <ChatSquareArrowIcon />
+                                    Encaminhar
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setSheet('response')}
+                                >
+                                    <ClipboardCheckIcon />
+                                    Registrar retorno
+                                </Button>
+                                <DemandStatusActions
+                                    demand={demand}
+                                    allowedTransitions={allowedTransitions}
+                                    resultados={resultados}
+                                    canDelete={canDelete}
+                                />
+                            </>
+                        ) : undefined
                     }
                 />
 
@@ -259,85 +263,123 @@ export default function DemandShow({
                 </Surface>
             </PageContainer>
 
-            <Drawer
-                open={sheet === 'update'}
-                onOpenChange={(open) => !open && setSheet(null)}
-                swipeDirection="right"
-            >
-                <DrawerContent side="right">
-                    <DrawerHeader className="flex-row items-center justify-between border-b p-4">
-                        <DrawerTitle>Adicionar atualização</DrawerTitle>
-                        <DrawerClose
-                            render={<Button variant="ghost" size="icon-sm" />}
-                            aria-label="Fechar"
-                        >
-                            <CloseIcon aria-hidden="true" />
-                        </DrawerClose>
-                    </DrawerHeader>
-                    <div className="flex min-h-0 flex-1 flex-col">
-                        <UpdateForm
-                            demandId={demand.id}
-                            onDone={() => setSheet(null)}
-                        />
-                    </div>
-                </DrawerContent>
-            </Drawer>
+            {canWrite && (
+                <>
+                    <Drawer
+                        open={sheet === 'update'}
+                        onOpenChange={(open) => !open && setSheet(null)}
+                        swipeDirection="right"
+                    >
+                        <DrawerContent side="right">
+                            <DrawerHeader className="flex-row items-center justify-between border-b p-4">
+                                <DrawerTitle>Adicionar atualização</DrawerTitle>
+                                <DrawerClose
+                                    render={
+                                        <Button
+                                            variant="ghost"
+                                            size="icon-sm"
+                                        />
+                                    }
+                                    aria-label="Fechar"
+                                >
+                                    <CloseIcon aria-hidden="true" />
+                                </DrawerClose>
+                            </DrawerHeader>
+                            <div className="flex min-h-0 flex-1 flex-col">
+                                <UpdateForm
+                                    demandId={demand.id}
+                                    onDone={() => setSheet(null)}
+                                />
+                            </div>
+                        </DrawerContent>
+                    </Drawer>
 
-            <Drawer
-                open={sheet === 'referral'}
-                onOpenChange={(open) => !open && setSheet(null)}
-                swipeDirection="right"
-            >
-                <DrawerContent side="right">
-                    <DrawerHeader className="flex-row items-center justify-between border-b p-4">
-                        <DrawerTitle>Encaminhar</DrawerTitle>
-                        <DrawerClose
-                            render={<Button variant="ghost" size="icon-sm" />}
-                            aria-label="Fechar"
-                        >
-                            <CloseIcon aria-hidden="true" />
-                        </DrawerClose>
-                    </DrawerHeader>
-                    <div className="flex min-h-0 flex-1 flex-col">
-                        <ReferralForm
-                            demandId={demand.id}
-                            onDone={() => setSheet(null)}
-                        />
-                    </div>
-                </DrawerContent>
-            </Drawer>
+                    <Drawer
+                        open={sheet === 'referral'}
+                        onOpenChange={(open) => !open && setSheet(null)}
+                        swipeDirection="right"
+                    >
+                        <DrawerContent side="right">
+                            <DrawerHeader className="flex-row items-center justify-between border-b p-4">
+                                <DrawerTitle>Encaminhar</DrawerTitle>
+                                <DrawerClose
+                                    render={
+                                        <Button
+                                            variant="ghost"
+                                            size="icon-sm"
+                                        />
+                                    }
+                                    aria-label="Fechar"
+                                >
+                                    <CloseIcon aria-hidden="true" />
+                                </DrawerClose>
+                            </DrawerHeader>
+                            <div className="flex min-h-0 flex-1 flex-col">
+                                <ReferralForm
+                                    demandId={demand.id}
+                                    onDone={() => setSheet(null)}
+                                />
+                            </div>
+                        </DrawerContent>
+                    </Drawer>
 
-            <Drawer
-                open={sheet === 'response'}
-                onOpenChange={(open) => !open && setSheet(null)}
-                swipeDirection="right"
-            >
-                <DrawerContent side="right">
-                    <DrawerHeader className="flex-row items-center justify-between border-b p-4">
-                        <DrawerTitle>Registrar retorno</DrawerTitle>
-                        <DrawerClose
-                            render={<Button variant="ghost" size="icon-sm" />}
-                            aria-label="Fechar"
-                        >
-                            <CloseIcon aria-hidden="true" />
-                        </DrawerClose>
-                    </DrawerHeader>
-                    <div className="flex min-h-0 flex-1 flex-col">
-                        <ReferralResponseForm
-                            demandId={demand.id}
-                            pendingReferrals={pendingReferrals}
-                            onDone={() => setSheet(null)}
-                        />
-                    </div>
-                </DrawerContent>
-            </Drawer>
+                    <Drawer
+                        open={sheet === 'response'}
+                        onOpenChange={(open) => !open && setSheet(null)}
+                        swipeDirection="right"
+                    >
+                        <DrawerContent side="right">
+                            <DrawerHeader className="flex-row items-center justify-between border-b p-4">
+                                <DrawerTitle>Registrar retorno</DrawerTitle>
+                                <DrawerClose
+                                    render={
+                                        <Button
+                                            variant="ghost"
+                                            size="icon-sm"
+                                        />
+                                    }
+                                    aria-label="Fechar"
+                                >
+                                    <CloseIcon aria-hidden="true" />
+                                </DrawerClose>
+                            </DrawerHeader>
+                            <div className="flex min-h-0 flex-1 flex-col">
+                                <ReferralResponseForm
+                                    demandId={demand.id}
+                                    pendingReferrals={pendingReferrals}
+                                    onDone={() => setSheet(null)}
+                                />
+                            </div>
+                        </DrawerContent>
+                    </Drawer>
+                </>
+            )}
         </>
     );
 }
 
 function FavoriteButton({ demand }: { demand: Demand }) {
     const tenantUrl = useTenantUrl();
+    const canWrite = useCanWrite();
     const favorited = demand.favoritada_em !== null;
+
+    if (!canWrite) {
+        return favorited ? (
+            <span
+                className="text-primary"
+                title={
+                    demand.favoritada_por?.name
+                        ? `Destacada por ${demand.favoritada_por.name}`
+                        : undefined
+                }
+            >
+                <HeartBoldIcon
+                    className="size-4"
+                    aria-label="Demanda destacada"
+                />
+            </span>
+        ) : null;
+    }
 
     return (
         <button

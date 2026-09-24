@@ -84,30 +84,29 @@ class HubEventProcessor
     }
 
     /**
-     * Nome e situação de entidade/unidade já ligada. Criação fica para a fase
-     * seguinte: o aviso é aceito (200) e ignorado, para o Hub não o tratar
-     * como falha.
+     * `*.criada` cria o espelho (ou, se o item já estiver ligado, cai na
+     * atualização — reentrega é idempotente); `*.alterada`/`*.removida`
+     * aplicam nome e situação do item ligado.
      *
      * @param  array<string, mixed>  $dados
      * @return array<string, mixed>
+     *
+     * @throws HubIndisponivelException unidade cuja entidade precisa ser resolvida no Hub, que não respondeu (500, o Hub reenvia)
      */
     private function aplicarEstrutura(string $tipo, array $dados): array
     {
         [$recurso, $acao] = explode('.', $tipo, 2);
 
-        if ($acao === 'criada') {
-            Log::info('Criação de estrutura no Hub ainda não é espelhada no GAB; aviso ignorado.', [
-                'tipo' => $tipo,
-                'hub_id' => is_array($dados[$recurso] ?? null) ? ($dados[$recurso]['id'] ?? null) : null,
-            ]);
-
-            return ['acao' => 'estrutura_ignorada', 'tipo' => $tipo];
-        }
-
         $bloco = is_array($dados[$recurso] ?? null) ? $dados[$recurso] : null;
 
         if ($bloco === null) {
             throw new RuntimeException("Evento de {$recurso} do Hub sem bloco de {$recurso}.");
+        }
+
+        if ($acao === 'criada') {
+            return $recurso === 'entidade'
+                ? $this->estrutura->criarEntidade($bloco)
+                : $this->estrutura->criarUnidade($bloco);
         }
 
         $removida = $acao === 'removida';

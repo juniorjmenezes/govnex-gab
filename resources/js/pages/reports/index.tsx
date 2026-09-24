@@ -51,6 +51,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useCanWrite } from '@/hooks/use-can-write';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { preservedListParams } from '@/lib/pagination';
 import { cn } from '@/lib/utils';
@@ -216,6 +217,7 @@ export default function ReportsIndex({
     exports,
 }: ReportPageProps) {
     const tenantUrl = useTenantUrl();
+    const canWrite = useCanWrite();
     const [form, setForm] = useState({
         ...filters,
         categoria_id: filters.categoria_id?.toString() ?? '',
@@ -313,25 +315,27 @@ export default function ReportsIndex({
                     title="Relatórios"
                     description="Analise o atendimento do gabinete e gere arquivos privados com os mesmos filtros exibidos na tela."
                     actions={
-                        <>
-                            <Button
-                                type="button"
-                                variant="outline"
+                        canWrite ? (
+                            <>
+                                <Button
+                                    type="button"
+                                    variant="outline"
 
-                                onClick={() => requestExport('pdf')}
-                            >
-                                <PresentationGraphIcon aria-hidden="true" />
-                                Exportar PDF
-                            </Button>
-                            <Button
-                                type="button"
+                                    onClick={() => requestExport('pdf')}
+                                >
+                                    <PresentationGraphIcon aria-hidden="true" />
+                                    Exportar PDF
+                                </Button>
+                                <Button
+                                    type="button"
 
-                                onClick={() => requestExport('xlsx')}
-                            >
-                                <DocumentTextIcon aria-hidden="true" />
-                                Exportar XLSX
-                            </Button>
-                        </>
+                                    onClick={() => requestExport('xlsx')}
+                                >
+                                    <DocumentTextIcon aria-hidden="true" />
+                                    Exportar XLSX
+                                </Button>
+                            </>
+                        ) : undefined
                     }
                 />
 

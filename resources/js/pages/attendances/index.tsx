@@ -31,6 +31,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useCanWrite } from '@/hooks/use-can-write';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { formatShortDateTime } from '@/lib/dates';
 import { hasModule } from '@/lib/modules';
@@ -54,6 +55,7 @@ export default function AttendancesIndex({
 }: AttendanceIndexProps) {
     const { auth } = usePage<{ auth: Auth }>().props;
     const tenantUrl = useTenantUrl();
+    const canWrite = useCanWrite();
     const demandsEnabled = hasModule(auth.modules, 'DEMANDAS');
     const [query, setQuery] = useState(filters.q);
     const [attendantId, setAttendantId] = useState(
@@ -109,12 +111,14 @@ export default function AttendancesIndex({
                     title="Atendimentos presenciais"
                     description="Histórico das visitas realizadas no gabinete e das providências registradas."
                     actions={
-                        <Button asChild>
-                            <Link href={tenantUrl('/atendimentos/create')}>
-                                <AddIcon />
-                                Novo atendimento
-                            </Link>
-                        </Button>
+                        canWrite ? (
+                            <Button asChild>
+                                <Link href={tenantUrl('/atendimentos/create')}>
+                                    <AddIcon />
+                                    Novo atendimento
+                                </Link>
+                            </Button>
+                        ) : undefined
                     }
                 />
 
@@ -290,18 +294,20 @@ export default function AttendancesIndex({
                                                             <EyeIcon aria-hidden="true" />
                                                         </Link>
                                                     </TableActionButton>
-                                                    <TableActionButton
-                                                        asChild
-                                                        label={`Editar ${attendance.assunto}`}
-                                                    >
-                                                        <Link
-                                                            href={tenantUrl(
-                                                                `/atendimentos/${attendance.id}/edit`,
-                                                            )}
+                                                    {canWrite && (
+                                                        <TableActionButton
+                                                            asChild
+                                                            label={`Editar ${attendance.assunto}`}
                                                         >
-                                                            <PenIcon aria-hidden="true" />
-                                                        </Link>
-                                                    </TableActionButton>
+                                                            <Link
+                                                                href={tenantUrl(
+                                                                    `/atendimentos/${attendance.id}/edit`,
+                                                                )}
+                                                            >
+                                                                <PenIcon aria-hidden="true" />
+                                                            </Link>
+                                                        </TableActionButton>
+                                                    )}
                                                     {canDelete && (
                                                         <DeleteRecordButton
                                                             url={tenantUrl(

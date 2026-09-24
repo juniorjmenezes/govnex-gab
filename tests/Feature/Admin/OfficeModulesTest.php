@@ -6,7 +6,6 @@ use App\Enums\AppointmentRecurrence;
 use App\Enums\AppointmentStatus;
 use App\Enums\EntidadeModule;
 use App\Enums\GabineteModule;
-use App\Enums\GabineteType;
 use App\Models\Cidadao;
 use App\Models\Demanda;
 use App\Models\Entidade;
@@ -131,31 +130,6 @@ class OfficeModulesTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->assertSame([], app(GabineteModuleManager::class)->activeFor($office));
         $this->assertDatabaseCount('gabinete_modulo_eventos', count(GabineteModule::cases()));
-    }
-
-    public function test_new_office_uses_the_selected_modules_without_starting_tse_sync(): void
-    {
-        $admin = User::factory()->root()->create();
-        $entidade = Entidade::factory()->create();
-        $payload = $this->officePayload([
-            'entidade_id' => $entidade->id,
-            'tipo_gabinete' => GabineteType::IndependentOffice->value,
-            'modules' => [GabineteModule::Relationship->value],
-            'sincronizar_tse' => true,
-        ]);
-
-        $this->actingAs($admin)
-            ->post(route('admin.offices.store'), $payload)
-            ->assertSessionHasNoErrors();
-
-        $office = Gabinete::withoutGlobalScopes()->where('nome', 'Gabinete Modular')->firstOrFail();
-        $this->assertSame(
-            [GabineteModule::Relationship->value],
-            app(GabineteModuleManager::class)->activeFor($office),
-        );
-        $this->assertDatabaseCount('gabinete_modulos', count(GabineteModule::cases()));
-        $this->assertDatabaseCount('gabinete_modulo_eventos', count(GabineteModule::cases()));
-        $this->assertDatabaseCount('sincronizacoes_tse', 0);
     }
 
     public function test_invalid_dependencies_are_rejected_without_changing_the_office(): void
@@ -341,29 +315,6 @@ class OfficeModulesTest extends TestCase
             'recorrencia' => AppointmentRecurrence::None->value,
             'recorrencia_ate' => null,
             'lembretes' => [],
-            ...$overrides,
-        ];
-    }
-
-    /** @param array<string, mixed> $overrides
-     * @return array<string, mixed>
-     */
-    private function officePayload(array $overrides = []): array
-    {
-        return [
-            'nome' => 'Gabinete Modular',
-            'vereador_nome' => 'Representante Modular',
-            'numero_eleitoral' => '40000',
-            'municipio' => 'Fortaleza',
-            'estado' => 'CE',
-            'timezone' => 'America/Fortaleza',
-            'telefone' => '(85) 99999-0000',
-            'email' => 'modular@gabinete.test',
-            'endereco' => 'Rua dos Módulos, 100',
-            'responsavel_nome' => 'Responsável Modular',
-            'responsavel_email' => 'responsavel.modular@gabinete.test',
-            'responsavel_password' => 'Senha!Segura2026',
-            'responsavel_password_confirmation' => 'Senha!Segura2026',
             ...$overrides,
         ];
     }

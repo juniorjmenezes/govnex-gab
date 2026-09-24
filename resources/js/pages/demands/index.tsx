@@ -32,6 +32,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
 import { Switch } from '@/components/ui/switch';
+import { useCanWrite } from '@/hooks/use-can-write';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 import type {
@@ -84,6 +85,7 @@ export default function DemandsIndex({
     tabCounts: Record<DemandTab, number>;
 }) {
     const tenantUrl = useTenantUrl();
+    const canWrite = useCanWrite();
     const [filterState, setFilterState] = useState<FilterState>({
         q: filters.q,
         prioridade: filters.prioridade,
@@ -169,12 +171,14 @@ export default function DemandsIndex({
                                     Kanban
                                 </Link>
                             </Button>
-                            <Button asChild>
-                                <Link href={tenantUrl('/demandas/create')}>
-                                    <AddIcon />
-                                    Nova demanda
-                                </Link>
-                            </Button>
+                            {canWrite && (
+                                <Button asChild>
+                                    <Link href={tenantUrl('/demandas/create')}>
+                                        <AddIcon />
+                                        Nova demanda
+                                    </Link>
+                                </Button>
+                            )}
                         </>
                     }
                 />
@@ -403,6 +407,7 @@ export default function DemandsIndex({
 
 function DemandRow({ demand }: { demand: Demand }) {
     const tenantUrl = useTenantUrl();
+    const canWrite = useCanWrite();
     const favorited = demand.favoritada_em !== null;
     const responsible = demand.responsavel?.name ?? 'Não atribuído';
     const urgent = demand.proxima_acao_descricao
@@ -432,31 +437,57 @@ function DemandRow({ demand }: { demand: Demand }) {
 
     return (
         <div className="group flex items-center transition-colors hover:bg-muted/40">
-            <button
-                type="button"
-                onClick={toggleFavorite}
-                aria-pressed={favorited}
-                aria-label={
-                    favorited
-                        ? `Remover destaque de ${demand.protocolo}`
-                        : `Destacar ${demand.protocolo}`
-                }
-                title={
-                    favorited && demand.favoritada_por?.name
-                        ? `Destacada por ${demand.favoritada_por.name}`
-                        : undefined
-                }
-                className={cn(
-                    'shrink-0 py-3 pr-3 pl-5 text-muted-foreground/50 transition-colors hover:text-primary focus-visible:text-primary focus-visible:outline-none',
-                    favorited && 'text-primary',
-                )}
-            >
-                {favorited ? (
-                    <HeartBoldIcon className="size-4" />
-                ) : (
-                    <HeartOutlineIcon className="size-4" />
-                )}
-            </button>
+            {canWrite ? (
+                <button
+                    type="button"
+                    onClick={toggleFavorite}
+                    aria-pressed={favorited}
+                    aria-label={
+                        favorited
+                            ? `Remover destaque de ${demand.protocolo}`
+                            : `Destacar ${demand.protocolo}`
+                    }
+                    title={
+                        favorited && demand.favoritada_por?.name
+                            ? `Destacada por ${demand.favoritada_por.name}`
+                            : undefined
+                    }
+                    className={cn(
+                        'shrink-0 py-3 pr-3 pl-5 text-muted-foreground/50 transition-colors hover:text-primary focus-visible:text-primary focus-visible:outline-none',
+                        favorited && 'text-primary',
+                    )}
+                >
+                    {favorited ? (
+                        <HeartBoldIcon className="size-4" />
+                    ) : (
+                        <HeartOutlineIcon className="size-4" />
+                    )}
+                </button>
+            ) : (
+                <span
+                    className={cn(
+                        'shrink-0 py-3 pr-3 pl-5 text-muted-foreground/50',
+                        favorited && 'text-primary',
+                    )}
+                    title={
+                        favorited && demand.favoritada_por?.name
+                            ? `Destacada por ${demand.favoritada_por.name}`
+                            : undefined
+                    }
+                >
+                    {favorited ? (
+                        <HeartBoldIcon
+                            className="size-4"
+                            aria-label="Demanda destacada"
+                        />
+                    ) : (
+                        <HeartOutlineIcon
+                            className="size-4"
+                            aria-hidden="true"
+                        />
+                    )}
+                </span>
+            )}
             <Link
                 href={tenantUrl(`/demandas/${demand.id}`)}
                 className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"

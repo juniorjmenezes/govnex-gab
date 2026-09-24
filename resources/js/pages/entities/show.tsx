@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
 import { ActivityMark } from '@/components/common/activity-mark';
 import { ActivityToggleButton } from '@/components/common/activity-toggle-button';
+import { HubStructureLink } from '@/components/common/hub-structure-link';
 import { AttachmentField } from '@/components/forms/attachment-field';
 import { ColorPicker } from '@/components/forms/color-picker';
 import { FieldError } from '@/components/forms/field-error';
@@ -343,14 +344,10 @@ export default function EntidadeShow({
                                     </Button>
                                 )}
                                 {canCreateGabinete && (
-                                    <Button size="sm" asChild>
-                                        <Link
-                                            href={`/admin/gabinetes/novo?entidade=${entidade.id}`}
-                                        >
-                                            <AddIcon className="size-4" />
-                                            Novo gabinete
-                                        </Link>
-                                    </Button>
+                                    <HubStructureLink
+                                        label="Novo gabinete no Hub"
+                                        size="sm"
+                                    />
                                 )}
                             </div>
                         }

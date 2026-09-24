@@ -7,10 +7,10 @@ import {
     toggleOfficeModule,
 } from '@/components/admin/office-module-selector';
 import { SyncStatusDot } from '@/components/admin/sync-progress';
+import { HubStructureLink } from '@/components/common/hub-structure-link';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import { TableActionButton } from '@/components/common/table-action-button';
 import {
-    AddIcon,
     BuildingsIcon,
     CheckCircleIcon,
     CloseCircleIcon,
@@ -143,9 +143,6 @@ export default function Offices({
         router.get('/admin/gabinetes', {}, { replace: true });
     };
 
-    const openCreate = () => {
-        router.get('/admin/gabinetes/novo');
-    };
     const openEdit = (office: AdminOffice) => {
         router.get(`/admin/gabinetes/${office.id}/editar`);
     };
@@ -193,27 +190,8 @@ export default function Offices({
             <PageContainer>
                 <PageHeader
                     title="Gabinetes"
-                    description="Gerencie os gabinetes das entidades, suas contas responsáveis, módulos e situação de acesso."
-                    actions={
-                        <div className="flex flex-wrap gap-2">
-                            <Button variant="outline" asChild>
-                                <Link href="/admin/entidades/nova">
-                                    <AddIcon
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Nova entidade
-                                </Link>
-                            </Button>
-                            <Button onClick={openCreate}>
-                                <AddIcon
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                                Novo gabinete
-                            </Button>
-                        </div>
-                    }
+                    description="Gerencie os gabinetes das entidades, módulos e situação de acesso. Entidades e gabinetes são criados no Govnex Hub."
+                    actions={<HubStructureLink />}
                 />
 
                 <form

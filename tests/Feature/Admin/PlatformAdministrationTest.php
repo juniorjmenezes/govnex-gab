@@ -23,7 +23,6 @@ use App\Services\Politics\Polls\PollingDataService;
 use App\Services\Politics\Polls\ResultResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -148,74 +147,6 @@ class PlatformAdministrationTest extends TestCase
                         && $checklist
                             ->firstWhere('key', 'section_votes')['note'] === null,
                 ));
-    }
-
-    public function test_platform_admin_creates_office_and_responsible_account(): void
-    {
-        $admin = User::factory()->root()->create();
-
-        $this->actingAs($admin)
-            ->post(route('admin.offices.store'), $this->payload())
-            ->assertSessionHasNoErrors()
-            ->assertRedirect(route('admin.offices.index'));
-
-        $office = Gabinete::withoutGlobalScopes()->where('nome', 'Gabinete Cidadão')->firstOrFail();
-        $this->assertSame(GabineteStatus::Active, $office->status);
-        $this->assertSame('gabinete-cidadao', $office->slug);
-        $this->assertSame('85999990000', $office->telefone);
-        $this->assertSame('12345', $office->numero_eleitoral);
-
-        $responsible = User::where('email', 'responsavel@gabinete.test')->firstOrFail();
-        $this->assertSame($office->id, $responsible->gabinete_id);
-        $this->assertSame(UserRole::Administrator, $responsible->role);
-        $this->assertTrue($responsible->is_active);
-        $this->assertTrue(Hash::check('Senha!Segura2026', $responsible->password));
-    }
-
-    public function test_creating_an_office_does_not_start_tse_downloads(): void
-    {
-        Queue::fake();
-        Http::fake([
-            'servicodados.ibge.gov.br/*' => Http::response([
-                ['id' => 2304400, 'nome' => 'Fortaleza'],
-            ]),
-        ]);
-        $admin = User::factory()->root()->create();
-
-        $this->actingAs($admin)
-            ->post(route('admin.offices.store'), $this->payload([
-                'sincronizar_tse' => true,
-            ]))
-            ->assertSessionHasNoErrors()
-            ->assertRedirect(route('admin.offices.index'));
-
-        $office = Gabinete::withoutGlobalScopes()
-            ->where('nome', 'Gabinete Cidadão')
-            ->firstOrFail();
-
-        $this->assertDatabaseCount('sincronizacoes_tse', 0);
-        Queue::assertNotPushed(PrepareOfficePoliticalData::class);
-    }
-
-    public function test_creating_an_office_with_politics_active_queues_a_retained_archive_sync(): void
-    {
-        Queue::fake();
-        Http::fake([
-            'servicodados.ibge.gov.br/*' => Http::response([
-                ['id' => 2304400, 'nome' => 'Fortaleza'],
-            ]),
-        ]);
-        $admin = User::factory()->root()->create();
-
-        $this->actingAs($admin)
-            ->post(route('admin.offices.store'), $this->payload())
-            ->assertSessionHasNoErrors();
-
-        $office = Gabinete::withoutGlobalScopes()->where('nome', 'Gabinete Cidadão')->firstOrFail();
-        Queue::assertPushed(
-            SyncOfficeSectionVotesFromGovnexApi::class,
-            fn (SyncOfficeSectionVotesFromGovnexApi $job): bool => $job->officeId === $office->id,
-        );
     }
 
     public function test_platform_admin_can_request_pollingdata_sync(): void
@@ -706,28 +637,19 @@ class PlatformAdministrationTest extends TestCase
                 ->where('elections.0.type', 'geral'));
     }
 
-    public function test_responsible_email_must_be_unique(): void
-    {
-        $admin = User::factory()->root()->create();
-        User::factory()->create(['email' => 'responsavel@gabinete.test']);
-
-        $this->actingAs($admin)
-            ->post(route('admin.offices.store'), $this->payload())
-            ->assertSessionHasErrors('responsavel_email');
-
-        $this->assertDatabaseMissing('gabinetes', ['nome' => 'Gabinete Cidadão']);
-    }
-
-    public function test_platform_admin_updates_office_and_responsible(): void
+    public function test_platform_admin_updates_office_without_touching_accounts(): void
     {
         $admin = User::factory()->root()->create();
         $office = Gabinete::factory()->create();
-        $responsible = User::factory()->forGabinete($office)->administrator()->create();
+        $responsible = User::factory()->forGabinete($office)->administrator()->create([
+            'email' => 'responsavel@gabinete.test',
+        ]);
+        $usersBefore = User::query()->count();
         $payload = $this->payload([
             'nome' => 'Gabinete Renovado',
             'responsavel_email' => 'novo@gabinete.test',
-            'responsavel_password' => '',
-            'responsavel_password_confirmation' => '',
+            'responsavel_password' => 'Senha!Segura2026',
+            'responsavel_password_confirmation' => 'Senha!Segura2026',
         ]);
 
         $this->actingAs($admin)
@@ -735,11 +657,27 @@ class PlatformAdministrationTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('gabinetes', ['id' => $office->id, 'nome' => 'Gabinete Renovado']);
+        // Conta do responsável vem do Govnex Hub: a edição do gabinete não a toca.
         $this->assertDatabaseHas('users', [
             'id' => $responsible->id,
-            'email' => 'novo@gabinete.test',
+            'email' => 'responsavel@gabinete.test',
             'role' => UserRole::Administrator->value,
         ]);
+        $this->assertSame($usersBefore, User::query()->count());
+    }
+
+    public function test_office_without_administrator_is_updated_without_creating_an_account(): void
+    {
+        $admin = User::factory()->root()->create();
+        $office = Gabinete::factory()->create();
+        $usersBefore = User::query()->count();
+
+        $this->actingAs($admin)
+            ->put(route('admin.offices.update', $office), $this->payload(['nome' => 'Gabinete Sem Conta']))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('gabinetes', ['id' => $office->id, 'nome' => 'Gabinete Sem Conta']);
+        $this->assertSame($usersBefore, User::query()->count());
     }
 
     public function test_changing_the_office_municipality_relinks_the_electoral_municipality(): void

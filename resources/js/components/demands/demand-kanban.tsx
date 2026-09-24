@@ -35,6 +35,7 @@ import {
 } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Surface, surfaceClasses } from '@/components/ui/surface';
+import { useCanWrite } from '@/hooks/use-can-write';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 import type {
@@ -60,6 +61,7 @@ export function DemandKanban({
     transitions: DemandKanbanTransitions;
 }) {
     const tenantUrl = useTenantUrl();
+    const canWrite = useCanWrite();
     const [columns, setColumns] = useState(initialColumns);
     const [activeId, setActiveId] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
@@ -207,7 +209,7 @@ export function DemandKanban({
                     <KanbanColumn
                         key={column.status}
                         column={column}
-                        disabled={saving}
+                        disabled={saving || !canWrite}
                     />
                 ))}
             </div>

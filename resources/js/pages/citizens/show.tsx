@@ -20,6 +20,7 @@ import {
     SurfaceTitle,
     SurfaceDescription,
 } from '@/components/ui/surface';
+import { useCanWrite } from '@/hooks/use-can-write';
 import { useIsHydrated } from '@/hooks/use-is-hydrated';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { maskCpf, maskPhone } from '@/lib/masks';
@@ -57,6 +58,7 @@ export default function CitizenShow({
     };
 }) {
     const tenantUrl = useTenantUrl();
+    const canWrite = useCanWrite();
 
     const contacts = [
         {
@@ -90,14 +92,18 @@ export default function CitizenShow({
                     title={citizen.nome}
                     description="Perfil, contato e histórico de atendimento."
                     actions={
-                        <Button asChild>
-                            <Link
-                                href={tenantUrl(`/cidadaos/${citizen.id}/edit`)}
-                            >
-                                <PenIcon />
-                                Editar cadastro
-                            </Link>
-                        </Button>
+                        canWrite ? (
+                            <Button asChild>
+                                <Link
+                                    href={tenantUrl(
+                                        `/cidadaos/${citizen.id}/edit`,
+                                    )}
+                                >
+                                    <PenIcon />
+                                    Editar cadastro
+                                </Link>
+                            </Button>
+                        ) : undefined
                     }
                 />
                 {possibleDuplicates.length > 0 && (
@@ -246,19 +252,21 @@ export default function CitizenShow({
                         <Surface as="section" className="overflow-hidden">
                             <SurfaceHeader
                                 actions={
-                                    <Button
-                                        size="sm"
-                                        className="shrink-0"
-                                        asChild
-                                    >
-                                        <Link
-                                            href={tenantUrl(
-                                                `/atendimentos/create?cidadao_id=${citizen.id}`,
-                                            )}
+                                    canWrite ? (
+                                        <Button
+                                            size="sm"
+                                            className="shrink-0"
+                                            asChild
                                         >
-                                            Registrar atendimento
-                                        </Link>
-                                    </Button>
+                                            <Link
+                                                href={tenantUrl(
+                                                    `/atendimentos/create?cidadao_id=${citizen.id}`,
+                                                )}
+                                            >
+                                                Registrar atendimento
+                                            </Link>
+                                        </Button>
+                                    ) : undefined
                                 }
                             >
                                 <SurfaceTitle>

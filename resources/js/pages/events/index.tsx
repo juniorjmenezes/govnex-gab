@@ -40,6 +40,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useCanWrite } from '@/hooks/use-can-write';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { formatShortDateTime } from '@/lib/dates';
 import { cn } from '@/lib/utils';
@@ -84,6 +85,7 @@ export default function EventsIndex({
     canDelete,
 }: EventIndexProps) {
     const tenantUrl = useTenantUrl();
+    const canWrite = useCanWrite();
     const [filterState, setFilterState] = useState<FilterState>({
         q: filters.q,
         tipo: filters.tipo,
@@ -165,12 +167,14 @@ export default function EventsIndex({
                     title="Central de eventos"
                     description="Reuniões, eventos públicos, atos políticos e assembleias do gabinete."
                     actions={
-                        <Button asChild>
-                            <Link href={tenantUrl('/eventos/create')}>
-                                <AddIcon />
-                                Novo evento
-                            </Link>
-                        </Button>
+                        canWrite ? (
+                            <Button asChild>
+                                <Link href={tenantUrl('/eventos/create')}>
+                                    <AddIcon />
+                                    Novo evento
+                                </Link>
+                            </Button>
+                        ) : undefined
                     }
                 />
 
@@ -457,18 +461,20 @@ export default function EventsIndex({
                                                             <EyeIcon aria-hidden="true" />
                                                         </Link>
                                                     </TableActionButton>
-                                                    <TableActionButton
-                                                        asChild
-                                                        label={`Editar ${event.titulo}`}
-                                                    >
-                                                        <Link
-                                                            href={tenantUrl(
-                                                                `/eventos/${event.id}/edit`,
-                                                            )}
+                                                    {canWrite && (
+                                                        <TableActionButton
+                                                            asChild
+                                                            label={`Editar ${event.titulo}`}
                                                         >
-                                                            <PenIcon aria-hidden="true" />
-                                                        </Link>
-                                                    </TableActionButton>
+                                                            <Link
+                                                                href={tenantUrl(
+                                                                    `/eventos/${event.id}/edit`,
+                                                                )}
+                                                            >
+                                                                <PenIcon aria-hidden="true" />
+                                                            </Link>
+                                                        </TableActionButton>
+                                                    )}
                                                     {canDelete && (
                                                         <DeleteRecordButton
                                                             url={tenantUrl(

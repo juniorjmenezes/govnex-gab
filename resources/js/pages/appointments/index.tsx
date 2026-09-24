@@ -47,6 +47,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { useCanWrite } from '@/hooks/use-can-write';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 import type {
@@ -85,6 +86,7 @@ export default function AppointmentsIndex({
     options,
 }: AppointmentPageProps) {
     const tenantUrl = useTenantUrl();
+    const canWrite = useCanWrite();
     const [editing, setEditing] = useState<Appointment | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     const appointmentForm = useAppointmentForm({
@@ -169,10 +171,12 @@ export default function AppointmentsIndex({
                     title="Agenda do gabinete"
                     description={`Compromissos, eventos, participantes e lembretes em ${timezone}.`}
                     actions={
-                        <Button onClick={() => openCreate()}>
-                            <AddIcon aria-hidden="true" />
-                            Novo compromisso
-                        </Button>
+                        canWrite ? (
+                            <Button onClick={() => openCreate()}>
+                                <AddIcon aria-hidden="true" />
+                                Novo compromisso
+                            </Button>
+                        ) : undefined
                     }
                 />
 
@@ -316,32 +320,41 @@ export default function AppointmentsIndex({
                 <ScrollableDialogContent className="sm:max-w-3xl">
                     <ScrollableDialogHeader>
                         <DialogTitle>
-                            {isPastEditing
-                                ? 'Atualizar situação'
-                                : editing
-                                  ? 'Editar compromisso'
-                                  : 'Novo compromisso'}
+                            {!canWrite
+                                ? 'Detalhes do compromisso'
+                                : isPastEditing
+                                  ? 'Atualizar situação'
+                                  : editing
+                                    ? 'Editar compromisso'
+                                    : 'Novo compromisso'}
                         </DialogTitle>
                         <DialogDescription>
-                            {isPastEditing
-                                ? 'Compromissos de dias anteriores permitem somente alterar a situação.'
-                                : `Horários são salvos e exibidos em ${timezone}.`}
+                            {!canWrite
+                                ? 'Seu perfil permite apenas consultar este compromisso.'
+                                : isPastEditing
+                                  ? 'Compromissos de dias anteriores permitem somente alterar a situação.'
+                                  : `Horários são salvos e exibidos em ${timezone}.`}
                         </DialogDescription>
                     </ScrollableDialogHeader>
 
                     <ScrollableDialogBody>
-                        <AppointmentFields
-                            state={appointmentForm}
-                            options={options}
-                            today={today}
-                            capabilities={capabilities}
-                            whatsappRealEnabled={whatsappRealEnabled}
-                        />
+                        <fieldset
+                            disabled={!canWrite}
+                            className="min-w-0 border-0 p-0"
+                        >
+                            <AppointmentFields
+                                state={appointmentForm}
+                                options={options}
+                                today={today}
+                                capabilities={capabilities}
+                                whatsappRealEnabled={whatsappRealEnabled}
+                            />
+                        </fieldset>
                     </ScrollableDialogBody>
 
                     <ScrollableDialogFooter className="gap-2 sm:justify-between">
                         <div className="flex gap-2">
-                            {editing && canDelete && (
+                            {canWrite && editing && canDelete && (
                                 <DeleteRecordButton
                                     url={tenantUrl(`/agenda/${editing.id}`)}
                                     label={`Excluir ${editing.title}`}
@@ -355,7 +368,8 @@ export default function AppointmentsIndex({
                                     onSuccess={() => setDialogOpen(false)}
                                 />
                             )}
-                            {editing &&
+                            {canWrite &&
+                                editing &&
                                 !isPastEditing &&
                                 editing.status !== 'cancelado' && (
                                     <Button
@@ -385,15 +399,19 @@ export default function AppointmentsIndex({
                             >
                                 Fechar
                             </Button>
-                            <Button
-                                onClick={submit}
-                                disabled={form.processing || statusSaving}
-                            >
-                                {(form.processing || statusSaving) && (
-                                    <RestartIcon className="mr-2 size-4 animate-spin" />
-                                )}
-                                {isPastEditing ? 'Salvar situação' : 'Salvar'}
-                            </Button>
+                            {canWrite && (
+                                <Button
+                                    onClick={submit}
+                                    disabled={form.processing || statusSaving}
+                                >
+                                    {(form.processing || statusSaving) && (
+                                        <RestartIcon className="mr-2 size-4 animate-spin" />
+                                    )}
+                                    {isPastEditing
+                                        ? 'Salvar situação'
+                                        : 'Salvar'}
+                                </Button>
+                            )}
                         </div>
                     </ScrollableDialogFooter>
                 </ScrollableDialogContent>
@@ -466,6 +484,8 @@ function MonthView({
     onCreate: (date: string) => void;
     onSelect: (appointment: Appointment) => void;
 }) {
+    const canWrite = useCanWrite();
+
     return (
         <Card className="gap-0 overflow-hidden py-0">
             <div className="hidden grid-cols-7 border-b bg-muted/40 md:grid">
@@ -500,7 +520,7 @@ function MonthView({
                                 onClick={() =>
                                     onCreate(format(day, 'yyyy-MM-dd'))
                                 }
-                                disabled={isPastDay}
+                                disabled={isPastDay || !canWrite}
                                 title={
                                     isPastDay
                                         ? 'Não é permitido criar compromissos em dias anteriores.'
@@ -511,7 +531,11 @@ function MonthView({
                                     isSameDay(day, new Date()) &&
                                         'bg-primary text-primary-foreground hover:bg-primary',
                                 )}
-                                aria-label={`Novo compromisso em ${format(day, 'dd/MM/yyyy')}`}
+                                aria-label={
+                                    canWrite
+                                        ? `Novo compromisso em ${format(day, 'dd/MM/yyyy')}`
+                                        : format(day, 'dd/MM/yyyy')
+                                }
                             >
                                 {format(day, 'd')}
                             </button>
@@ -551,6 +575,8 @@ function PeriodGrid({
     onCreate: (date: string) => void;
     onSelect: (appointment: Appointment) => void;
 }) {
+    const canWrite = useCanWrite();
+
     return (
         <div className={cn('grid gap-3', days.length > 1 && 'lg:grid-cols-7')}>
             {days.map((day) => {
@@ -570,21 +596,23 @@ function PeriodGrid({
                                     {format(day, 'dd/MM')}
                                 </p>
                             </div>
-                            <Button
-                                size="icon-sm"
-                                variant="ghost"
-                                onClick={() =>
-                                    onCreate(format(day, 'yyyy-MM-dd'))
-                                }
-                                disabled={isPastDay}
-                                title={
-                                    isPastDay
-                                        ? 'Não é permitido criar compromissos em dias anteriores.'
-                                        : 'Novo compromisso'
-                                }
-                            >
-                                <AddIcon />
-                            </Button>
+                            {canWrite && (
+                                <Button
+                                    size="icon-sm"
+                                    variant="ghost"
+                                    onClick={() =>
+                                        onCreate(format(day, 'yyyy-MM-dd'))
+                                    }
+                                    disabled={isPastDay}
+                                    title={
+                                        isPastDay
+                                            ? 'Não é permitido criar compromissos em dias anteriores.'
+                                            : 'Novo compromisso'
+                                    }
+                                >
+                                    <AddIcon />
+                                </Button>
+                            )}
                         </CardHeader>
                         <CardContent className="grid gap-2">
                             {items.length === 0 ? (

@@ -112,6 +112,11 @@ class HandleInertiaRequests extends Middleware
                 ]),
             ] : ['unread_count' => 0, 'items' => []],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            // Entidades e gabinetes nascem no Govnex Hub; a administração do
+            // GAB aponta para lá no lugar dos antigos botões de criação.
+            'hubStructureUrl' => $user?->isRoot() && config('services.hub.base_url') !== ''
+                ? config('services.hub.base_url').'/estrutura'
+                : null,
         ];
     }
 }

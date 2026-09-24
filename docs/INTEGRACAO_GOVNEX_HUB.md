@@ -46,7 +46,7 @@ A entrada após o login (`/dashboard`) usa `users.gabinete_id` enquanto a pessoa
 
 | Origem | Conta criada com | Vínculos |
 |---|---|---|
-| Administração → Gabinetes (responsável) | `role = administrador`, `gabinete_id` | derivados do `role` (`EntidadeMembershipService::syncLegacyUser`) |
+| ~~Administração → Gabinetes (responsável)~~ | — | Desligado em 24/09/2026: gabinete nasce no Hub, sem conta; o acesso vem dos vínculos. |
 | Equipe do gabinete | `role` administrador/operador/auditor, `gabinete_id` | gabinete com o papel escolhido; entidade com o mesmo papel (administrador só em gabinete independente) |
 | Convite da entidade | `role` derivado do papel convidado; `gabinete_id` pode ficar vazio | os do convite |
 | Administração → Usuários root | `role = root` | nenhum |
@@ -259,11 +259,12 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    timezone — continua do GAB.
 
    **Eventos.** `entidade.criada`, `entidade.alterada`, `entidade.removida`,
-   `unidade.criada`, `unidade.alterada`, `unidade.removida`. O Hub os emite
-   para **todos** os sistemas notificáveis (não só os que têm vínculo na
-   entidade) e só quando muda campo relevante (`nome, slug, sigla, tipo,
-   municipio, estado, status` na entidade; `nome, slug, tipo, ativa,
-   unidade_pai_id` na unidade) ou a exclusão.
+   `unidade.criada`, `unidade.alterada`, `unidade.removida`. Desde a fase 2
+   (abaixo) o Hub os emite só para os sistemas notificáveis **habilitados na
+   entidade** (para unidade, na entidade dela), e só quando muda campo
+   relevante (`nome, slug, sigla, tipo, municipio, estado, status` na
+   entidade; `nome, slug, tipo, ativa, unidade_pai_id` na unidade) ou a
+   exclusão.
 
    ```json
    {
@@ -272,8 +273,9 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
      "dados": {
        "entidade": {
          "id": "3", "conta_id": "1", "nome": "Gabinete Santos",
-         "slug": "gabinete-santos", "tipo": "CAMARA_MUNICIPAL",
+         "slug": "gabinete-santos", "sigla": null, "tipo": "CAMARA_MUNICIPAL",
          "status": "ativa", "municipio": "Fortaleza", "estado": "CE",
+         "timezone": "America/Fortaleza",
          "atualizado_em": "2026-09-24T10:00:00-03:00"
        }
      }
@@ -281,7 +283,9 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    ```
 
    Eventos de unidade trazem `dados.unidade` =
-   `{id, entidade_id, unidade_pai_id, nome, slug, tipo, ativa, atualizado_em}`.
+   `{id, entidade_id, unidade_pai_id, nome, slug, sigla, codigo, tipo,
+   entidade_tipo, ativa, atualizado_em}` (`sigla`, `timezone`, `codigo` e
+   `entidade_tipo` desde a fase 2).
    Ids são string; `atualizado_em` é o `updated_at` do registro no Hub. Não há
    bloco `pessoa`.
 
@@ -293,7 +297,7 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    | `*.alterada` de item ligado | Aplica `nome` e situação: entidade `status = ativa` → `ATIVA`, qualquer outro → `SUSPENSA` (com `suspensa_em`); unidade `ativa` → gabinete `ativo`/`suspenso` (com `suspended_at`). Slug **nunca** é alterado. |
    | `*.removida` de item ligado | **Suspende**, nunca apaga (reversível; os dados operacionais ficam). |
    | Item não ligado | `Log::info` e **200** (`entidade_ignorada`/`unidade_ignorada`). Nunca 409/422. |
-   | `*.criada` | Aceito com **200** e ignorado (`estrutura_ignorada`) — fase seguinte. |
+   | `*.criada` | Cria a entidade/o gabinete — ver "Estrutura criada no Hub nasce no GAB". Item já ligado cai na linha de `*.alterada`. |
    | `atualizado_em` mais antigo que `hub_sincronizado_em` | Descartado (`evento_antigo_descartado`). Igual é reaplicado — `updated_at` tem resolução de segundo e o retrato é idempotente. |
    | Bloco `entidade`/`unidade` ausente ou sem `id` | 409 (payload inaplicável), como vínculo sem bloco. |
 
@@ -322,10 +326,90 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    `hub:espelhar-estrutura --atualizar --dry-run` e, se coerente, sem
    `--dry-run`.
 
-   **Fora de escopo (fase seguinte).** Estrutura criada no Hub nascer no GAB
-   (exige inferir `tipo_gabinete`, provisionar licença, módulos e quotas da
-   entidade e criar administrador; o mapeamento Hub→GAB é ambíguo), Conta (o GAB
-   não a conhece), timezone, tipos e unidades aninhadas (o GAB é plano).
+   **Fora de escopo da fase 1.** Conta (o GAB não a conhece), alteração de
+   timezone e tipo depois de criado, e unidades aninhadas (o GAB é plano). A
+   criação ficou para a fase 2, logo abaixo.
+
+   ### Estrutura criada no Hub nasce no GAB (fase 2, 24/09/2026)
+
+   O Hub é o **único ponto de criação** de entidade e gabinete. O que ele cria
+   para o GAB nasce aqui sozinho, sem inventar dado: titular
+   (`vereador_nome`), número eleitoral, cores e protocolo continuam sendo
+   preenchidos no GAB depois (Configurações do gabinete / Administração →
+   Gabinetes).
+
+   **Habilitação por entidade (Hub).** Cada entidade declara no `/estrutura`
+   do Hub os **sistemas habilitados** (tabela `entidade_sistema`; só
+   administrador do Hub edita). Os avisos de estrutura da entidade e das
+   unidades dela vão só para os habilitados. Habilitar o GAB numa entidade —
+   inclusive ao criá-la — manda ao GAB, e só a ele, `entidade.criada` e
+   `unidade.criada` de tudo o que já existe (pai antes do filho); desabilitar
+   só para de avisar (nada é suspenso aqui). Com o GAB habilitado, a entidade
+   precisa ter município e UF (próprios ou da organização). A migration do Hub
+   habilita, para cada entidade, os sistemas em que ela já tem vínculo; o
+   importador habilita o GAB no que veio do GAB — nenhum dos dois anuncia
+   `*.criada`.
+
+   **Payload (aditivo).** `dados.entidade` ganhou `sigla`, `timezone` (da
+   conta) e `municipio`/`estado` **resolvidos** (da entidade, senão da conta).
+   `dados.unidade` ganhou `sigla`, `codigo` e `entidade_tipo`.
+
+   **Endpoint novo.** `GET /api/v1/entidades/{id}` (mesma autenticação
+   `Bearer`): os campos da listagem mais `tipo` no topo, município/UF
+   resolvidos, `timezone`, `sistemas_habilitados` (códigos) e `habilitado`
+   (o sistema que chama está entre eles). 404 para entidade inexistente ou
+   removida. Unidade avulsa continua em `GET /api/v1/unidades/{id}` (traz
+   `unidade_pai_id` e `tipo`).
+
+   **Tipo "Gabinete independente" no Hub.** `EntidadeTipo::GabineteIndependente`
+   (`GABINETE_INDEPENDENTE`, natureza pública, sem poder/esfera obrigatórios).
+   O importador passou a classificá-lo assim; as entidades que importações
+   antigas trouxeram como `OUTRA` são revisadas com
+   `hub:reclassificar-gabinetes-independentes --dry-run` (no Hub), que só
+   aplica — com confirmação ou `--force` — às candidatas com uma única
+   unidade `GABINETE` e origem no GAB.
+
+   **Como o GAB cria** (`HubEstruturaSyncService::criarEntidade`/`criarUnidade`,
+   sobre `EstruturaProvisioningService`, o mesmo caminho da antiga criação
+   manual):
+
+   | Situação | Resultado |
+   |---|---|
+   | Entidade `CAMARA_MUNICIPAL`, `PREFEITURA` ou `GABINETE_INDEPENDENTE` | Cria com `municipio`/`estado`/`timezone` do payload, slug **derivado do nome** e globalmente único (nunca o do Hub), situação do Hub, `interface_simplificada` só no independente, `hub_entidade_id` + `hub_sincronizado_em`, licença `LEGADO_COMPLETO` e todos os módulos da entidade. |
+   | Unidade raiz com tipo derivável | Cria o gabinete com município/UF/fuso herdados da entidade local, slug do nome, todos os módulos do catálogo (evento de módulo com `origem = GOVNEX_HUB`, sem administrador), município eleitoral ligado se existir, `vereador_nome`/`numero_eleitoral` nulos e **nenhum usuário**. |
+   | Tipo do gabinete | Derivado de entidade + unidade (`HubTipoMapper`). Câmara: `GABINETE` → gabinete parlamentar; estrutura administrativa e áreas-meio (`SECRETARIA`, `DIRETORIA`, `DEPARTAMENTO`, `SETOR`, `ASSESSORIA`, `RECURSOS_HUMANOS`…) → setor administrativo. Prefeitura: `GABINETE` → gabinete do prefeito, `SECRETARIA` → secretaria, demais administrativas → setor administrativo. Independente: `GABINETE` → gabinete independente. |
+   | Tipo sem equivalente (entidade `AUTARQUIA`…, unidade `ESCOLA`, `HOSPITAL`, `OUTRA`…), unidade aninhada, segundo gabinete de independente, dados incompletos | `Log::info` e **200** com `acao = *_ignorada` e `motivo`. Nunca 409/422. |
+   | Item local **não ligado** com o mesmo slug que o Hub informou | Ignorado (`casamento_pendente`): é o mesmo item vindo do importador; ligar é tarefa do `hub:espelhar-estrutura`, não do webhook. |
+   | Reentrega / item já ligado | Cai na atualização (nome e situação). O `unique` de `hub_entidade_id`/`hub_unidade_id` segura criação simultânea. |
+   | `unidade.criada` antes da entidade | Resolve a entidade **sob demanda** (`GET /api/v1/entidades/{id}`) respeitando `habilitado`; se o Hub não responder, devolve **500** para o Hub reenviar. |
+
+   **Vínculo sob demanda.** `HubVinculoSyncService` (login e webhook), antes
+   de escrever, cria pela API a entidade/unidade do vínculo que ainda não está
+   espelhada (`GET /api/v1/entidades/{id}` e `/unidades/{id}`). Só descarta o
+   vínculo se o Hub disser que o GAB não está habilitado, o tipo não tiver
+   equivalente ou o Hub não responder — e aí vale a regra de antes: o login
+   não desativa os ausentes.
+
+   **Rede de segurança.** `php artisan hub:espelhar-estrutura --criar` cria o
+   que falta (entidade com o GAB habilitado e tipo com equivalente, unidades
+   raiz com tipo com equivalente); `--criar --dry-run` só lista o que
+   nasceria e o motivo de cada item que não nasce.
+
+   **Criação local bloqueada.** `admin.entities.create` e
+   `admin.offices.create` redirecionam para Administração → Gabinetes com
+   "A estrutura é criada no Govnex Hub"; `admin.entities.store` e
+   `admin.offices.store` respondem 403. Os botões "Nova entidade"/"Novo
+   gabinete" viraram atalhos para `{HUB_BASE_URL}/estrutura` (sem
+   `HUB_BASE_URL`, só o aviso). A edição de gabinete na administração não cria
+   nem altera mais a conta do responsável — ela é só exibida. Continuam
+   editáveis no GAB os campos de domínio dele (titular, número eleitoral,
+   contato, endereço, módulos, cores…).
+
+   **Ordem de deploy: GAB antes do Hub.** O Hub só passa a emitir `*.criada`
+   filtrado por habilitação depois do `migrate` (tabela `entidade_sistema`),
+   que exige autorização. Depois de publicar os dois: habilitar o GAB numa
+   entidade de teste no Hub, criar uma unidade e conferir o GAB; rodar
+   `hub:espelhar-estrutura --criar --dry-run` para ver o que falta.
 3. **Carga inicial:** vincular as contas existentes por e-mail (decisão #7) e revisar as divergências (duplicados, e-mails que não batem).
 4. **Corte:** login local do GAB desativado; SSO pelo Hub vira obrigatório (decisão #2). Telas de gestão de usuários do GAB passam a somente leitura. Sessões já abertas continuam até expirar se o Hub cair (decisão #10); root continua local (decisão #6).
 5. **Limpeza:** remover senha, 2FA e passkeys locais do GAB, `users.role` como dado editável e as rotas legadas que dependem de `users.gabinete_id`.

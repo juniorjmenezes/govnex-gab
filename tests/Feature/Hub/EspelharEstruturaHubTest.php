@@ -122,3 +122,67 @@ it('sem --atualizar não mexe em nome nem situação', function () {
 
     expect($entidade->fresh()->nome)->toBe('Câmara X');
 });
+
+/** Uma entidade do Hub sem espelho: Câmara (9) habilitada, com um gabinete raiz, um setor aninhado e uma escola. */
+function fingirEstruturaDoHubParaCriar(bool $habilitado = true): void
+{
+    Http::fake([
+        'hub.teste/api/v1/contas' => Http::response(['data' => [['id' => 1, 'slug' => 'conta']]]),
+        'hub.teste/api/v1/contas/1/entidades' => Http::response(['data' => [
+            ['id' => 9, 'slug' => 'camara-nova', 'nome' => 'Câmara Nova'],
+        ]]),
+        'hub.teste/api/v1/entidades/9' => Http::response(['data' => [
+            'id' => 9, 'nome' => 'Câmara Nova', 'slug' => 'camara-nova',
+            'classificacoes' => ['tipo' => 'CAMARA_MUNICIPAL'], 'status' => 'ativa',
+            'municipio' => 'Sobral', 'estado' => 'CE', 'timezone' => 'America/Fortaleza',
+            'habilitado' => $habilitado,
+        ]]),
+        'hub.teste/api/v1/entidades/9/unidades' => Http::response(['data' => [
+            ['id' => 90, 'entidade_id' => 9, 'unidade_pai_id' => null, 'slug' => 'gab-vereador', 'nome' => 'Gabinete do Vereador', 'tipo' => 'GABINETE', 'ativa' => true, 'unidades' => [
+                ['id' => 91, 'entidade_id' => 9, 'unidade_pai_id' => 90, 'slug' => 'assessoria', 'nome' => 'Assessoria', 'tipo' => 'ASSESSORIA', 'ativa' => true, 'unidades' => []],
+            ]],
+            ['id' => 92, 'entidade_id' => 9, 'unidade_pai_id' => null, 'slug' => 'escola', 'nome' => 'Escola do Legislativo', 'tipo' => 'ESCOLA', 'ativa' => true, 'unidades' => []],
+        ]]),
+    ]);
+}
+
+it('com --criar --dry-run só lista o que nasceria', function () {
+    fingirEstruturaDoHubParaCriar();
+
+    $this->artisan('hub:espelhar-estrutura --criar --dry-run')
+        ->expectsOutputToContain("Entidade 'camara-nova'")
+        ->expectsOutputToContain("Gabinete 'camara-nova/gab-vereador'")
+        ->assertSuccessful();
+
+    expect(Entidade::query()->count())->toBe(0)
+        ->and(Gabinete::withoutGlobalScopes()->count())->toBe(0);
+});
+
+it('com --criar cria a entidade habilitada e os gabinetes raiz com equivalente', function () {
+    fingirEstruturaDoHubParaCriar();
+
+    $this->artisan('hub:espelhar-estrutura --criar')->assertSuccessful();
+
+    $entidade = Entidade::query()->where('hub_entidade_id', '9')->firstOrFail();
+    $gabinetes = Gabinete::withoutGlobalScopes()->where('entidade_id', $entidade->id)->get();
+
+    expect($entidade->nome)->toBe('Câmara Nova')
+        ->and($gabinetes)->toHaveCount(1)
+        ->and($gabinetes->first()->hub_unidade_id)->toBe('90');
+
+    // Idempotente: rodar de novo não cria nada.
+    $this->artisan('hub:espelhar-estrutura --criar')->assertSuccessful();
+
+    expect(Entidade::query()->count())->toBe(1)
+        ->and(Gabinete::withoutGlobalScopes()->count())->toBe(1);
+});
+
+it('com --criar não cria entidade em que o GAB não está habilitado', function () {
+    fingirEstruturaDoHubParaCriar(habilitado: false);
+
+    $this->artisan('hub:espelhar-estrutura --criar')
+        ->expectsOutputToContain('gab_nao_habilitado')
+        ->assertSuccessful();
+
+    expect(Entidade::query()->count())->toBe(0);
+});

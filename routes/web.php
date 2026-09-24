@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Admin\EntidadeController as AdminEntidadeController;
+use App\Http\Controllers\Admin\EstruturaNoHubController;
 use App\Http\Controllers\Admin\GlobalPoliticalDataSyncController;
 use App\Http\Controllers\Admin\GovnexApiIntegrationController;
 use App\Http\Controllers\Admin\KnowledgeBaseController as AdminKnowledgeBaseController;
@@ -50,12 +50,14 @@ Route::middleware(['auth', 'verified', 'user.active'])->group(function () {
     Route::get('entidades', EntidadeDirectoryController::class)->name('entidades.index');
 
     Route::middleware('root')->prefix('admin')->name('admin.')->group(function () {
-        Route::get('entidades/nova', [AdminEntidadeController::class, 'create'])->name('entities.create');
-        Route::post('entidades', [AdminEntidadeController::class, 'store'])->name('entities.store');
+        // Estrutura nasce no Govnex Hub: as rotas de criação só respondem com
+        // a orientação (docs/INTEGRACAO_GOVNEX_HUB.md).
+        Route::get('entidades/nova', EstruturaNoHubController::class)->name('entities.create');
+        Route::post('entidades', EstruturaNoHubController::class)->name('entities.store');
         Route::get('gabinetes', [OfficeController::class, 'index'])->name('offices.index');
-        Route::get('gabinetes/novo', [OfficeController::class, 'create'])->name('offices.create');
+        Route::get('gabinetes/novo', EstruturaNoHubController::class)->name('offices.create');
         Route::get('gabinetes/{office}/editar', [OfficeController::class, 'edit'])->name('offices.edit');
-        Route::post('gabinetes', [OfficeController::class, 'store'])->name('offices.store');
+        Route::post('gabinetes', EstruturaNoHubController::class)->name('offices.store');
         Route::put('gabinetes/{office}', [OfficeController::class, 'update'])->name('offices.update');
         Route::patch('gabinetes/{office}/modulos', [OfficeController::class, 'updateModules'])
             ->name('offices.modules.update');

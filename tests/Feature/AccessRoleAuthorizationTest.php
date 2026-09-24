@@ -42,6 +42,17 @@ class AccessRoleAuthorizationTest extends TestCase
         $this->get($this->contextRoute($office, 'appointments.index'))->assertOk();
     }
 
+    public function test_auditor_role_reaches_the_frontend_as_auditor(): void
+    {
+        [$office, $auditor] = $this->officeWithAuditor();
+
+        $this->actingAs($auditor)
+            ->get($this->contextRoute($office, 'demands.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('auth.user.role', 'auditor'));
+    }
+
     public function test_auditor_cannot_write_demands(): void
     {
         [$office, $auditor] = $this->officeWithAuditor();

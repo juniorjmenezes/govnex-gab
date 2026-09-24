@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import { CloseIcon, DownloadIcon, FileIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
+import { useCanWrite } from '@/hooks/use-can-write';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import type { DemandAttachment } from '@/types';
 
@@ -36,6 +37,7 @@ export function AttachmentList({
     attachments: DemandAttachment[];
 }) {
     const tenantUrl = useTenantUrl();
+    const canWrite = useCanWrite();
 
     if (attachments.length === 0) {
         return null;
@@ -77,25 +79,27 @@ export function AttachmentList({
                                 <DownloadIcon />
                             </a>
                         </Button>
-                        <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            aria-label={`Remover ${attachment.nome_original}`}
-                            onClick={() => {
-                                if (
-                                    window.confirm(
-                                        `Remover ${attachment.nome_original}?`,
-                                    )
-                                ) {
-                                    router.delete(base, {
-                                        preserveScroll: true,
-                                    });
-                                }
-                            }}
-                        >
-                            <CloseIcon />
-                        </Button>
+                        {canWrite && (
+                            <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                aria-label={`Remover ${attachment.nome_original}`}
+                                onClick={() => {
+                                    if (
+                                        window.confirm(
+                                            `Remover ${attachment.nome_original}?`,
+                                        )
+                                    ) {
+                                        router.delete(base, {
+                                            preserveScroll: true,
+                                        });
+                                    }
+                                }}
+                            >
+                                <CloseIcon />
+                            </Button>
+                        )}
                     </li>
                 );
             })}

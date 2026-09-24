@@ -141,8 +141,9 @@ class GabineteModuleManager
 
     /** @param list<string> $selection
      * @param  array<string, scalar|null>  $context
+     * @param  User|null  $administrator  nulo quando quem liga é o espelhamento do Govnex Hub, não uma pessoa
      */
-    public function sync(Gabinete $office, array $selection, User $administrator, array $context = []): void
+    public function sync(Gabinete $office, array $selection, ?User $administrator, array $context = []): void
     {
         $selection = $this->validateSelection($selection);
         $selected = array_fill_keys($selection, true);
@@ -171,7 +172,7 @@ class GabineteModuleManager
                     'ativo' => $enabled,
                     'ativado_em' => $enabled ? ($setting->ativado_em ?? now()) : null,
                     'desativado_em' => $enabled ? null : now(),
-                    'administrador_id' => $administrator->id,
+                    'administrador_id' => $administrator?->id,
                 ])->save();
 
                 if ($changed) {
@@ -179,7 +180,7 @@ class GabineteModuleManager
                         'gabinete_id' => $office->id,
                         'modulo' => $module->value,
                         'acao' => $enabled ? 'ATIVADO' : 'DESATIVADO',
-                        'administrador_id' => $administrator->id,
+                        'administrador_id' => $administrator?->id,
                         'contexto' => $context,
                         'ocorrido_em' => now(),
                     ]);

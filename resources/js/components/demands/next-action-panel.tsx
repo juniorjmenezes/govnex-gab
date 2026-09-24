@@ -16,6 +16,7 @@ import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useCanWrite } from '@/hooks/use-can-write';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { formatDayMonthYear } from '@/lib/dates';
 import { hasModule } from '@/lib/modules';
@@ -41,6 +42,7 @@ export function NextActionPanel({
     members: DemandMember[];
 }) {
     const tenantUrl = useTenantUrl();
+    const canWrite = useCanWrite();
     const { auth } = usePage<{ auth: Auth }>().props;
     const scheduleEnabled = hasModule(auth.modules, 'AGENDA');
     const hasPending =
@@ -104,7 +106,15 @@ export function NextActionPanel({
         return tenantUrl(`/agenda/novo?${params.toString()}`);
     };
 
-    if (!editing && hasPending) {
+    if (!canWrite && !hasPending) {
+        return (
+            <p className="p-5 text-sm text-muted-foreground">
+                Nenhuma próxima ação definida.
+            </p>
+        );
+    }
+
+    if ((!editing || !canWrite) && hasPending) {
         return (
             <div className="p-4">
                 <div className="rounded-2xl border bg-muted/40 p-4">
@@ -129,27 +139,29 @@ export function NextActionPanel({
                             Responsável: {demand.proxima_acao_responsavel.name}
                         </p>
                     )}
-                    <div className="mt-3 flex justify-end gap-2">
-                        <TableActionButton
-                            type="button"
-                            label="Redefinir próxima ação"
-                            onClick={() => setEditing(true)}
-                        >
-                            <PenIcon />
-                        </TableActionButton>
-                        {scheduleEnabled && (
-                            <Button size="sm" variant="outline" asChild>
-                                <Link href={scheduleUrl()}>
-                                    <CalendarAddIcon />
-                                    Adicionar à agenda
-                                </Link>
+                    {canWrite && (
+                        <div className="mt-3 flex justify-end gap-2">
+                            <TableActionButton
+                                type="button"
+                                label="Redefinir próxima ação"
+                                onClick={() => setEditing(true)}
+                            >
+                                <PenIcon />
+                            </TableActionButton>
+                            {scheduleEnabled && (
+                                <Button size="sm" variant="outline" asChild>
+                                    <Link href={scheduleUrl()}>
+                                        <CalendarAddIcon />
+                                        Adicionar à agenda
+                                    </Link>
+                                </Button>
+                            )}
+                            <Button size="sm" onClick={complete}>
+                                <CheckCircleIcon />
+                                Concluir
                             </Button>
-                        )}
-                        <Button size="sm" onClick={complete}>
-                            <CheckCircleIcon />
-                            Concluir
-                        </Button>
-                    </div>
+                        </div>
+                    )}
                 </div>
             </div>
         );

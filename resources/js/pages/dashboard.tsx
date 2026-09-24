@@ -45,6 +45,7 @@ import {
     SurfaceTitle,
 } from '@/components/ui/surface';
 
+import { useCanWrite } from '@/hooks/use-can-write';
 import { contextualUrl } from '@/lib/entity-context';
 import type {
     Auth,
@@ -129,6 +130,7 @@ export default function Dashboard({
 }: DashboardProps) {
     const { auth } = usePage<{ auth: Auth }>().props;
     const href = (path: string) => contextualUrl(auth, path);
+    const canWrite = useCanWrite();
     const statusData = charts.status.filter((item) => item.total > 0);
     const statusChartData = statusData.map((item, index) => ({
         ...item,
@@ -179,12 +181,14 @@ export default function Dashboard({
                                         label: option.label,
                                     }))}
                                 />
-                                <Button asChild>
-                                    <Link href={href('/demandas/create')}>
-                                        <AddIcon aria-hidden="true" />
-                                        Nova demanda
-                                    </Link>
-                                </Button>
+                                {canWrite && (
+                                    <Button asChild>
+                                        <Link href={href('/demandas/create')}>
+                                            <AddIcon aria-hidden="true" />
+                                            Nova demanda
+                                        </Link>
+                                    </Button>
+                                )}
                             </>
                         ) : undefined
                     }

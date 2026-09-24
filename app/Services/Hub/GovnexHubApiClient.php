@@ -107,6 +107,35 @@ class GovnexHubApiClient
         return $this->lista('/api/v1/entidades/'.rawurlencode((string) $entidadeId).'/unidades'.$this->filtroAtivas($somenteAtivas));
     }
 
+    /**
+     * Uma entidade, para criar sob demanda o que ainda não foi espelhado.
+     * Além dos campos da listagem traz `habilitado` (o GAB está entre os
+     * sistemas habilitados da entidade), `timezone` e município/UF já
+     * resolvidos (da entidade, senão da conta). `null` quando o Hub não a
+     * conhece (inexistente ou removida).
+     *
+     * @return array<string, mixed>|null
+     *
+     * @throws RuntimeException
+     */
+    public function entidade(string|int $entidadeId): ?array
+    {
+        return $this->item('/api/v1/entidades/'.rawurlencode((string) $entidadeId));
+    }
+
+    /**
+     * Uma unidade (com `unidade_pai_id`, `tipo` e o bloco da entidade).
+     * `null` quando o Hub não a conhece.
+     *
+     * @return array<string, mixed>|null
+     *
+     * @throws RuntimeException
+     */
+    public function unidade(string|int $unidadeId): ?array
+    {
+        return $this->item('/api/v1/unidades/'.rawurlencode((string) $unidadeId));
+    }
+
     private function filtroAtivas(bool $somenteAtivas): string
     {
         return $somenteAtivas ? '' : '?somente_ativas=false';
@@ -139,6 +168,39 @@ class GovnexHubApiClient
         }
 
         return array_values(array_filter($dados, 'is_array'));
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     *
+     * @throws RuntimeException
+     */
+    private function item(string $caminho): ?array
+    {
+        try {
+            $response = $this->request()->get($this->baseUrl().$caminho);
+        } catch (ConnectionException) {
+            throw new RuntimeException('Não foi possível conectar ao Govnex Hub. Confira HUB_BASE_URL.');
+        }
+
+        if ($response->status() === 404) {
+            return null;
+        }
+
+        if (! $response->successful()) {
+            throw new RuntimeException(match (true) {
+                $response->status() === 401 || $response->status() === 403 => 'O Govnex Hub recusou o acesso à API. Confira HUB_API_SECRET.',
+                default => 'O Govnex Hub recusou a consulta de estrutura (HTTP '.$response->status().').',
+            });
+        }
+
+        $dados = $response->json('data');
+
+        if (! is_array($dados)) {
+            throw new RuntimeException('O Govnex Hub respondeu num formato inesperado ao consultar a estrutura.');
+        }
+
+        return $dados;
     }
 
     private function baseUrl(): string
