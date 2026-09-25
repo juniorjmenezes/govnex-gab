@@ -63,7 +63,7 @@ function AlertDialogContent({
                     data-slot="alert-dialog-content"
                     data-size={size}
                     className={cn(
-                        'group/alert-dialog-content pointer-events-auto grid w-full gap-6 rounded-md bg-popover p-6 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-md data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+                        'group/alert-dialog-content pointer-events-auto grid w-full gap-6 rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/8 duration-100 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-md dark:ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
                         className,
                     )}
                     {...props}
@@ -129,7 +129,7 @@ function AlertDialogTitle({
         <AlertDialogPrimitive.Title
             data-slot="alert-dialog-title"
             className={cn(
-                'text-sm leading-5 font-semibold tracking-wide text-foreground group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2',
+                'text-sm leading-5 font-semibold text-foreground group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2',
                 className,
             )}
             {...props}

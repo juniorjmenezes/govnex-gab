@@ -13,9 +13,10 @@ import type { Auth, GabineteModuleCode, NavItem } from '@/types';
 type ModuleNavItem = NavItem & { module?: GabineteModuleCode };
 
 /**
- * Itens do menubar de gestão. O `module` de cada item espelha o middleware
+ * Itens do grupo "Gestão do gabinete" da sidebar (e da busca rápida). O
+ * `module` de cada item espelha o middleware
  * `module:` que protege a rota correspondente em `routes/tenant.php` — sem
- * isso o menubar exibiria links que só levam à tela de módulo indisponível.
+ * isso a sidebar exibiria links que só levam à tela de módulo indisponível.
  * Equipe e Configurações pertencem ao núcleo e não dependem de módulo.
  */
 export function useManagementNavItems(): NavItem[] {

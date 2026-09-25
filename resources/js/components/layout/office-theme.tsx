@@ -27,8 +27,14 @@ function readableForeground(hex: string): string {
             : Math.pow((channel + 0.055) / 1.055, 2.4),
     );
     const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+    // Escolhe o texto (quase preto ou branco) de maior contraste WCAG. O
+    // corte antigo (0.48) deixava branco sobre tons médios como #16A34A
+    // (3,3:1); é a mesma regra verificada por `contrast:check` no govnex-ui.
+    const darkLuminance = 0.0056; // #111111
+    const contrastWithDark = (luminance + 0.05) / (darkLuminance + 0.05);
+    const contrastWithWhite = 1.05 / (luminance + 0.05);
 
-    return luminance > 0.48 ? '#111111' : '#ffffff';
+    return contrastWithDark >= contrastWithWhite ? '#111111' : '#ffffff';
 }
 
 export function OfficeTheme() {

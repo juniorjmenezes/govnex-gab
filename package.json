@@ -13,6 +13,7 @@
     "format:check": "prettier --check resources/",
     "lint": "eslint . --fix",
     "lint:check": "eslint .",
+    "sync:ui": "node scripts/sync-govnex-ui.mjs",
     "types:check": "tsc --noEmit && npm run types:check --workspace @govnex/ui"
   },
   "devDependencies": {

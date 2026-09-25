@@ -8,10 +8,7 @@ export function AppContent({
     ...props
 }: React.ComponentProps<'main'>) {
     return (
-        <SidebarInset
-            className={cn('bg-muted dark:bg-background', className)}
-            {...props}
-        >
+        <SidebarInset className={cn('bg-background', className)} {...props}>
             {children}
         </SidebarInset>
     );

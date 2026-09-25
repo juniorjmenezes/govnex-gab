@@ -55,7 +55,7 @@ function DialogContent({
                 <DialogPrimitive.Content
                     data-slot="dialog-content"
                     className={cn(
-                        'pointer-events-auto grid w-full max-w-[calc(100%-2rem)] gap-6 rounded-md bg-popover p-6 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-md data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+                        'pointer-events-auto grid w-full max-w-[calc(100%-2rem)] gap-6 rounded-xl bg-popover p-6 text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/8 duration-100 outline-none sm:max-w-md dark:ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
                         className,
                     )}
                     {...props}
@@ -127,10 +127,7 @@ function DialogTitle({
     return (
         <DialogPrimitive.Title
             data-slot="dialog-title"
-            className={cn(
-                'text-sm font-semibold tracking-wide text-foreground',
-                className,
-            )}
+            className={cn('text-sm font-semibold text-foreground', className)}
             {...props}
         />
     );

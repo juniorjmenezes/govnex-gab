@@ -1,25 +1,19 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { useState } from 'react';
 
+import { StatCard, StatCardSkeleton } from '@/components/common/stat-card';
+import { toStatTrend } from '@/components/dashboard/dashboard-format';
 import {
-    Area,
-    AreaChart,
-    CartesianGrid,
-    LabelList,
-    RadialBar,
-    RadialBarChart,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from 'recharts';
-import { StatCard } from '@/components/common/stat-card';
-import { PriorityBadge } from '@/components/demands/priority-badge';
-import { StatusBadge } from '@/components/demands/status-badge';
+    AppointmentListItem,
+    DemandListItem,
+    RecentDemandsTable,
+} from '@/components/dashboard/dashboard-lists';
+import { EvolutionChart } from '@/components/dashboard/evolution-chart';
+import { StatusOverview } from '@/components/dashboard/status-overview';
 import { EmptyState } from '@/components/feedback/empty-state';
 import {
     AddIcon,
+    AltArrowRightIcon,
     CalendarMarkIcon,
     CheckCircleIcon,
     ClipboardListIcon,
@@ -30,90 +24,40 @@ import {
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    ChartContainer,
-    ChartTooltip,
-    ChartTooltipContent,
-} from '@/components/ui/chart';
-import type { ChartConfig } from '@/components/ui/chart';
-import {
-    Surface,
-    SurfaceDescription,
-    SurfaceHeader,
-    SurfaceTitle,
-} from '@/components/ui/surface';
-
+import { SectionCard } from '@/components/ui/section-card';
 import { useCanWrite } from '@/hooks/use-can-write';
 import { contextualUrl } from '@/lib/entity-context';
-import type {
-    Auth,
-    DashboardDatum,
-    DashboardDemand,
-    DashboardProps,
-} from '@/types';
+import { cn } from '@/lib/utils';
+import type { Auth, DashboardProps, DashboardTrendKey } from '@/types';
+import type { IconComponent } from '@/types/icon';
 
-const chartColors = [
-    'var(--chart-1)',
-    'var(--chart-2)',
-    'var(--chart-3)',
-    'var(--chart-4)',
-    'var(--chart-5)',
-];
+type Kpi = {
+    key: DashboardTrendKey;
+    title: string;
+    value: number;
+    icon: IconComponent;
+    alert?: boolean;
+};
 
-const formatDate = (value: string | null) =>
-    value
-        ? format(new Date(value), "dd 'de' MMM", { locale: ptBR })
-        : 'Sem prazo';
-
-function DemandRow({
-    demand,
-    deadline = false,
+/** Rodapé de cartão com link "ver mais", alinhado à direita. */
+function CardFooterLink({
+    href,
+    children,
 }: {
-    demand: DashboardDemand;
-    deadline?: boolean;
+    href: string;
+    children: string;
 }) {
-    const { auth } = usePage<{ auth: Auth }>().props;
-
     return (
-        <Link
-            href={contextualUrl(auth, `/demandas/${demand.id}`)}
-            className="group flex min-w-0 items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
-        >
-            <span className="shrink-0 text-sm font-normal tabular-nums">
-                {demand.protocol}
-            </span>
-            <div className="shrink-0">
-                <PriorityBadge priority={demand.priority} />
-            </div>
-            <span
-                className="min-w-0 flex-1 truncate text-sm font-normal"
-                title={demand.title}
+        <div className="mt-auto flex justify-end border-t px-4 py-2.5">
+            <Link
+                href={href}
+                className="inline-flex items-center gap-1 rounded-sm text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
-                {demand.title}
-            </span>
-            <span className="shrink-0 text-xs whitespace-nowrap text-muted-foreground">
-                {deadline ? (
-                    <span
-                        className={
-                            demand.overdue ? 'font-medium text-destructive' : ''
-                        }
-                    >
-                        {demand.overdue ? 'Venceu em ' : 'Prazo: '}
-                        {formatDate(demand.deadline)}
-                    </span>
-                ) : (
-                    <>
-                        {demand.citizen?.name ?? 'Cidadão não informado'} ·{' '}
-                        {demand.responsible?.name ?? 'Sem responsável'}
-                    </>
-                )}
-            </span>
-            <div className="shrink-0">
-                <StatusBadge status={demand.status} />
-            </div>
-        </Link>
+                {children}
+                <AltArrowRightIcon className="size-4" aria-hidden="true" />
+            </Link>
+        </div>
     );
 }
 
@@ -121,6 +65,7 @@ export default function Dashboard({
     filters,
     periodOptions,
     metrics,
+    trends,
     charts,
     capabilities,
     upcomingAppointments,
@@ -131,31 +76,66 @@ export default function Dashboard({
     const { auth } = usePage<{ auth: Auth }>().props;
     const href = (path: string) => contextualUrl(auth, path);
     const canWrite = useCanWrite();
-    const statusData = charts.status.filter((item) => item.total > 0);
-    const statusChartData = statusData.map((item, index) => ({
-        ...item,
-        fill: chartColors[index % chartColors.length],
-    }));
-    const statusChartConfig: ChartConfig = {
-        total: { label: 'Demandas' },
-        ...Object.fromEntries(
-            statusChartData.map((item) => [
-                item.key,
-                { label: item.label, color: item.fill },
-            ]),
-        ),
-    };
+    const [loadingPeriod, setLoadingPeriod] = useState(false);
     const periodLabel =
         periodOptions.find((option) => option.value === filters.period)
-            ?.label ?? `${filters.period} dias`;
+            ?.label ?? `Últimos ${filters.period} dias`;
 
     const changePeriod = (value: string) => {
         router.get(
             href('/dashboard'),
             { period: Number(value) },
-            { preserveState: true, preserveScroll: true, replace: true },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onStart: () => setLoadingPeriod(true),
+                onFinish: () => setLoadingPeriod(false),
+            },
         );
     };
+
+    const kpis: Kpi[] = [
+        ...(capabilities.demands
+            ? ([
+                  {
+                      key: 'open_total',
+                      title: 'Demandas abertas',
+                      value: metrics.open_total,
+                      icon: ClipboardListIcon,
+                  },
+                  {
+                      key: 'overdue',
+                      title: 'Atrasadas',
+                      value: metrics.overdue,
+                      icon: ClockCircleIcon,
+                      alert: metrics.overdue > 0,
+                  },
+                  {
+                      key: 'near_deadline',
+                      title: 'Vencem em 7 dias',
+                      value: metrics.near_deadline,
+                      icon: CalendarMarkIcon,
+                  },
+                  {
+                      key: 'resolved_period',
+                      title: 'Resolvidas',
+                      value: metrics.resolved_period,
+                      icon: CheckCircleIcon,
+                  },
+              ] satisfies Kpi[])
+            : []),
+        ...(capabilities.relationship
+            ? ([
+                  {
+                      key: 'citizens',
+                      title: 'Cidadãos na base',
+                      value: metrics.citizens,
+                      icon: UsersGroupRoundedIcon,
+                  },
+              ] satisfies Kpi[])
+            : []),
+    ];
 
     return (
         <>
@@ -165,7 +145,7 @@ export default function Dashboard({
                     title="Visão geral"
                     description={
                         capabilities.demands
-                            ? 'Prioridades atuais e evolução do atendimento no período selecionado.'
+                            ? 'Prioridades de hoje e evolução do atendimento do gabinete.'
                             : 'Acompanhe as funcionalidades habilitadas para este gabinete.'
                     }
                     actions={
@@ -173,7 +153,8 @@ export default function Dashboard({
                             <>
                                 <AppSelect
                                     className="w-auto min-w-44"
-                                    aria-label="Período dos gráficos e demandas recentes"
+                                    clearable={false}
+                                    aria-label="Período dos indicadores e gráficos"
                                     value={String(filters.period)}
                                     onValueChange={changePeriod}
                                     options={periodOptions.map((option) => ({
@@ -194,176 +175,70 @@ export default function Dashboard({
                     }
                 />
 
-                {!capabilities.demands && capabilities.relationship && (
-                    <section
-                        aria-label="Indicadores de relacionamento"
-                        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
-                    >
-                        <StatCard
-                            title="Cidadãos cadastrados"
-                            value={metrics.citizens}
-                            description="Base de relacionamento do gabinete"
-                            icon={UsersGroupRoundedIcon}
-                        />
-                    </section>
-                )}
-
-                {capabilities.demands && (
+                {kpis.length > 0 && (
                     <section
                         aria-label="Indicadores principais"
-                        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+                        aria-busy={loadingPeriod}
+                        className={cn(
+                            'grid gap-4 sm:grid-cols-2',
+                            kpis.length >= 5
+                                ? 'lg:grid-cols-3 xl:grid-cols-5 sm:max-lg:[&>*:last-child:nth-child(odd)]:col-span-2'
+                                : kpis.length === 4
+                                  ? 'xl:grid-cols-4'
+                                  : 'lg:grid-cols-3',
+                        )}
                     >
-                        <StatCard
-                            title="Demandas abertas"
-                            value={metrics.open_total}
-                            description="Em atendimento agora"
-                            icon={ClipboardListIcon}
-                        />
-                        <StatCard
-                            title="Atrasadas"
-                            value={metrics.overdue}
-                            description="Exigem ação imediata"
-                            icon={ClockCircleIcon}
-                            valueClassName={
-                                metrics.overdue > 0
-                                    ? 'text-destructive'
-                                    : undefined
-                            }
-                        />
-                        <StatCard
-                            title="Resolvidas no mês"
-                            value={metrics.resolved_month}
-                            description="Finalizadas neste mês"
-                            icon={CheckCircleIcon}
-                        />
-                        <StatCard
-                            title="Próximas do prazo"
-                            value={metrics.near_deadline}
-                            description="Vencem nos próximos 7 dias"
-                            icon={CalendarMarkIcon}
-                        />
+                        {kpis.map((kpi) =>
+                            loadingPeriod ? (
+                                <StatCardSkeleton key={kpi.key} />
+                            ) : (
+                                <StatCard
+                                    key={kpi.key}
+                                    title={kpi.title}
+                                    value={kpi.value.toLocaleString('pt-BR')}
+                                    icon={kpi.icon}
+                                    valueClassName={
+                                        kpi.alert
+                                            ? 'text-destructive'
+                                            : undefined
+                                    }
+                                    trend={toStatTrend(
+                                        kpi.key,
+                                        trends[kpi.key],
+                                        {
+                                            period: filters.period,
+                                            start: filters.start,
+                                        },
+                                    )}
+                                    sparkline={trends[kpi.key]?.series}
+                                />
+                            ),
+                        )}
                     </section>
                 )}
 
-                {capabilities.schedule && (
-                    <Surface
-                        as="section"
-                        aria-labelledby="dashboard-agenda-title"
-                        className="overflow-hidden"
-                    >
-                        <SurfaceHeader
-                            actions={
-                                <Button
-                                    asChild
-                                    size="sm"
-                                    variant="outline"
-                                    className="shrink-0"
-                                >
-                                    <Link href={href('/agenda')}>
-                                        Abrir agenda
-                                    </Link>
-                                </Button>
-                            }
-                        >
-                            <SurfaceTitle id="dashboard-agenda-title">
-                                Próximos compromissos
-                            </SurfaceTitle>
-                            <SurfaceDescription>
-                                Agenda de hoje e dos próximos 7 dias
-                            </SurfaceDescription>
-                        </SurfaceHeader>
-                        {upcomingAppointments.length === 0 ? (
-                            <div className="flex flex-col gap-3 px-5 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                                <span>Nenhum compromisso próximo.</span>
-                                <Button asChild size="sm" variant="outline">
-                                    <Link href={href('/agenda')}>
-                                        Novo compromisso
-                                    </Link>
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
-                                {upcomingAppointments.map((appointment) => (
-                                    <Link
-                                        key={`${appointment.id}-${appointment.starts_at}`}
-                                        href={href(
-                                            `/agenda?view=dia&date=${appointment.date}`,
-                                        )}
-                                        className="group min-w-0 rounded-xl bg-muted/35 p-4 ring-1 ring-foreground/8 transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                                    >
-                                        <div className="flex items-start justify-between gap-2">
-                                            <div>
-                                                <p className="text-xs font-semibold text-primary">
-                                                    {appointment.date_label}
-                                                </p>
-                                                <p className="mt-0.5 text-xs text-muted-foreground">
-                                                    {appointment.time_label}
-                                                </p>
-                                            </div>
-                                            <Badge
-                                                variant={
-                                                    appointment.status ===
-                                                    'confirmado'
-                                                        ? 'default'
-                                                        : 'secondary'
-                                                }
-                                            >
-                                                {appointment.status_label}
-                                            </Badge>
-                                        </div>
-                                        <p className="mt-3 truncate text-sm font-semibold">
-                                            {appointment.title}
-                                        </p>
-                                        <p className="mt-1 truncate text-xs text-muted-foreground">
-                                            {appointment.responsible?.name ??
-                                                appointment.location ??
-                                                'Sem responsável definido'}
-                                        </p>
-                                    </Link>
-                                ))}
-                            </div>
-                        )}
-                    </Surface>
-                )}
+                {capabilities.demands ? (
+                    /*
+                     * Duas colunas independentes no desktop (2/3 + 1/3): cada
+                     * cartão tem a altura do próprio conteúdo, sem esticar
+                     * listas curtas ao lado do gráfico. No celular/tablet as
+                     * colunas "somem" (`contents`) e a ordem vem de `order-*`,
+                     * pondo "Atenção imediata" logo depois dos indicadores.
+                     */
+                    <div className="flex flex-col gap-6 xl:grid xl:grid-cols-3 xl:items-start">
+                        <div className="contents xl:col-span-2 xl:flex xl:min-w-0 xl:flex-col xl:gap-6">
+                            <SectionCard
+                                title="Evolução do atendimento"
+                                description={`Por mês · ${periodLabel.toLowerCase()}`}
+                                className="order-2 xl:order-none"
+                                contentClassName="p-5"
+                            >
+                                <EvolutionChart data={charts.monthly} />
+                            </SectionCard>
 
-                {!capabilities.demands && !capabilities.schedule && (
-                    <Surface as="section">
-                        <EmptyState
-                            icon={InboxIcon}
-                            title="Painel preparado"
-                            description="Use o menu lateral para acessar os módulos habilitados para este gabinete."
-                        />
-                    </Surface>
-                )}
-
-                {capabilities.demands && (
-                    <>
-                        <Surface as="section" className="overflow-hidden">
-                            <SurfaceHeader>
-                                <SurfaceTitle>Atenção imediata</SurfaceTitle>
-                                <SurfaceDescription>
-                                    Demandas com prazo vencido
-                                </SurfaceDescription>
-                            </SurfaceHeader>
-                            {attentionDemands.length === 0 ? (
-                                <div className="px-5 py-8 text-center text-sm text-muted-foreground">
-                                    Nenhuma demanda atrasada.
-                                </div>
-                            ) : (
-                                <div className="divide-y">
-                                    {attentionDemands.map((demand) => (
-                                        <DemandRow
-                                            key={demand.id}
-                                            demand={demand}
-                                            deadline
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </Surface>
-
-                        <Surface as="section" className="overflow-hidden">
-                            <SurfaceHeader
+                            <SectionCard
+                                title="Demandas recentes"
+                                description="Últimos registros no período"
                                 actions={
                                     <Button
                                         asChild
@@ -376,248 +251,198 @@ export default function Dashboard({
                                         </Link>
                                     </Button>
                                 }
+                                className="order-4 xl:order-none"
+                                contentClassName="p-0"
                             >
-                                <SurfaceTitle>Demandas recentes</SurfaceTitle>
-                                <SurfaceDescription>
-                                    Últimos registros no período
-                                </SurfaceDescription>
-                            </SurfaceHeader>
-                            {recentDemands.length === 0 ? (
-                                <EmptyState
-                                    icon={ClipboardListIcon}
-                                    title="Nenhuma demanda no período"
-                                    description="Altere o período ou registre uma nova demanda."
-                                />
-                            ) : (
-                                <div className="divide-y">
-                                    {recentDemands.slice(0, 6).map((demand) => (
-                                        <DemandRow
-                                            key={demand.id}
-                                            demand={demand}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </Surface>
-
-                        <Surface as="section" className="overflow-hidden">
-                            <SurfaceHeader>
-                                <SurfaceTitle>Próximos prazos</SurfaceTitle>
-                                <SurfaceDescription>
-                                    Vencem nos próximos 7 dias
-                                </SurfaceDescription>
-                            </SurfaceHeader>
-                            {upcomingDeadlines.length === 0 ? (
-                                <div className="px-5 py-8 text-center text-sm text-muted-foreground">
-                                    Nenhum prazo próximo.
-                                </div>
-                            ) : (
-                                <div className="divide-y">
-                                    {upcomingDeadlines.map((demand) => (
-                                        <DemandRow
-                                            key={demand.id}
-                                            demand={demand}
-                                            deadline
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </Surface>
-
-                        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(20rem,0.8fr)]">
-                            <Surface as="section" className="overflow-hidden">
-                                <SurfaceHeader>
-                                    <SurfaceTitle>
-                                        Evolução das entradas
-                                    </SurfaceTitle>
-                                    <SurfaceDescription>
-                                        Demandas abertas ·{' '}
-                                        {periodLabel.toLowerCase()}
-                                    </SurfaceDescription>
-                                </SurfaceHeader>
-                                <div
-                                    className="h-72 p-4"
-                                    aria-label="Gráfico da evolução mensal das demandas"
-                                >
-                                    <ResponsiveContainer
-                                        width="100%"
-                                        height="100%"
-                                    >
-                                        <AreaChart
-                                            data={charts.monthly}
-                                            margin={{
-                                                top: 8,
-                                                right: 4,
-                                                bottom: 0,
-                                                left: 0,
-                                            }}
-                                            accessibilityLayer
-                                        >
-                                            <defs>
-                                                <linearGradient
-                                                    id="dashboardEntriesArea"
-                                                    x1="0"
-                                                    y1="0"
-                                                    x2="0"
-                                                    y2="1"
-                                                >
-                                                    <stop
-                                                        offset="5%"
-                                                        stopColor="var(--chart-1)"
-                                                        stopOpacity={0.42}
-                                                    />
-                                                    <stop
-                                                        offset="95%"
-                                                        stopColor="var(--chart-1)"
-                                                        stopOpacity={0.04}
-                                                    />
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid
-                                                strokeDasharray="3 3"
-                                                vertical={false}
-                                            />
-                                            <XAxis
-                                                dataKey="label"
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tickMargin={10}
-                                                minTickGap={24}
-                                                interval="preserveStartEnd"
-                                                tick={{ fontSize: 11 }}
-                                            />
-                                            <YAxis
-                                                allowDecimals={false}
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fontSize: 11 }}
-                                                width={28}
-                                            />
-                                            <Tooltip
-                                                cursor={{
-                                                    stroke: 'var(--border)',
-                                                }}
-                                                content={({
-                                                    active,
-                                                    payload,
-                                                }) => {
-                                                    const datum = payload?.[0]
-                                                        ?.payload as
-                                                        | DashboardDatum
-                                                        | undefined;
-
-                                                    if (!active || !datum) {
-                                                        return null;
-                                                    }
-
-                                                    return (
-                                                        <div className="max-w-72 min-w-44 rounded-xl border bg-popover px-3 py-2.5 text-popover-foreground shadow-md">
-                                                            <p className="text-xs font-medium break-words">
-                                                                {datum.label}
-                                                            </p>
-                                                            <div className="mt-2 flex items-center gap-2 text-xs">
-                                                                <span
-                                                                    className="size-2.5 shrink-0 rounded-[3px]"
-                                                                    style={{
-                                                                        backgroundColor:
-                                                                            'var(--chart-1)',
-                                                                    }}
-                                                                    aria-hidden="true"
-                                                                />
-                                                                <span className="text-muted-foreground">
-                                                                    Demandas
-                                                                </span>
-                                                                <span className="ml-auto pl-4 font-medium tabular-nums">
-                                                                    {datum.total.toLocaleString(
-                                                                        'pt-BR',
-                                                                    )}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                }}
-                                            />
-                                            <Area
-                                                type="monotone"
-                                                dataKey="total"
-                                                name="Demandas"
-                                                stroke="var(--chart-1)"
-                                                strokeWidth={2.5}
-                                                fill="url(#dashboardEntriesArea)"
-                                                dot={{
-                                                    r: 3,
-                                                    fill: 'var(--background)',
-                                                    strokeWidth: 2,
-                                                }}
-                                                activeDot={{
-                                                    r: 5,
-                                                    strokeWidth: 2,
-                                                }}
-                                            />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </Surface>
-
-                            <Surface as="section" className="overflow-hidden">
-                                <SurfaceHeader>
-                                    <SurfaceTitle>Situação atual</SurfaceTitle>
-                                    <SurfaceDescription>
-                                        Distribuição por status
-                                    </SurfaceDescription>
-                                </SurfaceHeader>
-                                {statusData.length === 0 ? (
+                                {recentDemands.length === 0 ? (
                                     <EmptyState
-                                        icon={InboxIcon}
-                                        title="Sem demandas"
-                                        description="Os status aparecerão conforme os atendimentos forem registrados."
+                                        size="compact"
+                                        icon={ClipboardListIcon}
+                                        title="Nenhuma demanda no período"
+                                        description="Altere o período ou registre uma nova demanda."
                                     />
                                 ) : (
-                                    <div className="p-4">
-                                        <ChartContainer
-                                            config={statusChartConfig}
-                                            className="mx-auto aspect-square max-h-[250px]"
-                                            aria-label="Gráfico radial das demandas por status"
-                                        >
-                                            <RadialBarChart
-                                                data={statusChartData}
-                                                startAngle={-90}
-                                                endAngle={380}
-                                                innerRadius={30}
-                                                outerRadius={110}
-                                                accessibilityLayer
-                                            >
-                                                <ChartTooltip
-                                                    cursor={false}
-                                                    content={
-                                                        <ChartTooltipContent
-                                                            hideLabel
-                                                            nameKey="key"
-                                                        />
-                                                    }
-                                                />
-                                                <RadialBar
-                                                    dataKey="total"
-                                                    background
-                                                    barSize={16}
-                                                >
-                                                    <LabelList
-                                                        position="insideStart"
-                                                        dataKey="label"
-                                                        className="fill-white font-medium mix-blend-luminosity"
-                                                        fontSize={11}
-                                                    />
-                                                </RadialBar>
-                                            </RadialBarChart>
-                                        </ChartContainer>
-                                    </div>
+                                    <RecentDemandsTable
+                                        demands={recentDemands.slice(0, 6)}
+                                        hrefFor={(demand) =>
+                                            href(`/demandas/${demand.id}`)
+                                        }
+                                    />
                                 )}
-                            </Surface>
+                            </SectionCard>
                         </div>
-                    </>
+
+                        <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-6">
+                            <SectionCard
+                                title="Atenção imediata"
+                                description={
+                                    metrics.overdue > 0
+                                        ? `${metrics.overdue} com prazo vencido`
+                                        : 'Prazos vencidos'
+                                }
+                                className="order-1 xl:order-none"
+                                contentClassName="flex flex-col p-0"
+                            >
+                                {attentionDemands.length === 0 ? (
+                                    <EmptyState
+                                        size="compact"
+                                        icon={CheckCircleIcon}
+                                        title="Nenhuma demanda atrasada"
+                                        description="Todos os prazos em aberto estão em dia."
+                                    />
+                                ) : (
+                                    <>
+                                        <ul className="divide-y">
+                                            {attentionDemands.map((demand) => (
+                                                <DemandListItem
+                                                    key={demand.id}
+                                                    demand={demand}
+                                                    href={href(
+                                                        `/demandas/${demand.id}`,
+                                                    )}
+                                                />
+                                            ))}
+                                        </ul>
+                                        <CardFooterLink
+                                            href={href('/demandas?tab=overdue')}
+                                        >
+                                            Ver todas as atrasadas
+                                        </CardFooterLink>
+                                    </>
+                                )}
+                            </SectionCard>
+
+                            {/* Ao lado de "Atenção imediata": as duas listas de
+                                prazo ficam juntas e as colunas se equilibram. */}
+                            <SectionCard
+                                title="Próximos prazos"
+                                description="Vencem em 7 dias"
+                                className="order-3 xl:order-none"
+                                contentClassName="p-0"
+                            >
+                                {upcomingDeadlines.length === 0 ? (
+                                    <EmptyState
+                                        size="compact"
+                                        icon={CalendarMarkIcon}
+                                        title="Nenhum prazo na semana"
+                                        description="Nenhuma demanda em aberto vence nos próximos 7 dias."
+                                    />
+                                ) : (
+                                    <ul className="divide-y">
+                                        {upcomingDeadlines.map((demand) => (
+                                            <DemandListItem
+                                                key={demand.id}
+                                                demand={demand}
+                                                href={href(
+                                                    `/demandas/${demand.id}`,
+                                                )}
+                                            />
+                                        ))}
+                                    </ul>
+                                )}
+                            </SectionCard>
+
+                            {capabilities.schedule && (
+                                <UpcomingAppointments
+                                    appointments={upcomingAppointments}
+                                    href={href}
+                                    canWrite={canWrite}
+                                    className="order-5 xl:order-none"
+                                />
+                            )}
+
+                            <SectionCard
+                                title="Situação atual"
+                                description="Demandas por status"
+                                className="order-6 xl:order-none"
+                                contentClassName="p-5"
+                            >
+                                <StatusOverview data={charts.status} />
+                            </SectionCard>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="grid items-start gap-6 lg:grid-cols-2">
+                        {capabilities.schedule && (
+                            <UpcomingAppointments
+                                appointments={upcomingAppointments}
+                                href={href}
+                                canWrite={canWrite}
+                            />
+                        )}
+                        {!capabilities.schedule && (
+                            <SectionCard
+                                title="Painel preparado"
+                                className="lg:col-span-2"
+                                contentClassName="p-0"
+                            >
+                                <EmptyState
+                                    icon={InboxIcon}
+                                    title="Nada para acompanhar aqui ainda"
+                                    description="Use o menu lateral para acessar os módulos habilitados para este gabinete."
+                                />
+                            </SectionCard>
+                        )}
+                    </div>
                 )}
             </PageContainer>
         </>
+    );
+}
+
+function UpcomingAppointments({
+    appointments,
+    href,
+    canWrite,
+    className,
+}: {
+    className?: string;
+    appointments: DashboardProps['upcomingAppointments'];
+    href: (path: string) => string;
+    canWrite: boolean;
+}) {
+    return (
+        <SectionCard
+            title="Próximos compromissos"
+            className={className}
+            description="Hoje e próximos 7 dias"
+            contentClassName="flex flex-col p-0"
+        >
+            {appointments.length === 0 ? (
+                <EmptyState
+                    size="compact"
+                    icon={CalendarMarkIcon}
+                    title="Agenda livre"
+                    description="Nenhum compromisso marcado para os próximos 7 dias."
+                    action={
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={href('/agenda')}>
+                                {canWrite
+                                    ? 'Agendar compromisso'
+                                    : 'Abrir agenda'}
+                            </Link>
+                        </Button>
+                    }
+                />
+            ) : (
+                <>
+                    <ul className="divide-y">
+                        {appointments.map((appointment) => (
+                            <AppointmentListItem
+                                key={`${appointment.id}-${appointment.starts_at}`}
+                                appointment={appointment}
+                                href={href(
+                                    `/agenda?view=dia&date=${appointment.date}`,
+                                )}
+                            />
+                        ))}
+                    </ul>
+                    <CardFooterLink href={href('/agenda')}>
+                        Abrir agenda
+                    </CardFooterLink>
+                </>
+            )}
+        </SectionCard>
     );
 }
 

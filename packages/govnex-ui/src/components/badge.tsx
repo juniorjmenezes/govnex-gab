@@ -15,9 +15,17 @@ const badgeVariants = cva(
                 secondary:
                     'border-transparent bg-secondary font-medium text-secondary-foreground [a]:hover:bg-secondary/90',
                 destructive:
-                    'border-transparent bg-destructive font-medium text-white focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/90',
+                    'border-transparent bg-destructive font-medium text-destructive-foreground focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/90',
                 outline:
                     'border-border font-medium text-foreground [a]:hover:bg-accent [a]:hover:text-accent-foreground',
+                // Variantes semânticas suaves (fundo `-soft`, texto no próprio
+                // token): contraste ≥ 4,5:1 verificado por `contrast:check`.
+                success:
+                    'border-success/15 bg-success-soft font-medium text-success [a]:hover:bg-success/15',
+                warning:
+                    'border-warning/15 bg-warning-soft font-medium text-warning [a]:hover:bg-warning/15',
+                info: 'border-info/15 bg-info-soft font-medium text-info [a]:hover:bg-info/15',
+                danger: 'border-destructive/15 bg-destructive-soft font-medium text-destructive [a]:hover:bg-destructive/15',
             },
         },
         defaultVariants: {

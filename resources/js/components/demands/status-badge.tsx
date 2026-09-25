@@ -32,8 +32,51 @@ const config: Record<DemandStatus, { label: string; className: string }> = {
     },
 };
 
-export function StatusBadge({ status }: { status: DemandStatus }) {
+/**
+ * Variante suave com os tokens semânticos (`success`/`warning`/`info`), para
+ * listas densas em que o status não é o foco da linha (ex.: o painel). Os
+ * contrastes vêm do `contrast:check` da `@govnex/ui`. "Em andamento" usa o
+ * violeta categórico `--chart-3` (o mesmo do gráfico de situação), e não o
+ * destaque: com gabinete azul ele se confundiria com "Nova" (`--info`).
+ */
+const softVariant: Record<
+    DemandStatus,
+    'info' | 'warning' | 'success' | 'outline' | null
+> = {
+    nova: 'info',
+    em_andamento: null,
+    aguardando: 'warning',
+    resolvida: 'success',
+    encerrada: 'outline',
+};
+
+export function StatusBadge({
+    status,
+    tone = 'solid',
+}: {
+    status: DemandStatus;
+    tone?: 'solid' | 'soft';
+}) {
     const item = config[status];
+
+    if (tone === 'soft') {
+        const variant = softVariant[status];
+
+        return variant ? (
+            <Badge
+                variant={variant}
+                className={
+                    variant === 'outline' ? 'text-muted-foreground' : undefined
+                }
+            >
+                {item.label}
+            </Badge>
+        ) : (
+            <Badge className="border-chart-3/15 bg-chart-3/10 font-medium text-chart-3 dark:bg-chart-3/15">
+                {item.label}
+            </Badge>
+        );
+    }
 
     return <Badge className={item.className}>{item.label}</Badge>;
 }

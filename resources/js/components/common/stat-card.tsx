@@ -1,2 +1,6 @@
-export { StatCard } from '@govnex/ui';
-export type { StatCardProgress, StatCardProps } from '@govnex/ui';
+export { StatCard, StatCardSkeleton } from '@govnex/ui';
+export type {
+    StatCardProgress,
+    StatCardProps,
+    StatCardTrend,
+} from '@govnex/ui';

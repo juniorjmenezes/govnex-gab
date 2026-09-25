@@ -1,11 +1,9 @@
 import { Breadcrumbs } from '@/components/breadcrumbs';
-import { AppMenubar } from '@/components/layout/app-menubar';
 import { GlobalSearch } from '@/components/layout/global-search';
 import { NotificationCenter } from '@/components/layout/notification-center';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
-import { useManagementNavItems } from '@/hooks/use-management-nav-items';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
@@ -15,8 +13,9 @@ export function AppSidebarHeader({
     breadcrumbs?: BreadcrumbItemType[];
 }) {
     const { state } = useSidebar();
-    const managementItems = useManagementNavItems();
-    const hasMenubar = managementItems.length > 0;
+    // Com um único nível a trilha só repetiria o título da página (que o
+    // `PageHeader` já mostra); ela aparece apenas em telas aninhadas.
+    const showBreadcrumbs = breadcrumbs.length > 1;
 
     return (
         <>
@@ -26,18 +25,22 @@ export function AppSidebarHeader({
                     state === 'collapsed' && 'md:left-(--sidebar-width-icon)',
                 )}
             >
-                <header className="flex h-14 items-center justify-between gap-3 border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
+                <header className="flex h-14 items-center justify-between gap-3 border-b bg-background/85 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 sm:px-6">
                     <div className="flex min-w-0 items-center gap-2">
                         <SidebarTrigger className="-ml-1" />
-                        <Separator
-                            orientation="vertical"
-                            className="data-vertical:h-4 data-vertical:self-center"
-                        />
-                        <div className="min-w-0">
-                            <Breadcrumbs breadcrumbs={breadcrumbs} />
-                        </div>
+                        {showBreadcrumbs && (
+                            <>
+                                <Separator
+                                    orientation="vertical"
+                                    className="data-vertical:h-4 data-vertical:self-center"
+                                />
+                                <div className="min-w-0">
+                                    <Breadcrumbs breadcrumbs={breadcrumbs} />
+                                </div>
+                            </>
+                        )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
                         <GlobalSearch />
                         <div className="flex items-center gap-1">
                             <ThemeToggle />
@@ -45,7 +48,6 @@ export function AppSidebarHeader({
                         </div>
                     </div>
                 </header>
-                {hasMenubar && <AppMenubar items={managementItems} />}
             </div>
             {/* Compensa o cabeçalho fixo. A altura vem da variável definida no
                 layout, a mesma que os mapas descontam de 100svh — assim as

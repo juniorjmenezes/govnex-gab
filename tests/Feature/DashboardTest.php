@@ -166,6 +166,122 @@ class DashboardTest extends TestCase
                 ->where('charts.origin.0.total', 1));
     }
 
+    public function test_dashboard_trends_compare_with_the_equivalent_previous_period(): void
+    {
+        // Período de 30 dias: começa em 24/06 00:00; o anterior equivalente
+        // (mesma duração, 29,5 dias) vai de 25/05 12:00 até 24/06 00:00.
+        Carbon::setTestNow('2026-07-23 12:00:00');
+        $office = Gabinete::factory()->create();
+        $user = User::factory()->forGabinete($office)->create();
+        $demand = fn (array $attributes) => Demanda::factory()->forGabinete($office)->create([
+            'status' => DemandStatus::New,
+            'prazo' => null,
+            ...$attributes,
+        ]);
+
+        // Aberta e atrasada agora; não existia no início do período.
+        $demand(['aberta_em' => now()->subDays(10), 'prazo' => now()->subDay()]);
+        // Aberta e atrasada tanto agora quanto no início do período.
+        $demand(['aberta_em' => now()->subDays(60), 'prazo' => now()->subDays(40)]);
+        // Aberta agora, sem prazo.
+        $demand(['aberta_em' => now()->subDays(3)]);
+        // Estava aberta no início (prazo na semana seguinte) e foi encerrada sem resolução depois.
+        $demand([
+            'status' => DemandStatus::Closed,
+            'aberta_em' => now()->subDays(70),
+            'prazo' => Carbon::parse('2026-06-27 12:00:00'),
+            'encerrada_em' => now()->subDays(20),
+        ]);
+        // Resolvida no período anterior.
+        $demand([
+            'status' => DemandStatus::Resolved,
+            'aberta_em' => now()->subDays(50),
+            'concluida_em' => now()->subDays(40),
+        ]);
+        // Resolvidas no período atual.
+        $demand(['status' => DemandStatus::Resolved, 'aberta_em' => now()->subDays(5), 'concluida_em' => now()->subDay()]);
+        $demand(['status' => DemandStatus::Resolved, 'aberta_em' => now()->subDays(6), 'concluida_em' => now()->subDays(2)]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard', ['period' => 30]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('metrics.open_total', 3)
+                ->where('trends.open_total.current', 3)
+                ->where('trends.open_total.previous', 2)
+                ->has('trends.open_total.series', 12)
+                ->where('trends.open_total.series.11', 3)
+                ->where('trends.overdue.current', 2)
+                ->where('trends.overdue.previous', 1)
+                ->where('trends.near_deadline.current', 0)
+                ->where('trends.near_deadline.previous', 1)
+                ->where('metrics.resolved_period', 2)
+                ->where('trends.resolved_period.current', 2)
+                ->where('trends.resolved_period.previous', 1)
+                ->has('trends.resolved_period.series', 12)
+                ->where('trends.citizens.current', 7)
+                ->where('trends.citizens.previous', 0)
+                ->where('charts.monthly', fn ($months) => collect($months)->firstWhere('key', '2026-07')['resolved'] === 2));
+    }
+
+    public function test_dashboard_trends_without_data_are_zero(): void
+    {
+        Carbon::setTestNow('2026-07-23 12:00:00');
+        $office = Gabinete::factory()->create();
+        $user = User::factory()->forGabinete($office)->create();
+
+        $this->actingAs($user)
+            ->get(route('dashboard', ['period' => 90]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('trends.open_total', ['current' => 0, 'previous' => 0, 'series' => array_fill(0, 12, 0)])
+                ->where('trends.overdue.previous', 0)
+                ->where('trends.near_deadline.previous', 0)
+                ->where('trends.resolved_period', ['current' => 0, 'previous' => 0, 'series' => array_fill(0, 12, 0)])
+                ->where('trends.citizens.current', 0));
+    }
+
+    public function test_dashboard_trends_ignore_other_offices(): void
+    {
+        Carbon::setTestNow('2026-07-23 12:00:00');
+        $office = Gabinete::factory()->create();
+        $otherOffice = Gabinete::factory()->create();
+        $user = User::factory()->forGabinete($office)->create();
+
+        Demanda::factory()->forGabinete($office)->create([
+            'status' => DemandStatus::New,
+            'aberta_em' => now()->subDays(60),
+            'prazo' => now()->subDays(40),
+        ]);
+        Demanda::factory()->forGabinete($otherOffice)->count(2)->create([
+            'status' => DemandStatus::New,
+            'aberta_em' => now()->subDays(60),
+            'prazo' => now()->subDays(40),
+        ]);
+        Demanda::factory()->forGabinete($otherOffice)->create([
+            'status' => DemandStatus::Resolved,
+            'aberta_em' => now()->subDays(50),
+            'concluida_em' => now()->subDays(40),
+        ]);
+        Demanda::factory()->forGabinete($otherOffice)->create([
+            'status' => DemandStatus::Resolved,
+            'aberta_em' => now()->subDays(5),
+            'concluida_em' => now()->subDay(),
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard', ['period' => 30]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('trends.open_total.current', 1)
+                ->where('trends.open_total.previous', 1)
+                ->where('trends.overdue.previous', 1)
+                ->where('trends.resolved_period.current', 0)
+                ->where('trends.resolved_period.previous', 0)
+                ->where('trends.citizens.current', 1)
+                ->where('trends.citizens.previous', 0));
+    }
+
     public function test_invalid_period_falls_back_to_ninety_days(): void
     {
         $user = User::factory()->create();

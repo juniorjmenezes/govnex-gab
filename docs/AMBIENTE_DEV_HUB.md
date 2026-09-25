@@ -12,6 +12,8 @@ Não há segredos neste arquivo: valores reais ficam nos `.env`, que não são v
 - Acesso ao GitHub: a `@govnex/ui` é um repositório privado (`git+https://github.com/juniorjmenezes/govnex-ui.git`); o `npm ci` precisa de credencial nessa máquina.
 - Memória e planos do Claude Code (ficam na máquina em que a conversa aconteceu).
 
+> Redesenho visual em andamento: veja [REDESENHO_UI.md](REDESENHO_UI.md) (estado, onde se edita o pacote `govnex-ui` e o que falta).
+
 ## Repositórios e portas de dev
 
 | Produto | Repositório | Porta usada em dev |

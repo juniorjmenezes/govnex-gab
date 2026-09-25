@@ -6,6 +6,24 @@ export type DashboardDatum = {
     total: number;
 };
 
+/** Mês de `charts.monthly`: entradas (`total`) e resolvidas no mês. */
+export type DashboardMonthlyDatum = DashboardDatum & { resolved: number };
+
+/**
+ * Tendência de um indicador: valor atual, valor do período anterior
+ * equivalente (estoques: no início do período; fluxos: no intervalo de mesma
+ * duração imediatamente anterior) e série curta (12 pontos) para a sparkline.
+ * `previous` é `null` quando não há período comparável.
+ */
+export type DashboardTrend = {
+    current: number;
+    previous: number | null;
+    series: number[];
+};
+
+export type DashboardTrendKey =
+    'open_total' | 'overdue' | 'near_deadline' | 'resolved_period' | 'citizens';
+
 export type DashboardMetrics = {
     open_total: number;
     new: number;
@@ -17,6 +35,7 @@ export type DashboardMetrics = {
     citizens: number;
     average_resolution_hours: number | null;
     near_deadline: number;
+    resolved_period: number;
 };
 
 export type DashboardDemand = {
@@ -66,13 +85,15 @@ export type DashboardProps = {
         whatsapp: boolean;
     };
     metrics: DashboardMetrics;
+    /** Presente só para os indicadores dos módulos ativos. */
+    trends: Partial<Record<DashboardTrendKey, DashboardTrend>>;
     charts: {
         status: DashboardDatum[];
         category: DashboardDatum[];
         neighborhood: DashboardDatum[];
         responsible: DashboardDatum[];
         origin: DashboardDatum[];
-        monthly: DashboardDatum[];
+        monthly: DashboardMonthlyDatum[];
     };
     upcomingAppointments: DashboardAppointment[];
     recentDemands: DashboardDemand[];

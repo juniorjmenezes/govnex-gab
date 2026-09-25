@@ -1,20 +1,25 @@
 import * as React from 'react';
 
 import { cn } from '../lib/utils';
-import { surfaceClasses } from './surface';
+import { surfaceClasses, surfaceInteractiveClasses } from './surface';
 
 function Card({
     className,
     size = 'default',
+    interactive = false,
     ...props
-}: React.ComponentProps<'div'> & { size?: 'default' | 'sm' }) {
+}: React.ComponentProps<'div'> & {
+    size?: 'default' | 'sm';
+    interactive?: boolean;
+}) {
     return (
         <div
             data-slot="card"
             data-size={size}
             className={cn(
                 surfaceClasses,
-                'group/card flex flex-col gap-(--card-spacing) overflow-hidden py-(--card-spacing) text-sm text-card-foreground [--card-spacing:--spacing(8)] has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(5)] *:[img:first-child]:rounded-md *:[img:last-child]:rounded-md',
+                interactive && surfaceInteractiveClasses,
+                'group/card flex flex-col gap-(--card-spacing) overflow-hidden py-(--card-spacing) text-sm text-card-foreground [--card-spacing:--spacing(8)] has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(5)] *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl',
                 className,
             )}
             {...props}
@@ -40,7 +45,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<'div'>) {
         <div
             data-slot="card-title"
             className={cn(
-                'font-heading text-xs font-semibold tracking-wide text-foreground uppercase',
+                'font-heading text-base font-semibold tracking-tight text-foreground',
                 className,
             )}
             {...props}
@@ -52,7 +57,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<'div'>) {
     return (
         <div
             data-slot="card-description"
-            className={cn('text-xs text-muted-foreground', className)}
+            className={cn('text-sm text-muted-foreground', className)}
             {...props}
         />
     );

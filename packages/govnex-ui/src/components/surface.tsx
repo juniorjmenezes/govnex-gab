@@ -11,19 +11,29 @@ import {
     PopoverTrigger,
 } from './popover';
 
-export const surfaceClasses = 'rounded-2xl bg-card ring-1 ring-foreground/10';
+export const surfaceClasses =
+    'rounded-xl bg-card text-card-foreground shadow-xs ring-1 ring-foreground/8 dark:ring-foreground/10';
+
+/** Cartão clicável: eleva no hover/foco (sem animação com `motion-reduce`). */
+export const surfaceInteractiveClasses =
+    'transition-[box-shadow,background-color] duration-150 hover:shadow-sm focus-visible:shadow-sm motion-reduce:transition-none';
 
 type SurfaceTag = 'div' | 'section' | 'aside' | 'article';
 
 export function Surface({
     as: Tag = 'div',
+    interactive = false,
     className,
     ...props
-}: ComponentProps<'div'> & { as?: SurfaceTag }) {
+}: ComponentProps<'div'> & { as?: SurfaceTag; interactive?: boolean }) {
     return (
         <Tag
             data-slot="surface"
-            className={cn(surfaceClasses, className)}
+            className={cn(
+                surfaceClasses,
+                interactive && surfaceInteractiveClasses,
+                className,
+            )}
             {...props}
         />
     );
@@ -72,7 +82,7 @@ export function SurfaceTitle({
         <Tag
             data-slot="surface-title"
             className={cn(
-                'shrink-0 text-sm font-semibold tracking-wide text-foreground',
+                'shrink-0 text-base font-semibold tracking-tight text-foreground',
                 className,
             )}
             {...props}
@@ -99,7 +109,7 @@ export function SurfaceDescription({
                 data-slot="surface-description"
                 title={text || undefined}
                 className={cn(
-                    'basis-full text-xs text-muted-foreground sm:min-w-0 sm:basis-auto sm:truncate',
+                    'basis-full text-sm text-muted-foreground sm:min-w-0 sm:basis-auto sm:truncate',
                     className,
                 )}
                 {...props}

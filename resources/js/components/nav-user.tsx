@@ -34,8 +34,8 @@ export function NavUser() {
                             className="group text-sidebar-accent-foreground group-data-[collapsible=icon]:mx-auto data-[state=open]:bg-sidebar-accent"
                             data-test="sidebar-menu-button"
                         >
-                            <UserInfo user={auth.user} />
-                            <SortVerticalIcon className="ml-auto size-4" />
+                            <UserInfo user={auth.user} showEmail />
+                            <SortVerticalIcon className="ml-auto size-4 text-sidebar-foreground/60" />
                         </SidebarMenuButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent

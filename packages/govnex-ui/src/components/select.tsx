@@ -42,7 +42,7 @@ function SelectTrigger({
             data-slot="select-trigger"
             data-size={size}
             className={cn(
-                'flex w-full min-w-0 items-center justify-between gap-1.5 rounded-md border border-input bg-muted px-3 py-1 text-base whitespace-nowrap transition-[color,border-color,box-shadow] outline-none hover:border-[color-mix(in_oklch,var(--input),var(--foreground)_12%)] focus-visible:border-[color-mix(in_oklch,var(--input),var(--foreground)_25%)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 data-placeholder:text-muted-foreground data-[size=default]:h-10 data-[size=sm]:h-9 md:text-sm *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-3.5',
+                "flex w-full min-w-0 items-center justify-between gap-1.5 rounded-md border border-input bg-muted px-3 py-1 text-base whitespace-nowrap transition-[color,border-color,box-shadow] outline-none hover:border-[color-mix(in_oklch,var(--input),var(--foreground)_12%)] focus-visible:border-[color-mix(in_oklch,var(--input),var(--foreground)_25%)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 data-placeholder:text-muted-foreground data-[size=default]:h-10 data-[size=sm]:h-9 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 md:text-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
                 className,
             )}
             {...props}
@@ -68,7 +68,7 @@ function SelectContent({
                 data-slot="select-content"
                 data-align-trigger={position === 'item-aligned'}
                 className={cn(
-                    'relative z-50 max-h-(--radix-select-content-available-height) min-w-36 origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+                    'relative z-50 max-h-(--radix-select-content-available-height) min-w-36 origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/8 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 dark:ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
                     position === 'popper' &&
                         'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
                     className,
@@ -101,7 +101,7 @@ function SelectLabel({
         <SelectPrimitive.Label
             data-slot="select-label"
             className={cn(
-                'px-3 py-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase',
+                'px-3 py-2 text-xs font-medium text-muted-foreground',
                 className,
             )}
             {...props}
@@ -140,7 +140,10 @@ function SelectSeparator({
     return (
         <SelectPrimitive.Separator
             data-slot="select-separator"
-            className={cn('pointer-events-none -mx-1.5 my-1.5 h-px bg-border/50', className)}
+            className={cn(
+                'pointer-events-none -mx-1.5 my-1.5 h-px bg-border/50',
+                className,
+            )}
             {...props}
         />
     );

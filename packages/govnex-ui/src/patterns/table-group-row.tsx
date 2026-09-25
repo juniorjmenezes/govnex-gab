@@ -15,7 +15,7 @@ export function TableGroupRow({
         <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableCell
                 colSpan={colSpan}
-                className="py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                className="py-2 text-xs font-medium text-muted-foreground"
             >
                 {title}
                 {subtitle ? ` · ${subtitle}` : null}

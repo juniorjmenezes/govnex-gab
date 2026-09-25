@@ -58,7 +58,7 @@ function DrawerContent({
                 <DrawerPrimitive.Popup
                     data-slot="drawer-content"
                     className={cn(
-                        'flex flex-col bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-200 outline-none data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
+                        'flex flex-col bg-popover text-popover-foreground shadow-lg ring-1 ring-foreground/10 duration-200 outline-none data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
                         drawerPopupSideClasses[side],
                         className,
                     )}
@@ -98,10 +98,7 @@ function DrawerTitle({
     return (
         <DrawerPrimitive.Title
             data-slot="drawer-title"
-            className={cn(
-                'text-sm font-semibold tracking-wide text-foreground',
-                className,
-            )}
+            className={cn('text-sm font-semibold text-foreground', className)}
             {...props}
         />
     );

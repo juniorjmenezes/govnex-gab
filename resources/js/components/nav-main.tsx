@@ -47,7 +47,15 @@ export function NavMain({ label, items }: NavMainProps) {
                                 className="group-data-[collapsible=icon]:mx-auto"
                                 tooltip={{ children: item.title }}
                             >
-                                <Link href={item.href} prefetch>
+                                <Link
+                                    href={item.href}
+                                    prefetch
+                                    aria-current={
+                                        isCurrentUrl(item.href)
+                                            ? 'page'
+                                            : undefined
+                                    }
+                                >
                                     {item.icon && <item.icon />}
                                     <span className="min-w-0 truncate">
                                         {item.title}

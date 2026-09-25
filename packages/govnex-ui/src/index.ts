@@ -194,6 +194,8 @@ export {
     useSidebar,
 } from './components/sidebar';
 export { Skeleton } from './components/skeleton';
+export { Sparkline } from './components/sparkline';
+export type { SparklineProps } from './components/sparkline';
 export { Spinner } from './components/spinner';
 export {
     Sheet,
@@ -211,6 +213,7 @@ export {
     SurfaceHeader,
     SurfaceTitle,
     surfaceClasses,
+    surfaceInteractiveClasses,
 } from './components/surface';
 export { Switch } from './components/switch';
 export {
@@ -254,9 +257,7 @@ export type {
     DestructiveAlertDialogProps,
     DestructiveAnimation,
 } from './patterns/destructive-alert-dialog';
-export {
-    AttachmentField,
-} from './patterns/attachment-field';
+export { AttachmentField } from './patterns/attachment-field';
 export type { AttachmentCurrentFile } from './patterns/attachment-field';
 export { ColorPicker } from './patterns/color-picker';
 export { DatePicker } from './patterns/date-picker';
@@ -274,8 +275,14 @@ export {
     ScrollableDialogFooter,
     ScrollableDialogHeader,
 } from './patterns/scrollable-dialog';
-export { StatCard } from './patterns/stat-card';
-export type { StatCardProgress, StatCardProps } from './patterns/stat-card';
+export { StatCard, StatCardSkeleton } from './patterns/stat-card';
+export type {
+    StatCardProgress,
+    StatCardProps,
+    StatCardTrend,
+} from './patterns/stat-card';
+export { SectionCard } from './patterns/section-card';
+export type { SectionCardProps } from './patterns/section-card';
 export {
     TableActionButton,
     tableButtonDestructiveHoverClass,
