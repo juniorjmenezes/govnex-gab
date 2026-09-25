@@ -283,7 +283,6 @@ export default function GovnexApiIntegration({
 
 GovnexApiIntegration.layout = {
     breadcrumbs: [
-        { title: 'Administração', href: '/dashboard' },
         {
             title: 'Integração GOVNEX API',
             href: '/admin/integracoes/govnex-api',

@@ -520,7 +520,6 @@ function PollingDataCard({
 
 PoliticalSync.layout = {
     breadcrumbs: [
-        { title: 'Administração', href: '/dashboard' },
         {
             title: 'Sincronização política',
             href: '/admin/sincronizacao-politica',

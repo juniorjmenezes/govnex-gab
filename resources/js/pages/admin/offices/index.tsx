@@ -877,8 +877,5 @@ function PoliticalReadiness({ office }: { office: AdminOffice }) {
 }
 
 Offices.layout = {
-    breadcrumbs: [
-        { title: 'Administração', href: '/dashboard' },
-        { title: 'Gabinetes', href: '/admin/gabinetes' },
-    ],
+    breadcrumbs: [{ title: 'Gabinetes', href: '/admin/gabinetes' }],
 };

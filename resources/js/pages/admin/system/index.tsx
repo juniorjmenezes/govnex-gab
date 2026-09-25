@@ -418,8 +418,5 @@ function UploadLimitTestCard({
 }
 
 SystemCheck.layout = {
-    breadcrumbs: [
-        { title: 'Administração', href: '/dashboard' },
-        { title: 'Diagnóstico do sistema', href: '/admin/sistema' },
-    ],
+    breadcrumbs: [{ title: 'Diagnóstico do sistema', href: '/admin/sistema' }],
 };

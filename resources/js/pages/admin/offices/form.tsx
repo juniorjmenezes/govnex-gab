@@ -350,7 +350,6 @@ export default function OfficeForm({ office, responsible, entidade }: Props) {
 
 OfficeForm.layout = {
     breadcrumbs: [
-        { title: 'Administração', href: '/dashboard' },
         { title: 'Gabinetes', href: '/admin/gabinetes' },
         { title: 'Editar gabinete', href: '#' },
     ],

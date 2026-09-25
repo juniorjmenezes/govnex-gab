@@ -244,8 +244,5 @@ export default function RssSources({ sources }: { sources: RssSource[] }) {
 }
 
 RssSources.layout = {
-    breadcrumbs: [
-        { title: 'Administração', href: '/dashboard' },
-        { title: 'Fontes de notícias', href: '/admin/fontes-rss' },
-    ],
+    breadcrumbs: [{ title: 'Fontes de notícias', href: '/admin/fontes-rss' }],
 };

@@ -237,8 +237,5 @@ export default function RootUsers({ users }: { users: RootUser[] }) {
 }
 
 RootUsers.layout = {
-    breadcrumbs: [
-        { title: 'Administração', href: '/dashboard' },
-        { title: 'Usuários da plataforma', href: '/admin/usuarios' },
-    ],
+    breadcrumbs: [{ title: 'Usuários da plataforma', href: '/admin/usuarios' }],
 };

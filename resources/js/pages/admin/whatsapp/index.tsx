@@ -850,8 +850,5 @@ export default function WhatsAppAdmin(props: Props) {
 }
 
 WhatsAppAdmin.layout = {
-    breadcrumbs: [
-        { title: 'Administração', href: '/dashboard' },
-        { title: 'WhatsApp', href: '/admin/whatsapp' },
-    ],
+    breadcrumbs: [{ title: 'WhatsApp', href: '/admin/whatsapp' }],
 };

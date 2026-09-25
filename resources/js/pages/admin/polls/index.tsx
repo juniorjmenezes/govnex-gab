@@ -507,7 +507,6 @@ function ResultsViewDialog({
 
 PollCuration.layout = {
     breadcrumbs: [
-        { title: 'Administração', href: '/dashboard' },
         {
             title: 'Pesquisas eleitorais',
             href: '/admin/pesquisas-eleitorais',

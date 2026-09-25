@@ -192,7 +192,6 @@ export default function PartyColors({ parties }: { parties: PartyColor[] }) {
 
 PartyColors.layout = {
     breadcrumbs: [
-        { title: 'Administração', href: '/dashboard' },
         { title: 'Cores de partidos', href: '/admin/cores-partidos' },
     ],
 };
