@@ -66,7 +66,7 @@ Requisitos: PHP 8.4 com a extensão **`sodium`** habilitada (`lcobucci/jwt`, dep
 - GAB piloto: SSO, provisionamento de pessoa e vínculos (login + webhook), papéis `root/administrador/operador/auditor`, auditor somente leitura (servidor e interface).
 - Hub: gestão de pessoas e vínculos com autorização por papel no sistema HUB, cadastro público desligado, página de credenciais.
 - Estrutura: nome e situação de entidades/unidades ligadas propagam do Hub ao GAB.
-- GRI e GPC: modelo multiempresa (tabela de vínculo + `hub_entidade_id`), sem SSO/webhook ainda.
+- GRI: modelo multiempresa (`organization_members`, papel de acesso separado de função de negócio), `hub_entidade_id`, SSO e webhook implementados (24/09/2026) — ver "Decisões pendentes" abaixo. GPC: nada ainda, repositório não existe em nenhuma máquina em que se trabalhou até agora.
 
 **Commitado mas ainda NÃO validado ponta a ponta — retomar aqui**
 - Criação de estrutura no Hub nascendo no GAB (Hub: `entidade_sistema`, tipo "Gabinete independente", payload ampliado; GAB: `HubEstruturaSyncService`, `HubTipoMapper`, `EstruturaProvisioningService`,
@@ -79,8 +79,9 @@ Requisitos: PHP 8.4 com a extensão **`sodium`** habilitada (`lcobucci/jwt`, dep
 
 **Pendente, na ordem sugerida**
 1. Validar a criação de estrutura (acima).
-2. **Corte da gestão de contas no GAB**: Equipe, convites e usuários viram somente leitura apontando ao Hub; depois desativar o login local dos não-root em produção. Exige carga inicial das contas (casadas por e-mail) e, em produção, decisão sobre a senha/2FA locais (passo 5 do plano do `INTEGRACAO_GOVNEX_HUB.md`).
-3. **GRI e GPC**: SSO, receptor de webhook, mapeamento de papéis (GRI: administrator→administrador, executive→auditor, demais→operador; GPC: administrator→administrador, analyst→operador). O GPC ainda precisa ser cadastrado como Sistema no Hub.
-4. Fora de escopo por ora: GTR; edição de tipo/município da entidade depois de criada; unidades aninhadas; delegação de administração do Hub por entidade.
+2. ~~**Corte da gestão de contas no GAB**~~ Concluído em 24/09/2026 do lado do código: Equipe (`TeamController`, `UserPolicy`) e convite de entidade (`EntidadeInvitationController::store`) ficaram somente leitura, com aviso "Gerenciado no Govnex Hub — altere lá" (`HubManagedHint`). Convites pendentes anteriores ao corte ainda podem ser aceitos. Usuários root continuam locais (decisão #6), fora de escopo. O login local do Fortify já recusava não-root desde a fase 2. Falta, em produção: decisão sobre remover senha/2FA/passkeys locais dos não-root (passo 5 do plano do `INTEGRACAO_GOVNEX_HUB.md`) — isso é limpeza, não bloqueia nada.
+3. **GRI**: implementado em 24/09/2026 (45 testes passando), mas **não commitado nem registrado no Hub ainda** — falta `hub:registrar-cliente-oidc GRI ...`, preencher `.env` do GRI e validar o handshake real (mesmo roteiro do GAB). As decisões de modelagem tomadas pelo agente que implementou estão documentadas em `govnex-gri/docs/INTEGRACAO_GOVNEX_HUB.md`, seção "Decisões pendentes" — **precisam de revisão humana antes de dar como fechado**, em especial: nomenclatura em inglês divergente do GAB, remoção de `users.role`, e a regra de reconciliação de vínculo que relê a pessoa inteira da API do Hub (diferente do "aplica só o vínculo citado" do GAB).
+4. **GPC**: repositório `govnex-gpc` não existe em nenhuma máquina usada até agora — precisa ser criado ou clonado de algum lugar antes de replicar o padrão. Mapeamento de papéis já decidido (`administrator`→administrador, `analyst`→operador, revisores só leitura→auditor); GPC também precisa ser cadastrado como Sistema no Hub.
+5. Fora de escopo por ora: GTR; edição de tipo/município da entidade depois de criada; unidades aninhadas; delegação de administração do Hub por entidade.
 
 Preferências do dono do projeto que valem para qualquer continuação: telas com muita informação viram **páginas**, não dialogs; dados de trabalho em **tabelas**; ícones só via `components/icons`; nunca commitar `.env`, chaves ou dados pessoais.

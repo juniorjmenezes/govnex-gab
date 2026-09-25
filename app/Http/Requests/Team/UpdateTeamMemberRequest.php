@@ -4,31 +4,24 @@ namespace App\Http\Requests\Team;
 
 use App\Enums\AccessRole;
 use App\Enums\UserRole;
-use App\Models\GabineteMembro;
-use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/**
+ * Papel e situação do vínculo são geridos no Govnex Hub; a edição local de
+ * membro do gabinete foi desligada (ver docs/INTEGRACAO_GOVNEX_HUB.md).
+ */
 class UpdateTeamMemberRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $target = $this->route('usuario');
+        return false;
+    }
 
-        if (! $target instanceof User || $target->is($this->user())) {
-            return false;
-        }
-
-        $gabineteId = $this->user()?->gabinete_id;
-        if ($gabineteId === null || ! $this->user()->canManageGabinete($gabineteId)) {
-            return false;
-        }
-
-        return GabineteMembro::query()
-            ->where('gabinete_id', $gabineteId)
-            ->where('usuario_id', $target->id)
-            ->whereIn('papel', $this->allowedRoles())
-            ->exists();
+    protected function failedAuthorization(): void
+    {
+        throw new AuthorizationException('Gerenciado no Govnex Hub — altere lá.');
     }
 
     /** @return array<string, array<int, mixed>> */

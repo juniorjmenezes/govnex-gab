@@ -10,7 +10,6 @@ use App\Models\Gabinete;
 use App\Models\User;
 use App\Services\Geocoding\GeocodingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -333,11 +332,15 @@ class BasicRegistrationsTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_team_management_respects_roles_and_office_boundary(): void
+    public function test_team_management_is_read_only_now_that_the_hub_owns_people_and_links(): void
     {
+        // Pessoas e vínculos migraram para o Govnex Hub: criar, editar ou
+        // redefinir senha localmente foi desligado, inclusive para quem
+        // administra o gabinete (ver docs/INTEGRACAO_GOVNEX_HUB.md).
         $office = Gabinete::factory()->create();
         $otherOffice = Gabinete::factory()->create();
         $chief = User::factory()->administrator()->forGabinete($office)->create();
+        $member = User::factory()->operator()->forGabinete($office)->create();
         $foreignUser = User::factory()->operator()->forGabinete($otherOffice)->create();
 
         $this->actingAs($chief)->post(route('team.store'), [
@@ -346,18 +349,8 @@ class BasicRegistrationsTest extends TestCase
             'role' => UserRole::Operator->value,
             'password' => 'Senha123!',
             'password_confirmation' => 'Senha123!',
-        ])->assertRedirect(route('team.index'));
-
-        $member = User::query()->where('email', 'nova@example.test')->sole();
-        $this->assertSame($office->id, $member->gabinete_id);
-
-        $this->actingAs($chief)->post(route('team.store'), [
-            'name' => 'Papel inexistente',
-            'email' => 'papel@example.test',
-            'role' => 'vereador',
-            'password' => 'Senha123!',
-            'password_confirmation' => 'Senha123!',
-        ])->assertSessionHasErrors('role');
+        ])->assertForbidden();
+        $this->assertDatabaseMissing('users', ['email' => 'nova@example.test']);
 
         $this->actingAs($member)->post(route('team.store'), [
             'name' => 'Cadastro por operador',
@@ -367,6 +360,8 @@ class BasicRegistrationsTest extends TestCase
             'password_confirmation' => 'Senha123!',
         ])->assertForbidden();
 
+        // O binding de rota continua restrito ao gabinete da sessão, então
+        // um usuário de outro gabinete nem chega a resolver (404).
         $this->actingAs($chief)->put(route('team.update', $foreignUser), [
             'name' => 'Tentativa externa',
             'email' => $foreignUser->email,
@@ -374,10 +369,16 @@ class BasicRegistrationsTest extends TestCase
             'is_active' => false,
         ])->assertNotFound();
 
+        $this->actingAs($chief)->put(route('team.update', $member), [
+            'role' => UserRole::Auditor->value,
+            'is_active' => false,
+        ])->assertForbidden();
+
+        $originalPasswordHash = $member->password;
         $this->actingAs($chief)->put(route('team.password.update', $member), [
             'password' => 'NovaSenha123!',
             'password_confirmation' => 'NovaSenha123!',
-        ])->assertRedirect(route('team.index'));
-        $this->assertTrue(Hash::check('NovaSenha123!', $member->fresh()->password));
+        ])->assertForbidden();
+        $this->assertSame($originalPasswordHash, $member->fresh()->password);
     }
 }

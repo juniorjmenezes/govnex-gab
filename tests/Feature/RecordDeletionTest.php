@@ -49,13 +49,15 @@ test('office managers can soft delete operational records', function () {
         ->assertRedirect(route('appointments.index'));
     $this->assertSoftDeleted($appointment);
 
+    // Vínculos passaram a ser geridos no Govnex Hub: a remoção local de
+    // membro da equipe foi desligada, mesmo para quem gerencia o gabinete.
     $this->delete(route('team.destroy', $member))
-        ->assertRedirect(route('team.index'));
+        ->assertForbidden();
     $this->assertNotSoftDeleted($member);
     $this->assertDatabaseHas('gabinete_membros', [
         'gabinete_id' => $office->id,
         'usuario_id' => $member->id,
-        'ativo' => false,
+        'ativo' => true,
     ]);
 });
 

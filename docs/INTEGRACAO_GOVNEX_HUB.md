@@ -3,9 +3,12 @@
 Status: **decisões fechadas** (22/09/2026); **passo 2 concluído dos dois lados**
 (23/09/2026). O Hub é provedor OIDC, tem 2FA/passkeys, webhook assinado com
 caixa de saída e API de leitura protegida; o GAB é o **piloto consumidor** —
-entra por SSO, recebe os webhooks e espelha pessoas e vínculos. Faltam os
-passos 3 a 5 (carga inicial revisada, corte em produção e limpeza), e GRI e GPC
-replicam o padrão do GAB depois.
+entra por SSO, recebe os webhooks e espelha pessoas e vínculos. A carga inicial
+(decisão #7) acontece automaticamente no primeiro login de cada pessoa; as
+telas de Equipe e convite de entidade do GAB ficaram somente leitura em
+24/09/2026 (passo 4 do plano abaixo). Falta o corte em produção (senha/2FA
+locais dos não-root) e a limpeza (passo 5), e GRI e GPC replicam o padrão do
+GAB depois.
 
 ## Decisão
 
@@ -410,8 +413,8 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    que exige autorização. Depois de publicar os dois: habilitar o GAB numa
    entidade de teste no Hub, criar uma unidade e conferir o GAB; rodar
    `hub:espelhar-estrutura --criar --dry-run` para ver o que falta.
-3. **Carga inicial:** vincular as contas existentes por e-mail (decisão #7) e revisar as divergências (duplicados, e-mails que não batem).
-4. **Corte:** login local do GAB desativado; SSO pelo Hub vira obrigatório (decisão #2). Telas de gestão de usuários do GAB passam a somente leitura. Sessões já abertas continuam até expirar se o Hub cair (decisão #10); root continua local (decisão #6).
+3. **Carga inicial:** ✅ acontece automaticamente — `HubProvisioningService` casa a conta por `hub_user_id` e, na falta dele, por e-mail (decisão #7), no primeiro login de cada pessoa. Falta revisar divergências (duplicados, e-mails que não batem) antes do corte em produção.
+4. **Corte:** ✅ **concluído em 24/09/2026 no que depende só de código.** Login local do GAB já recusa quem não é `root` desde a fase 2 (decisão #2); SSO pelo Hub é o caminho normal. Telas de gestão de usuários do GAB passaram a somente leitura: `TeamController`/`UserPolicy` (equipe do gabinete) e `EntidadeInvitationController::store` (convite novo) retornam 403 com "Gerenciado no Govnex Hub — altere lá" (`HubManagedHint`); convites pendentes anteriores ao corte ainda podem ser aceitos (`EntidadeInvitationAcceptController`, não tocado). Sessões já abertas continuam até expirar se o Hub cair (decisão #10); root continua local (decisão #6), fora desse corte. Falta só a decisão de produção sobre desligar senha/2FA/passkeys locais dos não-root (passo 5).
 5. **Limpeza:** remover senha, 2FA e passkeys locais do GAB, `users.role` como dado editável e as rotas legadas que dependem de `users.gabinete_id`.
 
 ## Vocabulário de papéis (decisão #5, fechada em 23/09/2026)

@@ -2,31 +2,24 @@
 
 namespace App\Http\Requests\Team;
 
-use App\Models\GabineteMembro;
-use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
+/**
+ * Contas e senhas são geridas no Govnex Hub; a redefinição local de senha
+ * de membro do gabinete foi desligada (ver docs/INTEGRACAO_GOVNEX_HUB.md).
+ */
 class ResetTeamMemberPasswordRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $target = $this->route('usuario');
+        return false;
+    }
 
-        if (! $target instanceof User || $target->is($this->user())) {
-            return false;
-        }
-
-        // Administrador redefine a senha de qualquer integrante do gabinete,
-        // inclusive outros administradores; root nunca tem vínculo de gabinete.
-        $gabineteId = $this->user()?->gabinete_id;
-
-        return $gabineteId !== null
-            && $this->user()->canManageGabinete($gabineteId)
-            && GabineteMembro::query()
-                ->where('gabinete_id', $gabineteId)
-                ->where('usuario_id', $target->id)
-                ->exists();
+    protected function failedAuthorization(): void
+    {
+        throw new AuthorizationException('Gerenciado no Govnex Hub — altere lá.');
     }
 
     /** @return array<string, array<int, mixed>> */

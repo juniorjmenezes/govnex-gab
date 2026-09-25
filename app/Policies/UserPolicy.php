@@ -16,33 +16,29 @@ class UserPolicy
         return $user->isRoot() || $user->belongsToSameGabineteAs($target);
     }
 
+    /**
+     * Pessoas e vínculos migraram para o Govnex Hub: a criação de membro
+     * local do gabinete/entidade foi desligada (ver
+     * docs/INTEGRACAO_GOVNEX_HUB.md). Root, gerido localmente, é exceção
+     * fora deste fluxo (Admin/RootUserController).
+     */
     public function create(User $user): bool
     {
-        return $user->isRoot() || $user->role->canManageTeam();
+        return false;
     }
 
+    /**
+     * Papel e situação do vínculo também são geridos no Hub; a tela de
+     * equipe do gabinete ficou somente leitura.
+     */
     public function update(User $user, User $target): bool
     {
-        if ($user->isRoot()) {
-            return true;
-        }
-
-        if (! $user->belongsToSameGabineteAs($target)) {
-            return false;
-        }
-
-        // Administrador gerencia operadores, auditores e os demais
-        // administradores do gabinete; root é conta local e nunca é gerida aqui.
-        return $user->role->isAdministrator() && ! $target->isRoot();
+        return false;
     }
 
     public function delete(User $user, User $target): bool
     {
-        if ($user->id === $target->id) {
-            return false;
-        }
-
-        return $user->isRoot() || $this->update($user, $target);
+        return false;
     }
 
     public function restore(User $user, User $target): bool

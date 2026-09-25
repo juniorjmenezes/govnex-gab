@@ -15,6 +15,8 @@ declare module '@inertiajs/core' {
             sidebarOpen: boolean;
             /** Tela de estrutura do Govnex Hub (só para root, quando `HUB_BASE_URL` está configurada). */
             hubStructureUrl: string | null;
+            /** Endereço-base do Govnex Hub, para apontar telas somente leitura (equipe, convites) — `null` sem `HUB_BASE_URL`. */
+            hubBaseUrl: string | null;
             notifications: {
                 unread_count: number;
                 items: Array<{

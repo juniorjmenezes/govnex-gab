@@ -117,6 +117,11 @@ class HandleInertiaRequests extends Middleware
             'hubStructureUrl' => $user?->isRoot() && config('services.hub.base_url') !== ''
                 ? config('services.hub.base_url').'/estrutura'
                 : null,
+            // Pessoas e vínculos também são geridos no Govnex Hub; telas de
+            // equipe/convite ficaram somente leitura e apontam para lá.
+            'hubBaseUrl' => config('services.hub.base_url') !== ''
+                ? config('services.hub.base_url')
+                : null,
         ];
     }
 }

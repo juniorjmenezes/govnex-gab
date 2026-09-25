@@ -40,7 +40,7 @@ class TeamMembershipTest extends TestCase
                         && $item['role'] === AccessRole::Operator->value)));
     }
 
-    public function test_removing_office_access_preserves_global_user_and_other_memberships(): void
+    public function test_removing_office_access_is_blocked_now_that_links_are_managed_in_the_hub(): void
     {
         $office = Gabinete::factory()->create();
         $leader = User::factory()->administrator()->forGabinete($office)->create();
@@ -60,13 +60,13 @@ class TeamMembershipTest extends TestCase
                 'gabinete' => $office,
                 'usuario' => $member,
             ]))
-            ->assertRedirect(route('team.index'));
+            ->assertForbidden();
 
         $this->assertNotSoftDeleted($member);
         $this->assertDatabaseHas('gabinete_membros', [
             'gabinete_id' => $office->id,
             'usuario_id' => $member->id,
-            'ativo' => false,
+            'ativo' => true,
         ]);
         $this->assertDatabaseHas('gabinete_membros', [
             'gabinete_id' => $otherOffice->id,
@@ -75,7 +75,7 @@ class TeamMembershipTest extends TestCase
         ]);
     }
 
-    public function test_existing_account_can_be_linked_without_replacing_its_password(): void
+    public function test_linking_an_existing_account_is_blocked_now_that_links_are_managed_in_the_hub(): void
     {
         $office = Gabinete::factory()->create();
         $leader = User::factory()->administrator()->forGabinete($office)->create();
@@ -91,13 +91,11 @@ class TeamMembershipTest extends TestCase
                 'email' => $existing->email,
                 'role' => AccessRole::Operator->value,
             ])
-            ->assertRedirect(route('team.index'));
+            ->assertForbidden();
 
-        $this->assertDatabaseHas('gabinete_membros', [
+        $this->assertDatabaseMissing('gabinete_membros', [
             'gabinete_id' => $office->id,
             'usuario_id' => $existing->id,
-            'papel' => AccessRole::Operator->value,
-            'ativo' => true,
         ]);
         $this->assertSame($passwordHash, $existing->fresh()->password);
     }

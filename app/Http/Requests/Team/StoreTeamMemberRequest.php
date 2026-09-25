@@ -5,17 +5,25 @@ namespace App\Http\Requests\Team;
 use App\Enums\AccessRole;
 use App\Enums\UserRole;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
+/**
+ * Pessoas e vínculos são geridos no Govnex Hub; a criação de membro local
+ * do gabinete foi desligada (ver docs/INTEGRACAO_GOVNEX_HUB.md).
+ */
 class StoreTeamMemberRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $gabineteId = $this->user()?->gabinete_id;
+        return false;
+    }
 
-        return $gabineteId !== null && $this->user()->canManageGabinete($gabineteId);
+    protected function failedAuthorization(): void
+    {
+        throw new AuthorizationException('Gerenciado no Govnex Hub — altere lá.');
     }
 
     /** @return array<string, array<int, mixed>> */

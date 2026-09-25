@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
 import { ActivityMark } from '@/components/common/activity-mark';
 import { ActivityToggleButton } from '@/components/common/activity-toggle-button';
+import { HubManagedHint } from '@/components/common/hub-managed-hint';
 import { HubStructureLink } from '@/components/common/hub-structure-link';
 import { AttachmentField } from '@/components/forms/attachment-field';
 import { ColorPicker } from '@/components/forms/color-picker';
@@ -24,7 +25,6 @@ import {
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
-import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FieldDescription } from '@/components/ui/field';
@@ -149,8 +149,6 @@ export default function EntidadeShow({
     canManage,
     canManageModules,
     canCreateGabinete,
-    entidadeRoles,
-    gabineteRoles,
 }: {
     entidade: Entidade;
     gabinetes: Gabinete[];
@@ -163,8 +161,6 @@ export default function EntidadeShow({
     canManage: boolean;
     canManageModules: boolean;
     canCreateGabinete: boolean;
-    entidadeRoles: string[];
-    gabineteRoles: string[];
 }) {
     const settings = useForm({
         name: entidade.name,
@@ -215,13 +211,6 @@ export default function EntidadeShow({
     );
 
     const neighborhood = useForm({ name: '', active: true });
-    const invitation = useForm({
-        email: '',
-        entidade_role: 'OPERADOR',
-        gabinete_id: '',
-        papel_gabinete: '',
-        delivery_mode: 'EMAIL',
-    });
 
     const saveSettings = (event: FormEvent) => {
         event.preventDefault();
@@ -275,23 +264,6 @@ export default function EntidadeShow({
             { modules },
             { preserveScroll: true },
         );
-    };
-
-    const sendInvitation = (event: FormEvent) => {
-        event.preventDefault();
-
-        if (
-            !checkRequiredFields(invitation.data, invitation, {
-                email: 'Informe o e-mail do convidado.',
-            })
-        ) {
-            return;
-        }
-
-        invitation.post(`/entidades/${entidade.slug}/convites`, {
-            preserveScroll: true,
-            onSuccess: () => invitation.reset('email'),
-        });
     };
 
     return (
@@ -482,121 +454,9 @@ export default function EntidadeShow({
                             <SurfaceHeader>
                                 <SurfaceTitle>Integrantes</SurfaceTitle>
                             </SurfaceHeader>
-                            <form
-                                noValidate
-                                className="grid gap-4 border-b p-4 sm:grid-cols-2"
-                                onSubmit={sendInvitation}
-                            >
-                                <div className="space-y-1 sm:col-span-2">
-                                    <Label htmlFor="invite-email">E-mail</Label>
-                                    <Input
-                                        id="invite-email"
-                                        type="email"
-                                        value={invitation.data.email}
-                                        onChange={(event) =>
-                                            invitation.setData(
-                                                'email',
-                                                event.target.value,
-                                            )
-                                        }
-                                        aria-required="true"
-                                    />
-                                    <FieldError
-                                        message={invitation.errors.email}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label>Papel na entidade</Label>
-                                    <AppSelect
-                                        value={invitation.data.entidade_role}
-                                        onValueChange={(value) =>
-                                            invitation.setData(
-                                                'entidade_role',
-                                                value,
-                                            )
-                                        }
-                                        options={entidadeRoles.map((role) => ({
-                                            value: role,
-                                            label: accessRoleLabel(role),
-                                        }))}
-                                    />
-                                    <FieldError
-                                        message={
-                                            invitation.errors.entidade_role
-                                        }
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label>Gabinete opcional</Label>
-                                    <AppSelect
-                                        value={invitation.data.gabinete_id}
-                                        onValueChange={(value) => {
-                                            invitation.setData(
-                                                'gabinete_id',
-                                                value,
-                                            );
-
-                                            if (!value) {
-                                                invitation.setData(
-                                                    'papel_gabinete',
-                                                    '',
-                                                );
-                                            }
-                                        }}
-                                        emptyLabel="Nenhuma"
-                                        options={gabinetes
-                                            .filter(
-                                                (gabinete) =>
-                                                    gabinete.can_invite_members,
-                                            )
-                                            .map((gabinete) => ({
-                                                value: String(gabinete.id),
-                                                label: gabinete.name,
-                                            }))}
-                                    />
-                                    <FieldError
-                                        message={invitation.errors.gabinete_id}
-                                    />
-                                </div>
-                                {invitation.data.gabinete_id && (
-                                    <div className="space-y-1">
-                                        <Label>Papel no gabinete</Label>
-                                        <AppSelect
-                                            value={
-                                                invitation.data.papel_gabinete
-                                            }
-                                            onValueChange={(value) =>
-                                                invitation.setData(
-                                                    'papel_gabinete',
-                                                    value,
-                                                )
-                                            }
-                                            placeholder="Selecione"
-                                            options={gabineteRoles.map(
-                                                (role) => ({
-                                                    value: role,
-                                                    label: accessRoleLabel(
-                                                        role,
-                                                    ),
-                                                }),
-                                            )}
-                                        />
-                                        <FieldError
-                                            message={
-                                                invitation.errors.papel_gabinete
-                                            }
-                                        />
-                                    </div>
-                                )}
-                                <div className="sm:col-span-2">
-                                    <Button
-                                        type="submit"
-                                        disabled={invitation.processing}
-                                    >
-                                        Enviar convite
-                                    </Button>
-                                </div>
-                            </form>
+                            <div className="border-b p-4">
+                                <HubManagedHint text="Pessoas e vínculos são geridos no Govnex Hub. Para convidar ou vincular alguém a esta entidade, acesse o Hub." />
+                            </div>
                             <div className="divide-y">
                                 {members.map((member) => (
                                     <div key={member.id} className="p-4">

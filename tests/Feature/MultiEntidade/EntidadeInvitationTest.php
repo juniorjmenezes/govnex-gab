@@ -184,8 +184,12 @@ class EntidadeInvitationTest extends TestCase
         ]);
     }
 
-    public function test_entidade_administrator_can_invite_an_office_administrator(): void
+    public function test_creating_a_new_invitation_is_blocked_now_that_the_hub_owns_people_and_links(): void
     {
+        // Pessoas e vínculos migraram para o Govnex Hub: a criação de
+        // convite novo foi desligada, mesmo para quem administra a entidade
+        // (ver docs/INTEGRACAO_GOVNEX_HUB.md). O aceite de convites
+        // anteriores ao corte continua funcionando (ver EntidadeInvitationAcceptController).
         Notification::fake();
         $office = Gabinete::factory()->create();
         $administrator = User::factory()->administrator()->forGabinete($office)->create();
@@ -199,13 +203,10 @@ class EntidadeInvitationTest extends TestCase
                 'papel_gabinete' => AccessRole::Administrator->value,
                 'delivery_mode' => 'EMAIL',
             ])
-            ->assertRedirect(route('entidades.show', $office->entidade))
-            ->assertSessionHasNoErrors();
+            ->assertForbidden();
 
-        $this->assertDatabaseHas('entidade_convites', [
+        $this->assertDatabaseMissing('entidade_convites', [
             'email' => 'administrador@example.test',
-            'papel_entidade' => AccessRole::Administrator->value,
-            'papel_gabinete' => AccessRole::Administrator->value,
         ]);
     }
 }

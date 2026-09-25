@@ -1,21 +1,12 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Head, router } from '@inertiajs/react';
-import { Controller, useForm } from 'react-hook-form';
-import { z } from 'zod';
+import { Head } from '@inertiajs/react';
 import { ActivityMark } from '@/components/common/activity-mark';
 import { ActivityToggleButton } from '@/components/common/activity-toggle-button';
-import { DeleteRecordButton } from '@/components/common/delete-record-button';
+import { HubManagedHint } from '@/components/common/hub-managed-hint';
 import { TableActionButton } from '@/components/common/table-action-button';
-import { FieldError } from '@/components/forms/field-error';
-import { FieldLabel } from '@/components/forms/field-label';
-import { KeyIcon } from '@/components/icons';
+import { KeyIcon, TrashBinTrashIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
-import { AppSelect } from '@/components/ui/app-select';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     surfaceClasses,
     SurfaceHeader,
@@ -29,7 +20,6 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { accessRoleLabels } from '@/lib/access-roles';
 import type { AccessRole } from '@/lib/access-roles';
 import { cn } from '@/lib/utils';
@@ -44,24 +34,6 @@ type Member = {
     created_at: string;
 };
 type RoleOption = { value: string; label: string };
-const schema = z
-    .object({
-        name: z.string().min(2, 'Informe o nome.'),
-        email: z.email('E-mail inválido.'),
-        role: z.string().min(1, 'Selecione o papel.'),
-        password: z
-            .string()
-            .refine(
-                (value) => value === '' || value.length >= 12,
-                'Use ao menos 12 caracteres para uma nova conta.',
-            ),
-        password_confirmation: z.string(),
-    })
-    .refine((v) => v.password === v.password_confirmation, {
-        path: ['password_confirmation'],
-        message: 'As senhas não coincidem.',
-    });
-type Values = z.infer<typeof schema>;
 export default function Team({
     members,
     allowedRoles,
@@ -71,59 +43,8 @@ export default function Team({
     allowedRoles: RoleOption[];
     canManage: boolean;
 }) {
-    const tenantUrl = useTenantUrl();
-    const {
-        control,
-        register,
-        handleSubmit,
-        reset,
-        setError,
-        formState: { errors, isSubmitting },
-    } = useForm<Values>({
-        resolver: zodResolver(schema),
-        defaultValues: {
-            name: '',
-            email: '',
-            role:
-                allowedRoles.find((role) => role.value === 'OPERADOR')?.value ??
-                allowedRoles[0]?.value ??
-                '',
-            password: '',
-            password_confirmation: '',
-        },
-    });
-    const submit = (values: Values) =>
-        router.post(tenantUrl('/equipe'), values, {
-            onSuccess: () => reset(),
-            onError: (items) =>
-                Object.entries(items).forEach(([key, message]) =>
-                    setError(key as keyof Values, { message }),
-                ),
-        });
     const manageable = (member: Member) =>
         allowedRoles.some((role) => role.value === member.role);
-    const toggle = (member: Member) =>
-        router.put(
-            tenantUrl(`/equipe/${member.id}`),
-            {
-                role: member.role,
-                is_active: !member.is_active,
-            },
-            { preserveScroll: true },
-        );
-    const resetPassword = (member: Member) => {
-        const password = window.prompt(
-            `Nova senha para ${member.name} (mínimo de 12 caracteres):`,
-        );
-
-        if (password) {
-            router.put(
-                tenantUrl(`/equipe/${member.id}/senha`),
-                { password, password_confirmation: password },
-                { preserveScroll: true },
-            );
-        }
-    };
 
     return (
         <>
@@ -131,7 +52,7 @@ export default function Team({
             <PageContainer>
                 <PageHeader
                     title="Equipe"
-                    description="Gerencie acessos, funções e situação dos integrantes do gabinete."
+                    description="Consulte os acessos, funções e situação dos integrantes do gabinete."
                 />
                 <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
                     <Card className="gap-0 overflow-hidden py-0">
@@ -187,13 +108,9 @@ export default function Team({
                                                 {manageable(member) && (
                                                     <div className="flex justify-end gap-2">
                                                         <TableActionButton
-                                                            label={`Redefinir senha de ${member.name}`}
+                                                            label={`Gerenciado no Govnex Hub — redefina a senha de ${member.name} lá`}
                                                             variant="outline"
-                                                            onClick={() =>
-                                                                resetPassword(
-                                                                    member,
-                                                                )
-                                                            }
+                                                            disabled
                                                         >
                                                             <KeyIcon aria-hidden="true" />
                                                         </TableActionButton>
@@ -202,24 +119,15 @@ export default function Team({
                                                                 member.is_active
                                                             }
                                                             name={member.name}
-                                                            onClick={() =>
-                                                                toggle(member)
-                                                            }
+                                                            disabled
                                                         />
-                                                        <DeleteRecordButton
-                                                            url={tenantUrl(
-                                                                `/equipe/${member.id}`,
-                                                            )}
-                                                            label={`Excluir ${member.name}`}
-                                                            title="Excluir integrante?"
-                                                            subject={
-                                                                member.name
-                                                            }
-                                                            subjectDetail={
-                                                                member.email
-                                                            }
-                                                            description="O acesso será removido e o integrante deixará de aparecer na equipe. O histórico de atividades será preservado."
-                                                        />
+                                                        <TableActionButton
+                                                            label={`Gerenciado no Govnex Hub — remova ${member.name} lá`}
+                                                            variant="destructive"
+                                                            disabled
+                                                        >
+                                                            <TrashBinTrashIcon aria-hidden="true" />
+                                                        </TableActionButton>
                                                     </div>
                                                 )}
                                             </TableCell>
@@ -230,94 +138,14 @@ export default function Team({
                         </Table>
                     </Card>
                     {canManage && (
-                        <form
-                            noValidate
-                            onSubmit={handleSubmit(submit)}
-                            className={cn(surfaceClasses, 'overflow-hidden')}
-                        >
+                        <div className={cn(surfaceClasses, 'overflow-hidden')}>
                             <SurfaceHeader>
                                 <SurfaceTitle>Novo integrante</SurfaceTitle>
                             </SurfaceHeader>
-                            <div className="space-y-4 p-5">
-                                <div className="space-y-1">
-                                    <Label htmlFor="team-name">Nome</Label>
-                                    <Input
-                                        id="team-name"
-                                        {...register('name')}
-                                    />
-                                    <FieldError
-                                        message={errors.name?.message}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="team-email">E-mail</Label>
-                                    <Input
-                                        id="team-email"
-                                        type="email"
-                                        {...register('email')}
-                                    />
-                                    <FieldError
-                                        message={errors.email?.message}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="team-role">Papel</Label>
-                                    <Controller
-                                        control={control}
-                                        name="role"
-                                        render={({ field }) => (
-                                            <AppSelect
-                                                id="team-role"
-                                                value={field.value}
-                                                onValueChange={field.onChange}
-                                                options={allowedRoles}
-                                            />
-                                        )}
-                                    />
-                                    <FieldError
-                                        message={errors.role?.message}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <FieldLabel
-                                        htmlFor="team-password"
-                                        help="Se o e-mail já possuir uma conta, deixe a senha em branco. O acesso existente será apenas vinculado a este gabinete."
-                                    >
-                                        Senha inicial (somente para nova conta)
-                                    </FieldLabel>
-                                    <Input
-                                        id="team-password"
-                                        type="password"
-                                        {...register('password')}
-                                    />
-                                    <FieldError
-                                        message={errors.password?.message}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="team-password-confirmation">
-                                        Confirmar senha
-                                    </Label>
-                                    <Input
-                                        id="team-password-confirmation"
-                                        type="password"
-                                        {...register('password_confirmation')}
-                                    />
-                                    <FieldError
-                                        message={
-                                            errors.password_confirmation
-                                                ?.message
-                                        }
-                                    />
-                                </div>
-                                <Button
-                                    className="w-full"
-                                    disabled={isSubmitting}
-                                >
-                                    Adicionar à equipe
-                                </Button>
+                            <div className="p-5">
+                                <HubManagedHint text="Pessoas e vínculos são geridos no Govnex Hub. Para adicionar, editar, redefinir senha ou remover um integrante, acesse o Hub." />
                             </div>
-                        </form>
+                        </div>
                     )}
                 </div>
             </PageContainer>

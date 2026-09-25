@@ -8,7 +8,6 @@ use App\Models\Appointment;
 use App\Models\Cidadao;
 use App\Models\Demanda;
 use App\Models\Gabinete;
-use App\Models\GabineteMembro;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
@@ -172,53 +171,42 @@ class AccessRoleAuthorizationTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'indevido@example.test']);
     }
 
-    public function test_administrator_manages_operators_auditors_and_other_administrators(): void
+    public function test_administrator_can_only_read_the_team_now_that_the_hub_owns_people_and_links(): void
     {
+        // Pessoas e vínculos migraram para o Govnex Hub: mesmo o
+        // administrador do gabinete só lê a equipe localmente (ver
+        // docs/INTEGRACAO_GOVNEX_HUB.md).
         $office = Gabinete::factory()->create();
         $administrator = User::factory()->administrator()->forGabinete($office)->create();
         $otherAdministrator = User::factory()->administrator()->forGabinete($office)->create();
         $root = User::factory()->root()->create();
 
-        $this->assertTrue(Gate::forUser($administrator)->allows('update', $otherAdministrator));
+        $this->assertFalse(Gate::forUser($administrator)->allows('update', $otherAdministrator));
         $this->assertFalse(Gate::forUser($administrator)->allows('update', $root));
 
         $this->actingAs($administrator)
             ->get($this->contextRoute($office, 'team.index'))
             ->assertOk();
 
-        foreach ([
-            'auditor@example.test' => AccessRole::Auditor,
-            'administrador@example.test' => AccessRole::Administrator,
-        ] as $email => $role) {
-            $this->actingAs($administrator)
-                ->post($this->contextRoute($office, 'team.store'), [
-                    'name' => 'Nova pessoa',
-                    'email' => $email,
-                    'role' => $role->value,
-                    'password' => 'Senha123!Forte',
-                    'password_confirmation' => 'Senha123!Forte',
-                ])
-                ->assertSessionHasNoErrors()
-                ->assertRedirect();
-
-            $this->assertSame(
-                $role,
-                GabineteMembro::query()
-                    ->where('gabinete_id', $office->id)
-                    ->where('usuario_id', User::query()->where('email', $email)->value('id'))
-                    ->value('papel'),
-            );
-        }
+        $this->actingAs($administrator)
+            ->post($this->contextRoute($office, 'team.store'), [
+                'name' => 'Nova pessoa',
+                'email' => 'auditor@example.test',
+                'role' => AccessRole::Auditor->value,
+                'password' => 'Senha123!Forte',
+                'password_confirmation' => 'Senha123!Forte',
+            ])
+            ->assertForbidden();
+        $this->assertDatabaseMissing('users', ['email' => 'auditor@example.test']);
 
         $this->actingAs($administrator)
             ->put($this->contextRoute($office, 'team.update', ['usuario' => $otherAdministrator->id]), [
                 'role' => AccessRole::Auditor->value,
                 'is_active' => true,
             ])
-            ->assertSessionHasNoErrors()
-            ->assertRedirect();
+            ->assertForbidden();
 
-        $this->assertSame(AccessRole::Auditor, $otherAdministrator->gabineteRole($office->id));
+        $this->assertSame(AccessRole::Administrator, $otherAdministrator->gabineteRole($office->id));
     }
 
     /** @return array{Gabinete, User} */

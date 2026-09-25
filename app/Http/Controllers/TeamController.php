@@ -131,17 +131,12 @@ class TeamController extends Controller
         return to_route('team.index');
     }
 
+    /**
+     * Vínculos são geridos no Govnex Hub; a remoção local de membro do
+     * gabinete foi desligada (ver docs/INTEGRACAO_GOVNEX_HUB.md).
+     */
     public function destroy(Request $request, User $usuario): RedirectResponse
     {
-        abort_if($request->user()->is($usuario), 403);
-        $membership = GabineteMembro::query()
-            ->where('gabinete_id', $request->user()->gabinete_id)
-            ->where('usuario_id', $usuario->id)
-            ->firstOrFail();
-        abort_unless($request->user()->canManageGabinete((int) $request->user()->gabinete_id), 403);
-        $membership->forceFill(['ativo' => false, 'desativado_em' => now()])->save();
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Acesso do membro removido deste gabinete.']);
-
-        return to_route('team.index');
+        abort(403, 'Gerenciado no Govnex Hub — altere lá.');
     }
 }
