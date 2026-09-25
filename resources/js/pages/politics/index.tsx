@@ -449,7 +449,7 @@ function Countdown({
                     <span className="block font-mono text-2xl font-bold tabular-nums">
                         {String(part.value).padStart(2, '0')}
                     </span>
-                    <span className="mt-1 block text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                    <span className="mt-1 block text-xs font-medium text-muted-foreground">
                         {part.label}
                     </span>
                 </div>
@@ -816,7 +816,7 @@ function PollsSection({
                                 </div>
                             )}
 
-                            <p className="mb-4 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            <p className="mb-4 text-xs font-medium text-muted-foreground">
                                 Abrangência: {activeOffice.scope_label}
                             </p>
 

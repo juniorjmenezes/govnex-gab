@@ -246,7 +246,7 @@ export default function Offices({
                 <Surface as="section" className="overflow-hidden">
                     <div className="hidden overflow-x-auto md:block">
                         <table className="w-full text-sm">
-                            <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground uppercase">
+                            <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
                                 <tr>
                                     <th className="px-3 py-3 font-medium first:px-5 last:px-5">
                                         Gabinete
@@ -748,7 +748,7 @@ function OfficeDetailsDialog({
                                             <SyncStatusDot
                                                 status={latestSync.status}
                                             />
-                                            <span className="text-xs font-medium tracking-wide uppercase">
+                                            <span className="text-xs font-medium">
                                                 {syncStatusLabels[
                                                     latestSync.status
                                                 ] ?? latestSync.status}

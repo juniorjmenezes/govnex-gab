@@ -73,7 +73,7 @@ function CandidateSummary({ candidate }: { candidate: PoliticalCandidate }) {
                 <dl className="space-y-3">
                     {rows.map((row) => (
                         <div key={row.label}>
-                            <dt className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                            <dt className="text-xs font-semibold text-muted-foreground">
                                 {row.label}
                             </dt>
                             <dd className="mt-0.5 text-sm">{row.value}</dd>

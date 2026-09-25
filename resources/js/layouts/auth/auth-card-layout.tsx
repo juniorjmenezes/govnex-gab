@@ -32,7 +32,7 @@ export default function AuthCardLayout({ children, title }: AuthLayoutProps) {
                                         className="h-8 w-auto shrink-0 text-muted-foreground"
                                         aria-hidden="true"
                                     />
-                                    <h1 className="bg-background px-2 text-xs text-muted-foreground uppercase">
+                                    <h1 className="bg-background px-2 text-xs text-muted-foreground">
                                         {title}
                                     </h1>
                                 </div>

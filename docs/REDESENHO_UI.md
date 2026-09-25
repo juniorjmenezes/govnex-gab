@@ -40,7 +40,7 @@ Documentos relacionados: [AMBIENTE_DEV_HUB.md](AMBIENTE_DEV_HUB.md) (montagem do
 O trabalho foi interrompido durante a etapa 4; o que segue está na ordem sugerida.
 
 1. **Aprovação visual do piloto (bloqueia o resto).** Abrir `http://127.0.0.1:8000/dashboard` em claro, escuro, sidebar colapsada e largura de celular, com root e por SSO como `vereador@gabinetefacil.test` (senha do Hub `hub-dev-12345`). O painel foi reescrito, mas o agente que o fez **não chegou a conferir as capturas finais**: revisar alinhamentos, pesos, espaçamentos, legibilidade dos gráficos e se há cartões meio vazios.
-2. **Modo escuro possivelmente quebrado.** A captura `root-dark.png` do agente anterior saiu **toda preta**; não se sabe se foi problema de captura ou erro real (tokens `.dark`, `color-scheme`, fundo). Conferir pelo botão de tema; se for real, corrigir em `govnex-ui/src/styles.css`.
+2. **Modo escuro — resolvido: o dono do projeto confirmou visualmente que funciona (25/09/2026).** Histórico: A captura `root-dark.png` do agente anterior saiu **toda preta**; não se sabe se foi problema de captura ou erro real (tokens `.dark`, `color-scheme`, fundo). Conferir pelo botão de tema; se for real, corrigir em `govnex-ui/src/styles.css`.
 3. **Conferir o grupo "Gestão do gabinete"** na sidebar: só aparece para usuário não-root (o root não o vê por regra), então nunca foi visto em captura. Entrar por SSO como não-root.
 4. **Ajustes já conhecidos no painel/tema**
    - Cores de gráfico no claro: `--chart-2`, `--chart-4` e `--chart-5` ficam abaixo de 3:1 sobre branco — precisam de legenda ou rótulo.
@@ -48,10 +48,10 @@ O trabalho foi interrompido durante a etapa 4; o que segue está na ordem sugeri
    - O root dentro de um gabinete vê o grupo "Plataforma" duplicado na sidebar (já acontecia antes).
    - Fora do root, os mapas ganham 2,5 rem de altura com a mudança de `--app-shell-height`: conferir `electoral-map.tsx` e `prospecting-map.tsx`.
 5. **Varredura das demais telas do GAB (etapa 5, só depois de aprovar o piloto).**
-   - Caixa alta escrita direto em **15 arquivos** de tela (`grep -rn uppercase resources/js`; ex.: cabeçalho "GABINETE" da tabela no painel da plataforma) — remover onde contradiz o novo sistema.
+   - **Feito (25/09):** caixa alta removida de rótulos/cabeçalhos em 13 arquivos (sobraram só inputs de sigla); `rounded-lg/xl` restantes são superfícies e foram mantidos. Histórico: caixa alta escrita direto em **15 arquivos** de tela (`grep -rn uppercase resources/js`; ex.: cabeçalho "GABINETE" da tabela no painel da plataforma) — remover onde contradiz o novo sistema.
    - ~32 usos de `rounded-lg/xl/2xl` nas telas que ficaram mais arredondados: conferir coerência.
    - `PageHeader` agora é `text-2xl` em 44 páginas: navegar por demandas, cidadãos, agenda, relatórios, configurações e ver se algo quebrou visualmente.
-6. **Documentação de regras (etapa 6).** Estão desatualizadas:
+6. **Documentação de regras (etapa 6).** `AGENTS.md` do GAB atualizado em 25/09; resta `LINGUAGEM_VISUAL.md` do Hub. Estado anterior:
    - `AGENTS.md` do GAB, l.10: "raio único 0.2rem" → escala de 0,625 rem (controles 8 px, superfícies `rounded-xl`, exceção do calendário mudou); l.8: "tokens refletem `stone`" vale só em parte (fundo, tokens semânticos, sombra, gráfico); regra de cards (título `text-base`); regra de modais (`shadow-lg`, `ring-foreground/8`, `rounded-xl`); regra de campos/botões (`rounded-md` = 8 px, padding dos botões mudou); a ponte de ícones ganhou `ArrowUpIcon`, `ArrowRightUpIcon` e `ArrowRightDownIcon`.
    - `docs/LINGUAGEM_VISUAL.md` do Hub: §2 (raio), §4 (título de página `text-xs uppercase`) e a fonte citada (Geist; o código usa Inter Tight). Plano: mover para o repositório `govnex-ui` como fonte canônica e apontar Hub e GAB para ele.
    - Regras que **não existem ainda** e precisam ser escritas: tokens semânticos e variantes de Badge, sombras, `StatCard` v2, `SectionCard`, `EmptyState` compacto, Cmd+K e o grupo "Gestão do gabinete".

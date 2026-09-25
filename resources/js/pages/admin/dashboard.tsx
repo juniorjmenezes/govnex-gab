@@ -112,7 +112,7 @@ export default function PlatformDashboard({ summary, usage }: Props) {
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
-                                <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground uppercase">
+                                <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
                                     <tr>
                                         <th className="px-3 py-3 font-medium first:px-5 last:px-5">
                                             Gabinete

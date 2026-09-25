@@ -223,7 +223,7 @@ export function DemandTimeline({
                         <div className="min-w-0 flex-1 rounded-2xl border bg-muted/40 p-4">
                             <div className="flex items-center gap-2">
                                 <div className="min-w-0 flex-1">
-                                    <p className="truncate text-xs font-medium uppercase">
+                                    <p className="truncate text-xs font-medium">
                                         {eventTitle(event)}
                                     </p>
                                     <p className="mt-0.5 truncate text-xs text-muted-foreground">

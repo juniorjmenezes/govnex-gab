@@ -248,7 +248,7 @@ function KanbanColumn({
             <header className="flex items-center justify-between border-b px-3 py-3">
                 <h2
                     id={`column-${column.status}`}
-                    className="text-xs font-semibold tracking-wide text-foreground uppercase"
+                    className="text-xs font-semibold text-foreground"
                 >
                     {column.label}
                 </h2>

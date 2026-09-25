@@ -93,7 +93,7 @@ export function SyncStatusRow({
     return (
         <div className={cn('space-y-1.5', className)}>
             <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="flex min-w-0 items-center gap-1.5 font-medium tracking-wide uppercase">
+                <span className="flex min-w-0 items-center gap-1.5 font-medium">
                     <SyncStatusDot status={sync.status} />
                     <span className="truncate">
                         {syncStatusLabels[sync.status] ?? sync.status}
