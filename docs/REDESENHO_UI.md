@@ -39,7 +39,7 @@ Documentos relacionados: [AMBIENTE_DEV_HUB.md](AMBIENTE_DEV_HUB.md) (montagem do
 
 O trabalho foi interrompido durante a etapa 4; o que segue está na ordem sugerida.
 
-1. **Aprovação visual do piloto (bloqueia o resto).** Abrir `http://127.0.0.1:8000/dashboard` em claro, escuro, sidebar colapsada e largura de celular, com root e por SSO como `vereador@gabinetefacil.test` (senha do Hub `hub-dev-12345`). O painel foi reescrito, mas o agente que o fez **não chegou a conferir as capturas finais**: revisar alinhamentos, pesos, espaçamentos, legibilidade dos gráficos e se há cartões meio vazios.
+1. **Aprovação visual do piloto (bloqueia o resto).** Abrir `http://127.0.0.1:8000/dashboard` em claro, escuro, sidebar colapsada e largura de celular, com root e por SSO como `vereador@gabinetefacil.test` (atenção: `hub-dev-12345` não é a senha do Hub; o administrador do Hub em dev é `admin@gabinetefacil.test`, senha `password`, e `vereador@` não tem papel no HUB). O painel foi reescrito, mas o agente que o fez **não chegou a conferir as capturas finais**: revisar alinhamentos, pesos, espaçamentos, legibilidade dos gráficos e se há cartões meio vazios.
 2. **Modo escuro — resolvido: o dono do projeto confirmou visualmente que funciona (25/09/2026).** Histórico: A captura `root-dark.png` do agente anterior saiu **toda preta**; não se sabe se foi problema de captura ou erro real (tokens `.dark`, `color-scheme`, fundo). Conferir pelo botão de tema; se for real, corrigir em `govnex-ui/src/styles.css`.
 3. **Conferir o grupo "Gestão do gabinete"** na sidebar: só aparece para usuário não-root (o root não o vê por regra), então nunca foi visto em captura. Entrar por SSO como não-root.
 4. **Ajustes já conhecidos no painel/tema**

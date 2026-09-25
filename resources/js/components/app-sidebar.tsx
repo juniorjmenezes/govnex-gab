@@ -26,9 +26,10 @@ export function AppSidebar() {
         <Sidebar collapsible="icon" variant="sidebar">
             <SidebarHeader className="h-14 shrink-0 justify-center border-b border-sidebar-border px-2 py-0">
                 <div className="flex min-w-0 items-center gap-2.5 px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary/10 text-sidebar-primary ring-1 ring-sidebar-primary/15">
-                        <AppLogoMark className="size-4.5" aria-hidden="true" />
-                    </span>
+                    <AppLogoMark
+                        className="size-9 shrink-0 text-sidebar-primary"
+                        aria-hidden="true"
+                    />
                     <div className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
                         <span
                             className="truncate text-sm font-semibold text-sidebar-foreground"
