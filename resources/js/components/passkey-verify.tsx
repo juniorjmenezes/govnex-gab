@@ -6,6 +6,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
+import { cn } from '@/lib/utils';
 
 type Props = {
     routes?: {
@@ -15,6 +16,7 @@ type Props = {
     label?: string;
     loadingLabel?: string;
     separator?: string;
+    className?: string;
 };
 
 export default function PasskeyVerify({
@@ -22,6 +24,7 @@ export default function PasskeyVerify({
     label,
     loadingLabel,
     separator,
+    className,
 }: Props = {}) {
     const { verify, isLoading, error, isSupported } = usePasskeyVerify({
         ...(routes && {
@@ -45,7 +48,7 @@ export default function PasskeyVerify({
                 <Button
                     type="button"
                     variant="outline"
-                    className="w-full"
+                    className={cn('w-full', className)}
                     onClick={verify}
                     disabled={isLoading}
                 >

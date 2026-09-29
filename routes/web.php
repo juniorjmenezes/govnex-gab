@@ -20,8 +20,11 @@ use App\Http\Controllers\EntidadeDirectoryController;
 use App\Http\Controllers\EntidadeInvitationAcceptController;
 use App\Http\Controllers\EntidadeInvitationController;
 use App\Http\Controllers\GabineteTransferController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+use Laravel\Fortify\Features;
 
 Route::get('/', static function () {
     return redirect()->route(Auth::check() ? 'dashboard' : 'login');
@@ -35,6 +38,17 @@ Route::get('auth/hub/redirect', [HubAuthController::class, 'redirect'])
 Route::get('auth/hub/callback', [HubAuthController::class, 'callback'])
     ->middleware('throttle:30,1')
     ->name('hub.callback');
+
+// Página própria do acesso local de emergência: com o Hub configurado, a
+// tela de login principal só mostra um botão para cá, em vez de um trecho
+// recolhido — recolher inflava a altura da página de forma inconsistente.
+// O formulário em si continua postando para a rota do Fortify (`store()`).
+Route::get('login/local', static fn (Request $request) => Inertia::render('auth/login-local', [
+    'canResetPassword' => Features::enabled(Features::resetPasswords()),
+    'status' => $request->session()->get('status'),
+]))
+    ->middleware('guest:web')
+    ->name('login.local');
 
 Route::get('convites/entidade/{credential}', [EntidadeInvitationAcceptController::class, 'show'])
     ->middleware('throttle:30,1')

@@ -12,10 +12,9 @@ export default function AuthLayout({
     children: React.ReactNode;
 }) {
     const { component } = usePage();
-    const Template =
-        component === 'auth/login'
-            ? AuthCardLayoutTemplate
-            : AuthLayoutTemplate;
+    const Template = ['auth/login', 'auth/login-local'].includes(component)
+        ? AuthCardLayoutTemplate
+        : AuthLayoutTemplate;
 
     return (
         <Template title={title} description={description}>
