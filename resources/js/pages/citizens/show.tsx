@@ -47,12 +47,15 @@ export default function CitizenShow({
     attendanceSummary: {
         total: number;
         last_interaction: string | null;
+        lastVisitedAt: string | null;
         recent: Array<{
             id: number;
             assunto: string;
             atendido_em: string;
             requer_retorno: boolean;
             retorno_previsto_em: string | null;
+            visita_domiciliar: boolean;
+            compromisso_id: number | null;
             atendente: { id: number; name: string } | null;
         }>;
     };
@@ -276,6 +279,15 @@ export default function CitizenShow({
                                     {attendanceSummary.total === 0
                                         ? 'Nenhuma visita registrada.'
                                         : `${attendanceSummary.total} atendimento(s) registrado(s).`}
+                                    {attendanceSummary.lastVisitedAt &&
+                                        ` · Última visita em ${new Intl.DateTimeFormat(
+                                            'pt-BR',
+                                            { dateStyle: 'short' },
+                                        ).format(
+                                            new Date(
+                                                attendanceSummary.lastVisitedAt,
+                                            ),
+                                        )}`}
                                 </SurfaceDescription>
                             </SurfaceHeader>
                             {attendanceSummary.recent.length > 0 && (
@@ -291,14 +303,29 @@ export default function CitizenShow({
                                                     className="flex items-center justify-between gap-4 p-3 transition-colors hover:bg-muted"
                                                 >
                                                     <span className="min-w-0">
-                                                        <strong className="block truncate text-sm">
-                                                            {attendance.assunto}
-                                                        </strong>
+                                                        <span className="flex min-w-0 items-center gap-2">
+                                                            <strong className="block truncate text-sm">
+                                                                {
+                                                                    attendance.assunto
+                                                                }
+                                                            </strong>
+                                                            {attendance.visita_domiciliar && (
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="shrink-0"
+                                                                >
+                                                                    Visita
+                                                                    domiciliar
+                                                                </Badge>
+                                                            )}
+                                                        </span>
                                                         <span className="text-xs text-muted-foreground">
                                                             {attendance
                                                                 .atendente
                                                                 ?.name ??
                                                                 'Usuário removido'}
+                                                            {attendance.compromisso_id &&
+                                                                ' · via compromisso da agenda'}
                                                         </span>
                                                     </span>
                                                     <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">

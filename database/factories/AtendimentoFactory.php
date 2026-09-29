@@ -21,6 +21,8 @@ class AtendimentoFactory extends Factory
             'atendente_id' => User::factory(),
             'demanda_id' => null,
             'criado_por_id' => User::factory(),
+            'visita_domiciliar' => false,
+            'compromisso_id' => null,
             'assunto' => fake()->sentence(5),
             'relato' => fake()->paragraph(),
             'providencias' => fake()->optional()->paragraph(),

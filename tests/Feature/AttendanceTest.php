@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Appointment;
 use App\Models\Atendimento;
 use App\Models\Cidadao;
 use App\Models\Demanda;
@@ -62,6 +63,8 @@ class AttendanceTest extends TestCase
                 'duracao_minutos' => 35,
                 'requer_retorno' => true,
                 'retorno_previsto_em' => '2026-08-17',
+                'visita_domiciliar' => false,
+                'compromisso_id' => null,
             ])
             ->assertSessionHasNoErrors()
             ->assertRedirect();
@@ -75,6 +78,33 @@ class AttendanceTest extends TestCase
         $this->assertSame('2026-08-10 13:30:00', $attendance->atendido_em->format('Y-m-d H:i:s'));
         $this->assertTrue($attendance->requer_retorno);
         $this->assertSame('2026-08-17', $attendance->retorno_previsto_em?->toDateString());
+    }
+
+    public function test_visit_can_be_registered_from_an_originating_appointment(): void
+    {
+        $office = Gabinete::factory()->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
+        $citizen = Cidadao::factory()->forGabinete($office)->create();
+        $appointment = Appointment::factory()
+            ->forGabinete($office)
+            ->create([
+                'cidadao_id' => $citizen->id,
+                'responsavel_id' => $user->id,
+            ]);
+
+        $this->actingAs($user)
+            ->post(route('attendances.store'), $this->payload([
+                'cidadao_id' => $citizen->id,
+                'atendente_id' => $user->id,
+                'visita_domiciliar' => true,
+                'compromisso_id' => $appointment->id,
+            ]))
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $attendance = Atendimento::withoutGlobalScopes()->sole();
+        $this->assertTrue($attendance->visita_domiciliar);
+        $this->assertSame($appointment->id, $attendance->compromisso_id);
     }
 
     public function test_foreign_relations_and_demand_from_another_citizen_are_rejected(): void
@@ -133,7 +163,10 @@ class AttendanceTest extends TestCase
         $citizen = Cidadao::factory()->forGabinete($office)->create();
         $attendance = Atendimento::factory()
             ->forGabinete($office, $citizen, $user)
-            ->create(['assunto' => 'Atendimento mais recente']);
+            ->create([
+                'assunto' => 'Atendimento mais recente',
+                'visita_domiciliar' => true,
+            ]);
 
         $this->actingAs($user)
             ->get(route('citizens.show', $citizen))
@@ -142,7 +175,9 @@ class AttendanceTest extends TestCase
                 ->component('citizens/show')
                 ->where('attendanceSummary.total', 1)
                 ->where('attendanceSummary.recent.0.id', $attendance->id)
-                ->where('attendanceSummary.recent.0.assunto', 'Atendimento mais recente'));
+                ->where('attendanceSummary.recent.0.assunto', 'Atendimento mais recente')
+                ->where('attendanceSummary.recent.0.visita_domiciliar', true)
+                ->whereNotNull('attendanceSummary.lastVisitedAt'));
     }
 
     /** @param array<string, mixed> $overrides
@@ -161,6 +196,8 @@ class AttendanceTest extends TestCase
             'duracao_minutos' => 30,
             'requer_retorno' => false,
             'retorno_previsto_em' => null,
+            'visita_domiciliar' => false,
+            'compromisso_id' => null,
             ...$overrides,
         ];
     }

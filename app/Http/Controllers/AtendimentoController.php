@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\GabineteModule;
 use App\Enums\UserRole;
 use App\Http\Requests\Attendances\AttendanceRequest;
+use App\Models\Appointment;
 use App\Models\Atendimento;
 use App\Models\Cidadao;
 use App\Models\Demanda;
@@ -83,16 +84,38 @@ class AtendimentoController extends Controller
     {
         $this->authorize('create', Atendimento::class);
 
-        $selectedCitizenId = Cidadao::query()
-            ->whereKey($request->integer('cidadao_id'))
-            ->value('id');
+        $sourceAppointment = Appointment::query()
+            ->whereKey($request->integer('compromisso_id'))
+            ->whereNotNull('cidadao_id')
+            ->first();
+
+        $selectedCitizenId = $sourceAppointment !== null
+            ? $sourceAppointment->cidadao_id
+            : Cidadao::query()
+                ->whereKey($request->integer('cidadao_id'))
+                ->value('id');
+        $attendantId = $sourceAppointment !== null
+            ? $sourceAppointment->responsavel_id
+            : null;
+        $attendedAt = $sourceAppointment !== null
+            ? $sourceAppointment->inicio_em
+            : null;
+
+        $demandsEnabled = app(GabineteModuleManager::class)
+            ->isActive($request->user()->gabinete_id, GabineteModule::Demands);
 
         return Inertia::render('attendances/create', [
             'options' => $this->formOptions($request),
             'defaults' => [
                 'citizenId' => $selectedCitizenId,
-                'attendantId' => $request->user()->id,
-                'attendedAt' => $this->localDateTime(now(), $request),
+                'attendantId' => $attendantId ?? $request->user()->id,
+                'attendedAt' => $this->localDateTime($attendedAt ?? now(), $request),
+                'demandId' => $sourceAppointment && $demandsEnabled
+                    ? $sourceAppointment->demanda_id
+                    : null,
+                'assunto' => $sourceAppointment?->titulo,
+                'domiciliar' => $sourceAppointment !== null,
+                'compromissoId' => $sourceAppointment?->id,
             ],
         ]);
     }

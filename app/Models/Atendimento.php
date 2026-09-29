@@ -15,6 +15,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $atendente_id
  * @property int|null $demanda_id
  * @property int $criado_por_id
+ * @property bool $visita_domiciliar
+ * @property int|null $compromisso_id
  * @property string $assunto
  * @property string $relato
  * @property string|null $providencias
@@ -46,6 +48,12 @@ class Atendimento extends TenantModel
         return $this->belongsTo(Demanda::class)->withTrashed();
     }
 
+    /** @return BelongsTo<Appointment, $this> */
+    public function compromisso(): BelongsTo
+    {
+        return $this->belongsTo(Appointment::class, 'compromisso_id')->withTrashed();
+    }
+
     /** @return BelongsTo<User, $this> */
     public function criadoPor(): BelongsTo
     {
@@ -59,6 +67,7 @@ class Atendimento extends TenantModel
             'duracao_minutos' => 'integer',
             'requer_retorno' => 'boolean',
             'retorno_previsto_em' => 'date',
+            'visita_domiciliar' => 'boolean',
         ];
     }
 }

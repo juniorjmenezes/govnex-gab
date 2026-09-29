@@ -15,6 +15,8 @@ return new class extends Migration
             $table->foreignId('atendente_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('demanda_id')->nullable()->constrained('demandas')->nullOnDelete();
             $table->foreignId('criado_por_id')->constrained('users')->restrictOnDelete();
+            $table->boolean('visita_domiciliar')->default(false);
+            $table->foreignId('compromisso_id')->nullable()->constrained('compromissos')->nullOnDelete();
             $table->string('assunto');
             $table->text('relato');
             $table->text('providencias')->nullable();
@@ -29,6 +31,7 @@ return new class extends Migration
             $table->index(['gabinete_id', 'cidadao_id', 'atendido_em']);
             $table->index(['gabinete_id', 'atendente_id', 'atendido_em']);
             $table->index(['gabinete_id', 'requer_retorno', 'retorno_previsto_em'], 'atendimentos_gabinete_retorno_index');
+            $table->index(['gabinete_id', 'visita_domiciliar', 'cidadao_id', 'atendido_em'], 'atendimentos_gabinete_visita_index');
         });
     }
 

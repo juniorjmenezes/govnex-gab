@@ -51,6 +51,15 @@ class AttendanceRequest extends FormRequest
                     ->where('cidadao_id', $citizenId)
                     ->whereNull('deleted_at')),
             ],
+            'visita_domiciliar' => ['required', 'boolean'],
+            'compromisso_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('compromissos', 'id')->where(fn ($query) => $query
+                    ->where('gabinete_id', $officeId)
+                    ->where('cidadao_id', $citizenId)
+                    ->whereNull('deleted_at')),
+            ],
             'assunto' => ['required', 'string', 'min:3', 'max:255'],
             'relato' => ['required', 'string', 'min:10', 'max:10000'],
             'providencias' => ['nullable', 'string', 'max:10000'],

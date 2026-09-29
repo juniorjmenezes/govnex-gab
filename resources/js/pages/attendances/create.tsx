@@ -13,6 +13,10 @@ export default function CreateAttendance({
         citizenId: number | null;
         attendantId: number;
         attendedAt: string;
+        demandId: number | null;
+        assunto: string | null;
+        domiciliar: boolean;
+        compromissoId: number | null;
     };
 }) {
     return (

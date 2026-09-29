@@ -107,6 +107,9 @@ class CidadaoController extends Controller
             'attendanceSummary' => [
                 'total' => $cidadao->atendimentos()->count(),
                 'last_interaction' => $cidadao->atendimentos()->max('atendido_em'),
+                'lastVisitedAt' => $cidadao->atendimentos()
+                    ->where('visita_domiciliar', true)
+                    ->max('atendido_em'),
                 'recent' => $cidadao->atendimentos()
                     ->select([
                         'id',
@@ -116,6 +119,8 @@ class CidadaoController extends Controller
                         'atendido_em',
                         'requer_retorno',
                         'retorno_previsto_em',
+                        'visita_domiciliar',
+                        'compromisso_id',
                     ])
                     ->with('atendente:id,name')
                     ->latest('atendido_em')

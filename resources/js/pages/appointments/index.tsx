@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     addDays,
     addMonths,
@@ -389,6 +389,20 @@ export default function AppointmentsIndex({
                                         }}
                                     >
                                         Cancelar compromisso
+                                    </Button>
+                                )}
+                            {editing &&
+                                editing.source === 'appointment' &&
+                                editing.citizen &&
+                                capabilities.attendances && (
+                                    <Button variant="outline" asChild>
+                                        <Link
+                                            href={tenantUrl(
+                                                `/atendimentos/create?cidadao_id=${editing.citizen.id}&compromisso_id=${editing.id}`,
+                                            )}
+                                        >
+                                            Registrar visita
+                                        </Link>
                                     </Button>
                                 )}
                         </div>

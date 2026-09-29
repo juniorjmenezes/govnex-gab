@@ -153,12 +153,16 @@ export default function ProspectingMap({
                         description="Distribuição residencial dos eleitores cadastrados."
                     />
 
-                    <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="grid grid-cols-4 gap-2 text-center">
                         <Metric value={summary.totalVoters} label="Eleitores" />
                         <Metric value={summary.locatedVoters} label="No mapa" />
                         <Metric
                             value={summary.withoutLocation}
                             label="Sem local"
+                        />
+                        <Metric
+                            value={summary.visitedCount}
+                            label="Visitados"
                         />
                     </div>
 
