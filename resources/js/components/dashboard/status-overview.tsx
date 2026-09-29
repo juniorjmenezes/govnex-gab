@@ -1,17 +1,9 @@
-import { Pie, PieChart } from 'recharts';
-
 import { EmptyState } from '@/components/feedback/empty-state';
 import { InboxIcon } from '@/components/icons';
-import {
-    ChartContainer,
-    ChartTooltip,
-    ChartTooltipContent,
-} from '@/components/ui/chart';
-import type { ChartConfig } from '@/components/ui/chart';
 import type { DashboardDatum, DemandStatus } from '@/types';
 
 /**
- * Cor de cada status = a mesma família do `StatusBadge` suave, para o anel e
+ * Cor de cada status = a mesma família do `StatusBadge` suave, para a barra e
  * o badge da tabela contarem a mesma história. "Em andamento" usa o
  * violeta categórico (`--chart-3`), não o destaque: com gabinete azul, ele se
  * confundiria com "Nova" (`--info`). "Encerrada" fica neutra.
@@ -43,100 +35,71 @@ export function StatusOverview({ data }: { data: DashboardDatum[] }) {
         );
     }
 
+    // Maior fatia primeiro: vira a manchete e abre a barra segmentada — a
+    // mesma leitura de cima para baixo do card de referência (percentual em
+    // destaque, composição logo abaixo).
     const chartData = data
         .filter((item) => item.total > 0)
         .map((item) => ({
             ...item,
             fill: statusColor[item.key as DemandStatus] ?? 'var(--chart-5)',
-        }));
-    const config: ChartConfig = {
-        total: { label: 'Demandas' },
-        ...Object.fromEntries(
-            chartData.map((item) => [
-                item.key,
-                { label: item.label, color: item.fill },
-            ]),
-        ),
-    };
+        }))
+        .sort((a, b) => b.total - a.total);
+    const [top] = chartData;
     const summary = `Demandas por situação: ${chartData
         .map((item) => `${item.label} ${item.total}`)
         .join(', ')}.`;
 
     return (
-        // Rosca ao lado da legenda quando o cartão comporta (container query),
-        // empilhadas no estreito: o cartão secundário não fica alto e vazio.
-        <div className="@container">
-            <div className="flex flex-col items-center gap-4 @[19rem]:flex-row">
-                <div className="relative size-28 shrink-0">
-                    <ChartContainer
-                        config={config}
-                        className="aspect-square size-28"
-                        role="img"
-                        aria-label={summary}
-                    >
-                        {/* Rosca (parte do todo): uma fatia por status, separadas
-                            por uma fresta na cor do cartão. */}
-                        <PieChart accessibilityLayer>
-                            <ChartTooltip
-                                cursor={false}
-                                content={
-                                    <ChartTooltipContent
-                                        hideLabel
-                                        nameKey="key"
-                                    />
-                                }
-                            />
-                            <Pie
-                                data={chartData}
-                                dataKey="total"
-                                nameKey="key"
-                                innerRadius="70%"
-                                outerRadius="100%"
-                                startAngle={90}
-                                endAngle={-270}
-                                stroke="var(--card)"
-                                strokeWidth={2}
-                                cornerRadius={3}
-                                isAnimationActive={false}
-                            />
-                        </PieChart>
-                    </ChartContainer>
-                    <div
-                        className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
-                        aria-hidden="true"
-                    >
-                        <span className="text-xl font-semibold tracking-tight tabular-nums">
-                            {total.toLocaleString('pt-BR')}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                            demandas
-                        </span>
-                    </div>
-                </div>
-                <ul className="flex w-full min-w-0 flex-col gap-2">
-                    {chartData.map((item) => (
-                        <li
-                            key={item.key}
-                            className="flex items-center gap-2 text-sm"
-                        >
-                            <span
-                                className="size-2 shrink-0 rounded-full"
-                                style={{ backgroundColor: item.fill }}
-                                aria-hidden="true"
-                            />
-                            <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                                {item.label}
-                            </span>
-                            <span className="font-medium tabular-nums">
-                                {item.total.toLocaleString('pt-BR')}
-                            </span>
-                            <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">
-                                {percent.format(item.total / total)}
-                            </span>
-                        </li>
-                    ))}
-                </ul>
+        <div className="flex flex-col gap-4">
+            <div>
+                <p className="text-2xl font-semibold tracking-tight tabular-nums">
+                    {percent.format(top.total / total)}{' '}
+                    <span className="text-base font-normal text-muted-foreground">
+                        {top.label.toLowerCase()}
+                    </span>
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                    {total.toLocaleString('pt-BR')} demanda
+                    {total === 1 ? '' : 's'} no período
+                </p>
             </div>
+
+            <div
+                className="flex h-2 w-full gap-0.5"
+                role="img"
+                aria-label={summary}
+            >
+                {chartData.map((item) => (
+                    <div
+                        key={item.key}
+                        className="h-full rounded-full first:rounded-l-full last:rounded-r-full"
+                        style={{
+                            width: `${(item.total / total) * 100}%`,
+                            backgroundColor: item.fill,
+                        }}
+                    />
+                ))}
+            </div>
+
+            {/* Grade de 2 colunas, não `flex-wrap`: com 5 status o texto
+                quebra de qualquer forma, e a quebra ficava desalinhada. Em
+                colunas fixas, a quebra faz parte do desenho. */}
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-2">
+                {chartData.map((item) => (
+                    <li
+                        key={item.key}
+                        className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"
+                    >
+                        <span
+                            className="size-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: item.fill }}
+                            aria-hidden="true"
+                        />
+                        <span className="truncate">{item.label}</span>
+                    </li>
+                ))}
+            </ul>
         </div>
     );
 }

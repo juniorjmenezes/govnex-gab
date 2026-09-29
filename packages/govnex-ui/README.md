@@ -121,3 +121,8 @@ ignorado pelo git), nao precisa disso.
 
 Enquanto o pacote estiver em `0.x`, novas extracoes devem ser validadas no
 GOVNEX GAB e em pelo menos outro produto GOVNEX antes de estabilizar a API.
+
+## Estado do redesenho visual
+
+O redesenho "SaaS moderno e suave" (tokens, componentes e padrões deste pacote) está **em andamento**; o que já foi feito e o que falta
+estão em `docs/REDESENHO_UI.md` do repositório `govnex-gab`. Antes de adotar esta versão em outro produto, leia a seção "O que falta para concluir".
