@@ -10,6 +10,8 @@ export interface AuthSplitLayoutProps {
     children: ReactNode;
     /** Marca do produto (logo + nome), exibida no topo do painel escuro. */
     brand: ReactNode;
+    /** Ação no canto superior direito da coluna de formulário (ex.: link de cadastro). */
+    headerAction?: ReactNode;
     /** Frase de efeito curta, logo abaixo da marca. */
     tagline?: string;
     /** Par de blocos de destaque no rodapé do painel (título curto + descrição). */
@@ -35,6 +37,7 @@ export function AuthSplitLayout({
     description,
     children,
     brand,
+    headerAction,
     tagline,
     panelFooter,
     formFooter,
@@ -45,7 +48,10 @@ export function AuthSplitLayout({
             data-slot="auth-split-layout"
             className={cn('flex min-h-svh w-full bg-background p-2', className)}
         >
-            <div className="flex flex-1 flex-col justify-center px-6 py-10 sm:px-10 lg:px-16">
+            <div className="flex flex-1 flex-col px-6 py-10 sm:px-10 lg:px-16">
+                {headerAction && (
+                    <div className="text-right text-sm">{headerAction}</div>
+                )}
                 <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center">
                     <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                         {title}
