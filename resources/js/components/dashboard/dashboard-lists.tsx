@@ -1,6 +1,4 @@
 import { Link } from '@inertiajs/react';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 import { PriorityBadge } from '@/components/demands/priority-badge';
 import { StatusBadge } from '@/components/demands/status-badge';
@@ -181,55 +179,40 @@ export function RecentDemandsTable({
 }
 
 /**
- * Compromisso com a data em destaque (bloco dia/mês), título, horário e
- * local/responsável, e a situação em badge semântico.
+ * Compromisso em cartão pequeno para o carrossel de "Próximos compromissos":
+ * horário em destaque (não uma data em bloco, tipo calendário) — a mesma
+ * ideia de uma agenda impressa, não de item de lista de notícias. A situação
+ * já é sinalizada pelo badge, sem precisar de uma faixa de cor extra.
  */
-export function AppointmentListItem({
+export function AppointmentCard({
     appointment,
     href,
 }: {
     appointment: DashboardAppointment;
     href: string;
 }) {
-    const date = parseISO(appointment.date);
     const today = appointment.date_label === 'Hoje';
     const confirmed = appointment.status === 'confirmado';
     const place = appointment.location ?? appointment.responsible?.name;
 
     return (
-        <li>
-            <Link href={href} className={rowLink}>
-                <span
-                    className={cn(
-                        'flex size-12 shrink-0 flex-col items-center justify-center rounded-lg ring-1',
-                        today
-                            ? 'bg-primary/10 text-primary ring-primary/20 dark:bg-primary/20 dark:text-[color-mix(in_oklch,var(--primary),white_45%)]'
-                            : 'bg-muted/60 text-foreground ring-foreground/5',
-                    )}
-                    aria-hidden="true"
-                >
-                    <span className="text-[0.6875rem] leading-4 font-medium capitalize opacity-75">
-                        {format(date, 'MMM', { locale: ptBR }).replace('.', '')}
-                    </span>
-                    <span className="text-lg leading-none font-semibold tabular-nums">
-                        {format(date, 'd')}
-                    </span>
-                </span>
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <p
-                        className="truncate text-sm font-medium text-foreground"
-                        title={appointment.title}
+        <Link
+            href={href}
+            className="flex w-56 shrink-0 snap-start flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3 transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+            <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-col">
+                    <span
+                        className={cn(
+                            'text-sm font-semibold tabular-nums',
+                            today && 'text-primary',
+                        )}
                     >
-                        {appointment.title}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground/80">
-                            {appointment.date_label}
-                        </span>
-                        {' · '}
                         {appointment.time_label}
-                        {place ? ` · ${place}` : ''}
-                    </p>
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                        {appointment.date_label}
+                    </span>
                 </div>
                 <Badge
                     variant={confirmed ? 'success' : 'outline'}
@@ -240,7 +223,20 @@ export function AppointmentListItem({
                 >
                     {appointment.status_label}
                 </Badge>
-            </Link>
-        </li>
+            </div>
+            <div className="min-w-0">
+                <p
+                    className="line-clamp-2 text-sm font-medium text-foreground"
+                    title={appointment.title}
+                >
+                    {appointment.title}
+                </p>
+                {place && (
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {place}
+                    </p>
+                )}
+            </div>
+        </Link>
     );
 }

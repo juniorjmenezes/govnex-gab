@@ -175,7 +175,7 @@ export function useAppointmentForm({
                   demanda_id: capabilities.demands
                       ? (nextActionPrefill?.demandaId ?? null)
                       : null,
-                  tipo: 'reuniao',
+                  tipo: '',
                   status: 'agendado',
                   observacoes: '',
                   recorrencia: 'nenhuma',

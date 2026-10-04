@@ -30,6 +30,8 @@ export type Attendance = {
     atendente_id: number | null;
     demanda_id: number | null;
     criado_por_id: number;
+    visita_domiciliar: boolean;
+    compromisso_id: number | null;
     assunto: string;
     relato: string;
     providencias: string | null;

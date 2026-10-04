@@ -49,6 +49,7 @@ class AppointmentController extends Controller
         $eventsEnabled = $modules->isActive($user->gabinete_id, GabineteModule::Events);
         $demandsEnabled = $modules->isActive($user->gabinete_id, GabineteModule::Demands);
         $whatsAppEnabled = $modules->isActive($user->gabinete_id, GabineteModule::WhatsApp);
+        $attendancesEnabled = $modules->isActive($user->gabinete_id, GabineteModule::Attendances);
         [$start, $end] = $this->range($view, $date, $timezone);
         $filters = [
             'view' => $view,
@@ -141,6 +142,7 @@ class AppointmentController extends Controller
                 'events' => $eventsEnabled,
                 'demands' => $demandsEnabled,
                 'whatsapp' => $whatsAppEnabled,
+                'attendances' => $attendancesEnabled,
             ],
             'options' => $this->formOptions($user, $demandsEnabled),
         ]);
@@ -174,6 +176,7 @@ class AppointmentController extends Controller
                 'events' => $modules->isActive($user->gabinete_id, GabineteModule::Events),
                 'demands' => $demandsEnabled,
                 'whatsapp' => $whatsAppEnabled,
+                'attendances' => $modules->isActive($user->gabinete_id, GabineteModule::Attendances),
             ],
             'options' => $this->formOptions($user, $demandsEnabled),
         ]);

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { StatCard, StatCardSkeleton } from '@/components/common/stat-card';
 import { toStatTrend } from '@/components/dashboard/dashboard-format';
 import {
-    AppointmentListItem,
+    AppointmentCard,
     DemandListItem,
     RecentDemandsTable,
 } from '@/components/dashboard/dashboard-lists';
@@ -25,6 +25,7 @@ import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
+import { CardCarousel } from '@/components/ui/card-carousel';
 import { SectionCard } from '@/components/ui/section-card';
 import { useCanWrite } from '@/hooks/use-can-write';
 import { contextualUrl } from '@/lib/entity-context';
@@ -219,60 +220,33 @@ export default function Dashboard({
 
                 {capabilities.demands ? (
                     /*
-                     * Duas colunas independentes no desktop (2/3 + 1/3): cada
-                     * cartão tem a altura do próprio conteúdo, sem esticar
-                     * listas curtas ao lado do gráfico. No celular/tablet as
-                     * colunas "somem" (`contents`) e a ordem vem de `order-*`,
-                     * pondo "Atenção imediata" logo depois dos indicadores.
+                     * Fileiras de largura cheia, nunca coluna estreita ao lado
+                     * de coluna larga: quando dois cartões dividem uma linha,
+                     * eles têm a mesma largura e a mesma altura (grade, não
+                     * duas colunas que crescem cada uma pela própria conta).
+                     * É o que evita a borda de baixo desencontrada entre
+                     * cartões vizinhos, em qualquer largura de tela.
                      */
-                    <div className="flex flex-col gap-6 xl:grid xl:grid-cols-3 xl:items-start">
-                        <div className="contents xl:col-span-2 xl:flex xl:min-w-0 xl:flex-col xl:gap-6">
-                            <SectionCard
-                                title="Evolução do atendimento"
-                                description={`Por mês · ${periodLabel.toLowerCase()}`}
-                                className="order-2 xl:order-none"
-                                contentClassName="p-5"
-                            >
-                                <EvolutionChart data={charts.monthly} />
-                            </SectionCard>
+                    <div className="flex flex-col gap-6">
+                        <SectionCard
+                            title="Evolução do atendimento"
+                            description={`Por mês · ${periodLabel.toLowerCase()}`}
+                            contentClassName="p-0"
+                        >
+                            {/* O resumo por status mora dentro do cartão do
+                                gráfico, como painel lateral — não um cartão à
+                                parte disputando altura com o resto da página. */}
+                            <div className="grid gap-6 p-5 lg:grid-cols-[2fr_1fr]">
+                                <div className="min-w-0">
+                                    <EvolutionChart data={charts.monthly} />
+                                </div>
+                                <div className="lg:flex lg:h-full lg:flex-col lg:justify-center lg:border-l lg:pl-6">
+                                    <StatusOverview data={charts.status} />
+                                </div>
+                            </div>
+                        </SectionCard>
 
-                            <SectionCard
-                                title="Demandas recentes"
-                                description="Últimos registros no período"
-                                actions={
-                                    <Button
-                                        asChild
-                                        size="sm"
-                                        variant="outline"
-                                        className="shrink-0"
-                                    >
-                                        <Link href={href('/demandas')}>
-                                            Ver todas
-                                        </Link>
-                                    </Button>
-                                }
-                                className="order-4 xl:order-none"
-                                contentClassName="p-0"
-                            >
-                                {recentDemands.length === 0 ? (
-                                    <EmptyState
-                                        size="compact"
-                                        icon={ClipboardListIcon}
-                                        title="Nenhuma demanda no período"
-                                        description="Altere o período ou registre uma nova demanda."
-                                    />
-                                ) : (
-                                    <RecentDemandsTable
-                                        demands={recentDemands.slice(0, 6)}
-                                        hrefFor={(demand) =>
-                                            href(`/demandas/${demand.id}`)
-                                        }
-                                    />
-                                )}
-                            </SectionCard>
-                        </div>
-
-                        <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-6">
+                        <div className="grid gap-6 lg:grid-cols-2">
                             <SectionCard
                                 title="Atenção imediata"
                                 description={
@@ -280,7 +254,6 @@ export default function Dashboard({
                                         ? `${metrics.overdue} com prazo vencido`
                                         : 'Prazos vencidos'
                                 }
-                                className="order-1 xl:order-none"
                                 contentClassName="flex flex-col p-0"
                             >
                                 {attentionDemands.length === 0 ? (
@@ -312,12 +285,9 @@ export default function Dashboard({
                                 )}
                             </SectionCard>
 
-                            {/* Ao lado de "Atenção imediata": as duas listas de
-                                prazo ficam juntas e as colunas se equilibram. */}
                             <SectionCard
                                 title="Próximos prazos"
                                 description="Vencem em 7 dias"
-                                className="order-3 xl:order-none"
                                 contentClassName="p-0"
                             >
                                 {upcomingDeadlines.length === 0 ? (
@@ -341,25 +311,49 @@ export default function Dashboard({
                                     </ul>
                                 )}
                             </SectionCard>
+                        </div>
 
-                            {capabilities.schedule && (
-                                <UpcomingAppointments
-                                    appointments={upcomingAppointments}
-                                    href={href}
-                                    canWrite={canWrite}
-                                    className="order-5 xl:order-none"
+                        {capabilities.schedule && (
+                            <UpcomingAppointments
+                                appointments={upcomingAppointments}
+                                href={href}
+                                canWrite={canWrite}
+                            />
+                        )}
+
+                        <SectionCard
+                            title="Demandas recentes"
+                            description="Últimos registros no período"
+                            actions={
+                                <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="shrink-0"
+                                >
+                                    <Link href={href('/demandas')}>
+                                        Ver todas
+                                    </Link>
+                                </Button>
+                            }
+                            contentClassName="p-0"
+                        >
+                            {recentDemands.length === 0 ? (
+                                <EmptyState
+                                    size="compact"
+                                    icon={ClipboardListIcon}
+                                    title="Nenhuma demanda no período"
+                                    description="Altere o período ou registre uma nova demanda."
+                                />
+                            ) : (
+                                <RecentDemandsTable
+                                    demands={recentDemands.slice(0, 6)}
+                                    hrefFor={(demand) =>
+                                        href(`/demandas/${demand.id}`)
+                                    }
                                 />
                             )}
-
-                            <SectionCard
-                                title="Situação atual"
-                                description="Demandas por status"
-                                className="order-6 xl:order-none"
-                                contentClassName="p-5"
-                            >
-                                <StatusOverview data={charts.status} />
-                            </SectionCard>
-                        </div>
+                        </SectionCard>
                     </div>
                 ) : (
                     <div className="grid items-start gap-6 lg:grid-cols-2">
@@ -426,17 +420,22 @@ function UpcomingAppointments({
                 />
             ) : (
                 <>
-                    <ul className="divide-y">
-                        {appointments.map((appointment) => (
-                            <AppointmentListItem
-                                key={`${appointment.id}-${appointment.starts_at}`}
-                                appointment={appointment}
-                                href={href(
-                                    `/agenda?view=dia&date=${appointment.date}`,
-                                )}
-                            />
-                        ))}
-                    </ul>
+                    {/* Uma linha só, rolável: cartões pequenos em vez de
+                        lista, para caber vários compromissos sem alongar o
+                        cartão verticalmente. */}
+                    <div className="p-4">
+                        <CardCarousel aria-label="Próximos compromissos">
+                            {appointments.map((appointment) => (
+                                <AppointmentCard
+                                    key={`${appointment.id}-${appointment.starts_at}`}
+                                    appointment={appointment}
+                                    href={href(
+                                        `/agenda?view=dia&date=${appointment.date}`,
+                                    )}
+                                />
+                            ))}
+                        </CardCarousel>
+                    </div>
                     <CardFooterLink href={href('/agenda')}>
                         Abrir agenda
                     </CardFooterLink>

@@ -35,67 +35,68 @@ export function StatusOverview({ data }: { data: DashboardDatum[] }) {
         );
     }
 
-    const items = data.filter((item) => item.total > 0);
-    const summary = `Demandas por situação: ${items
+    // Maior fatia primeiro: vira a manchete e abre a barra segmentada — a
+    // mesma leitura de cima para baixo do card de referência (percentual em
+    // destaque, composição logo abaixo).
+    const chartData = data
+        .filter((item) => item.total > 0)
+        .map((item) => ({
+            ...item,
+            fill: statusColor[item.key as DemandStatus] ?? 'var(--chart-5)',
+        }))
+        .sort((a, b) => b.total - a.total);
+    const [top] = chartData;
+    const summary = `Demandas por situação: ${chartData
         .map((item) => `${item.label} ${item.total}`)
         .join(', ')}.`;
 
     return (
-        <div className="flex flex-col gap-5">
-            <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-semibold tracking-tight tabular-nums">
-                    {total.toLocaleString('pt-BR')}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                    {total === 1 ? 'demanda' : 'demandas'} no total
-                </span>
+        <div className="flex flex-col gap-4">
+            <div>
+                <p className="text-2xl font-semibold tracking-tight tabular-nums">
+                    {percent.format(top.total / total)}{' '}
+                    <span className="text-base font-normal text-muted-foreground">
+                        {top.label.toLowerCase()}
+                    </span>
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                    {total.toLocaleString('pt-BR')} demanda
+                    {total === 1 ? '' : 's'} no período
+                </p>
             </div>
-            {/* Barra segmentada (parte do todo): cada status ocupa a fração
-                que tem, separado por uma fresta. Não depende da largura do
-                cartão, ao contrário da rosca. */}
+
             <div
-                className="flex h-2.5 w-full gap-1"
+                className="flex h-2 w-full gap-0.5"
                 role="img"
                 aria-label={summary}
             >
-                {items.map((item) => (
-                    <span
+                {chartData.map((item) => (
+                    <div
                         key={item.key}
-                        className="h-full min-w-1 rounded-full"
+                        className="h-full rounded-full first:rounded-l-full last:rounded-r-full"
                         style={{
-                            flexGrow: item.total,
-                            flexBasis: 0,
-                            backgroundColor:
-                                statusColor[item.key as DemandStatus] ??
-                                'var(--chart-5)',
+                            width: `${(item.total / total) * 100}%`,
+                            backgroundColor: item.fill,
                         }}
                     />
                 ))}
             </div>
-            <ul className="flex flex-col divide-y">
-                {items.map((item) => (
+
+            {/* Grade de 2 colunas, não `flex-wrap`: com 5 status o texto
+                quebra de qualquer forma, e a quebra ficava desalinhada. Em
+                colunas fixas, a quebra faz parte do desenho. */}
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-2">
+                {chartData.map((item) => (
                     <li
                         key={item.key}
-                        className="flex items-center gap-2.5 py-2.5 text-sm first:pt-0 last:pb-0"
+                        className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"
                     >
                         <span
-                            className="size-2.5 shrink-0 rounded-full"
-                            style={{
-                                backgroundColor:
-                                    statusColor[item.key as DemandStatus] ??
-                                    'var(--chart-5)',
-                            }}
+                            className="size-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: item.fill }}
                             aria-hidden="true"
                         />
-                        <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                            {item.label}
-                        </span>
-                        <span className="font-medium tabular-nums">
-                            {item.total.toLocaleString('pt-BR')}
-                        </span>
-                        <span className="w-10 text-right text-xs text-muted-foreground tabular-nums">
-                            {percent.format(item.total / total)}
-                        </span>
+                        <span className="truncate">{item.label}</span>
                     </li>
                 ))}
             </ul>

@@ -114,7 +114,11 @@ export default function ProspectingMapCanvas({
                         radius={selected ? 10 : 7}
                         pathOptions={{
                             color: selected ? '#dc2626' : '#ffffff',
-                            fillColor: selected ? '#ef4444' : '#2563eb',
+                            fillColor: selected
+                                ? '#ef4444'
+                                : marker.lastVisitedAt
+                                  ? '#16a34a'
+                                  : '#2563eb',
                             fillOpacity: 0.9,
                             opacity: 1,
                             weight: selected ? 3 : 2,
@@ -134,7 +138,19 @@ export default function ProspectingMapCanvas({
                                         'Endereço não informado'
                                     }
                                 />
-                                <div className="border-t px-3 py-2">
+                                <div className="space-y-1.5 border-t px-3 py-2">
+                                    <p className="text-xs text-muted-foreground">
+                                        {marker.lastVisitedAt
+                                            ? `Última visita: ${new Intl.DateTimeFormat(
+                                                  'pt-BR',
+                                                  { dateStyle: 'short' },
+                                              ).format(
+                                                  new Date(
+                                                      marker.lastVisitedAt,
+                                                  ),
+                                              )}`
+                                            : 'Ainda não visitado'}
+                                    </p>
                                     <Link
                                         href={tenantUrl(
                                             `/cidadaos/${marker.id}`,

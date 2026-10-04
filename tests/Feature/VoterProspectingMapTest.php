@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Atendimento;
 use App\Models\Bairro;
 use App\Models\Cidadao;
 use App\Models\Gabinete;
@@ -56,10 +57,49 @@ class VoterProspectingMapTest extends TestCase
                 ->where('markers.0.name', 'Eleitor Localizado')
                 ->where('markers.0.address', 'Rua Principal, 100')
                 ->where('markers.0.neighborhood', $neighborhood->nome)
+                ->where('markers.0.lastVisitedAt', null)
                 ->where('summary.totalVoters', 2)
                 ->where('summary.locatedVoters', 1)
                 ->where('summary.withoutLocation', 1)
+                ->where('summary.visitedCount', 0)
                 ->where('summary.truncated', false));
+    }
+
+    public function test_visited_voters_are_flagged_on_the_map(): void
+    {
+        $office = Gabinete::factory()->create();
+        $user = User::factory()->operator()->forGabinete($office)->create();
+        $visitedVoter = Cidadao::factory()->forGabinete($office)->create([
+            'nome' => 'Eleitor Visitado',
+            'eleitor' => true,
+            'latitude' => -3.731862,
+            'longitude' => -38.526669,
+        ]);
+        $notVisitedVoter = Cidadao::factory()->forGabinete($office)->create([
+            'nome' => 'Eleitor Nao Visitado',
+            'eleitor' => true,
+            'latitude' => -3.72,
+            'longitude' => -38.52,
+        ]);
+        Atendimento::factory()
+            ->forGabinete($office, $visitedVoter, $user)
+            ->create(['visita_domiciliar' => true]);
+        Atendimento::factory()
+            ->forGabinete($office, $notVisitedVoter, $user)
+            ->create(['visita_domiciliar' => false]);
+
+        $this->actingAs($user)
+            ->get(route('voters.prospecting-map'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('voters/prospecting-map')
+                ->has('markers', 2)
+                ->where('summary.visitedCount', 1)
+                ->where('markers.0.lastVisitedAt', null)
+                ->where(
+                    'markers.1.lastVisitedAt',
+                    fn ($value) => $value !== null,
+                ));
     }
 
     public function test_platform_administrator_cannot_access_voter_prospecting_map(): void

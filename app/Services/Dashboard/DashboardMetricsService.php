@@ -234,7 +234,7 @@ class DashboardMetricsService
                 $timezone,
             ))
             ->sortBy('starts_at')
-            ->take(4)
+            ->take(12)
             ->values()
             ->all();
     }

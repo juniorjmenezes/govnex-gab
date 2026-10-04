@@ -31,10 +31,15 @@ const schema = z.object({
     duracao_minutos: z.string(),
     requer_retorno: z.boolean(),
     retorno_previsto_em: z.string(),
+    visita_domiciliar: z.boolean(),
+    compromisso_id: z.string(),
 });
 
 type Values = z.infer<typeof schema>;
-type SelectFieldName = Exclude<FieldPath<Values>, 'requer_retorno'>;
+type SelectFieldName = Exclude<
+    FieldPath<Values>,
+    'requer_retorno' | 'visita_domiciliar'
+>;
 const value = (item: string | null | undefined) => item ?? '';
 const dateTimeParts = (item: string) => {
     const [date = '', time = ''] = item.split('T');
@@ -54,6 +59,10 @@ export function AttendanceForm({
     defaults?: {
         citizenId: number | null;
         attendantId: number;
+        demandId?: number | null;
+        assunto?: string | null;
+        domiciliar?: boolean;
+        compromissoId?: number | null;
     };
 }) {
     const tenantUrl = useTenantUrl();
@@ -76,8 +85,11 @@ export function AttendanceForm({
                 attendance?.atendente_id?.toString() ??
                 defaults?.attendantId.toString() ??
                 '',
-            demanda_id: attendance?.demanda_id?.toString() ?? '',
-            assunto: value(attendance?.assunto),
+            demanda_id:
+                attendance?.demanda_id?.toString() ??
+                defaults?.demandId?.toString() ??
+                '',
+            assunto: value(attendance?.assunto ?? defaults?.assunto),
             relato: value(attendance?.relato),
             providencias: value(attendance?.providencias),
             atendido_data: attendedAtParts.date,
@@ -85,6 +97,12 @@ export function AttendanceForm({
             duracao_minutos: attendance?.duracao_minutos?.toString() ?? '30',
             requer_retorno: attendance?.requer_retorno ?? false,
             retorno_previsto_em: value(attendance?.retorno_previsto_em),
+            visita_domiciliar:
+                attendance?.visita_domiciliar ?? defaults?.domiciliar ?? false,
+            compromisso_id:
+                attendance?.compromisso_id?.toString() ??
+                defaults?.compromissoId?.toString() ??
+                '',
         },
     });
     const citizenId = useWatch({ control, name: 'cidadao_id' });
@@ -254,6 +272,31 @@ export function AttendanceForm({
             </Card>
 
             <Card className="gap-4 p-5">
+                <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border p-3">
+                    <span className="min-w-0">
+                        <span className="block text-sm font-medium">
+                            Visita domiciliar
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                            Marque quando o atendimento foi uma visita à casa do
+                            cidadão, não no gabinete.
+                            {defaults?.compromissoId && (
+                                <> Originado de um compromisso da agenda.</>
+                            )}
+                        </span>
+                    </span>
+                    <Controller
+                        control={control}
+                        name="visita_domiciliar"
+                        render={({ field }) => (
+                            <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                aria-label="Visita domiciliar"
+                            />
+                        )}
+                    />
+                </div>
                 <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border p-3">
                     <span className="min-w-0">
                         <span className="block text-sm font-medium">

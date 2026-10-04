@@ -250,6 +250,7 @@ export {
 } from './lib/masks';
 export type { MaskType } from './lib/masks';
 export { cn } from './lib/utils';
+export { CardCarousel } from './patterns/card-carousel';
 export { EmptyState } from './patterns/empty-state';
 export type { EmptyStateProps } from './patterns/empty-state';
 export { DestructiveAlertDialog } from './patterns/destructive-alert-dialog';
@@ -259,6 +260,13 @@ export type {
 } from './patterns/destructive-alert-dialog';
 export { AttachmentField } from './patterns/attachment-field';
 export type { AttachmentCurrentFile } from './patterns/attachment-field';
+export { AuthSplitLayout } from './patterns/auth-split-layout';
+export type { AuthSplitLayoutProps } from './patterns/auth-split-layout';
+export { AuthField, AuthRememberToggle } from './patterns/auth-fields';
+export type {
+    AuthFieldProps,
+    AuthRememberToggleProps,
+} from './patterns/auth-fields';
 export { ColorPicker } from './patterns/color-picker';
 export { DatePicker } from './patterns/date-picker';
 export { DateTimeFieldPair } from './patterns/date-time-field-pair';

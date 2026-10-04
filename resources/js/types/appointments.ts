@@ -87,6 +87,7 @@ export type AppointmentCapabilities = {
     events: boolean;
     demands: boolean;
     whatsapp: boolean;
+    attendances: boolean;
 };
 
 /** Listas que alimentam o formulário de compromisso (página e modal). */
