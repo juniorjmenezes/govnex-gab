@@ -207,6 +207,7 @@ export type PoliticalPanelProps = {
     };
     countdown: {
         label: string;
+        round_label: string;
         target: string;
         date: string;
     } | null;
@@ -234,4 +235,109 @@ export type CandidateNews = {
     source: string | null;
     candidate: string | null;
     candidate_party: string | null;
+};
+
+/**
+ * Turno de votação mais relevante no momento: o de hoje (`is_today`), ou o
+ * próximo turno futuro, ou o último já ocorrido, nessa ordem de preferência
+ * (ver `ElectionTallyController::rounds()`).
+ */
+export type ElectionRound = {
+    election_id: number;
+    label: string;
+    /** Data no formato `YYYY-MM-DD`, no fuso do gabinete. */
+    date: string;
+    is_today: boolean;
+    /** 1º ou 2º turno. */
+    round: number;
+    /** A eleição tem 2º turno cadastrado. */
+    has_second_round: boolean;
+    /** Início da votação (08h local), instante ISO 8601. */
+    window_start: string;
+    /** Fim da votação (17h local), instante ISO 8601. */
+    window_end: string;
+};
+
+/** Candidato dentro da apuração ao vivo do TSE para um cargo. */
+export type ElectionResultCandidate = {
+    number: string;
+    name: string;
+    ballot_name: string;
+    party: string;
+    coalition: string | null;
+    votes: number;
+    vote_percent: number;
+    elected: boolean;
+};
+
+/**
+ * Apuração ao vivo de um cargo — Presidente é nacional, os demais são da UF
+ * do gabinete. `available` falso significa que o TSE ainda não publicou (ou
+ * a busca falhou); os demais campos vêm vazios nesse caso.
+ */
+export type ElectionResult = {
+    cargo:
+        | 'presidente'
+        | 'governador'
+        | 'senador'
+        | 'deputado_federal'
+        | 'deputado_estadual';
+    label: string;
+    available: boolean;
+    section_percent: number | null;
+    total_sections: number | null;
+    /** Top 5 por votos, para a tela. */
+    candidates: ElectionResultCandidate[];
+    /** Lista completa, para o botão "ver todos os resultados". */
+    all_candidates: ElectionResultCandidate[];
+    total_candidates: number;
+    /** Cadeiras por partido — só Senado e cargos proporcionais. */
+    seats: { party: string; seats: number; color: string | null }[] | null;
+    /** 1º turno concluído sem eleito: a disputa vai ao 2º turno. */
+    goes_to_second_round: boolean;
+    finished: boolean;
+    /** Tamanho da casa inteira, quando a bancada é nacional (Senado, Câmara). */
+    chamber_total: number | null;
+};
+
+/**
+ * Candidato favoritado no Painel político, cruzado com a apuração ao vivo
+ * pelo número de urna. `found` falso significa que o TSE ainda não listou
+ * esse número no cargo — acontece se o favorito estiver mal cadastrado, não
+ * só por falta de dados.
+ */
+export type ElectionFavorite = {
+    candidato_politico_id: number;
+    name: string;
+    party: string;
+    number: string | null;
+    cargo_label: string;
+    found: boolean;
+    votes: number | null;
+    vote_percent: number | null;
+    elected: boolean;
+    section_percent: number | null;
+};
+
+/** Apuração recortada pelo município do gabinete ("Meu município"). */
+export type ElectionMunicipal = {
+    name: string;
+    section_percent: number | null;
+    results: ElectionResult[];
+    favorites: ElectionFavorite[];
+};
+
+export type ElectionTallyProps = {
+    round: ElectionRound | null;
+    /** Null quando o gabinete ainda não tem município eleitoral vinculado. */
+    municipal: ElectionMunicipal | null;
+    /** Todos os turnos cadastrados, para escolher qual apurar. */
+    rounds: { date: string; label: string }[];
+    /** Só vêm preenchidos depois que a votação encerra (17h do turno). */
+    results: ElectionResult[] | null;
+    /** UF do gabinete: as cadeiras coloridas são as dela. */
+    uf: string;
+    favorites: ElectionFavorite[] | null;
+    /** Relógio do servidor no momento da resposta, ISO 8601. */
+    serverNow: string;
 };

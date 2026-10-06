@@ -280,7 +280,7 @@ class PoliticalPanelTest extends TestCase
                 ->where('stats.coverage_percentage', 0.01)
                 ->where('municipality.mapped', true)
                 ->where('municipality.tse_code', '13692')
-                ->where('canFavorite', false));
+                ->where('canFavorite', true));
     }
 
     public function test_panel_surfaces_global_tse_sync_status_for_electorate_and_candidates(): void
@@ -495,7 +495,7 @@ class PoliticalPanelTest extends TestCase
                 ->where('candidates.data.0.party_color', '#FFD600'));
     }
 
-    public function test_only_councilor_can_manage_private_office_favorites(): void
+    public function test_any_office_user_can_manage_favorites_and_offices_stay_isolated(): void
     {
         $office = Gabinete::factory()->create(['estado' => 'CE']);
         $otherOffice = Gabinete::factory()->create(['estado' => 'CE']);
@@ -514,7 +514,7 @@ class PoliticalPanelTest extends TestCase
 
         $this->actingAs($advisor)
             ->post(route('politics.favorites.store', $candidate))
-            ->assertForbidden();
+            ->assertRedirect();
 
         $this->actingAs($councilor)
             ->post(route('politics.favorites.store', $candidate))
@@ -523,7 +523,7 @@ class PoliticalPanelTest extends TestCase
         $this->assertDatabaseHas('candidatos_favoritos', [
             'gabinete_id' => $office->id,
             'candidato_politico_id' => $candidate->id,
-            'escolhido_por_id' => $councilor->id,
+            'escolhido_por_id' => $advisor->id,
         ]);
 
         $this->actingAs($otherCouncilor)

@@ -123,10 +123,7 @@ class PoliticalPanelController extends Controller
             : null;
         $internalVoters = Cidadao::query()->where('eleitor', true)->count();
         $officialEligible = $latestElectorate?->eleitores_aptos;
-        $nextElection = Eleicao::query()
-            ->whereDate('primeiro_turno_em', '>=', today())
-            ->orderBy('primeiro_turno_em')
-            ->first();
+        $nextRound = $this->nextRound();
 
         // Eleição municipal já realizada muda o que o painel oferece: entra a
         // apuração e sai a pesquisa de intenção de voto, que perdeu a função
@@ -201,16 +198,17 @@ class PoliticalPanelController extends Controller
                 'mapped' => $office->municipio_eleitoral_id !== null,
                 'tse_code' => $office->municipioEleitoral?->codigo_tse,
             ],
-            'countdown' => $nextElection ? [
-                'label' => $nextElection->nome,
+            'countdown' => $nextRound ? [
+                'label' => $nextRound['election']->nome,
+                'round_label' => $nextRound['round'] === 2 ? '2º turno' : '1º turno',
                 'target' => CarbonImmutable::parse(
-                    $nextElection->primeiro_turno_em->toDateString(),
+                    $nextRound['date'],
                     $office->timezone ?? 'America/Sao_Paulo',
                 )->startOfDay()->toIso8601String(),
-                'date' => $nextElection->primeiro_turno_em->toDateString(),
+                'date' => $nextRound['date'],
             ] : null,
             'serverNow' => now()->toIso8601String(),
-            'canFavorite' => $user->role->isAdministrator(),
+            'canFavorite' => $user->gabinete_id !== null,
             'polls' => $concludedMunicipal ? null : $this->polls($office, $selectedElection),
             'sync' => [
                 // Datasets globais do TSE — sempre gravados com gabinete_id
@@ -405,8 +403,7 @@ class PoliticalPanelController extends Controller
         $user = $request->user();
         abort_unless(
             $user instanceof User
-            && $user->gabinete_id !== null
-            && $user->role->isAdministrator(),
+            && $user->gabinete_id !== null,
             403,
         );
         $office = Gabinete::query()->findOrFail($user->gabinete_id);
@@ -430,8 +427,7 @@ class PoliticalPanelController extends Controller
         $user = $request->user();
         abort_unless(
             $user instanceof User
-            && $user->gabinete_id !== null
-            && $user->role->isAdministrator(),
+            && $user->gabinete_id !== null,
             403,
         );
         $office = Gabinete::query()->findOrFail($user->gabinete_id);
@@ -527,6 +523,31 @@ class PoliticalPanelController extends Controller
     }
 
     /** @param Builder<CandidatoPolitico> $query */
+    /**
+     * Próximo turno ainda não realizado entre todas as eleições cadastradas
+     * (1º e 2º turnos). Antes só olhava o 1º turno, então depois do dia da
+     * votação o card de contagem sumia sem nunca mostrar o 2º turno.
+     *
+     * @return array{election: Eleicao, round: int, date: string}|null
+     */
+    private function nextRound(): ?array
+    {
+        $today = today()->toDateString();
+
+        return Eleicao::query()
+            ->get()
+            ->flatMap(fn (Eleicao $election): array => array_filter([
+                $election->primeiro_turno_em?->toDateString() >= $today
+                    ? ['election' => $election, 'round' => 1, 'date' => $election->primeiro_turno_em->toDateString()]
+                    : null,
+                $election->segundo_turno_em !== null && $election->segundo_turno_em->toDateString() >= $today
+                    ? ['election' => $election, 'round' => 2, 'date' => $election->segundo_turno_em->toDateString()]
+                    : null,
+            ]))
+            ->sortBy('date')
+            ->first();
+    }
+
     private function visibleCandidates(
         Builder $query,
         Gabinete $office,

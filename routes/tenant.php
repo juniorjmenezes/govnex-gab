@@ -10,6 +10,7 @@ use App\Http\Controllers\DemandaController;
 use App\Http\Controllers\DemandAttachmentController;
 use App\Http\Controllers\DemandReferralController;
 use App\Http\Controllers\DemandUpdateController;
+use App\Http\Controllers\ElectionTallyController;
 use App\Http\Controllers\ElectoralHeatmapController;
 use App\Http\Controllers\EventoController;
 use App\Http\Controllers\GabineteSettingsController;
@@ -111,6 +112,8 @@ $registerTenantRoutes = static function (): void {
             ->name('politics.favorites.destroy');
         Route::get('painel-politico/candidatos/{candidate}/noticias', [PoliticalPanelController::class, 'news'])
             ->name('politics.candidates.news');
+        Route::get('painel-politico/apuracao', [ElectionTallyController::class, 'index'])
+            ->name('politics.tally.index');
         Route::get('eleitores/mapa', ElectoralHeatmapController::class)
             ->name('voters.map');
         Route::get('eleitores/prospeccao', VoterProspectingMapController::class)

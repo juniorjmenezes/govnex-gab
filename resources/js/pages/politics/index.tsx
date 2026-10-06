@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { PaginationLinks } from '@/components/common/pagination-links';
@@ -10,6 +10,7 @@ import {
     CalendarMarkIcon,
     ChartIcon,
     CheckCircleIcon,
+    ClockCircleIcon,
     CloseIcon,
     DatabaseIcon,
     HeartIcon,
@@ -406,9 +407,13 @@ function MunicipalElectionResult({
 function Countdown({
     target,
     serverNow,
+    expiredFallback,
 }: {
     target: string;
     serverNow: string;
+    /** Trocado pelos dígitos quando a contagem chega a zero — ex.: o botão
+     * para a apuração, já que um relógio zerado não diz nada ao usuário. */
+    expiredFallback?: ReactNode;
 }) {
     const initialRemaining = useMemo(
         () =>
@@ -430,6 +435,10 @@ function Countdown({
 
         return () => window.clearInterval(interval);
     }, [initialRemaining]);
+
+    if (remaining === 0 && expiredFallback) {
+        return <>{expiredFallback}</>;
+    }
 
     const totalSeconds = Math.floor(remaining / 1000);
     const parts = [
@@ -514,9 +523,7 @@ function CandidateRow({
                     title={
                         candidate.is_holder
                             ? 'O titular do gabinete fica sempre nos favoritos'
-                            : canFavorite
-                              ? undefined
-                              : 'Somente o vereador pode alterar os favoritos'
+                            : undefined
                     }
                     className={cn(
                         'flex cursor-pointer text-muted-foreground/50 transition-colors hover:text-primary focus-visible:text-primary focus-visible:outline-none disabled:pointer-events-none',
@@ -1187,18 +1194,26 @@ export default function PoliticalPanel({
                     title="Painel político"
                     description={`Cenário eleitoral de ${municipality.name}/${municipality.state}, com dados oficiais e informações do gabinete separadas.`}
                     actions={
-                        <AppSelect
-                            value={selectedElectionId?.toString() ?? ''}
-                            onValueChange={(value) =>
-                                navigate({ eleicao_id: value })
-                            }
-                            options={elections.map((election) => ({
-                                value: election.id.toString(),
-                                label: election.name,
-                            }))}
-                            aria-label="Selecionar eleição"
-                            className="min-w-60"
-                        />
+                        <>
+                            <Button asChild variant="outline">
+                                <Link href="/painel-politico/apuracao">
+                                    <ClockCircleIcon aria-hidden="true" />
+                                    Apuração
+                                </Link>
+                            </Button>
+                            <AppSelect
+                                value={selectedElectionId?.toString() ?? ''}
+                                onValueChange={(value) =>
+                                    navigate({ eleicao_id: value })
+                                }
+                                options={elections.map((election) => ({
+                                    value: election.id.toString(),
+                                    label: election.name,
+                                }))}
+                                aria-label="Selecionar eleição"
+                                className="min-w-60"
+                            />
+                        </>
                     }
                 />
 
@@ -1305,7 +1320,7 @@ export default function PoliticalPanel({
                                     &middot;
                                 </span>
                                 <p className="basis-full text-xs text-muted-foreground sm:basis-auto">
-                                    1º turno em{' '}
+                                    {countdown.round_label} em{' '}
                                     {dateFormatter.format(
                                         new Date(`${countdown.date}T12:00:00`),
                                     )}
@@ -1317,6 +1332,14 @@ export default function PoliticalPanel({
                                 key={countdown.target}
                                 target={countdown.target}
                                 serverNow={serverNow}
+                                expiredFallback={
+                                    <Button asChild className="w-full">
+                                        <Link href="/painel-politico/apuracao">
+                                            <ClockCircleIcon aria-hidden="true" />
+                                            Apurações
+                                        </Link>
+                                    </Button>
+                                }
                             />
                         </div>
                     </Surface>
@@ -1325,16 +1348,7 @@ export default function PoliticalPanel({
                 <MunicipalElectionResult summary={municipalElection} />
 
                 <Surface as="section" className="overflow-hidden">
-                    <SurfaceHeader
-                        help="Favorite um candidato pelo coração para acompanhá-lo. O nome dos favoritos fica clicável e abre as informações do candidato e as notícias relacionadas publicadas nos portais cadastrados."
-                        actions={
-                            !canFavorite && (
-                                <p className="shrink-0 text-xs text-muted-foreground">
-                                    Somente o vereador pode alterar favoritos.
-                                </p>
-                            )
-                        }
-                    >
+                    <SurfaceHeader help="Favorite um candidato pelo coração para acompanhá-lo. O nome dos favoritos fica clicável e abre as informações do candidato e as notícias relacionadas publicadas nos portais cadastrados.">
                         <SurfaceTitle>Candidatos</SurfaceTitle>
                         <SurfaceDescription>
                             {numberFormatter.format(candidates.total)} nomes
