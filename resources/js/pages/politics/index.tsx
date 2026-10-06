@@ -6,6 +6,7 @@ import { StatCard } from '@/components/common/stat-card';
 import { TableGroupRow } from '@/components/common/table-group-row';
 import { EmptyState } from '@/components/feedback/empty-state';
 import {
+    BillCheckIcon,
     Buildings2Icon,
     CalendarMarkIcon,
     ChartIcon,
@@ -34,6 +35,12 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -1174,6 +1181,10 @@ export default function PoliticalPanel({
 
     const hasFilters = Boolean(query || office || party);
 
+    const selectedElection =
+        elections.find((election) => election.id === selectedElectionId) ??
+        elections[0];
+
     const clear = () => {
         setQuery('');
         setOffice('');
@@ -1194,26 +1205,56 @@ export default function PoliticalPanel({
                     title="Painel político"
                     description={`Cenário eleitoral de ${municipality.name}/${municipality.state}, com dados oficiais e informações do gabinete separadas.`}
                     actions={
-                        <>
-                            <Button asChild variant="outline">
-                                <Link href="/painel-politico/apuracao">
-                                    <ClockCircleIcon aria-hidden="true" />
-                                    Apuração
-                                </Link>
-                            </Button>
-                            <AppSelect
-                                value={selectedElectionId?.toString() ?? ''}
-                                onValueChange={(value) =>
-                                    navigate({ eleicao_id: value })
-                                }
-                                options={elections.map((election) => ({
-                                    value: election.id.toString(),
-                                    label: election.name,
-                                }))}
-                                aria-label="Selecionar eleição"
-                                className="min-w-60"
-                            />
-                        </>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="w-60">
+                                <AppSelect
+                                    value={selectedElectionId?.toString() ?? ''}
+                                    onValueChange={(value) =>
+                                        navigate({ eleicao_id: value })
+                                    }
+                                    options={elections.map((election) => ({
+                                        value: election.id.toString(),
+                                        label: election.name,
+                                    }))}
+                                    aria-label="Selecionar eleição"
+                                />
+                            </div>
+                            {selectedElection && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            aria-label="Apuração"
+                                        >
+                                            <BillCheckIcon aria-hidden="true" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem asChild>
+                                            <Link
+                                                href={tenantUrl(
+                                                    `/painel-politico/apuracao?data=${selectedElection.first_round_at}`,
+                                                )}
+                                            >
+                                                Apuração 1º turno
+                                            </Link>
+                                        </DropdownMenuItem>
+                                        {selectedElection.second_round_at && (
+                                            <DropdownMenuItem asChild>
+                                                <Link
+                                                    href={tenantUrl(
+                                                        `/painel-politico/apuracao?data=${selectedElection.second_round_at}`,
+                                                    )}
+                                                >
+                                                    Apuração 2º turno
+                                                </Link>
+                                            </DropdownMenuItem>
+                                        )}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+                        </div>
                     }
                 />
 
