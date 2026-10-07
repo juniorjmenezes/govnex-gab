@@ -4,6 +4,7 @@ namespace App\Services\Geocoding;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class GeocodingService
 {
@@ -98,7 +99,7 @@ class GeocodingService
                 usleep(((int) config('services.geocoding.minimum_interval_ms', 1100)) * 1000);
             }
 
-            $results = $this->searchAttempt($attempt['query'], $attempt['precision']);
+            $results = $this->searchAttempt($attempt['query'], $attempt['precision'], $city);
 
             if ($results === []) {
                 continue;
@@ -121,7 +122,7 @@ class GeocodingService
      * @param  'address'|'street'|'municipality'  $precision
      * @return list<array{label: string, latitude: float, longitude: float, precision: 'address'|'street'|'municipality'}>
      */
-    private function searchAttempt(array $query, string $precision): array
+    private function searchAttempt(array $query, string $precision, string $expectedCity): array
     {
         $parameters = [
             ...$query,
@@ -134,7 +135,7 @@ class GeocodingService
         $parameters = array_filter($parameters);
         ksort($parameters);
 
-        $cacheKey = 'geocoding:v2:'.hash('sha256', implode('|', [
+        $cacheKey = 'geocoding:v3:'.hash('sha256', implode('|', [
             (string) config('services.geocoding.url'),
             http_build_query($parameters),
         ]));
@@ -164,6 +165,15 @@ class GeocodingService
             if (! is_array($item)
                 || ! is_numeric($item['lat'] ?? null)
                 || ! is_numeric($item['lon'] ?? null)) {
+                continue;
+            }
+
+            // O `city=`/`q=` do Nominatim é só uma dica de busca, não um
+            // filtro — ele pode cravar o logradouro num município vizinho de
+            // nome parecido (ex.: "Cruz" e "Bela Cruz", ambos no CE, com
+            // ruas homônimas). Sem essa checagem, o mapa aponta a casa
+            // errada em silêncio.
+            if (! $this->matchesExpectedCity($item, $expectedCity)) {
                 continue;
             }
 
@@ -201,6 +211,51 @@ class GeocodingService
         $houseNumber = is_array($address) ? ($address['house_number'] ?? null) : null;
 
         return $houseNumber === null || $houseNumber === '' ? 'street' : 'address';
+    }
+
+    /**
+     * Confere se o resultado realmente caiu no município pedido. O Nominatim
+     * devolve o nível administrativo em chaves diferentes conforme o tipo de
+     * assentamento (cidade, vila, distrito...); sem `address` na resposta,
+     * deixa passar — a maioria das consultas por `q=` livre não devolve esse
+     * bloco, e barrar aí descartaria resultado bom demais.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function matchesExpectedCity(array $item, string $expectedCity): bool
+    {
+        $address = $item['address'] ?? null;
+
+        if (! is_array($address)) {
+            return true;
+        }
+
+        $candidates = array_filter([
+            $address['city'] ?? null,
+            $address['town'] ?? null,
+            $address['village'] ?? null,
+            $address['municipality'] ?? null,
+            $address['county'] ?? null,
+        ], 'is_string');
+
+        if ($candidates === []) {
+            return true;
+        }
+
+        $expected = $this->canonical($expectedCity);
+
+        foreach ($candidates as $candidate) {
+            if ($this->canonical($candidate) === $expected) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function canonical(string $value): string
+    {
+        return Str::of($value)->ascii()->lower()->trim()->value();
     }
 
     /**
