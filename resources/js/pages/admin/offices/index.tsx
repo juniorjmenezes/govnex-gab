@@ -1,11 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import {
-    getOfficeModuleSelectionErrors,
-    OfficeModuleSelector,
-    toggleOfficeModule,
-} from '@/components/admin/office-module-selector';
 import { SyncStatusDot } from '@/components/admin/sync-progress';
 import { HubStructureLink } from '@/components/common/hub-structure-link';
 import { PaginationLinks } from '@/components/common/pagination-links';
@@ -49,12 +44,7 @@ import {
     syncStatusLabels,
 } from '@/lib/political-sync';
 import { cn } from '@/lib/utils';
-import type {
-    AdminOffice,
-    GabineteModuleCode,
-    GabineteModuleDefinition,
-    OfficePagination,
-} from '@/types';
+import type { AdminOffice, OfficePagination } from '@/types';
 
 type Option = { value: string; label: string };
 type Filters = { q: string; status: string; estado: string };
@@ -62,7 +52,6 @@ type Props = {
     offices: OfficePagination;
     filters: Filters;
     statuses: Option[];
-    moduleCatalog: GabineteModuleDefinition[];
 };
 
 const statusActionLabel = (office: AdminOffice) =>
@@ -70,22 +59,11 @@ const statusActionLabel = (office: AdminOffice) =>
         ? `Situação de ${office.name}: definida no Govnex Hub — altere lá`
         : `${office.status === 'ativo' ? 'Suspender' : 'Reativar'} ${office.name}`;
 
-export default function Offices({
-    offices,
-    filters,
-    statuses,
-    moduleCatalog,
-}: Props) {
+export default function Offices({ offices, filters, statuses }: Props) {
     const [statusTarget, setStatusTarget] = useState<AdminOffice | null>(null);
     const [detailsTargetId, setDetailsTargetId] = useState<number | null>(null);
     const detailsTarget =
         offices.data.find((office) => office.id === detailsTargetId) ?? null;
-    const [modulesTargetId, setModulesTargetId] = useState<number | null>(null);
-    const modulesTarget =
-        offices.data.find((office) => office.id === modulesTargetId) ?? null;
-    const [selectedModules, setSelectedModules] = useState<
-        GabineteModuleCode[]
-    >([]);
     const [query, setQuery] = useState(filters.q);
     const [status, setStatus] = useState(filters.status);
     const [state, setState] = useState(filters.estado);
@@ -147,26 +125,7 @@ export default function Offices({
         router.get(`/admin/gabinetes/${office.id}/editar`);
     };
     const openModules = (office: AdminOffice) => {
-        setModulesTargetId(office.id);
-        setSelectedModules(office.modules);
-    };
-    const moduleErrors = getOfficeModuleSelectionErrors(
-        selectedModules,
-        moduleCatalog,
-    );
-    const saveModules = () => {
-        if (!modulesTarget || moduleErrors.length > 0) {
-            return;
-        }
-
-        router.patch(
-            `/admin/gabinetes/${modulesTarget.id}/modulos`,
-            { modules: selectedModules },
-            {
-                preserveScroll: true,
-                onSuccess: () => setModulesTargetId(null),
-            },
-        );
+        router.get(`/admin/gabinetes/${office.id}/modulos`);
     };
     const changeStatus = () => {
         if (!statusTarget) {
@@ -466,78 +425,6 @@ export default function Offices({
                 office={detailsTarget}
                 onClose={() => setDetailsTargetId(null)}
             />
-
-            <Dialog
-                open={modulesTarget !== null}
-                onOpenChange={(open) => !open && setModulesTargetId(null)}
-            >
-                <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Configurar módulos</DialogTitle>
-                        <DialogDescription>
-                            Defina as áreas disponíveis para{' '}
-                            {modulesTarget?.name}. Os dados dos módulos
-                            desativados serão preservados.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <OfficeModuleSelector
-                        catalog={moduleCatalog}
-                        selected={selectedModules}
-                        errors={moduleErrors}
-                        idPrefix="office-module"
-                        onToggle={(module, checked) =>
-                            setSelectedModules((current) =>
-                                toggleOfficeModule(current, module, checked),
-                            )
-                        }
-                    />
-                    {modulesTarget &&
-                        modulesTarget.module_history.length > 0 && (
-                            <div className="space-y-2 border-t pt-4">
-                                <h3 className="text-sm font-medium">
-                                    Alterações recentes
-                                </h3>
-                                <ul className="space-y-1 text-sm text-muted-foreground">
-                                    {modulesTarget.module_history.map(
-                                        (event) => (
-                                            <li key={event.id}>
-                                                {moduleCatalog.find(
-                                                    (module) =>
-                                                        module.code ===
-                                                        event.module,
-                                                )?.name ?? event.module}{' '}
-                                                {event.action === 'ATIVADO'
-                                                    ? 'ativado'
-                                                    : 'desativado'}{' '}
-                                                por{' '}
-                                                {event.administrator ??
-                                                    'sistema'}{' '}
-                                                em{' '}
-                                                {new Date(
-                                                    event.occurred_at,
-                                                ).toLocaleString('pt-BR')}
-                                            </li>
-                                        ),
-                                    )}
-                                </ul>
-                            </div>
-                        )}
-                    <DialogFooter>
-                        <Button
-                            variant="ghost"
-                            onClick={() => setModulesTargetId(null)}
-                        >
-                            Cancelar
-                        </Button>
-                        <Button
-                            onClick={saveModules}
-                            disabled={moduleErrors.length > 0}
-                        >
-                            Salvar módulos
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
             <Dialog
                 open={statusTarget !== null}

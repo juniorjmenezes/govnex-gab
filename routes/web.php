@@ -73,6 +73,8 @@ Route::middleware(['auth', 'verified', 'user.active'])->group(function () {
         Route::get('gabinetes/{office}/editar', [OfficeController::class, 'edit'])->name('offices.edit');
         Route::post('gabinetes', EstruturaNoHubController::class)->name('offices.store');
         Route::put('gabinetes/{office}', [OfficeController::class, 'update'])->name('offices.update');
+        Route::get('gabinetes/{office}/modulos', [OfficeController::class, 'editModules'])
+            ->name('offices.modules.edit');
         Route::patch('gabinetes/{office}/modulos', [OfficeController::class, 'updateModules'])
             ->name('offices.modules.update');
         Route::patch('gabinetes/{office}/status', [OfficeController::class, 'updateStatus'])

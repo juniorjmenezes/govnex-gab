@@ -1,4 +1,4 @@
-import type { GabineteModuleCode, GabineteModuleEvent } from './modules';
+import type { GabineteModuleCode } from './modules';
 import type { Pagination } from './registrations';
 
 export type PlatformSummary = {
@@ -69,7 +69,6 @@ export type AdminOffice = {
     political_data_checklist: PoliticalDataChecklistItem[];
     political_syncs: PoliticalDataSync[];
     modules: GabineteModuleCode[];
-    module_history: GabineteModuleEvent[];
     responsible: {
         id: number;
         name: string;

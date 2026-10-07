@@ -75,10 +75,8 @@ class OfficeController extends Controller
         ]);
     }
 
-    public function index(
-        Request $request,
-        GabineteModuleCatalog $moduleCatalog,
-    ): Response {
+    public function index(Request $request): Response
+    {
         $this->authorize('viewAny', Gabinete::class);
         abort_unless($request->user()->isRoot(), 403);
         $filters = [
@@ -111,10 +109,6 @@ class OfficeController extends Controller
                 'municipioEleitoral:id,codigo_tse,codigo_ibge,nome,uf',
                 'candidatoTitular:id,nome,nome_urna,numero,partido_sigla',
                 'modulos:id,gabinete_id,modulo,ativo',
-                'moduloEventos' => fn ($query) => $query
-                    ->with('administrador:id,name')
-                    ->latest('ocorrido_em')
-                    ->limit(8),
             ])
             ->withCount([
                 'membros as users_count',
@@ -270,16 +264,6 @@ class OfficeController extends Controller
                     ->map(fn (GabineteModulo $setting): string => $setting->modulo->value)
                     ->values()
                     ->all(),
-                'module_history' => $office->moduloEventos
-                    ->map(fn (GabineteModuloEvento $event): array => [
-                        'id' => $event->id,
-                        'module' => $event->modulo->value,
-                        'action' => $event->acao,
-                        'administrator' => $event->administrador?->name,
-                        'occurred_at' => $event->ocorrido_em->toIso8601String(),
-                    ])
-                    ->values()
-                    ->all(),
             ])
             ->all();
 
@@ -304,7 +288,41 @@ class OfficeController extends Controller
                 ],
                 GabineteStatus::cases(),
             ),
+        ]);
+    }
+
+    public function editModules(Gabinete $office, GabineteModuleCatalog $moduleCatalog): Response
+    {
+        $this->authorize('update', $office);
+
+        $office->load([
+            'modulos:id,gabinete_id,modulo,ativo',
+            'moduloEventos' => fn ($query) => $query
+                ->with('administrador:id,name')
+                ->latest('ocorrido_em'),
+        ]);
+
+        return Inertia::render('admin/offices/modules', [
+            'office' => [
+                'id' => $office->id,
+                'name' => $office->nome,
+            ],
+            'selectedModules' => $office->modulos
+                ->where('ativo', true)
+                ->map(fn (GabineteModulo $setting): string => $setting->modulo->value)
+                ->values()
+                ->all(),
             'moduleCatalog' => array_values($moduleCatalog->definitions()),
+            'moduleHistory' => $office->moduloEventos
+                ->map(fn (GabineteModuloEvento $event): array => [
+                    'id' => $event->id,
+                    'module' => $event->modulo->value,
+                    'action' => $event->acao,
+                    'administrator' => $event->administrador?->name,
+                    'occurred_at' => $event->ocorrido_em->toIso8601String(),
+                ])
+                ->values()
+                ->all(),
         ]);
     }
 

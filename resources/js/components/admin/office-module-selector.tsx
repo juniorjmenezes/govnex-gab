@@ -69,8 +69,8 @@ export function OfficeModuleSelector({
     idPrefix: string;
 }) {
     return (
-        <div className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-4">
+            <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
                 {catalog.map((module) => {
                     const dependencies = moduleNames(
                         module.dependencies,
@@ -85,56 +85,52 @@ export function OfficeModuleSelector({
                     const descriptionId = `${inputId}-description`;
 
                     return (
-                        <div
-                            key={module.code}
-                            className="flex min-h-14 items-center justify-between gap-3 rounded-md border p-3"
-                        >
-                            <span className="min-w-0 space-y-1">
+                        <div key={module.code} className="rounded-md border">
+                            <div className="flex min-h-14 items-center justify-between gap-3 p-3">
                                 <span
                                     id={nameId}
-                                    className="block text-sm font-medium"
+                                    className="truncate text-sm font-medium"
                                 >
                                     {module.name}
                                 </span>
-                                <span
-                                    id={descriptionId}
-                                    className="block text-xs text-muted-foreground"
-                                >
-                                    {module.description}
-                                </span>
+                                <Switch
+                                    id={inputId}
+                                    className="shrink-0"
+                                    checked={selected.includes(module.code)}
+                                    aria-labelledby={nameId}
+                                    aria-describedby={descriptionId}
+                                    onCheckedChange={(checked) =>
+                                        onToggle(module.code, checked)
+                                    }
+                                />
+                            </div>
+                            <div
+                                id={descriptionId}
+                                className="space-y-1 border-t px-3 py-2 text-xs text-muted-foreground"
+                            >
+                                <p>{module.description}</p>
                                 {dependencies !== '' && (
-                                    <span className="block text-xs text-muted-foreground">
-                                        Dependências: {dependencies}
-                                    </span>
+                                    <p>Dependências: {dependencies}</p>
                                 )}
                                 {alternatives !== '' && (
-                                    <span className="block text-xs text-muted-foreground">
-                                        Exige pelo menos um: {alternatives}
-                                    </span>
+                                    <p>Exige pelo menos um: {alternatives}</p>
                                 )}
-                            </span>
-                            <Switch
-                                id={inputId}
-                                checked={selected.includes(module.code)}
-                                aria-labelledby={nameId}
-                                aria-describedby={descriptionId}
-                                onCheckedChange={(checked) =>
-                                    onToggle(module.code, checked)
-                                }
-                            />
+                            </div>
                         </div>
                     );
                 })}
             </div>
             {errors.length > 0 && (
-                <Alert variant="destructive">
-                    <AlertTitle>Combinação incompatível</AlertTitle>
-                    <AlertDescription>
-                        {errors.map((error) => (
-                            <p key={error}>{error}</p>
-                        ))}
-                    </AlertDescription>
-                </Alert>
+                <div className="px-4 pb-4">
+                    <Alert variant="destructive">
+                        <AlertTitle>Combinação incompatível</AlertTitle>
+                        <AlertDescription>
+                            {errors.map((error) => (
+                                <p key={error}>{error}</p>
+                            ))}
+                        </AlertDescription>
+                    </Alert>
+                </div>
             )}
         </div>
     );
