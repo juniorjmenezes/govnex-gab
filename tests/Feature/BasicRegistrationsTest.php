@@ -190,6 +190,46 @@ class BasicRegistrationsTest extends TestCase
             && ($request['street'] ?? null) === '123 Rua Exemplo');
     }
 
+    /**
+     * O Nominatim trata `city=`/`q=` como dica, não filtro: pode cravar um
+     * logradouro homônimo num município vizinho (ex.: "Cruz" e "Bela Cruz",
+     * ambos no CE). Sem conferir o município da resposta, o cadastro
+     * apontaria a casa errada no mapa em silêncio.
+     */
+    public function test_result_in_a_different_municipality_is_discarded(): void
+    {
+        config(['services.geocoding.minimum_interval_ms' => 0]);
+
+        Http::fakeSequence()
+            ->push([
+                [
+                    'display_name' => 'Rua da Matriz, Bela Cruz, Ceará, Brasil',
+                    'lat' => '-3.0536',
+                    'lon' => '-40.1687',
+                    'address' => ['road' => 'Rua da Matriz', 'town' => 'Bela Cruz'],
+                ],
+            ], 200)
+            ->push([
+                [
+                    'display_name' => 'Cruz, Ceará, Brasil',
+                    'lat' => '-2.9219',
+                    'lon' => '-40.1778',
+                    'address' => ['city' => 'Cruz'],
+                ],
+            ], 200);
+
+        $results = app(GeocodingService::class)->search(
+            street: 'Rua da Matriz',
+            number: null,
+            neighborhood: null,
+            city: 'Cruz',
+            state: 'CE',
+        );
+
+        $this->assertSame('street', $results[0]['precision']);
+        $this->assertSame(-2.9219, $results[0]['latitude']);
+    }
+
     public function test_geocoding_does_not_cache_empty_results(): void
     {
         config(['services.geocoding.minimum_interval_ms' => 0]);
@@ -273,7 +313,7 @@ class BasicRegistrationsTest extends TestCase
     {
         $first = Gabinete::factory()->create();
         $second = Gabinete::factory()->create();
-        $cpf = '12345678901';
+        $cpf = '11144477735';
         Cidadao::factory()->forGabinete($first)->create(['cpf' => $cpf]);
 
         $this->actingAs(User::factory()->operator()->forGabinete($first)->create())
@@ -289,6 +329,21 @@ class BasicRegistrationsTest extends TestCase
                 'cpf' => $cpf,
                 'consentimento_contato' => false,
             ])->assertRedirect();
+    }
+
+    public function test_cpf_with_invalid_check_digits_is_rejected(): void
+    {
+        $office = Gabinete::factory()->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
+
+        $this->actingAs($advisor)
+            ->post(route('citizens.store'), [
+                'nome' => 'CPF inválido',
+                'cpf' => '12345678900',
+                'consentimento_contato' => false,
+            ])->assertSessionHasErrors('cpf');
+
+        $this->assertSame(0, Cidadao::withoutGlobalScopes()->count());
     }
 
     public function test_only_office_managers_can_manage_categories_and_neighborhoods(): void

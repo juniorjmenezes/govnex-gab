@@ -17,13 +17,16 @@ import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
+import { isValidCpf } from '@/lib/cpf';
 import { applyMask } from '@/lib/masks';
 import type { MaskType } from '@/lib/masks';
 import type { Citizen, Neighborhood, OfficeLocation } from '@/types';
 
 const schema = z.object({
     nome: z.string().min(2, 'Informe o nome completo.'),
-    cpf: z.string(),
+    cpf: z.string().refine((value) => value === '' || isValidCpf(value), {
+        message: 'Informe um CPF válido.',
+    }),
     telefone: z.string(),
     whatsapp: z.string(),
     email: z.string(),
@@ -303,90 +306,97 @@ export function CitizenForm({
                         />
                         <FieldError message={errors.observacoes?.message} />
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border p-3">
-                            <span className="min-w-0">
-                                <span className="block text-sm font-medium">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="rounded-md border">
+                            <div className="flex min-h-14 items-center justify-between gap-3 p-3">
+                                <span className="truncate text-sm font-medium">
                                     Eleitor do vereador
                                 </span>
-                                <span className="block text-xs text-muted-foreground">
-                                    Marque quando o cidadão informar que é
-                                    eleitor do vereador.
-                                </span>
-                            </span>
-                            <Controller
-                                control={control}
-                                name="eleitor"
-                                render={({ field }) => (
-                                    <Switch
-                                        checked={field.value}
-                                        onCheckedChange={(checked) => {
-                                            field.onChange(checked);
+                                <Controller
+                                    control={control}
+                                    name="eleitor"
+                                    render={({ field }) => (
+                                        <Switch
+                                            className="shrink-0"
+                                            checked={field.value}
+                                            onCheckedChange={(checked) => {
+                                                field.onChange(checked);
 
-                                            if (!checked) {
-                                                setValue('latitude', null, {
-                                                    shouldDirty: true,
-                                                });
-                                                setValue('longitude', null, {
-                                                    shouldDirty: true,
-                                                });
-                                                setValue(
-                                                    'localizacao_origem',
-                                                    null,
-                                                    {
+                                                if (!checked) {
+                                                    setValue('latitude', null, {
                                                         shouldDirty: true,
-                                                    },
-                                                );
-                                            }
-                                        }}
-                                        aria-label="Eleitor do vereador"
-                                    />
-                                )}
-                            />
+                                                    });
+                                                    setValue(
+                                                        'longitude',
+                                                        null,
+                                                        {
+                                                            shouldDirty: true,
+                                                        },
+                                                    );
+                                                    setValue(
+                                                        'localizacao_origem',
+                                                        null,
+                                                        {
+                                                            shouldDirty: true,
+                                                        },
+                                                    );
+                                                }
+                                            }}
+                                            aria-label="Eleitor do vereador"
+                                        />
+                                    )}
+                                />
+                            </div>
+                            <div className="border-t px-3 py-2 text-xs text-muted-foreground">
+                                Marque quando o cidadão informar que é eleitor
+                                do vereador.
+                            </div>
                         </div>
-                        <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border p-3">
-                            <span className="min-w-0">
-                                <span className="block text-sm font-medium">
+                        <div className="rounded-md border">
+                            <div className="flex min-h-14 items-center justify-between gap-3 p-3">
+                                <span className="truncate text-sm font-medium">
                                     Consentimento para contato
                                 </span>
-                                <span className="block text-xs text-muted-foreground">
-                                    O cidadão autorizou receber mensagens e
-                                    retornos do gabinete.
-                                </span>
-                            </span>
-                            <Controller
-                                control={control}
-                                name="consentimento_contato"
-                                render={({ field }) => (
-                                    <Switch
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                        aria-label="Consentimento para contato"
-                                    />
-                                )}
-                            />
-                        </div>
-                    </div>
-                    <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border p-3">
-                        <span className="min-w-0">
-                            <span className="block text-sm font-medium">
-                                Notificações operacionais pelo WhatsApp
-                            </span>
-                            <span className="block text-xs text-muted-foreground">
-                                {whatsappConsentText}
-                            </span>
-                        </span>
-                        <Controller
-                            control={control}
-                            name="whatsapp_consentimento_operacional"
-                            render={({ field }) => (
-                                <Switch
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                    aria-label="Consentimento para notificações pelo WhatsApp"
+                                <Controller
+                                    control={control}
+                                    name="consentimento_contato"
+                                    render={({ field }) => (
+                                        <Switch
+                                            className="shrink-0"
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                            aria-label="Consentimento para contato"
+                                        />
+                                    )}
                                 />
-                            )}
-                        />
+                            </div>
+                            <div className="border-t px-3 py-2 text-xs text-muted-foreground">
+                                O cidadão autorizou receber mensagens e retornos
+                                do gabinete.
+                            </div>
+                        </div>
+                        <div className="rounded-md border">
+                            <div className="flex min-h-14 items-center justify-between gap-3 p-3">
+                                <span className="truncate text-sm font-medium">
+                                    Notificações pelo WhatsApp
+                                </span>
+                                <Controller
+                                    control={control}
+                                    name="whatsapp_consentimento_operacional"
+                                    render={({ field }) => (
+                                        <Switch
+                                            className="shrink-0"
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                            aria-label="Consentimento para notificações pelo WhatsApp"
+                                        />
+                                    )}
+                                />
+                            </div>
+                            <div className="border-t px-3 py-2 text-xs text-muted-foreground">
+                                {whatsappConsentText}
+                            </div>
+                        </div>
                     </div>
                     <FieldError
                         message={

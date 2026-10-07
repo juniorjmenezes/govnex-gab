@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Citizens;
 
 use App\Models\Cidadao;
+use App\Rules\ValidCpf;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -29,6 +30,7 @@ abstract class CitizenRequest extends FormRequest
             'cpf' => [
                 'nullable',
                 'digits:11',
+                new ValidCpf,
                 Rule::unique('cidadaos', 'cpf')
                     ->where(fn ($query) => $query->where('gabinete_id', $gabineteId))
                     ->ignore($cidadao),
