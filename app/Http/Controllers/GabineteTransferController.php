@@ -92,8 +92,9 @@ class GabineteTransferController extends Controller
         $destination = Entidade::query()->findOrFail($validated['destination_id']);
         $transfer = $service->request($entidade, $gabinete, $destination, $request->user());
 
-        return redirect()->route('entidades.transfers.show', [$entidade, $transfer])
-            ->with('success', 'Transferência encaminhada para aceite da organização de destino.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Transferência encaminhada para aceite da organização de destino.']);
+
+        return redirect()->route('entidades.transfers.show', [$entidade, $transfer]);
     }
 
     public function show(
@@ -150,7 +151,9 @@ class GabineteTransferController extends Controller
         abort_unless((int) $entidade->id === (int) $transfer->entidade_destino_id, 404);
         $service->acceptDestination($transfer, $request->user());
 
-        return back()->with('success', 'Destino aceitou a transferência. A aprovação da plataforma está pendente.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Destino aceitou a transferência. A aprovação da plataforma está pendente.']);
+
+        return back();
     }
 
     public function reject(
@@ -163,7 +166,9 @@ class GabineteTransferController extends Controller
         $validated = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
         $service->reject($transfer, $request->user(), $validated['reason']);
 
-        return back()->with('success', 'Transferência encerrada.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Transferência encerrada.']);
+
+        return back();
     }
 
     public function approve(
@@ -175,8 +180,9 @@ class GabineteTransferController extends Controller
         $this->assertRelatedEntidade($entidade, $transfer);
         $completed = $service->approve($transfer, $request->user());
 
-        return redirect()->route('entidades.transfers.show', [$completed->entidadeDestino, $completed])
-            ->with('success', 'Transferência concluída. Módulos e WhatsApp foram recalculados para o destino.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Transferência concluída. Módulos e WhatsApp foram recalculados para o destino.']);
+
+        return redirect()->route('entidades.transfers.show', [$completed->entidadeDestino, $completed]);
     }
 
     private function assertVisibleInContext(

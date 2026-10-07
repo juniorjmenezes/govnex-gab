@@ -64,7 +64,8 @@ class EntidadeInvitationAcceptController extends Controller
             ->where('token_hash', hash('sha256', $credential))
             ->firstOrFail();
 
-        return redirect()->route('entidades.show', $invitation->entidade)
-            ->with('success', 'Convite aceito.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Convite aceito.']);
+
+        return redirect()->route('entidades.show', $invitation->entidade);
     }
 }

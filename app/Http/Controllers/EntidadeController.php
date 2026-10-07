@@ -139,7 +139,9 @@ class EntidadeController extends Controller
 
         $this->persistIdentity($entidade, $validated);
 
-        return back()->with('success', 'Identidade da organização atualizada.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Identidade da organização atualizada.']);
+
+        return back();
     }
 
     public function updateIdentity(Request $request, Entidade $entidade): RedirectResponse
@@ -176,7 +178,9 @@ class EntidadeController extends Controller
             Storage::disk('public')->delete($oldLogo);
         }
 
-        return back()->with('success', 'Identidade da organização atualizada.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Identidade da organização atualizada.']);
+
+        return back();
     }
 
     public function storeNeighborhood(Request $request, Entidade $entidade): RedirectResponse
@@ -192,7 +196,9 @@ class EntidadeController extends Controller
             'criado_por' => $request->user()->id,
         ]);
 
-        return back()->with('success', 'Referência territorial adicionada.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Referência territorial adicionada.']);
+
+        return back();
     }
 
     public function updateNeighborhood(
@@ -211,7 +217,9 @@ class EntidadeController extends Controller
             'ativo' => $validated['active'],
         ])->save();
 
-        return back()->with('success', 'Referência territorial atualizada.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Referência territorial atualizada.']);
+
+        return back();
     }
 
     public function updateModules(
@@ -227,7 +235,9 @@ class EntidadeController extends Controller
 
         $modules->syncActivation($entidade, $validated['modules'], $request->user());
 
-        return back()->with('success', 'Módulos da organização atualizados.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Módulos da organização atualizados.']);
+
+        return back();
     }
 
     /** Nome de entidade ligada ao Hub é alterado lá (docs/INTEGRACAO_GOVNEX_HUB.md). */
