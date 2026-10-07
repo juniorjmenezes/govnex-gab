@@ -44,6 +44,12 @@ createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     layout: (name) => {
         switch (true) {
+            case name.startsWith('errors/'):
+                // Tela cheia autônoma: pode ocorrer sem sessão, sem gabinete
+                // resolvido ou fora de qualquer contexto de tenant — não tem
+                // como herdar o AppLayout (OfficeTheme etc. dependem desses
+                // dados).
+                return undefined;
             case name.startsWith('auth/') ||
                 name.startsWith('entity-invitations/'):
                 return AuthLayout;

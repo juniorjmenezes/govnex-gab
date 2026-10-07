@@ -18,6 +18,8 @@ use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -108,4 +110,28 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        $exceptions->respond(function (SymfonyResponse $response, Throwable $exception, Request $request) {
+            if (app()->environment('testing') || $request->is('api/*') || $request->expectsJson()) {
+                return $response;
+            }
+
+            $status = $response->getStatusCode();
+
+            // Com debug ligado, erro de servidor (500/503) cai no Whoops —
+            // é o que ajuda a depurar o bug de verdade. 403/404/419/429 não
+            // são bugs, são desfecho esperado da navegação: sempre mostram a
+            // tela própria, inclusive em debug.
+            if (config('app.debug') && in_array($status, [500, 503], true)) {
+                return $response;
+            }
+
+            if (in_array($status, [403, 404, 419, 429, 500, 503], true)) {
+                return Inertia::render('errors/error', ['status' => $status])
+                    ->toResponse($request)
+                    ->setStatusCode($status);
+            }
+
+            return $response;
+        });
     })->create();

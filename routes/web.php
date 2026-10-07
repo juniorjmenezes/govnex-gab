@@ -30,6 +30,15 @@ Route::get('/', static function () {
     return redirect()->route(Auth::check() ? 'dashboard' : 'login');
 })->name('home');
 
+// Pré-visualização das páginas de erro em dev: fora do ambiente local, o
+// handler de exceções em bootstrap/app.php já as renderiza de verdade — aqui
+// é só para conferir a aparência sem precisar provocar o erro de fato.
+if (app()->environment('local')) {
+    Route::get('_preview/erro/{status}', fn (int $status) => Inertia::render('errors/error', ['status' => $status]))
+        ->where('status', '[0-9]+')
+        ->name('preview.error');
+}
+
 // SSO pelo Govnex Hub — caminho padrão de entrada (docs/INTEGRACAO_GOVNEX_HUB.md).
 // O login local do Fortify continua existindo, restrito a root.
 Route::get('auth/hub/redirect', [HubAuthController::class, 'redirect'])
