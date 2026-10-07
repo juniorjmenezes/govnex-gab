@@ -20,8 +20,18 @@ use Throwable;
  */
 class HubAuthController extends Controller
 {
-    /** Manda a pessoa ao Hub. Estado e PKCE ficam na sessão. */
-    public function redirect(): SymfonyRedirectResponse|RedirectResponse
+    /**
+     * Manda a pessoa ao Hub. Estado e PKCE ficam na sessão.
+     *
+     * `?trocar=1` (botão "Trocar de conta", como o Google) pede `prompt=login`
+     * ao Hub: aí o Passport desloga a sessão aberta e força a tela de login de
+     * novo, em vez de aprovar na hora com quem já está logado (suportado
+     * nativamente, ver `AuthorizationController::authorize` do Passport). Sem
+     * o parâmetro, o botão principal continua reaproveitando a sessão do Hub
+     * normalmente — é o comportamento que a maioria quer na maior parte do
+     * tempo.
+     */
+    public function redirect(Request $request): SymfonyRedirectResponse|RedirectResponse
     {
         if (! $this->configurado()) {
             return redirect()->route('login')
@@ -29,7 +39,13 @@ class HubAuthController extends Controller
         }
 
         try {
-            return Socialite::driver('hub')->redirect();
+            $driver = Socialite::driver('hub');
+
+            if ($request->boolean('trocar')) {
+                $driver = $driver->with(['prompt' => 'login']);
+            }
+
+            return $driver->redirect();
         } catch (Throwable $exception) {
             report($exception);
 

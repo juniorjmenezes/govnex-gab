@@ -16,10 +16,11 @@ import { Button } from '@/components/ui/button';
  * abrir. Sem o Hub configurado, esse é o único caminho de entrada, então o
  * formulário aparece direto, sem precisar de um botão para chegar nele.
  *
- * O botão do Hub é uma âncora, não um `Link` do Inertia: o destino é uma
- * navegação de página inteira para outro domínio.
+ * O botão do Hub e o link de troca de conta são âncoras, não `Link` do
+ * Inertia: o destino é uma navegação de página inteira para outro domínio.
  */
 const HUB_REDIRECT_URL = '/auth/hub/redirect';
+const HUB_TROCAR_CONTA_URL = '/auth/hub/redirect?trocar=1';
 
 type Props = {
     status?: string;
@@ -56,7 +57,13 @@ export default function Login({
 
                     <p className="text-center text-xs text-muted-foreground">
                         Sua conta, sua senha e seus vínculos ficam no Govnex
-                        Hub.
+                        Hub.{' '}
+                        <a
+                            href={HUB_TROCAR_CONTA_URL}
+                            className="underline underline-offset-2 hover:text-foreground"
+                        >
+                            Trocar de conta
+                        </a>
                     </p>
 
                     <Button asChild variant="outline" className="w-full">
