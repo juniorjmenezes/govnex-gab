@@ -71,7 +71,7 @@ return [
     // GovnexApiDatasetCatalog). Sem GOVNEX_API_KEY, a API ainda responde, só
     // com o rate limit e o per_page mais baixos do consumidor anônimo.
     'govnex_api' => [
-        'url' => env('GOVNEX_API_URL', 'http://127.0.0.1:8020/api/v1'),
+        'url' => env('GOVNEX_API_URL', 'http://127.0.0.1:8010/api/v1'),
         'key' => env('GOVNEX_API_KEY'),
     ],
 
