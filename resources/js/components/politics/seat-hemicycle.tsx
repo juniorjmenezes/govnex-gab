@@ -3,6 +3,10 @@ import { cn } from '@/lib/utils';
 export interface SeatParty {
     party: string;
     seats: number;
+    /** Cadeiras desse partido que são do estado do gabinete — presente só em
+     * bancadas nacionais (Senado, Deputado Federal). Sem isso, o componente
+     * assume o modo antigo: só as cadeiras da própria UF, resto em cinza. */
+    home_seats?: number;
     color: string | null;
 }
 
@@ -104,27 +108,84 @@ function seatLayout(total: number) {
     // Da esquerda para a direita: cada partido ocupa um setor contínuo.
     positions.sort((a, b) => b.angle - a.angle || a.x - b.x);
 
-    return { positions, dotRadius };
+    return { positions, dotRadius, viewBoxHeight: 56 };
+}
+
+/** Margem interna do viewBox nas duas grades (linhas e semicírculo) usam a
+ * mesma área útil, então os dois modos ficam visualmente alinhados. */
+const GRID_MARGIN_X = 3;
+const GRID_MARGIN_Y = 3;
+
+/** Espaço (centro a centro) entre cadeiras na grade em linhas — fixo, pelo
+ * mesmo raio usado no semicírculo pequeno, para o ponto ter sempre o mesmo
+ * tamanho em qualquer um dos gráficos de composição. */
+const GRID_CELL_SIZE = FIXED_DOT_RADIUS * 2 * 1.15;
+
+/**
+ * Casas muito grandes (Deputado Federal, 513 cadeiras) ficam com o ponto
+ * encolhido e de tamanho inconsistente entre fileiras no semicírculo — o
+ * raio ali varia conforme a fileira para preencher o arco. Em linha reta, o
+ * raio é sempre {@link FIXED_DOT_RADIUS}, igual ao do Senado/Assembleia; o
+ * que varia é a altura do gráfico, que cresce conforme precisa de mais
+ * fileiras para caber todo mundo na mesma largura.
+ */
+function rowLayout(total: number) {
+    const usableWidth = 100 - GRID_MARGIN_X * 2;
+    const columns = Math.max(1, Math.floor(usableWidth / GRID_CELL_SIZE));
+    const rows = Math.ceil(total / columns);
+    const viewBoxHeight = GRID_MARGIN_Y * 2 + rows * GRID_CELL_SIZE;
+
+    const positions: { x: number; y: number }[] = [];
+    let remaining = total;
+
+    for (let row = 0; row < rows; row += 1) {
+        const rowCount = Math.min(columns, remaining);
+        // Fileira incompleta (a última) fica centralizada, não grudada à
+        // esquerda — mais parecido com uma bancada de verdade.
+        const offsetX = ((columns - rowCount) * GRID_CELL_SIZE) / 2;
+
+        for (let col = 0; col < rowCount; col += 1) {
+            positions.push({
+                x: GRID_MARGIN_X + offsetX + GRID_CELL_SIZE * (col + 0.5),
+                y: GRID_MARGIN_Y + GRID_CELL_SIZE * (row + 0.5),
+            });
+        }
+
+        remaining -= rowCount;
+    }
+
+    return { positions, dotRadius: FIXED_DOT_RADIUS, viewBoxHeight };
 }
 
 /**
- * Semicírculo da casa: as cadeiras eleitas no estado do gabinete coloridas
- * por partido, e as demais (outros estados) em cinza. Cores vêm de
+ * Semicírculo da casa. Em bancada estadual (Assembleia), mostra só as
+ * cadeiras do estado do gabinete coloridas por partido, com o restante da
+ * casa em cinza. Em bancada nacional (Senado, Deputado Federal — quando
+ * `home_seats` vem preenchido), mostra o Brasil inteiro colorido por
+ * partido, com um contorno nos pontos do estado do gabinete. Cores vêm de
  * `PartidoCor`.
  */
 export function SeatHemicycle({
     parties,
     chamberTotal,
     uf,
+    othersLabel,
     className,
 }: {
-    /** Cadeiras eleitas no estado do gabinete, por partido. */
+    /** Cadeiras eleitas, por partido — do estado do gabinete (Assembleia) ou
+     * do Brasil inteiro com `home_seats` (Senado, Deputado Federal). */
     parties: SeatParty[];
     /** Tamanho da casa inteira; o restante fica em cinza. */
     chamberTotal?: number | null;
     uf?: string;
+    /** Legenda do cinza (cadeiras não contempladas em `parties`). Padrão:
+     * "Ainda não decididas" (nacional) ou "Demais estados" (estadual). O
+     * Senado renova só 1/3 ou 2/3 por eleição — o resto não é "ainda
+     * contando", é mandato em curso, e precisa de um rótulo próprio. */
+    othersLabel?: string;
     className?: string;
 }) {
+    const nationwide = parties.some((p) => p.home_seats !== undefined);
     const elected = parties.reduce((sum, p) => sum + p.seats, 0);
     const total = Math.max(elected, chamberTotal ?? elected);
     const others = total - elected;
@@ -137,23 +198,43 @@ export function SeatHemicycle({
         );
     }
 
-    const { positions, dotRadius } = seatLayout(total);
+    const useRowLayout = total > FIXED_DOT_MAX_SEATS;
+    const { positions, dotRadius, viewBoxHeight } = useRowLayout
+        ? rowLayout(total)
+        : seatLayout(total);
     const colors = [
         ...parties.flatMap((p) =>
             Array.from({ length: p.seats }, () => p.color ?? FALLBACK_COLOR),
         ),
         ...Array.from({ length: others }, () => GRAY),
     ];
+    // No modo nacional, as primeiras `home_seats` cadeiras de cada partido
+    // (dentro do segmento já colorido por partido) levam um contorno — não
+    // representam candidatos específicos, só a contagem do estado.
+    const highlighted = nationwide
+        ? [
+              ...parties.flatMap((p) => [
+                  ...Array.from({ length: p.home_seats ?? 0 }, () => true),
+                  ...Array.from(
+                      { length: p.seats - (p.home_seats ?? 0) },
+                      () => false,
+                  ),
+              ]),
+              ...Array.from({ length: others }, () => false),
+          ]
+        : [];
 
     return (
         <div className={cn('flex flex-col gap-4', className)}>
             {uf && (
                 <p className="text-center text-xs text-muted-foreground">
-                    Cadeiras de {uf} em destaque; o restante da casa em cinza.
+                    {nationwide
+                        ? `Cadeiras do Brasil inteiro; as de ${uf} têm contorno destacado.`
+                        : `Cadeiras de ${uf} em destaque; o restante da casa em cinza.`}
                 </p>
             )}
             <svg
-                viewBox="0 0 100 56"
+                viewBox={`0 0 100 ${viewBoxHeight}`}
                 className="mx-auto w-full max-w-sm"
                 role="img"
                 aria-label={parties
@@ -166,13 +247,19 @@ export function SeatHemicycle({
                         cx={pos.x}
                         cy={pos.y}
                         r={dotRadius}
-                        style={{ fill: colors[i] }}
+                        style={{
+                            fill: colors[i],
+                            stroke: highlighted[i]
+                                ? 'var(--foreground)'
+                                : 'none',
+                            strokeWidth: highlighted[i] ? 0.3 : 0,
+                        }}
                     />
                 ))}
             </svg>
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <ul className="divide-y text-sm">
                 {others > 0 && (
-                    <li className="flex items-center justify-between gap-2">
+                    <li className="flex items-center justify-between gap-2 py-2">
                         <span className="flex min-w-0 items-center gap-2">
                             <span
                                 className="size-2.5 shrink-0 rounded-full"
@@ -180,7 +267,10 @@ export function SeatHemicycle({
                                 aria-hidden="true"
                             />
                             <span className="truncate font-medium text-muted-foreground">
-                                Demais estados
+                                {othersLabel ??
+                                    (nationwide
+                                        ? 'Ainda não decididas'
+                                        : 'Demais estados')}
                             </span>
                         </span>
                         <span className="text-muted-foreground tabular-nums">
@@ -191,7 +281,7 @@ export function SeatHemicycle({
                 {parties.map((item) => (
                     <li
                         key={item.party}
-                        className="flex items-center justify-between gap-2"
+                        className="flex items-center justify-between gap-2 py-2"
                     >
                         <span className="flex min-w-0 items-center gap-2">
                             <span
@@ -205,6 +295,11 @@ export function SeatHemicycle({
                             <span className="truncate font-medium">
                                 {item.party}
                             </span>
+                            {nationwide && item.home_seats ? (
+                                <span className="shrink-0 text-xs text-muted-foreground">
+                                    · {item.home_seats} em {uf}
+                                </span>
+                            ) : null}
                         </span>
                         <span className="text-muted-foreground tabular-nums">
                             {item.seats}

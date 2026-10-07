@@ -47,6 +47,10 @@ export default function ElectionTally({
         return stop;
     }, [results]);
 
+    const generalSectionPercent =
+        results?.find((result) => result.section_percent !== null)
+            ?.section_percent ?? null;
+
     const description = !round
         ? undefined
         : round.is_today
@@ -114,39 +118,30 @@ export default function ElectionTally({
                         className="flex flex-col gap-4"
                     >
                         {municipal ? (
-                            <>
-                                <SectionCard
-                                    title={`Meu município · ${municipal.name}`}
-                                    description={
-                                        municipal.section_percent !== null
-                                            ? `${municipal.section_percent}% das seções apuradas`
-                                            : undefined
-                                    }
-                                    contentClassName="p-0"
-                                >
-                                    <ElectionFavoritesCard
-                                        favorites={municipal.favorites}
-                                        title="Favoritos na cidade"
-                                        description="Votos de cada favorito no município"
+                            <SectionCard
+                                title={`Meu município · ${municipal.name}`}
+                                description={
+                                    municipal.section_percent !== null
+                                        ? `${municipal.section_percent}% das seções apuradas`
+                                        : undefined
+                                }
+                                contentClassName="grid gap-4 p-4 lg:grid-cols-6"
+                            >
+                                {municipal.results.map((result) => (
+                                    <ElectionResultCard
+                                        key={result.cargo}
+                                        result={result}
+                                        className={
+                                            [
+                                                'presidente',
+                                                'governador',
+                                            ].includes(result.cargo)
+                                                ? 'lg:col-span-3'
+                                                : 'lg:col-span-2'
+                                        }
                                     />
-                                </SectionCard>
-                                <div className="grid gap-4 lg:grid-cols-6">
-                                    {municipal.results.map((result) => (
-                                        <ElectionResultCard
-                                            key={result.cargo}
-                                            result={result}
-                                            className={
-                                                [
-                                                    'presidente',
-                                                    'governador',
-                                                ].includes(result.cargo)
-                                                    ? 'lg:col-span-3'
-                                                    : 'lg:col-span-2'
-                                            }
-                                        />
-                                    ))}
-                                </div>
-                            </>
+                                ))}
+                            </SectionCard>
                         ) : (
                             <SectionCard title="Meu município">
                                 <EmptyState
@@ -163,14 +158,20 @@ export default function ElectionTally({
                 {favorites && <ElectionFavoritesCard favorites={favorites} />}
 
                 {results && (
-                    <section
-                        aria-label="Apuração por cargo"
-                        className="grid gap-4 lg:grid-cols-6"
+                    <SectionCard
+                        title="Apuração geral"
+                        description={
+                            generalSectionPercent !== null
+                                ? `${generalSectionPercent}% das seções apuradas`
+                                : undefined
+                        }
+                        contentClassName="grid gap-4 p-4 lg:grid-cols-6"
                     >
                         {results.map((result) => (
                             <ElectionResultCard
                                 key={result.cargo}
                                 result={result}
+                                uf={uf}
                                 className={
                                     ['presidente', 'governador'].includes(
                                         result.cargo,
@@ -180,7 +181,7 @@ export default function ElectionTally({
                                 }
                             />
                         ))}
-                    </section>
+                    </SectionCard>
                 )}
 
                 {results && (
@@ -200,6 +201,11 @@ export default function ElectionTally({
                                         parties={result.seats ?? []}
                                         chamberTotal={result.chamber_total}
                                         uf={uf}
+                                        othersLabel={
+                                            result.cargo === 'senador'
+                                                ? 'Senadores em exercício'
+                                                : undefined
+                                        }
                                     />
                                 </SectionCard>
                             ))}

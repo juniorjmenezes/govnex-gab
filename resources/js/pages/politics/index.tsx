@@ -1223,7 +1223,6 @@ export default function PoliticalPanel({
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button
-                                            variant="outline"
                                             size="icon"
                                             aria-label="Apuração"
                                         >

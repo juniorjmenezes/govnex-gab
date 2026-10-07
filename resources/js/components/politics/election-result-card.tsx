@@ -96,9 +96,13 @@ function CandidateRows({
 
 export function ElectionResultCard({
     result,
+    uf,
     className,
 }: {
     result: ElectionResult;
+    /** Só os cargos estaduais (tudo menos presidente) precisam dizer de qual
+     * UF — presidente é nacional, o mesmo em qualquer gabinete. */
+    uf?: string;
     className?: string;
 }) {
     const [showAll, setShowAll] = useState(false);
@@ -121,11 +125,15 @@ export function ElectionResultCard({
               );
     const sectionPercent = result.section_percent ?? 0;
     const hasMore = result.total_candidates > result.candidates.length;
+    const title =
+        uf && result.cargo !== 'presidente'
+            ? `${result.label} · ${uf}`
+            : result.label;
 
     return (
         <>
             <SectionCard
-                title={result.label}
+                title={title}
                 description={
                     result.available
                         ? `${percentFormatter.format(sectionPercent)}% das seções apuradas`
@@ -180,7 +188,7 @@ export function ElectionResultCard({
             <Dialog open={showAll} onOpenChange={setShowAll}>
                 <ScrollableDialogContent className="h-[calc(100svh-1rem)] sm:h-[min(42rem,90svh)] sm:max-w-2xl">
                     <ScrollableDialogHeader>
-                        <DialogTitle>{result.label}</DialogTitle>
+                        <DialogTitle>{title}</DialogTitle>
                         <DialogDescription>
                             {result.total_candidates} candidatos ·{' '}
                             {percentFormatter.format(sectionPercent)}% das

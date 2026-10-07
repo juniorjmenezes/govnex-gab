@@ -12,6 +12,7 @@ use App\Services\Politics\Tse\TseResultsClient;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -51,6 +52,18 @@ class ElectionTallyController extends Controller
     /** Total da casa para os cargos de bancada nacional. A Assembleia
      * estadual não entra aqui: o gráfico dela mostra só as cadeiras do estado. */
     private const CHAMBER_TOTALS = ['senador' => 81, 'deputado_federal' => 513];
+
+    /** Cargos de bancada nacional: o gráfico de composição mostra o Brasil
+     * inteiro, com as cadeiras do estado do gabinete destacadas — diferente
+     * da Assembleia estadual, que só existe dentro de um estado. */
+    private const NATIONWIDE_SEAT_CARGOS = ['senador', 'deputado_federal'];
+
+    /** As 27 UFs — usado só para somar a bancada nacional por partido; uma
+     * eleição não tem como ter mais nem menos que isso. */
+    private const BRAZIL_UFS = [
+        'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+        'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+    ];
 
     /**
      * `CandidatoPolitico::cargo` guarda o `DS_CARGO` do TSE como veio na
@@ -121,7 +134,8 @@ class ElectionTallyController extends Controller
             $raw = $this->fetchResults($selected['pleito_date'], $selected['round'], $office->estado);
             $results = $this->results($raw, $selected['has_second_round'], $selected['round']);
             $favorites = $this->favorites($raw, $office, $selected['election_id']);
-            $municipal = $this->municipal($office, $selected);
+            $municipal = $this->municipal($office, $selected, $results);
+            $results = $this->withNationwideSeats($results, $selected['pleito_date'], $selected['round'], $office->estado);
         }
 
         return Inertia::render('politics/apuracao', [
@@ -158,10 +172,17 @@ class ElectionTallyController extends Controller
      * cidade do gabinete. Sem município vinculado, devolve null e a tela
      * pede a vinculação.
      *
+     * Quem está "eleito" aqui vem de `$nationalResults`, não dos votos da
+     * própria cidade: presidente se decide na contagem nacional e governador
+     * na estadual — o candidato mais votado no município pode não ser o
+     * eleito de verdade. O card de favoritos também não se repete aqui: o do
+     * topo da página já cobre a UF inteira, incluindo o município.
+     *
      * @param  array<string, mixed>  $selected
-     * @return array{name: string, section_percent: float|null, results: array<int, array<string, mixed>>, favorites: array<int, array<string, mixed>>}|null
+     * @param  array<int, array<string, mixed>>  $nationalResults
+     * @return array{name: string, section_percent: float|null, results: array<int, array<string, mixed>>}|null
      */
-    private function municipal(Gabinete $office, array $selected): ?array
+    private function municipal(Gabinete $office, array $selected, array $nationalResults): ?array
     {
         $code = $office->municipioEleitoral?->codigo_tse;
 
@@ -169,16 +190,23 @@ class ElectionTallyController extends Controller
             return null;
         }
 
+        $electedByCargo = collect($nationalResults)->mapWithKeys(
+            fn (array $result): array => [
+                $result['cargo'] => collect($result['all_candidates'])
+                    ->where('elected', true)
+                    ->pluck('number')
+                    ->all(),
+            ],
+        )->all();
+
         $raw = $this->fetchResults($selected['pleito_date'], $selected['round'], $office->estado, $code);
-        // Turno do 2º turno é nacional/estadual: no município não há "vai ao 2º turno".
-        $results = $this->results($raw, false, $selected['round']);
+        $results = $this->results($raw, false, $selected['round'], $electedByCargo);
         $sectionPercent = collect($results)->firstWhere('section_percent', '!==', null)['section_percent'] ?? null;
 
         return [
             'name' => $office->municipio,
             'section_percent' => $sectionPercent,
             'results' => $results,
-            'favorites' => $this->favorites($raw, $office, $selected['election_id']),
         ];
     }
 
@@ -186,14 +214,44 @@ class ElectionTallyController extends Controller
      * @param  array<string, array<string, mixed>|null>  $raw
      * @return array<int, array{cargo: string, label: string, available: bool, section_percent: float|null, total_sections: int|null, candidates: array<int, array<string, mixed>>, hidden_candidates: int}>
      */
-    private function results(array $raw, bool $electionHasSecondRound, int $round): array
+    /**
+     * @param  array<string, array<int, string>>|null  $electedOverride  Número dos
+     *                                                                   candidatos realmente eleitos por cargo, já apurado na votação que
+     *                                                                   decide o cargo (nacional para presidente, estadual para
+     *                                                                   governador). Usado pelo recorte municipal: lá os votos são só da
+     *                                                                   cidade, e quem ganha na cidade não necessariamente é quem a
+     *                                                                   eleição elege — isso só se decide na contagem de verdade.
+     */
+    private function results(array $raw, bool $electionHasSecondRound, int $round, ?array $electedOverride = null): array
     {
         return collect(self::CARGOS)
-            ->map(function (string $label, string $cargo) use ($raw, $electionHasSecondRound, $round): array {
+            ->map(function (string $label, string $cargo) use ($raw, $electionHasSecondRound, $round, $electedOverride): array {
                 $result = $raw[$cargo] ?? null;
                 $candidates = $result['candidates'] ?? [];
                 $sectionPercent = $result['section_percent'] ?? null;
                 $finished = $sectionPercent !== null && $sectionPercent >= 100;
+
+                if ($electedOverride !== null) {
+                    $electedNumbers = $electedOverride[$cargo] ?? [];
+                    $candidates = array_map(function (array $c) use ($electedNumbers): array {
+                        $c['elected'] = in_array($c['number'], $electedNumbers, true);
+
+                        return $c;
+                    }, $candidates);
+                } elseif ($round === 1 && ! in_array($cargo, self::SEAT_CARGOS, true)) {
+                    // No 1º turno de um cargo majoritário (presidente/governador),
+                    // o TSE marca `e:"s"` nos dois candidatos classificados para o
+                    // 2º turno — não só em quem venceu de fato. Sem maioria
+                    // absoluta (>50%), ninguém está eleito ainda; são só os dois
+                    // que avançam. Cargos de cadeira (SEAT_CARGOS) não entram
+                    // aqui: lá "eleito" já significa vaga conquistada mesmo.
+                    $candidates = array_map(function (array $c): array {
+                        $c['elected'] = $c['elected'] && $c['vote_percent'] > 50;
+
+                        return $c;
+                    }, $candidates);
+                }
+
                 $elected = array_values(array_filter($candidates, fn (array $c): bool => $c['elected']));
 
                 return [
@@ -239,6 +297,74 @@ class ElectionTallyController extends Controller
             ->sortByDesc('seats')
             ->values()
             ->all();
+    }
+
+    /**
+     * Troca `seats` dos cargos de bancada nacional ({@see self::NATIONWIDE_SEAT_CARGOS})
+     * pela soma por partido no Brasil inteiro, com a contagem do estado do
+     * gabinete junto (`home_seats`) para o gráfico destacar essas cadeiras
+     * sem perder o resto do país.
+     *
+     * @param  array<int, array<string, mixed>>  $results
+     * @return array<int, array<string, mixed>>
+     */
+    private function withNationwideSeats(array $results, string $pleitoDate, int $round, string $homeUf): array
+    {
+        return array_map(function (array $result) use ($pleitoDate, $round, $homeUf): array {
+            if (in_array($result['cargo'], self::NATIONWIDE_SEAT_CARGOS, true)) {
+                $result['seats'] = $this->nationwideSeatsByParty($result['cargo'], $pleitoDate, $round, $homeUf);
+            }
+
+            return $result;
+        }, $results);
+    }
+
+    /**
+     * Soma as cadeiras eleitas de um cargo nas 27 UFs, por partido — uma
+     * chamada ao TSE por estado. Cacheado à parte (5 min, bem mais que o
+     * cache de 90s do resultado por UF em si): a composição da casa praticamente
+     * não muda depois que a apuração de cada estado fecha, e refazer 27
+     * requisições a cada 90s de polling do front seria desperdício.
+     *
+     * @return array<int, array{party: string, seats: int, home_seats: int, color: string|null}>
+     */
+    private function nationwideSeatsByParty(string $cargo, string $pleitoDate, int $round, string $homeUf): array
+    {
+        $cacheKey = "tse.nationwide-seats.{$cargo}.{$pleitoDate}.{$round}.{$homeUf}";
+
+        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($cargo, $pleitoDate, $round, $homeUf): array {
+            $colors = PartidoCor::colorMap();
+            $byParty = [];
+
+            foreach (self::BRAZIL_UFS as $uf) {
+                $result = $this->tseResults->results($cargo, $uf, $pleitoDate, $round);
+
+                foreach ($result['candidates'] ?? [] as $candidate) {
+                    if (! $candidate['elected']) {
+                        continue;
+                    }
+
+                    $party = $candidate['party'];
+                    $byParty[$party] ??= ['seats' => 0, 'home_seats' => 0];
+                    $byParty[$party]['seats']++;
+
+                    if ($uf === $homeUf) {
+                        $byParty[$party]['home_seats']++;
+                    }
+                }
+            }
+
+            return collect($byParty)
+                ->map(fn (array $data, string $party): array => [
+                    'party' => $party,
+                    'seats' => $data['seats'],
+                    'home_seats' => $data['home_seats'],
+                    'color' => $colors[PartidoCor::normalizeSigla($party)] ?? null,
+                ])
+                ->sortByDesc('seats')
+                ->values()
+                ->all();
+        });
     }
 
     /**

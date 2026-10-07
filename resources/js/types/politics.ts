@@ -291,8 +291,21 @@ export type ElectionResult = {
     /** Lista completa, para o botão "ver todos os resultados". */
     all_candidates: ElectionResultCandidate[];
     total_candidates: number;
-    /** Cadeiras por partido — só Senado e cargos proporcionais. */
-    seats: { party: string; seats: number; color: string | null }[] | null;
+    /**
+     * Cadeiras por partido — só Senado e cargos proporcionais. Em Senado e
+     * Deputado Federal (bancada nacional), `seats` já soma as 27 UFs e
+     * `home_seats` diz quantas delas são do estado do gabinete, para o
+     * gráfico destacar. Na Assembleia estadual (só a UF do gabinete),
+     * `home_seats` vem ausente.
+     */
+    seats:
+        | {
+              party: string;
+              seats: number;
+              home_seats?: number;
+              color: string | null;
+          }[]
+        | null;
     /** 1º turno concluído sem eleito: a disputa vai ao 2º turno. */
     goes_to_second_round: boolean;
     finished: boolean;
@@ -324,7 +337,6 @@ export type ElectionMunicipal = {
     name: string;
     section_percent: number | null;
     results: ElectionResult[];
-    favorites: ElectionFavorite[];
 };
 
 export type ElectionTallyProps = {

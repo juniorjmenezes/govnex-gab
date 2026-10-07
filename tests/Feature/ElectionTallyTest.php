@@ -325,6 +325,32 @@ class ElectionTallyTest extends TestCase
             );
     }
 
+    /**
+     * Senado e Câmara são bancadas do Brasil inteiro, não só da UF do
+     * gabinete — o gráfico soma as 27 UFs, mas ainda precisa saber quantas
+     * daquelas cadeiras são do próprio estado, para o destaque visual.
+     */
+    public function test_nationwide_seats_sum_every_state_but_track_the_offices_own_uf(): void
+    {
+        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $user = User::factory()->operator()->forGabinete($office)->create();
+        Http::fake($this->tseFakes([
+            'ce' => ['6' => [['11', 'A', '900', true], ['12', 'B', '800', true]]],
+            'sp' => ['6' => [['21', 'C', '900', true], ['22', 'D', '800', true], ['23', 'E', '700', true]]],
+        ], true));
+
+        $this->travelTo(CarbonImmutable::parse('2026-10-04 18:00:00', 'America/Sao_Paulo'));
+
+        $this->actingAs($user)
+            ->get(route('politics.tally.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('results.3.cargo', 'deputado_federal')
+                ->where('results.3.seats.0.party', 'PX')
+                ->where('results.3.seats.0.seats', 5)
+                ->where('results.3.seats.0.home_seats', 2)
+            );
+    }
+
     public function test_a_first_round_without_winner_points_to_the_second_round(): void
     {
         $office = Gabinete::factory()->create(['estado' => 'CE']);
@@ -342,6 +368,64 @@ class ElectionTallyTest extends TestCase
                 ->where('results.0.goes_to_second_round', true)
                 ->where('round.has_second_round', true)
                 ->where('round.round', 1)
+            );
+    }
+
+    /**
+     * O TSE marca `e:"s"` nos dois candidatos classificados para o 2º turno
+     * de um cargo majoritário, não só em quem venceu — reproduzido ao vivo
+     * em 06/10/2026 na eleição de presidente (Bolsonaro 47,03% e Lula
+     * 45,16%, ambos com `e:"s"`, section_percent 100%). Sem corrigir pela
+     * maioria absoluta, o painel mostrava os dois como eleitos.
+     */
+    public function test_two_tse_qualified_candidates_without_majority_go_to_second_round_instead_of_both_elected(): void
+    {
+        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $user = User::factory()->operator()->forGabinete($office)->create();
+        Http::fake($this->tseFakes([
+            'br' => ['1' => [
+                ['22', 'BOLSONARO', '56104503', true, '47,03'],
+                ['13', 'LULA', '53879538', true, '45,16'],
+                ['70', 'CURY', '3448569', false, '2,89'],
+            ]],
+        ], true));
+
+        $this->travelTo(CarbonImmutable::parse('2026-10-04 18:00:00', 'America/Sao_Paulo'));
+
+        $this->actingAs($user)
+            ->get(route('politics.tally.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('results.0.cargo', 'presidente')
+                ->where('results.0.goes_to_second_round', true)
+                ->where('results.0.candidates.0.elected', false)
+                ->where('results.0.candidates.1.elected', false)
+            );
+    }
+
+    /**
+     * Vitória de verdade em 1º turno (maioria absoluta) continua marcada
+     * como eleito — a correção só desconta quem o TSE sinalizou sem
+     * ultrapassar 50%.
+     */
+    public function test_a_first_round_majority_winner_is_still_marked_as_elected(): void
+    {
+        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $user = User::factory()->operator()->forGabinete($office)->create();
+        Http::fake($this->tseFakes([
+            'ce' => ['3' => [
+                ['99', 'ELMANO', '2500000', true, '53,19'],
+                ['77', 'CIRO', '2100000', false, '46,22'],
+            ]],
+        ], true));
+
+        $this->travelTo(CarbonImmutable::parse('2026-10-04 18:00:00', 'America/Sao_Paulo'));
+
+        $this->actingAs($user)
+            ->get(route('politics.tally.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('results.1.cargo', 'governador')
+                ->where('results.1.goes_to_second_round', false)
+                ->where('results.1.candidates.0.elected', true)
             );
     }
 
@@ -372,6 +456,48 @@ class ElectionTallyTest extends TestCase
             );
 
         Http::assertSent(fn ($request) => str_contains($request->url(), '/dados/ce/ce13692-c0003-e006259-u.json'));
+    }
+
+    /**
+     * Quem venceu na cidade não é necessariamente quem a eleição elegeu —
+     * presidente se decide na contagem nacional, governador na estadual. O
+     * card do município mostra os votos locais, mas o selo de "eleito" vem
+     * da apuração de verdade, não de quem tirou mais voto só ali.
+     */
+    public function test_the_municipal_section_marks_elected_from_the_statewide_result_not_the_local_vote_leader(): void
+    {
+        $municipality = MunicipioEleitoral::query()->create([
+            'codigo_tse' => '13692',
+            'nome' => 'Cruz',
+            'uf' => 'CE',
+        ]);
+        $office = Gabinete::factory()->create(['estado' => 'CE', 'municipio' => 'Cruz', 'municipio_eleitoral_id' => $municipality->id]);
+        $user = User::factory()->operator()->forGabinete($office)->create();
+        Http::fake($this->tseFakes(
+            ['ce' => ['3' => [
+                ['5', 'VENCEDOR ESTADUAL', '2000000', true, '60,00'],
+                ['7', 'FAVORITO LOCAL', '1500000', false, '40,00'],
+            ]]],
+            true,
+            ['3' => [
+                ['7', 'FAVORITO LOCAL', '900', false, '70,00'],
+                ['5', 'VENCEDOR ESTADUAL', '300', false, '30,00'],
+            ]],
+        ));
+
+        $this->travelTo(CarbonImmutable::parse('2026-10-04 18:00:00', 'America/Sao_Paulo'));
+
+        $this->actingAs($user)
+            ->get(route('politics.tally.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('municipal.results.1.cargo', 'governador')
+                // Mais votado na cidade continua sendo quem a tela lista primeiro...
+                ->where('municipal.results.1.candidates.0.name', 'FAVORITO LOCAL')
+                // ...mas não é ele quem está marcado como eleito.
+                ->where('municipal.results.1.candidates.0.elected', false)
+                ->where('municipal.results.1.candidates.1.name', 'VENCEDOR ESTADUAL')
+                ->where('municipal.results.1.candidates.1.elected', true)
+            );
     }
 
     public function test_the_municipal_section_is_null_without_a_linked_city(): void
@@ -450,7 +576,7 @@ class ElectionTallyTest extends TestCase
             'nm' => $item[1],
             'nmu' => $item[1],
             'vap' => $item[2],
-            'pvap' => '0,00',
+            'pvap' => $item[4] ?? '0,00',
             'e' => ($item[3] ?? false) ? 's' : 'n',
         ])->all();
 
