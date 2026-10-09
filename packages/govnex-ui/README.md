@@ -21,6 +21,8 @@ ficar nos aplicativos ou em adaptadores separados.
 
 - `components`: primitivos visuais, incluindo campos, dialogs, alert dialogs,
   sheets, drawers, superficies, cards, tabelas e feedback de progresso.
+  `AppSelect` (dropdown com busca, sobre o Combobox do Base UI) e o seletor
+  padrao dos produtos; `Select` simples fica para listas curtas sem busca.
 - `patterns`: composicoes GOVNEX para cabecalho de pagina, estado vazio,
   indicadores e acoes de tabela.
 - `icons`: ponte oficial para Solar Icons; consumidores nao devem importar a

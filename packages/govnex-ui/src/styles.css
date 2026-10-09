@@ -1,6 +1,6 @@
 @import '@fontsource-variable/inter-tight';
 @import '@fontsource-variable/fira-code';
-@import '@fontsource/dm-serif-display';
+@import '@fontsource-variable/outfit';
 
 @source './components';
 @source './patterns';
@@ -142,7 +142,7 @@
 
 @theme inline {
     --font-sans: 'Inter Tight Variable', ui-sans-serif, system-ui, sans-serif;
-    --font-heading: 'DM Serif Display', ui-serif, Georgia, serif;
+    --font-heading: 'Outfit Variable', ui-sans-serif, system-ui, sans-serif;
     --font-mono: 'Fira Code Variable', ui-monospace, monospace;
     --text-badge: 0.687rem;
     --color-sidebar-ring: var(--sidebar-ring);
@@ -223,7 +223,8 @@
     h3,
     h4,
     h5,
-    h6 {
+    h6,
+    [data-slot$='-title'] {
         @apply font-heading;
     }
 }

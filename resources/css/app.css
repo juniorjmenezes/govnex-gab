@@ -2,6 +2,12 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 @import '@govnex/ui/styles.css';
+@import '@fontsource/dm-serif-text';
+
+/* Experimento local de títulos do GAB até a decisão visual; remover este bloco e o import DM Serif Text restaura o padrão compartilhado. */
+@theme inline {
+    --font-heading: 'DM Serif Text', ui-serif, Georgia, serif;
+}
 
 @custom-variant dark (&:is(.dark *));
 

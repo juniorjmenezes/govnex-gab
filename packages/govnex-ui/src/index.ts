@@ -48,6 +48,27 @@ export {
     ChartStyle,
 } from './components/chart';
 export { Checkbox } from './components/checkbox';
+export { AppSelect } from './components/app-select';
+export type { AppSelectOption, AppSelectProps } from './components/app-select';
+export {
+    Combobox,
+    ComboboxChip,
+    ComboboxChips,
+    ComboboxChipsInput,
+    ComboboxClear,
+    ComboboxCollection,
+    ComboboxContent,
+    ComboboxEmpty,
+    ComboboxGroup,
+    ComboboxInput,
+    ComboboxItem,
+    ComboboxLabel,
+    ComboboxList,
+    ComboboxSeparator,
+    ComboboxTrigger,
+    ComboboxValue,
+    useComboboxAnchor,
+} from './components/combobox';
 export {
     Collapsible,
     CollapsibleTrigger,

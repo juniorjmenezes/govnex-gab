@@ -1,7 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "model": "sonnet",
-  "effortLevel": "low",
   "permissions": {
     "allow": [
       "Bash(npx shadcn@latest preset url bbX1aU4)",
@@ -50,7 +48,45 @@
       "Bash(grep -i \"\\\\.env$\\\\|\\\\.env\\\\.\\\\|\\\\.key$\\\\|credentials\")",
       "Bash(grep -iE \"^\\\\.env$|\\\\.env\\\\.[a-z]+$\")",
       "Bash(grep -E \"^\\\\.env|^/\\\\.env\" .gitignore)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(echo \"--- exit $?\")",
+      "Bash(php vendor/bin/pint --test)",
+      "Bash(composer --version)",
+      "Bash(cp /c/dev/php855/php.ini /c/dev/php855/php.ini.bak-oidc)",
+      "Bash(sed -i 's/^;extension=sodium$/extension=sodium/' /c/dev/php855/php.ini)",
+      "Bash(php -r \"echo extension_loaded\\('sodium'\\) ? 'sodium OK' : 'sodium MISSING';\")",
+      "Bash(cd /c/dev/htdocs/govnex_hub && cat vendor/laravel/passport/database/migrations/2016_06_01_000004_create_oauth_clients_table.php && echo \"=== ClientRepository ===\" && grep -n \"public function\" vendor/laravel/passport/src/ClientRepository.php && sed -n '/function createAuthorizationCodeGrantClient/,/^    }/p' vendor/laravel/passport/src/ClientRepository.php && echo \"=== Passport statics ===\" && grep -n \"public static function \\\\\\(tokensCan\\\\|hasScope\\\\|scopesFor\\\\|tokensExpireIn\\\\|setDefaultScope\\\\|hashClientSecrets\\\\|enablePasswordGrant\\\\|useClientModel\\\\\\)\" vendor/laravel/passport/src/Passport.php)",
+      "Bash(grep -n 'protected $fillable\\\\|casts\\\\|scopes' vendor/laravel/passport/src/Token.php)",
+      "Bash(sed -i \"s|'home' => '/home',|'home' => '/dashboard',|\" config/fortify.php)",
+      "Bash(sed -i \"s|// Features::emailVerification\\(\\),|Features::emailVerification\\(\\),|\" config/fortify.php)",
+      "Bash(grep -n 'function keyPath\\\\|$keyPath' vendor/laravel/passport/src/Passport.php)",
+      "Bash(rm -rf app/Http/Controllers/Auth routes/auth.php app/Http/Requests/Auth)",
+      "Bash(sed -i \"/require __DIR__.'\\\\/auth.php';/d\" routes/web.php)",
+      "Bash(sed -i \"s|'/confirm-password'|'/user/confirm-password'|g\" tests/Feature/Auth/PasswordConfirmationTest.php)",
+      "Bash(sed -i \"s|'/verify-email'|'/email/verify'|g\" tests/Feature/Auth/EmailVerificationTest.php)",
+      "Bash(perl -0pi -e 's/\\\\n\\\\s*passwordrules=\\\\{\\\\n\\\\s*props\\\\.passwordRules\\\\n\\\\s*\\\\}//g' resources/js/pages/settings/security.tsx)",
+      "Bash(perl -0pi -e \"s/type Props = \\\\{\\\\n    passwordRules: string;\\\\n\\\\} & ManagePasskeysProps &\\\\n    ManageTwoFactorProps;/type Props = ManagePasskeysProps \\\\& ManageTwoFactorProps;/\" resources/js/pages/settings/security.tsx)",
+      "Bash(perl -0pi -e \"s/\\\\n            'passwordRules' => Password::defaults\\\\\\(\\\\\\)->toPasswordRulesString\\\\\\(\\\\\\),//; s/use Illuminate\\\\\\\\\\\\\\\\Validation\\\\\\\\\\\\\\\\Rules\\\\\\\\\\\\\\\\Password;\\\\n//\" app/Http/Controllers/Settings/SecurityController.php)",
+      "Bash(./vendor/bin/pint --test)",
+      "Bash(./vendor/bin/pint)",
+      "Bash(./vendor/bin/phpstan analyse *)",
+      "Bash(curl -s http://127.0.0.1:8030/.well-known/openid-configuration)",
+      "Bash(curl -s http://127.0.0.1:8030/oauth/jwks)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:8030/api/v1/contas)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -H \"Authorization: Bearer secret-errado\" http://127.0.0.1:8030/api/v1/contas)",
+      "Bash(curl -s -H \"Authorization: Bearer segredo-teste-123456\" http://127.0.0.1:8030/api/v1/contas)",
+      "Bash(php -r ' *)",
+      "Bash(php -r '$j=json_decode\\(file_get_contents\\('\\\\''composer.json'\\\\''\\),true\\); print_r\\($j['\\\\''require'\\\\'']\\);')",
+      "Bash(composer search *)",
+      "Bash(node -e \"const p=require\\('./composer.json'\\);console.log\\(JSON.stringify\\(p.scripts,null,1\\)\\)\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(JSON.stringify\\(p.scripts,null,1\\)\\)\")",
+      "Bash(vendor/bin/pint --parallel)"
+    ],
+    "additionalDirectories": [
+      "C:\\dev\\htdocs\\govnex_gpc\\docs",
+      "C:\\dev\\htdocs\\govnex_gri\\docs"
     ]
-  }
+  },
+  "model": "sonnet",
+  "effortLevel": "low"
 }

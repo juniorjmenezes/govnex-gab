@@ -135,6 +135,7 @@ export function StatCard({
             <CardContent className="flex h-full flex-col gap-3 p-5">
                 <div className="flex items-start justify-between gap-3">
                     <p
+                        data-slot="stat-card-title"
                         className="min-w-0 truncate pt-1 text-sm font-medium text-muted-foreground"
                         title={title}
                     >
