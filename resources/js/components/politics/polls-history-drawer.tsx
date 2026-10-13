@@ -85,6 +85,7 @@ export function PollsHistoryDrawer({
                                 ? 'pesquisa'
                                 : 'pesquisas'}{' '}
                             · {office.scope_label}
+                            {office.round === 2 && ' · 2º turno'}
                         </DrawerDescription>
                     </div>
                     <DrawerClose

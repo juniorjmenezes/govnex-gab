@@ -378,6 +378,116 @@ class PollingDataServiceTest extends TestCase
         $this->assertCount(1, $resultado->candidatos);
     }
 
+    /**
+     * O 2º turno só entra automaticamente pras disputas que o
+     * SecondRoundClassifier já classificou de verdade — nunca pra Senador
+     * (não tem 2º turno) nem pro Governador de um estado cuja disputa não
+     * avançou, mesmo que o PollingData publique pesquisas hipotéticas de
+     * confronto pra esse estado (ver docblock de runoffContexts()).
+     */
+    public function test_runoff_contexts_cover_only_classified_races_and_never_senator(): void
+    {
+        $election = $this->seedElection();
+
+        // Presidente: classificado nacionalmente.
+        $this->candidate($election, '1', CandidateScope::National, null, 'Presidente', 'Lula', true);
+        $this->candidate($election, '2', CandidateScope::National, null, 'Presidente', 'Flávio Bolsonaro', true);
+
+        // Governador/SP: classificado.
+        $this->candidate($election, '3', CandidateScope::State, 'SP', 'Governador', 'Candidato SP A', true);
+        $this->candidate($election, '4', CandidateScope::State, 'SP', 'Governador', 'Candidato SP B', true);
+
+        // Governador/CE: decidido no 1º turno — não avançou.
+        $this->candidate($election, '5', CandidateScope::State, 'CE', 'Governador', 'Candidato CE A', false);
+        $this->candidate($election, '6', CandidateScope::State, 'CE', 'Governador', 'Candidato CE B', false);
+
+        // Senador nunca é classificado (SecondRoundClassifier não cobre o
+        // cargo) — mesmo com pesquisas hipotéticas de 2º turno publicadas
+        // pra ele, nenhum contexto deve ser gerado.
+        Http::fake(function (Request $request) {
+            if (! str_contains($request->url(), 'scenarios-overview')) {
+                return Http::response(['error' => 'chamada inesperada neste teste', 'url' => $request->url()], 500);
+            }
+
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+            $cargo = $query['cargo'] ?? null;
+            $uf = $query['uf'] ?? null;
+
+            if ($cargo === 'Presidente' && $uf === 'BR') {
+                return Http::response(['scenarios' => [
+                    [
+                        'cenario' => 'T2 - Flávio Bolsonaro (PL)-Lula (PT)-Após 1º Turno',
+                        'url' => 'https://www.pollingdata.com.br/2026/presidente/br/t2_flavio-lula_apos_1o_turno',
+                        'candidates' => [['name' => 'Lula'], ['name' => 'Flávio Bolsonaro']],
+                    ],
+                    [
+                        'cenario' => 'T2 - Flávio Bolsonaro (PL)-Lula (PT)',
+                        'url' => 'https://www.pollingdata.com.br/2026/presidente/br/t2_flavio-lula',
+                        'candidates' => [['name' => 'Lula'], ['name' => 'Flávio Bolsonaro']],
+                    ],
+                ]]);
+            }
+
+            if ($cargo === 'Governador' && $uf === 'SP') {
+                return Http::response(['scenarios' => [
+                    [
+                        'cenario' => 'T2 - Candidato SP A-Candidato SP B',
+                        'url' => 'https://www.pollingdata.com.br/2026/governador/sp/t2_a-b',
+                        'candidates' => [['name' => 'Candidato SP A'], ['name' => 'Candidato SP B']],
+                    ],
+                ]]);
+            }
+
+            return Http::response(['error' => "cargo/uf inesperados neste teste: {$cargo}/{$uf}"], 500);
+        });
+
+        $contexts = app(PollingDataService::class)->runoffContexts(2026);
+
+        $this->assertCount(2, $contexts);
+
+        $byOffice = collect($contexts)->keyBy('office');
+
+        $this->assertSame(2, $byOffice['presidente']->round);
+        $this->assertSame('BR', $byOffice['presidente']->uf);
+        $this->assertSame(
+            'https://www.pollingdata.com.br/2026/presidente/br/t2_flavio-lula',
+            $byOffice['presidente']->sourceUrl(),
+        );
+
+        $this->assertSame(2, $byOffice['governador']->round);
+        $this->assertSame('SP', $byOffice['governador']->uf);
+        $this->assertSame(
+            'https://www.pollingdata.com.br/2026/governador/sp/t2_a-b',
+            $byOffice['governador']->sourceUrl(),
+        );
+
+        $this->assertFalse($byOffice->has('senador'));
+    }
+
+    private function candidate(
+        Eleicao $election,
+        string $sequence,
+        CandidateScope $scope,
+        ?string $uf,
+        string $office,
+        string $name,
+        bool $advancedToSecondRound,
+    ): CandidatoPolitico {
+        return CandidatoPolitico::query()->create([
+            'eleicao_id' => $election->id,
+            'sq_candidato' => $sequence,
+            'abrangencia' => $scope,
+            'uf' => $uf,
+            'cargo' => $office,
+            'nome' => $name,
+            'nome_urna' => $name,
+            'numero' => $sequence,
+            'partido_sigla' => 'ABC',
+            'situacao' => 'APTO',
+            'avancou_segundo_turno' => $advancedToSecondRound,
+        ]);
+    }
+
     public function test_supports_accepts_the_three_covered_offices_and_rejects_others(): void
     {
         $election = $this->seedElection();

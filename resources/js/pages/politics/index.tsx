@@ -42,7 +42,6 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
 import {
     Surface,
     SurfaceDescription,
@@ -64,6 +63,7 @@ import { isInvalidVoteLabel } from '@/lib/poll-results';
 import { cn } from '@/lib/utils';
 import type {
     PoliticalCandidate,
+    PoliticalCandidateResult,
     PoliticalMunicipalElection,
     PoliticalPanelProps,
     PoliticalPoll,
@@ -92,6 +92,93 @@ function displaySituacao(situacao: string | null): string | null {
     return situacao === null || situacao.trim().toUpperCase() === '#NE'
         ? null
         : situacao;
+}
+
+/**
+ * `situacao`/`situacao_detalhada` vêm do TSE como o status de deferimento da
+ * candidatura (ex.: "APTO", "DEFERIDO", "INDEFERIDO", "CASSADO", "RENÚNCIA",
+ * "FALECIDO") — não é o resultado da eleição (eleito/não eleito), que vem
+ * à parte em `resultado` (ver CandidateSituation) quando já gravado. Aqui só
+ * dá para colorir pelo status de regularidade da candidatura mesmo.
+ */
+function situationVariant(situacao: string): 'success' | 'danger' | 'outline' {
+    const normalized = situacao.trim().toUpperCase();
+
+    if (['APTO', 'DEFERIDO', 'DEFERIDO COM RECURSO'].includes(normalized)) {
+        return 'success';
+    }
+
+    if (
+        [
+            'INAPTO',
+            'INDEFERIDO',
+            'INDEFERIDO COM RECURSO',
+            'CASSADO',
+            'RENÚNCIA',
+            'FALECIDO',
+            'CANCELADO',
+            'SUBSTITUÍDO',
+        ].includes(normalized)
+    ) {
+        return 'danger';
+    }
+
+    return 'outline';
+}
+
+/** Texto cru do TSE normalizado para minúsculas com a primeira letra maiúscula, sem caixa alta no badge. */
+function situationLabel(situacao: string): string {
+    const lower = situacao.trim().toLocaleLowerCase('pt-BR');
+
+    return lower.charAt(0).toLocaleUpperCase('pt-BR') + lower.slice(1);
+}
+
+/**
+ * Cor do resultado da eleição (`resultado.situacao`, vocabulário do
+ * DS_SIT_TOT_TURNO do TSE): eleito, classificado para o 2º turno ou o resto
+ * (não eleito, suplente…).
+ */
+function resultVariant(
+    result: PoliticalCandidateResult,
+): 'success' | 'info' | 'outline' {
+    if (result.eleito) {
+        return 'success';
+    }
+
+    return /^2\D*TURNO/i.test(result.situacao.trim()) ? 'info' : 'outline';
+}
+
+/** Coluna "Situação": o resultado da eleição quando já existe; antes disso, o status da candidatura. */
+function CandidateSituation({ candidate }: { candidate: PoliticalCandidate }) {
+    const result = candidate.resultado;
+
+    if (result) {
+        return (
+            <span className="inline-flex flex-wrap items-center gap-1.5">
+                <Badge variant={resultVariant(result)}>
+                    {situationLabel(result.situacao)}
+                </Badge>
+                <span className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">
+                    {numberFormatter.format(result.votos)} votos
+                    {result.percentual !== null &&
+                        ` · ${percentFormatter.format(result.percentual)}%`}
+                    {` · ${result.turno}º turno`}
+                </span>
+            </span>
+        );
+    }
+
+    const situacao =
+        displaySituacao(candidate.situacao_detalhada) ??
+        displaySituacao(candidate.situacao);
+
+    return situacao ? (
+        <Badge variant={situationVariant(situacao)}>
+            {situationLabel(situacao)}
+        </Badge>
+    ) : (
+        <span className="text-muted-foreground">—</span>
+    );
 }
 
 /** Percentual sobre os eleitores aptos, na mesma linha do número. */
@@ -485,6 +572,10 @@ function CandidateRow({
 }) {
     const tenantUrl = useTenantUrl();
     const displayName = candidate.nome_urna || candidate.nome;
+    // Fora da disputa ativa: eliminado no 1º turno de uma corrida que foi ao
+    // 2º turno. Continua visível (toggle "Mostrar 1º turno" ligado), só com
+    // menos destaque — a coluna Situação já diz por quê.
+    const isOutOfRace = candidate.avancou_segundo_turno === false;
 
     const toggleFavorite = () => {
         const url = tenantUrl(`/painel-politico/favoritos/${candidate.id}`);
@@ -513,7 +604,7 @@ function CandidateRow({
     };
 
     return (
-        <TableRow>
+        <TableRow className={isOutOfRace ? 'opacity-60' : undefined}>
             <TableCell className="w-10">
                 <button
                     type="button"
@@ -577,19 +668,15 @@ function CandidateRow({
                 )}
             </TableCell>
             <TableCell>
-                <OfficeBadge office={candidate.cargo} />
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-                {candidate.nome}
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <OfficeBadge office={candidate.cargo} />
+                    {candidate.avancou_segundo_turno === true && (
+                        <Badge variant="info">2º turno</Badge>
+                    )}
+                </div>
             </TableCell>
             <TableCell>
-                {displaySituacao(candidate.situacao) ? (
-                    <Badge variant="outline">
-                        {displaySituacao(candidate.situacao)}
-                    </Badge>
-                ) : (
-                    <span className="text-muted-foreground">—</span>
-                )}
+                <CandidateSituation candidate={candidate} />
             </TableCell>
         </TableRow>
     );
@@ -719,6 +806,7 @@ function PollsSection({
                                 }}
                             >
                                 {item.label}
+                                {item.round === 2 && ' · 2º turno'}
                             </Button>
                         ))}
                     </div>
@@ -753,9 +841,11 @@ function PollsSection({
                         icon={ChartIcon}
                         title={`Nenhuma pesquisa para ${activeOffice.label}`}
                         description={
-                            sync?.status === 'falhou'
-                                ? 'A última sincronização falhou. Tente novamente pela administração do gabinete.'
-                                : 'Ainda não há levantamento para esta UF ou os dados ainda não foram sincronizados.'
+                            activeOffice.round === 2
+                                ? 'A disputa foi ao 2º turno e ainda não há pesquisa de 2º turno registrada.'
+                                : sync?.status === 'falhou'
+                                  ? 'A última sincronização falhou. Tente novamente pela administração do gabinete.'
+                                  : 'Ainda não há levantamento para esta UF ou os dados ainda não foram sincronizados.'
                         }
                     />
                 ) : (
@@ -832,6 +922,8 @@ function PollsSection({
 
                             <p className="mb-4 text-xs font-medium text-muted-foreground">
                                 Abrangência: {activeOffice.scope_label}
+                                {activeOffice.round === 2 &&
+                                    ' · Pesquisas de 2º turno'}
                             </p>
 
                             {results.length === 0 ? (
@@ -860,67 +952,56 @@ function PollsSection({
                                 />
                             ) : (
                                 <div className="rounded-xl border border-border p-4">
-                                    <div className="divide-y divide-dashed divide-border">
-                                        {results.map((result) => (
-                                            <div
-                                                key={
-                                                    result.external_candidate_id
-                                                }
-                                                className="py-3 first:pt-0 last:pb-0"
-                                            >
-                                                <div className="mb-2 flex items-center justify-between gap-3">
-                                                    <div className="flex min-w-0 items-center gap-2">
-                                                        <span className="truncate text-sm font-medium">
-                                                            {result.name}
-                                                        </span>
-                                                        {result.party && (
-                                                            <PartyBadge
-                                                                party={
-                                                                    result.party
-                                                                }
-                                                                color={
-                                                                    result.party_color
-                                                                }
-                                                            />
-                                                        )}
+                                    <div className="flex flex-col gap-3">
+                                        {(() => {
+                                            const maxPercentage = Math.max(
+                                                1,
+                                                ...results.map(
+                                                    (result) =>
+                                                        result.percentage,
+                                                ),
+                                            );
+
+                                            return results.map((result) => (
+                                                <div
+                                                    key={
+                                                        result.external_candidate_id
+                                                    }
+                                                    className="grid grid-cols-[8rem_1fr_3.5rem] items-center gap-3 sm:grid-cols-[10rem_1fr_3.5rem]"
+                                                >
+                                                    <span className="truncate text-sm font-medium">
+                                                        {result.name}
                                                         {result.is_favorite && (
                                                             <HeartBoldIcon
-                                                                className="size-3.5 text-primary"
+                                                                className="ml-1.5 inline-block size-3.5 text-primary"
                                                                 aria-label="Favorito"
                                                             />
                                                         )}
-                                                    </div>
-                                                    <span className="shrink-0 font-heading text-base font-semibold tabular-nums">
+                                                    </span>
+                                                    <div
+                                                        className="h-3.5 min-w-0.5 rounded-sm"
+                                                        title={
+                                                            result.party ??
+                                                            undefined
+                                                        }
+                                                        style={{
+                                                            width: `${Math.max(2, (result.percentage / maxPercentage) * 100)}%`,
+                                                            backgroundColor:
+                                                                result.is_favorite
+                                                                    ? 'var(--primary)'
+                                                                    : result.party_color ||
+                                                                      'var(--muted-foreground)',
+                                                        }}
+                                                    />
+                                                    <span className="shrink-0 text-right font-mono text-sm font-semibold tabular-nums">
                                                         {percentFormatter.format(
                                                             result.percentage,
                                                         )}
                                                         %
                                                     </span>
                                                 </div>
-                                                <Progress
-                                                    // O favorito usa a cor do
-                                                    // gabinete (--primary, que
-                                                    // o OfficeTheme troca).
-                                                    className={
-                                                        result.is_favorite
-                                                            ? 'bg-primary/20 dark:bg-primary/20'
-                                                            : undefined
-                                                    }
-                                                    indicatorClassName={
-                                                        result.is_favorite
-                                                            ? 'bg-primary dark:bg-primary'
-                                                            : undefined
-                                                    }
-                                                    value={Math.max(
-                                                        0,
-                                                        Math.min(
-                                                            100,
-                                                            result.percentage,
-                                                        ),
-                                                    )}
-                                                />
-                                            </div>
-                                        ))}
+                                            ));
+                                        })()}
                                     </div>
                                 </div>
                             )}
@@ -1138,12 +1219,16 @@ export default function PoliticalPanel({
     canFavorite,
     polls,
     sync,
+    hasSecondRoundDecided,
 }: PoliticalPanelProps) {
     const tenantUrl = useTenantUrl();
     const [query, setQuery] = useState(filters.q);
     const [office, setOffice] = useState(filters.cargo);
     const [party, setParty] = useState(filters.partido);
     const [favoritesOnly, setFavoritesOnly] = useState(filters.favoritos);
+    const [showFirstRound, setShowFirstRound] = useState(
+        filters.mostrar_primeiro_turno,
+    );
     const [newsCandidate, setNewsCandidate] =
         useState<PoliticalCandidate | null>(null);
 
@@ -1158,6 +1243,7 @@ export default function PoliticalPanel({
                 ...(office && { cargo: office }),
                 ...(party && { partido: party }),
                 ...(favoritesOnly && { favoritos: true }),
+                ...(showFirstRound && { mostrar_primeiro_turno: true }),
                 ...preservedListParams(),
                 ...values,
             },
@@ -1179,7 +1265,7 @@ export default function PoliticalPanel({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [query, office, party]);
 
-    const hasFilters = Boolean(query || office || party);
+    const hasFilters = Boolean(query || office || party || showFirstRound);
 
     const selectedElection =
         elections.find((election) => election.id === selectedElectionId) ??
@@ -1190,6 +1276,7 @@ export default function PoliticalPanel({
         setOffice('');
         setParty('');
         setFavoritesOnly(false);
+        setShowFirstRound(false);
         router.get(
             tenantUrl('/painel-politico'),
             selectedElectionId ? { eleicao_id: selectedElectionId } : {},
@@ -1451,6 +1538,21 @@ export default function PoliticalPanel({
                             />
                             Favoritos
                         </Button>
+                        {hasSecondRoundDecided && (
+                            <label className="flex shrink-0 items-center gap-2 text-xs font-medium text-muted-foreground">
+                                <Switch
+                                    size="sm"
+                                    checked={showFirstRound}
+                                    onCheckedChange={(checked) => {
+                                        setShowFirstRound(checked);
+                                        navigate({
+                                            mostrar_primeiro_turno: checked,
+                                        });
+                                    }}
+                                />
+                                Mostrar 1º turno
+                            </label>
+                        )}
                         {hasFilters && (
                             <Button
                                 type="button"
@@ -1488,7 +1590,6 @@ export default function PoliticalPanel({
                                         <TableHead>Número</TableHead>
                                         <TableHead>Partido</TableHead>
                                         <TableHead>Cargo</TableHead>
-                                        <TableHead>Nome completo</TableHead>
                                         <TableHead>Situação</TableHead>
                                     </TableRow>
                                 </TableHeader>

@@ -594,33 +594,11 @@ class PlatformAdministrationTest extends TestCase
         Queue::assertNotPushed(PrepareOfficePoliticalData::class);
     }
 
-    public function test_political_sync_page_exposes_global_tse_syncs_not_tied_to_an_office(): void
-    {
-        $admin = User::factory()->root()->create();
-        SincronizacaoTse::query()->create([
-            'gabinete_id' => null,
-            'dataset' => 'polling_locations',
-            'ano' => 2024,
-            'fonte_url' => 'https://cdn.tse.jus.br/eleitorado_locais_votacao/eleitorado_local_votacao_2024.zip',
-            'situacao' => 'falhou',
-            'erro' => 'O TSE retornou um arquivo vazio.',
-            'registros_processados' => 0,
-            'iniciada_em' => now(),
-            'concluida_em' => now(),
-        ]);
-
-        $this->actingAs($admin)
-            ->get(route('admin.political-sync.index'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('admin/political-sync/index')
-                ->has('globalSyncs', 1)
-                ->where('politicsAvailable', false)
-                ->where('globalSyncs.0.dataset', 'polling_locations')
-                ->where('globalSyncs.0.status', 'falhou'));
-    }
-
-    public function test_political_sync_page_exposes_the_govnex_api_catalog_when_politics_is_active(): void
+    /**
+     * Os datasets do TSE saíram desta tela: são parte do ciclo de vida de
+     * cada eleição (ver ElectionManagementTest). Aqui fica só o PollingData.
+     */
+    public function test_political_sync_page_only_covers_polling_data(): void
     {
         $admin = User::factory()->root()->create();
         Gabinete::factory()->create();
@@ -631,10 +609,10 @@ class PlatformAdministrationTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('admin/political-sync/index')
                 ->where('politicsAvailable', true)
-                ->where('datasetSlugPatterns.section_votes', 'votacao-secao-{ano}-{uf}')
-                ->where('datasetSlugPatterns.municipalities', 'municipio-tse-ibge')
-                ->where('elections.0.year', 2026)
-                ->where('elections.0.type', 'geral'));
+                ->has('pollingData.offices', 1)
+                ->missing('globalSyncs')
+                ->missing('datasetSlugPatterns')
+                ->missing('elections'));
     }
 
     public function test_platform_admin_updates_office_without_touching_accounts(): void

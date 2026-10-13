@@ -50,6 +50,12 @@ Schedule::call(fn () => app(WhatsAppSensitiveDataPurger::class)->purge())
     ->dailyAt('03:35')
     ->withoutOverlapping(30);
 
+// Fora da janela do 1º turno até alguns dias depois do último turno o comando não faz
+// nada (ver TallyElections) — por isso pode rodar o ano inteiro.
+Schedule::command('politics:tally-elections')
+    ->hourly()
+    ->withoutOverlapping(60);
+
 Schedule::call(function (): void {
     FonteRss::query()
         ->where('ativo', true)

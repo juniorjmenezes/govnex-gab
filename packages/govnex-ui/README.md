@@ -48,8 +48,9 @@ depois de qualquer mudanca de cor em `styles.css`.
 - `SectionCard` / `Surface` + `SurfaceHeader`: cartao de secao com titulo
   `text-base`; `interactive` eleva o cartao no hover.
 - `StatCard`: rotulo, valor, `trend` (variacao % vs periodo anterior, cor
-  semantica; `positiveIsGood={false}` inverte) e `sparkline` (serie curta);
-  `StatCardSkeleton` para carregamento.
+  semantica; `positiveIsGood={false}` inverte) e `sparkline` (serie curta).
+  Rotulo e textos usam Inter Tight; valores usam Fira Code. `StatCardSkeleton`
+  para carregamento.
 - `EmptyState` (`size="compact"` dentro de cartoes) e `Sparkline`.
 
 Componentes de produto, chamadas HTTP, rotas, permissoes e estado do Inertia
@@ -69,6 +70,12 @@ token, componente ou padrao e feita **somente aqui**.
   compara e falha se o espelho estiver defasado).
 - **Hub e API** instalam via dependencia Git (abaixo) e so recebem mudancas
   quando atualizam a referencia no lockfile (`npm update @govnex/ui`).
+
+## Tipografia
+
+Inter Tight e a fonte de interface (`--font-sans`), DM Serif Text compoe os
+titulos (`--font-heading`) e Fira Code e reservada para dados quantitativos e
+codigo (`--font-mono`).
 
 ## Instalacao
 

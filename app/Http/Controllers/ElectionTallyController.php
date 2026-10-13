@@ -8,6 +8,7 @@ use App\Models\Eleicao;
 use App\Models\Gabinete;
 use App\Models\PartidoCor;
 use App\Models\User;
+use App\Services\Politics\ElectionLifecycleService;
 use App\Services\Politics\Tse\TseResultsClient;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -83,6 +84,7 @@ class ElectionTallyController extends Controller
 
     public function __construct(
         private readonly TseResultsClient $tseResults,
+        private readonly ElectionLifecycleService $lifecycle,
     ) {}
 
     public function index(Request $request): Response
@@ -132,6 +134,17 @@ class ElectionTallyController extends Controller
             // false` sozinho se o arquivo realmente não existir ainda (ver
             // TseResultsClient::results()).
             $raw = $this->fetchResults($selected['pleito_date'], $selected['round'], $office->estado);
+
+            // Com o turno já em mãos, aproveita para apurar as disputas da UF
+            // do gabinete — resultado de todos os cargos e, no 1º turno, quem
+            // foi ao 2º — sem outra leitura do TSE. O comando agendado
+            // politics:tally-elections cobre quem não abrir esta tela.
+            $election = Eleicao::query()->find($selected['election_id']);
+
+            if ($election instanceof Eleicao) {
+                $this->lifecycle->recordLiveTally($election, $office->estado, $selected['round'], $raw);
+            }
+
             $results = $this->results($raw, $selected['has_second_round'], $selected['round']);
             $favorites = $this->favorites($raw, $office, $selected['election_id']);
             $municipal = $this->municipal($office, $selected, $results);

@@ -22,11 +22,13 @@ use Illuminate\Support\Carbon;
  * @property string|null $partido_nome
  * @property string|null $situacao
  * @property string|null $situacao_detalhada
+ * @property bool|null $avancou_segundo_turno Classificação para o 2º turno (ver SecondRoundClassifier): null enquanto a disputa não tem 2º turno decidido.
  * @property string|null $foto_url
  * @property Carbon|null $fonte_atualizada_em
  * @property-read Eleicao $eleicao
  * @property string|null $party_color Atribuído dinamicamente pelo PoliticalPanelController a partir de PartidoCor::colorMap() — não existe como coluna.
  * @property bool $is_holder Atribuído dinamicamente pelo PoliticalPanelController: é o titular do gabinete que está vendo a lista — não existe como coluna.
+ * @property array{situacao: string, turno: int, votos: int, percentual: float|null, eleito: bool}|null $resultado Atribuído dinamicamente pelo PoliticalPanelController: resultado da eleição no turno mais recente — não existe como coluna.
  */
 class CandidatoPolitico extends Model
 {
@@ -64,11 +66,22 @@ class CandidatoPolitico extends Model
         return $this->hasMany(VotacaoCandidatoMunicipio::class, 'candidato_politico_id');
     }
 
+    /**
+     * Resultado por turno de presidente e governador (apuração do TSE).
+     *
+     * @return HasMany<ResultadoCandidatoEleicao, $this>
+     */
+    public function resultados(): HasMany
+    {
+        return $this->hasMany(ResultadoCandidatoEleicao::class, 'candidato_politico_id');
+    }
+
     protected function casts(): array
     {
         return [
             'abrangencia' => CandidateScope::class,
             'fonte_atualizada_em' => 'datetime',
+            'avancou_segundo_turno' => 'boolean',
         ];
     }
 }

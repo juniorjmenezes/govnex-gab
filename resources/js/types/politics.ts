@@ -11,6 +11,21 @@ export type PoliticalElection = {
     source_updated_at: string | null;
 };
 
+/**
+ * Resultado da eleição de uma candidatura: presidente/governador vêm da
+ * apuração do TSE gravada pelo SecondRoundClassifier; prefeito/vereador, da
+ * votação nominal sincronizada. `situacao` usa o vocabulário do TSE
+ * ("ELEITO", "NÃO ELEITO", "2º TURNO", "ELEITO POR QP"…).
+ */
+export type PoliticalCandidateResult = {
+    situacao: string;
+    turno: number;
+    votos: number;
+    /** % dos votos válidos; null quando a fonte não traz (municipal). */
+    percentual: number | null;
+    eleito: boolean;
+};
+
 export type PoliticalCandidate = {
     id: number;
     eleicao_id: number;
@@ -27,6 +42,11 @@ export type PoliticalCandidate = {
     party_color: string | null;
     situacao: string | null;
     situacao_detalhada: string | null;
+    /** Classificado (true) ou eliminado (false) no 1º turno de uma disputa
+     * que foi ao 2º; null quando não há 2º turno decidido. */
+    avancou_segundo_turno: boolean | null;
+    /** Resultado da eleição no turno mais recente, quando já gravado. */
+    resultado: PoliticalCandidateResult | null;
     foto_url: string | null;
     fonte_atualizada_em: string | null;
     is_favorite: boolean;
@@ -83,6 +103,8 @@ export type PoliticalPollAverage = PoliticalPollResult & {
 export type PoliticalPollOffice = {
     slug: 'presidente' | 'governador' | 'senador' | 'prefeito';
     label: string;
+    /** Turno das pesquisas exibidas: 2 quando a disputa já foi ao 2º turno. */
+    round: 1 | 2;
     scope_label: string;
     senate_notice: string | null;
     has_aggregate: boolean;
@@ -172,7 +194,13 @@ export type PoliticalPanelProps = {
         cargo: string;
         partido: string;
         favoritos: boolean;
+        mostrar_primeiro_turno: boolean;
     };
+    /** Há alguma disputa já decidida para o 2º turno (clássica ou decidida
+     * já no 1º) visível no território do gabinete para a eleição
+     * selecionada — controla se o toggle "Mostrar 1º turno" aparece; sem
+     * isso, ligá-lo devolveria a mesma lista. */
+    hasSecondRoundDecided: boolean;
     options: {
         offices: string[];
         parties: string[];

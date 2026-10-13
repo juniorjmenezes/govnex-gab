@@ -81,6 +81,11 @@ return new class extends Migration
             $table->string('partido_nome')->nullable();
             $table->string('situacao', 100)->nullable();
             $table->string('situacao_detalhada', 150)->nullable();
+            // Classificação para o 2º turno de presidente, governador e
+            // prefeito (ver SecondRoundClassifier): null enquanto não há 2º
+            // turno decidido para a disputa; true classificado; false
+            // eliminado no 1º turno de uma disputa que foi ao 2º.
+            $table->boolean('avancou_segundo_turno')->nullable();
             $table->text('foto_url')->nullable();
             $table->timestamp('fonte_atualizada_em')->nullable();
             $table->timestamps();

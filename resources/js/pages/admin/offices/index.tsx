@@ -696,9 +696,10 @@ function OfficeDetailsDialog({
                 <DialogFooter>
                     {office?.modules.includes('POLITICA') && (
                         <Button variant="outline" asChild>
-                            <Link href="/admin/sincronizacao-politica">
+                            {/* Os dados do TSE são sincronizados por eleição. */}
+                            <Link href="/admin/eleicoes">
                                 <RefreshIcon aria-hidden="true" />
-                                Sincronização política
+                                Dados do TSE
                             </Link>
                         </Button>
                     )}

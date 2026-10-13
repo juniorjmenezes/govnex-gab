@@ -115,6 +115,43 @@ export type PoliticalDataSync = {
 
 export type OfficePagination = Pagination<AdminOffice>;
 
+export type ElectionType = 'municipal' | 'geral';
+
+export type ElectionStatus = 'programada' | 'concluida' | 'cancelada';
+
+/** Cadastro de uma eleição (`admin/eleicoes`). */
+export type AdminElection = {
+    id: number;
+    codigo_tse: string | null;
+    ano: number;
+    tipo: ElectionType;
+    nome: string;
+    primeiro_turno_em: string;
+    segundo_turno_em: string | null;
+    situacao: ElectionStatus;
+};
+
+/** Dataset do TSE que vale para o tipo da eleição, com a última execução. */
+export type ElectionDataset = {
+    key: PoliticalDataSync['dataset'];
+    requires_year: boolean;
+    /** Nome do dataset na GOVNEX API, já com o ano da eleição. */
+    slug: string;
+    latest_sync: PoliticalDataSync | null;
+};
+
+/** Situação da apuração de um cargo da eleição. */
+export type ElectionTallyOffice = {
+    office: string;
+    label: string;
+    /** `tse`: apuração do TSE gravada; `candidate_votes`: votação nominal sincronizada. */
+    source: 'tse' | 'candidate_votes';
+    candidates: number;
+    with_result: number;
+    elected: number;
+    updated_at: string | null;
+};
+
 /** Linha da tabela de PollingData na tela de sincronização política. */
 export type PollingDataOffice = {
     id: number;

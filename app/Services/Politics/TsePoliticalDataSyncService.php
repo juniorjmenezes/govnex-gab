@@ -77,13 +77,33 @@ class TsePoliticalDataSyncService
         return $uf !== null && $uf !== '' ? "{$key}:".mb_strtoupper($uf) : $key;
     }
 
-    public function assertDatasetPrerequisites(string $dataset, int $year): void
+    /**
+     * Tipo de eleição a que o dataset se restringe — `null` quando serve a
+     * qualquer uma (ou, no caso da base de municípios, a nenhuma em
+     * particular). Fonte única da regra: a tela da eleição só lista os
+     * datasets do seu tipo, e a sincronização recusa os demais.
+     */
+    public static function requiredElectionType(string $dataset): ?ElectionType
     {
-        $requiredElectionType = match ($dataset) {
+        return match ($dataset) {
             'candidate_votes', 'polling_locations', 'section_votes' => ElectionType::Municipal,
             'poll_registry' => ElectionType::General,
             default => null,
         };
+    }
+
+    /** @return list<string> */
+    public static function datasetsFor(ElectionType $type): array
+    {
+        return array_values(array_filter(
+            self::DATASETS,
+            fn (string $dataset): bool => in_array(self::requiredElectionType($dataset), [null, $type], true),
+        ));
+    }
+
+    public function assertDatasetPrerequisites(string $dataset, int $year): void
+    {
+        $requiredElectionType = self::requiredElectionType($dataset);
 
         if (in_array($dataset, ['candidates', 'turnout'], true)) {
             $electionExists = Eleicao::query()->where('ano', $year)->exists();

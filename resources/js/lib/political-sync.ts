@@ -74,28 +74,19 @@ export function syncStatusDetail(sync: PoliticalDataSync): string {
     }
 }
 
-export type ElectionType = 'municipal' | 'geral';
-
-export type ElectionOption = {
-    year: number;
-    type: ElectionType;
-    label: string;
-};
-
 export type GovnexDatasetOption = {
     value: PoliticalDataSync['dataset'];
     description: string;
-    /**
-     * Eleição a que o dataset se aplica: `null` para a base permanente (sem
-     * ano), `any` para qualquer eleição cadastrada.
-     */
-    election: ElectionType | 'any' | null;
 };
 
 /**
  * Datasets do TSE na ordem em que dependem uns dos outros: a base de
  * municípios vincula tudo, as candidaturas resolvem o titular de cada
  * gabinete e a votação por seção só grava os votos desse titular.
+ *
+ * Só agrupa e descreve: quais valem para cada tipo de eleição é decidido no
+ * backend (`TsePoliticalDataSyncService::datasetsFor()`), que manda à tela
+ * da eleição apenas os do tipo dela.
  */
 export const govnexDatasetGroups: {
     title: string;
@@ -106,7 +97,6 @@ export const govnexDatasetGroups: {
         options: [
             {
                 value: 'municipalities',
-                election: null,
                 description:
                     'Correspondência entre os códigos de município do TSE e do IBGE. Vincula cada gabinete ao seu município eleitoral — sincronize primeiro.',
             },
@@ -117,13 +107,11 @@ export const govnexDatasetGroups: {
         options: [
             {
                 value: 'electorate',
-                election: 'any',
                 description:
                     'Perfil do eleitorado por município. Publicado um dataset por UF; entram as UFs já disponíveis na GOVNEX API.',
             },
             {
                 value: 'candidates',
-                election: 'any',
                 description:
                     'Candidaturas do Brasil inteiro. Resolve o titular de cada gabinete.',
             },
@@ -134,24 +122,20 @@ export const govnexDatasetGroups: {
         options: [
             {
                 value: 'turnout',
-                election: 'any',
                 description:
                     'Comparecimento e abstenção por município. Só existe a partir do dia da votação.',
             },
             {
                 value: 'candidate_votes',
-                election: 'municipal',
                 description:
                     'Votos nominais de cada candidato a vereador por município.',
             },
             {
                 value: 'polling_locations',
-                election: 'municipal',
                 description: 'Endereços e seções dos locais de votação.',
             },
             {
                 value: 'section_votes',
-                election: 'municipal',
                 description:
                     'Votos do titular em cada seção, para o mapa eleitoral. Um dataset por UF; entram as UFs com gabinete e titular resolvido.',
             },
@@ -162,7 +146,6 @@ export const govnexDatasetGroups: {
         options: [
             {
                 value: 'poll_registry',
-                election: 'geral',
                 description:
                     'Número de registro oficial das pesquisas já sincronizadas. Não cria pesquisas nem resultados.',
             },

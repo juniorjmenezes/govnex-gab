@@ -33,6 +33,8 @@ class TseResultsClient
         'senador' => '5',
         'deputado_federal' => '6',
         'deputado_estadual' => '7',
+        // No DF, a Câmara Legislativa ocupa o lugar da Assembleia.
+        'deputado_distrital' => '8',
     ];
 
     /** Cargos de abrangência nacional: consultados com UF "br". */
@@ -144,7 +146,7 @@ class TseResultsClient
      * mudou — a falha é sempre silenciosa aqui, quem chama decide o que
      * mostrar.
      *
-     * @return array{section_percent: float, total_sections: int, counted_sections: int, candidates: array<int, array{number: string, name: string, ballot_name: string, party: string, coalition: string|null, votes: int, vote_percent: float, elected: bool}>}|null
+     * @return array{section_percent: float, total_sections: int, counted_sections: int, candidates: array<int, array{number: string, name: string, ballot_name: string, party: string, coalition: string|null, votes: int, vote_percent: float, elected: bool, status: string|null}>}|null
      */
     public function results(string $cargo, string $uf, string $pleitoDate, int $round = 1, ?string $municipality = null): ?array
     {
@@ -249,6 +251,9 @@ class TseResultsClient
                         'votes' => (int) ($candidato['vap'] ?? 0),
                         'vote_percent' => $this->toFloat($candidato['pvap'] ?? '0'),
                         'elected' => ($candidato['e'] ?? 'n') === 's',
+                        // Situação totalizada do TSE ("Eleito por QP",
+                        // "Suplente"…), quando o feed a publica.
+                        'status' => is_string($candidato['st'] ?? null) ? $candidato['st'] : null,
                     ])
                     ->all();
             })

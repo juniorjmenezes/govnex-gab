@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Jobs\SyncDatasetFromGovnexApi;
+use App\Models\Eleicao;
 use App\Models\Gabinete;
 use App\Models\SincronizacaoTse;
 use App\Models\User;
@@ -10,27 +11,39 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
-class SyncFromGovnexApiTest extends TestCase
+/**
+ * Sincronização dos datasets do TSE dentro do ciclo de vida da eleição
+ * (`admin/eleicoes/{eleicao}/sincronizacoes`): o ano vem da eleição e só
+ * valem os datasets do tipo dela.
+ */
+class ElectionDatasetSyncTest extends TestCase
 {
     use RefreshDatabase;
+
+    private Eleicao $general;
+
+    private Eleicao $municipal;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // authorize() em SyncFromGovnexApiRequest exige um gabinete ativo com
-        // o módulo Política — Gabinete::factory() já vem com todos os módulos
-        // ativos por padrão, e sem titular resolvido.
+        // authorize() em SyncElectionDatasetRequest exige um gabinete ativo
+        // com o módulo Política — Gabinete::factory() já vem com todos os
+        // módulos ativos por padrão, e sem titular resolvido.
         Gabinete::factory()->create();
+        // Eleições-semente da migration do painel político.
+        $this->general = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $this->municipal = Eleicao::query()->where('ano', 2024)->firstOrFail();
     }
 
-    public function test_platform_admin_can_queue_the_electorate_sync(): void
+    public function test_platform_admin_can_queue_the_electorate_sync_for_the_election_year(): void
     {
         Queue::fake();
         $admin = User::factory()->root()->create();
 
         $this->actingAs($admin)
-            ->post('/admin/sincronizacoes-tse-globais/govnex-api', ['dataset' => 'electorate', 'ano' => 2026])
+            ->post(route('admin.elections.datasets.sync', $this->general), ['dataset' => 'electorate'])
             ->assertSessionHasNoErrors()
             ->assertRedirect();
 
@@ -46,33 +59,37 @@ class SyncFromGovnexApiTest extends TestCase
         );
     }
 
-    /** Todos os datasets do TSE passam pelo mesmo endpoint. */
-    public function test_every_tse_dataset_is_queued_through_the_same_endpoint(): void
+    /** Cada dataset vale na eleição do seu tipo, pelo mesmo endpoint. */
+    public function test_every_tse_dataset_is_queued_through_its_election(): void
     {
         Queue::fake();
         $admin = User::factory()->root()->create();
-        $payloads = [
-            ['dataset' => 'municipalities'],
-            ['dataset' => 'electorate', 'ano' => 2026],
-            ['dataset' => 'candidates', 'ano' => 2024],
-            ['dataset' => 'turnout', 'ano' => 2024],
-            ['dataset' => 'candidate_votes', 'ano' => 2024],
-            ['dataset' => 'polling_locations', 'ano' => 2024],
-            ['dataset' => 'poll_registry', 'ano' => 2026],
+        $requests = [
+            [$this->general, 'municipalities'],
+            [$this->general, 'electorate'],
+            [$this->municipal, 'candidates'],
+            [$this->municipal, 'turnout'],
+            [$this->municipal, 'candidate_votes'],
+            [$this->municipal, 'polling_locations'],
+            [$this->general, 'poll_registry'],
         ];
 
-        foreach ($payloads as $payload) {
+        foreach ($requests as [$election, $dataset]) {
             $this->actingAs($admin)
-                ->post('/admin/sincronizacoes-tse-globais/govnex-api', $payload)
+                ->post(route('admin.elections.datasets.sync', $election), ['dataset' => $dataset])
                 ->assertSessionHasNoErrors()
                 ->assertRedirect();
         }
 
         $this->assertSame(
-            array_column($payloads, 'dataset'),
+            array_column($requests, 1),
             SincronizacaoTse::query()->orderBy('id')->pluck('dataset')->all(),
         );
-        Queue::assertPushed(SyncDatasetFromGovnexApi::class, count($payloads));
+        $this->assertSame(
+            [now()->year, 2026, 2024, 2024, 2024, 2024, 2026],
+            SincronizacaoTse::query()->orderBy('id')->pluck('ano')->all(),
+        );
+        Queue::assertPushed(SyncDatasetFromGovnexApi::class, count($requests));
     }
 
     public function test_does_not_queue_a_duplicate_active_run(): void
@@ -89,7 +106,7 @@ class SyncFromGovnexApiTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->post('/admin/sincronizacoes-tse-globais/govnex-api', ['dataset' => 'electorate', 'ano' => 2026])
+            ->post(route('admin.elections.datasets.sync', $this->general), ['dataset' => 'electorate'])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(1, SincronizacaoTse::query()->count());
@@ -102,42 +119,10 @@ class SyncFromGovnexApiTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->post('/admin/sincronizacoes-tse-globais/govnex-api', ['dataset' => 'electorate', 'ano' => 2026])
+            ->post(route('admin.elections.datasets.sync', $this->general), ['dataset' => 'electorate'])
             ->assertForbidden();
 
         $this->assertSame(0, SincronizacaoTse::query()->count());
-    }
-
-    /**
-     * A base TSE/IBGE não é publicada por ano (YEARLESS_DATASETS), então o
-     * endpoint aceita a solicitação sem `ano`.
-     */
-    public function test_platform_admin_can_queue_the_municipalities_sync_without_a_year(): void
-    {
-        Queue::fake();
-        $admin = User::factory()->root()->create();
-
-        $this->actingAs($admin)
-            ->post('/admin/sincronizacoes-tse-globais/govnex-api', ['dataset' => 'municipalities'])
-            ->assertSessionHasNoErrors()
-            ->assertRedirect();
-
-        $run = SincronizacaoTse::query()->firstOrFail();
-        $this->assertSame('municipalities', $run->dataset);
-        $this->assertSame('pendente', $run->situacao);
-        Queue::assertPushed(SyncDatasetFromGovnexApi::class);
-    }
-
-    public function test_datasets_published_by_year_require_a_year(): void
-    {
-        Queue::fake();
-        $admin = User::factory()->root()->create();
-
-        $this->actingAs($admin)
-            ->post('/admin/sincronizacoes-tse-globais/govnex-api', ['dataset' => 'candidates'])
-            ->assertSessionHasErrors('ano');
-
-        Queue::assertNothingPushed();
     }
 
     public function test_an_unknown_dataset_is_rejected(): void
@@ -146,7 +131,7 @@ class SyncFromGovnexApiTest extends TestCase
         $admin = User::factory()->root()->create();
 
         $this->actingAs($admin)
-            ->post('/admin/sincronizacoes-tse-globais/govnex-api', ['dataset' => 'arquivo_zip', 'ano' => 2026])
+            ->post(route('admin.elections.datasets.sync', $this->general), ['dataset' => 'arquivo_zip'])
             ->assertSessionHasErrors('dataset');
 
         $this->assertSame(0, SincronizacaoTse::query()->count());
@@ -160,7 +145,10 @@ class SyncFromGovnexApiTest extends TestCase
         $admin = User::factory()->root()->create();
 
         $this->actingAs($admin)
-            ->post('/admin/sincronizacoes-tse-globais/govnex-api', ['dataset' => 'candidate_votes', 'ano' => 2026])
+            ->post(route('admin.elections.datasets.sync', $this->general), ['dataset' => 'candidate_votes'])
+            ->assertSessionHasErrors('dataset');
+        $this->actingAs($admin)
+            ->post(route('admin.elections.datasets.sync', $this->municipal), ['dataset' => 'poll_registry'])
             ->assertSessionHasErrors('dataset');
 
         $this->assertSame(0, SincronizacaoTse::query()->count());
@@ -174,7 +162,7 @@ class SyncFromGovnexApiTest extends TestCase
         $admin = User::factory()->root()->create();
 
         $this->actingAs($admin)
-            ->post('/admin/sincronizacoes-tse-globais/govnex-api', ['dataset' => 'section_votes', 'ano' => 2024])
+            ->post(route('admin.elections.datasets.sync', $this->municipal), ['dataset' => 'section_votes'])
             ->assertSessionHasErrors('dataset');
 
         $this->assertSame(0, SincronizacaoTse::query()->count());
@@ -196,7 +184,7 @@ class SyncFromGovnexApiTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->post("/admin/sincronizacoes-tse-globais/{$run->id}/cancelar")
+            ->post(route('admin.elections.datasets.cancel', [$this->general, $run]))
             ->assertSessionHasNoErrors()
             ->assertRedirect();
 
@@ -210,7 +198,7 @@ class SyncFromGovnexApiTest extends TestCase
         // Cancelado, dá pra sincronizar de novo sem cair no bloqueio de duplicata.
         Queue::fake();
         $this->actingAs($admin)
-            ->post('/admin/sincronizacoes-tse-globais/govnex-api', ['dataset' => 'municipalities'])
+            ->post(route('admin.elections.datasets.sync', $this->general), ['dataset' => 'municipalities'])
             ->assertSessionHasNoErrors();
         $this->assertSame(2, SincronizacaoTse::query()->count());
     }
@@ -229,7 +217,7 @@ class SyncFromGovnexApiTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->post("/admin/sincronizacoes-tse-globais/{$run->id}/cancelar")
+            ->post(route('admin.elections.datasets.cancel', [$this->general, $run]))
             ->assertSessionHasNoErrors();
 
         $this->assertSame('concluida', $run->fresh()->situacao);
@@ -249,7 +237,27 @@ class SyncFromGovnexApiTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->post("/admin/sincronizacoes-tse-globais/{$run->id}/cancelar")
+            ->post(route('admin.elections.datasets.cancel', [$this->general, $run]))
+            ->assertNotFound();
+
+        $this->assertSame('processando', $run->fresh()->situacao);
+    }
+
+    /** A execução de outra eleição (outro ano) não é cancelada por esta. */
+    public function test_cancel_does_not_reach_a_run_of_another_election(): void
+    {
+        $admin = User::factory()->root()->create();
+        $run = SincronizacaoTse::query()->create([
+            'gabinete_id' => null,
+            'dataset' => 'candidates',
+            'ano' => 2024,
+            'fonte_url' => 'https://example.test/govnex-api',
+            'situacao' => 'processando',
+            'iniciada_em' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.elections.datasets.cancel', [$this->general, $run]))
             ->assertNotFound();
 
         $this->assertSame('processando', $run->fresh()->situacao);

@@ -25,7 +25,7 @@ class PostTooLargeExceptionHandlingTest extends TestCase
 
         $response = $this->actingAs($admin)->call(
             'POST',
-            '/admin/sincronizacoes-tse-globais/govnex-api',
+            '/admin/eleicoes',
             server: [
                 'CONTENT_LENGTH' => 5 * 1024 * 1024 * 1024,
                 'HTTP_X_INERTIA' => 'true',
@@ -44,7 +44,7 @@ class PostTooLargeExceptionHandlingTest extends TestCase
 
         $response = $this->actingAs($admin)->call(
             'POST',
-            '/admin/sincronizacoes-tse-globais/govnex-api',
+            '/admin/eleicoes',
             server: [
                 'CONTENT_LENGTH' => 5 * 1024 * 1024 * 1024,
                 'HTTP_ACCEPT' => 'application/json',

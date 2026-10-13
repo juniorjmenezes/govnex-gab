@@ -1,14 +1,14 @@
 <?php
 
+use App\Http\Controllers\Admin\ElectionController;
 use App\Http\Controllers\Admin\EstruturaNoHubController;
-use App\Http\Controllers\Admin\GlobalPoliticalDataSyncController;
 use App\Http\Controllers\Admin\GovnexApiIntegrationController;
 use App\Http\Controllers\Admin\KnowledgeBaseController as AdminKnowledgeBaseController;
 use App\Http\Controllers\Admin\OfficeController;
 use App\Http\Controllers\Admin\OfficePoliticalDataSyncController;
 use App\Http\Controllers\Admin\PartyColorController;
-use App\Http\Controllers\Admin\PoliticalDataSyncController;
 use App\Http\Controllers\Admin\PollCurationController;
+use App\Http\Controllers\Admin\PollingDataSyncController;
 use App\Http\Controllers\Admin\RootUserController;
 use App\Http\Controllers\Admin\RssSourceController;
 use App\Http\Controllers\Admin\SystemCheckController;
@@ -98,16 +98,21 @@ Route::middleware(['auth', 'verified', 'user.active'])->group(function () {
             'gabinetes/{office}/sincronizacoes-tse/{sync}/cancelar',
             [OfficePoliticalDataSyncController::class, 'cancel'],
         )->name('offices.political-sync.cancel');
-        Route::get('sincronizacao-politica', [PoliticalDataSyncController::class, 'index'])
+        // Só as pesquisas do PollingData, por gabinete; os datasets do TSE
+        // ficam na tela de cada eleição.
+        Route::get('sincronizacao-politica', [PollingDataSyncController::class, 'index'])
             ->name('political-sync.index');
-        Route::post(
-            'sincronizacoes-tse-globais/govnex-api',
-            [GlobalPoliticalDataSyncController::class, 'syncFromGovnexApi'],
-        )->name('global-political-sync.govnex-api');
-        Route::post(
-            'sincronizacoes-tse-globais/{sync}/cancelar',
-            [GlobalPoliticalDataSyncController::class, 'cancel'],
-        )->name('global-political-sync.cancel');
+        // A eleição como um corpo só: cadastro, datasets do TSE e apuração.
+        Route::get('eleicoes', [ElectionController::class, 'index'])->name('elections.index');
+        Route::post('eleicoes', [ElectionController::class, 'store'])->name('elections.store');
+        Route::get('eleicoes/{eleicao}', [ElectionController::class, 'show'])->name('elections.show');
+        Route::patch('eleicoes/{eleicao}', [ElectionController::class, 'update'])->name('elections.update');
+        Route::delete('eleicoes/{eleicao}', [ElectionController::class, 'destroy'])->name('elections.destroy');
+        Route::post('eleicoes/{eleicao}/sincronizacoes', [ElectionController::class, 'syncDataset'])
+            ->name('elections.datasets.sync');
+        Route::post('eleicoes/{eleicao}/sincronizacoes/{sync}/cancelar', [ElectionController::class, 'cancelSync'])
+            ->name('elections.datasets.cancel');
+        Route::post('eleicoes/{eleicao}/apurar', [ElectionController::class, 'apurar'])->name('elections.apurar');
         Route::get('pesquisas-eleitorais', [PollCurationController::class, 'index'])->name('polls.index');
         Route::get('pesquisas-eleitorais/nova', [PollCurationController::class, 'create'])->name('polls.create');
         Route::get('pesquisas-eleitorais/candidatos', [PollCurationController::class, 'candidates'])

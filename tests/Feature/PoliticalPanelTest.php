@@ -287,7 +287,7 @@ class PoliticalPanelTest extends TestCase
     {
         // electorate/candidates/turnout/candidate_votes são datasets globais
         // do TSE — cobrem o Brasil inteiro numa única sincronização, sempre
-        // gravada com gabinete_id nulo (ver GlobalPoliticalDataSyncController).
+        // gravada com gabinete_id nulo (ver ElectionLifecycleService::syncDataset()).
         // O indicador do rodapé precisa achar essa sincronização mesmo sem
         // nenhum registro vinculado ao gabinete que está olhando o painel.
         $office = Gabinete::factory()->create(['estado' => 'CE']);
@@ -351,6 +351,10 @@ class PoliticalPanelTest extends TestCase
         ]);
         $user = User::factory()->administrator()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        // Esse teste é sobre filtro de território, não sobre 2º turno: afasta
+        // o 1º turno para não acionar o filtro de visibilidade pós-eleição
+        // (ver visibleCandidates() em PoliticalPanelController).
+        $election->forceFill(['primeiro_turno_em' => today()->addMonths(6)])->save();
 
         $visible = [
             $this->candidate($election, '1', CandidateScope::National, null, null, 'Presidente'),
@@ -446,6 +450,9 @@ class PoliticalPanelTest extends TestCase
         $office = Gabinete::factory()->create(['estado' => 'CE']);
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        // Esse teste é sobre ordenação por favorito, não sobre 2º turno: ver
+        // comentário equivalente acima.
+        $election->forceFill(['primeiro_turno_em' => today()->addMonths(6)])->save();
 
         $alphabeticallyFirst = $this->candidate($election, '1', CandidateScope::State, 'CE', null, 'Governador');
         $alphabeticallySecond = $this->candidate($election, '2', CandidateScope::State, 'CE', null, 'Governador');
@@ -472,6 +479,9 @@ class PoliticalPanelTest extends TestCase
         $office = Gabinete::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        // Esse teste é sobre cor de partido, não sobre 2º turno: ver
+        // comentário equivalente acima.
+        $election->forceFill(['primeiro_turno_em' => today()->addMonths(6)])->save();
         PartidoCor::query()->create(['sigla' => 'MISSÃO', 'cor' => '#FFD600']);
 
         // O TSE publica a sigla sem acento ("MISSAO") em alguns datasets —
@@ -569,6 +579,10 @@ class PoliticalPanelTest extends TestCase
         $office = Gabinete::factory()->create(['estado' => 'CE']);
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        // Esse teste é sobre pesquisa estadual e favoritos, não sobre 2º
+        // turno: afasta o 1º turno pra não acionar o filtro de cargos
+        // pós-eleição (ver PoliticalPanelController::polls()).
+        $election->forceFill(['primeiro_turno_em' => today()->addMonths(6)])->save();
         $candidate = $this->candidate(
             $election,
             '30',
@@ -653,6 +667,70 @@ class PoliticalPanelTest extends TestCase
                 ->where('polls.offices.1.averages.0.percentage', 41.2));
     }
 
+    /**
+     * Depois do 1º turno, senador sai da lista de cargos de pesquisa (nunca
+     * tem 2º turno) e governador também sai quando o estado do gabinete não
+     * foi a 2º turno — a mesma regra territorial de visibleCandidates().
+     */
+    public function test_polls_office_buttons_hide_senator_and_non_runoff_governor_after_first_round(): void
+    {
+        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $councilor = User::factory()->administrator()->forGabinete($office)->create();
+        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        // Mantém a data real do seed: já passou do 1º turno (hoje é
+        // posterior a primeiro_turno_em), que é justamente o cenário do bug.
+        $this->assertTrue($election->primeiro_turno_em->lte(today()));
+
+        // Presidente classificado pro 2º turno nacionalmente, pra sobrar
+        // pelo menos um cargo visível e não cair no "sem pesquisa".
+        $this->candidate($election, '50', CandidateScope::National, null, null, 'Presidente')
+            ->forceFill(['avancou_segundo_turno' => true])->save();
+
+        // Governador do Ceará decidido já no 1º turno: não avançou.
+        $this->candidate($election, '51', CandidateScope::State, 'CE', null, 'Governador')
+            ->forceFill(['avancou_segundo_turno' => false])->save();
+
+        // Senador nunca entra em avancou_segundo_turno (SecondRoundClassifier
+        // não classifica esse cargo), então fica sempre null aqui.
+        $this->candidate($election, '52', CandidateScope::State, 'CE', null, 'Senador');
+
+        $this->actingAs($councilor)
+            ->get(route('politics.index', ['eleicao_id' => $election->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('polls.offices', 1)
+                ->where('polls.offices.0.slug', 'presidente'));
+    }
+
+    /**
+     * Mesmo cenário acima, mas o estado do gabinete realmente foi a 2º
+     * turno pra governador — o botão precisa continuar aparecendo.
+     */
+    public function test_polls_office_buttons_keep_governor_when_the_office_state_went_to_runoff(): void
+    {
+        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $councilor = User::factory()->administrator()->forGabinete($office)->create();
+        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $this->assertTrue($election->primeiro_turno_em->lte(today()));
+
+        $this->candidate($election, '53', CandidateScope::National, null, null, 'Presidente')
+            ->forceFill(['avancou_segundo_turno' => true])->save();
+
+        // Governador do Ceará realmente foi a 2º turno.
+        $this->candidate($election, '54', CandidateScope::State, 'CE', null, 'Governador')
+            ->forceFill(['avancou_segundo_turno' => true])->save();
+
+        $this->candidate($election, '55', CandidateScope::State, 'CE', null, 'Senador');
+
+        $this->actingAs($councilor)
+            ->get(route('politics.index', ['eleicao_id' => $election->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('polls.offices', 2)
+                ->where('polls.offices.0.slug', 'presidente')
+                ->where('polls.offices.1.slug', 'governador'));
+    }
+
     public function test_panel_falls_back_to_all_averages_when_the_latest_poll_has_no_candidate_breakdown(): void
     {
         // Reproduz o comportamento real do ElectioLab para presidente: a
@@ -663,6 +741,9 @@ class PoliticalPanelTest extends TestCase
         $office = Gabinete::factory()->create(['estado' => 'CE']);
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        // Esse teste é sobre fallback de médias, não sobre 2º turno: ver
+        // comentário equivalente acima.
+        $election->forceFill(['primeiro_turno_em' => today()->addMonths(6)])->save();
         $candidate = $this->candidate(
             $election,
             '13',
@@ -725,6 +806,9 @@ class PoliticalPanelTest extends TestCase
         $office = Gabinete::factory()->create(['estado' => 'CE']);
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
         $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        // Esse teste é sobre qual média é usada, não sobre 2º turno: ver
+        // comentário equivalente acima.
+        $election->forceFill(['primeiro_turno_em' => today()->addMonths(6)])->save();
         $candidate = $this->candidate(
             $election,
             '31',

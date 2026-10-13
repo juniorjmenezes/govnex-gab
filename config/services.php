@@ -100,6 +100,11 @@ return [
 
     'pollingdata' => [
         'url' => env('POLLINGDATA_URL', 'https://flex.pollingdata.com.br/api/polls/candidates'),
+        // Descobre a URL do confronto de 2º turno (ex.: t2_flavio-lula) —
+        // diferente do 1º turno, essa URL não é determinística (depende de
+        // quem avançou), então é sempre descoberta aqui antes de ser usada
+        // em `url` (ver PollingDataService::runoffContext()).
+        'scenarios_url' => env('POLLINGDATA_SCENARIOS_URL', 'https://flex.pollingdata.com.br/api/polls/scenarios-overview'),
         'user_agent' => env('POLLINGDATA_USER_AGENT', 'GovnexGab/1.0 ('.env('APP_URL', 'http://localhost').')'),
         'timeout' => env('POLLINGDATA_TIMEOUT', 30),
         // Intervalo entre chamadas ao sincronizar vários contextos em

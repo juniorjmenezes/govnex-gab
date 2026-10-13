@@ -12,12 +12,23 @@ namespace App\Services\Politics\Polls;
  */
 final readonly class ElectionContext
 {
+    /**
+     * `$resolvedUrl` existe só pro 2º turno: diferente do 1º turno (onde
+     * `t1`/`t1_todas` é sempre a mesma URL pra qualquer disputa), a URL do
+     * 2º turno do PollingData embute o confronto específico (ex.:
+     * `t2_flavio-lula`) — não dá pra montar sem primeiro descobrir esse
+     * confronto via `GET /scenarios-overview` (ver
+     * {@see PollingDataService::runoffContext()}).
+     * Quando presente, `sourceUrl()` devolve ela em vez de montar a URL
+     * padrão a partir de `$slug`.
+     */
     public function __construct(
         public int $year,
         public string $office,
         public string $uf,
         public int $round = 1,
         public string $slug = 't1',
+        public ?string $resolvedUrl = null,
     ) {}
 
     /**
@@ -52,6 +63,10 @@ final readonly class ElectionContext
 
     public function sourceUrl(): string
     {
+        if ($this->resolvedUrl !== null) {
+            return $this->resolvedUrl;
+        }
+
         return sprintf(
             'https://www.pollingdata.com.br/%d/%s/%s/%s',
             $this->year,

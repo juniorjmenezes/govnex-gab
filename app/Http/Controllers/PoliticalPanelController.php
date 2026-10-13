@@ -15,10 +15,12 @@ use App\Models\MediaPesquisaEleitoral;
 use App\Models\NoticiaCandidato;
 use App\Models\PartidoCor;
 use App\Models\PesquisaEleitoral;
+use App\Models\ResultadoCandidatoEleicao;
 use App\Models\SincronizacaoTse;
 use App\Models\User;
 use App\Models\VotacaoCandidatoMunicipio;
 use App\Services\Politics\Polls\MediaCalculator;
+use App\Services\Politics\SecondRoundClassifier;
 use App\Support\PerPage;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,6 +36,7 @@ class PoliticalPanelController extends Controller
 {
     public function __construct(
         private readonly MediaCalculator $mediaCalculator,
+        private readonly SecondRoundClassifier $secondRound,
     ) {}
 
     public function index(Request $request): Response
@@ -53,10 +56,37 @@ class PoliticalPanelController extends Controller
             'cargo' => $request->string('cargo')->toString(),
             'partido' => $request->string('partido')->toString(),
             'favoritos' => $request->boolean('favoritos'),
+            'mostrar_primeiro_turno' => $request->boolean('mostrar_primeiro_turno'),
         ];
 
+        // Prefeito se classifica aqui mesmo, sem esperar o comando agendado:
+        // a fonte é a votação nominal já sincronizada no banco, então custa
+        // uma consulta e não sai para a rede (presidente e governador
+        // dependem do TSE ao vivo — ver ElectionLifecycleService::tally()).
+        if ($selectedElection instanceof Eleicao
+            && $selectedElection->tipo === ElectionType::Municipal
+            && $office->municipio_eleitoral_id !== null
+            && $selectedElection->primeiro_turno_em->lte(today())) {
+            $this->secondRound->classify($selectedElection, 'prefeito', null, $office->municipio_eleitoral_id);
+        }
+
         $candidateBase = CandidatoPolitico::query();
-        $this->visibleCandidates($candidateBase, $office, $selectedElection);
+        $this->visibleCandidates(
+            $candidateBase,
+            $office,
+            $selectedElection,
+            showFullFirstRound: $filters['mostrar_primeiro_turno'],
+        );
+
+        // Independente do toggle estar ligado: só vale oferecê-lo quando
+        // existe alguma disputa já decidida para o 2º turno (clássica ou
+        // decidida já no 1º) dentro do território do gabinete — sem isso,
+        // ligar o toggle devolveria exatamente a mesma lista.
+        $runoffQuery = CandidatoPolitico::query();
+        $this->visibleCandidates($runoffQuery, $office, $selectedElection, showFullFirstRound: true);
+        $hasSecondRoundDecided = $runoffQuery
+            ->whereNotNull('avancou_segundo_turno')
+            ->exists();
 
         $candidates = (clone $candidateBase)
             ->when($filters['q'] !== '', function (Builder $query) use ($filters): void {
@@ -91,11 +121,13 @@ class PoliticalPanelController extends Controller
             ->paginate(PerPage::resolve($request, 18))
             ->withQueryString();
         $partyColors = PartidoCor::colorMap();
-        $candidates->getCollection()->each(function (CandidatoPolitico $candidate) use ($partyColors, $office): void {
+        $electionResults = $this->electionResults($candidates->getCollection());
+        $candidates->getCollection()->each(function (CandidatoPolitico $candidate) use ($partyColors, $office, $electionResults): void {
             $candidate->party_color = $candidate->partido_sigla !== null
                 ? ($partyColors[PartidoCor::normalizeSigla($candidate->partido_sigla)] ?? null)
                 : null;
             $candidate->is_holder = $candidate->id === $office->candidato_titular_id;
+            $candidate->resultado = $electionResults[$candidate->id] ?? null;
         });
 
         $latestElectorate = $office->municipio_eleitoral_id
@@ -131,6 +163,11 @@ class PoliticalPanelController extends Controller
         $concludedMunicipal = $selectedElection instanceof Eleicao
             && $selectedElection->tipo === ElectionType::Municipal
             && $selectedElection->primeiro_turno_em->lte(today());
+        // A exceção é o prefeito ir a 2º turno: até a votação dele, a
+        // pesquisa (agora de 2º turno) volta a ter função.
+        $pendingMayoralRunoff = $concludedMunicipal
+            && ($selectedElection->segundo_turno_em === null || $selectedElection->segundo_turno_em->gte(today()))
+            && $this->secondRound->activeRound($selectedElection, 'prefeito', null, $office->municipio_eleitoral_id) === 2;
 
         return Inertia::render('politics/index', [
             'elections' => $elections->map(fn (Eleicao $election): array => [
@@ -146,6 +183,7 @@ class PoliticalPanelController extends Controller
             'selectedElectionId' => $selectedElection?->id,
             'candidates' => $candidates,
             'filters' => $filters,
+            'hasSecondRoundDecided' => $hasSecondRoundDecided,
             'options' => [
                 'offices' => (clone $candidateBase)
                     ->whereNotNull('cargo')
@@ -209,7 +247,9 @@ class PoliticalPanelController extends Controller
             ] : null,
             'serverNow' => now()->toIso8601String(),
             'canFavorite' => $user->gabinete_id !== null,
-            'polls' => $concludedMunicipal ? null : $this->polls($office, $selectedElection),
+            'polls' => $concludedMunicipal && ! $pendingMayoralRunoff
+                ? null
+                : $this->polls($office, $selectedElection),
             'sync' => [
                 // Datasets globais do TSE — sempre gravados com gabinete_id
                 // nulo (ver docblock de latestSync()).
@@ -227,6 +267,63 @@ class PoliticalPanelController extends Controller
                     : $this->latestSync('pollingdata_polls', $office->id),
             ],
         ]);
+    }
+
+    /**
+     * Resultado da eleição de cada candidatura da página, quando já gravado —
+     * a coluna "Situação" o mostra no lugar do status de deferimento. Uma
+     * fonte por granularidade, sem sobreposição de cargos: presidente,
+     * governador, senador e deputados em `resultados_candidatos_eleicao`
+     * (apuração do TSE, ver ElectionResultRecorder), prefeito e vereador em
+     * `votacoes_candidatos_municipio`. Vale o turno mais recente.
+     *
+     * @param  Collection<int, CandidatoPolitico>  $candidates
+     * @return array<int, array{situacao: string, turno: int, votos: int, percentual: float|null, eleito: bool}>
+     */
+    private function electionResults(Collection $candidates): array
+    {
+        $ids = $candidates->modelKeys();
+
+        if ($ids === []) {
+            return [];
+        }
+
+        // Em ordem de turno: o mais recente sobrescreve o anterior.
+        $results = [];
+
+        $majority = ResultadoCandidatoEleicao::query()
+            ->whereIn('candidato_politico_id', $ids)
+            ->orderBy('turno')
+            ->get();
+
+        foreach ($majority as $result) {
+            $results[$result->candidato_politico_id] = [
+                'situacao' => $result->situacao_totalizacao,
+                'turno' => $result->turno,
+                'votos' => $result->votos,
+                'percentual' => (float) $result->percentual_validos,
+                'eleito' => $result->eleito,
+            ];
+        }
+
+        $municipal = VotacaoCandidatoMunicipio::query()
+            ->whereIn('candidato_politico_id', $ids)
+            ->whereNotNull('situacao_totalizacao')
+            ->orderBy('turno')
+            ->get();
+
+        foreach ($municipal as $vote) {
+            $results[$vote->candidato_politico_id] = [
+                'situacao' => (string) $vote->situacao_totalizacao,
+                'turno' => $vote->turno,
+                'votos' => $vote->votos_nominais,
+                // A votação municipal não traz o total de válidos da disputa.
+                'percentual' => null,
+                'eleito' => $vote->eleito,
+            ];
+        }
+
+        return $results;
     }
 
     /**
@@ -548,12 +645,51 @@ class PoliticalPanelController extends Controller
             ->first();
     }
 
+    /**
+     * Depois que o 1º turno da eleição selecionada já passou
+     * (`primeiro_turno_em` no passado), a lista deixa de ser "por disputa" e
+     * passa a valer para a eleição inteira: só quem tem
+     * `avancou_segundo_turno = true` continua visível — cargos sem 2º turno
+     * (senador, deputado, vereador) e quem venceu um cargo majoritário já no
+     * 1º turno saem da lista até a próxima eleição, mesmo sem relação com a
+     * disputa que efetivamente foi a 2º turno (ver SecondRoundClassifier).
+     *
+     * `$showFullFirstRound = true` (toggle "Mostrar 1º turno") desliga esse
+     * corte por completo e devolve o universo inteiro de antes do 1º turno —
+     * eleitos no 1º turno, eliminados, e cargos sem 2º turno incluídos. Não é
+     * mais um filtro adicional de "eliminados": é o mesmo recorte territorial
+     * de sempre, sem o corte de 2º turno. Antes do 1º turno,
+     * `avancou_segundo_turno` é sempre nulo e nada é filtrado aqui de
+     * qualquer forma.
+     *
+     * `$enforceRoundVisibility = false` desliga esse filtro por completo —
+     * usado por `ensureCandidateIsVisible()`: um favorito marcado antes do
+     * corte (ex.: um deputado, ou o eliminado de uma disputa) precisa
+     * continuar podendo ser desfavoritado, ter notícias lidas etc., mesmo
+     * depois de sair da lista geral.
+     *
+     * @param  Builder<CandidatoPolitico>  $query
+     */
+    private function isPastFirstRound(?Eleicao $election): bool
+    {
+        return $election instanceof Eleicao
+            && $election->primeiro_turno_em->lte(today());
+    }
+
     private function visibleCandidates(
         Builder $query,
         Gabinete $office,
         ?Eleicao $election,
+        bool $showFullFirstRound = false,
+        bool $enforceRoundVisibility = true,
     ): void {
+        $pastFirstRound = $enforceRoundVisibility
+            && ! $showFullFirstRound
+            && $this->isPastFirstRound($election);
+
         $query
+            ->when($pastFirstRound, fn (Builder $query) => $query
+                ->where('avancou_segundo_turno', true))
             ->when(
                 $election,
                 fn (Builder $query) => $query->where('eleicao_id', $election->id),
@@ -580,7 +716,13 @@ class PoliticalPanelController extends Controller
         Gabinete $office,
     ): void {
         $query = CandidatoPolitico::query()->whereKey($candidate->id);
-        $this->visibleCandidates($query, $office, $candidate->eleicao);
+        $this->visibleCandidates(
+            $query,
+            $office,
+            $candidate->eleicao,
+            showFullFirstRound: true,
+            enforceRoundVisibility: false,
+        );
         abort_unless($query->exists(), 404);
     }
 
@@ -619,6 +761,26 @@ class PoliticalPanelController extends Controller
             ? ['prefeito' => 'Prefeito']
             : ['presidente' => 'Presidente', 'governador' => 'Governador', 'senador' => 'Senado'];
 
+        // Depois do 1º turno, a lista de cargos oferecidos pra pesquisa
+        // segue a mesma regra territorial de visibleCandidates(): só fica o
+        // cargo cuja disputa, PRO TERRITÓRIO deste gabinete (UF pra
+        // governador, município pra prefeito, nacional pra presidente), foi
+        // classificada pro 2º turno. Senador nunca tem 2º turno e sai da
+        // lista assim que o 1º turno passa, mesmo sem relação com a disputa
+        // que de fato foi a 2º turno.
+        if ($this->isPastFirstRound($election)) {
+            $officeDefinitions = array_filter(
+                $officeDefinitions,
+                fn (string $label, string $officeType): bool => $this->secondRound->activeRound(
+                    $election,
+                    $officeType,
+                    mb_strtoupper($office->estado),
+                    $office->municipio_eleitoral_id,
+                ) === 2,
+                ARRAY_FILTER_USE_BOTH,
+            );
+        }
+
         foreach ($officeDefinitions as $officeType => $label) {
             // Presidente é sincronizado nacionalmente (obrigatório) e,
             // opcionalmente, por UF — quando existir pesquisa estadual pro
@@ -626,11 +788,19 @@ class PoliticalPanelController extends Controller
             // isso, cai de volta pra visão nacional (BR).
             $dataState = mb_strtoupper($office->estado);
             $dataCity = $officeType === 'prefeito' ? $office->municipio : null;
-            $officePolls = $this->officePolls($election, $officeType, $dataState, $dataCity);
+            // Disputa já classificada para o 2º turno passa a mostrar só as
+            // pesquisas de 2º turno; senador nunca tem 2º turno e fica no 1º.
+            $round = $this->secondRound->activeRound(
+                $election,
+                $officeType,
+                $dataState,
+                $office->municipio_eleitoral_id,
+            );
+            $officePolls = $this->officePolls($election, $officeType, $round, $dataState, $dataCity);
 
             if ($officeType === 'presidente' && $officePolls->isEmpty() && $dataState !== 'BR') {
                 $dataState = 'BR';
-                $officePolls = $this->officePolls($election, $officeType, $dataState, null);
+                $officePolls = $this->officePolls($election, $officeType, $round, $dataState, null);
             }
 
             $latest = $officePolls->first();
@@ -683,6 +853,12 @@ class PoliticalPanelController extends Controller
                     'is_favorite' => $average['candidato_politico_id'] !== null
                         && in_array($average['candidato_politico_id'], $favoriteIds, true),
                 ], $ownAverages);
+            } elseif ($round === 2) {
+                // As médias do ElectioLab não distinguem turno — agregam as
+                // pesquisas de 1º turno. No 2º turno só vale a média própria,
+                // calculada acima sobre as pesquisas de 2º turno.
+                $hasAggregate = false;
+                $serializedAverages = [];
             } else {
                 $officeAverages = MediaPesquisaEleitoral::query()
                     ->where('eleicao_id', $election->id)
@@ -770,6 +946,7 @@ class PoliticalPanelController extends Controller
             $offices[] = [
                 'slug' => $officeType,
                 'label' => $label,
+                'round' => $round,
                 'scope_label' => match (true) {
                     $officeType === 'prefeito' => "{$office->municipio}/".mb_strtoupper($office->estado),
                     $dataState === 'BR' => 'Brasil',
@@ -792,11 +969,12 @@ class PoliticalPanelController extends Controller
     }
 
     /** @return Collection<int, PesquisaEleitoral> */
-    private function officePolls(Eleicao $election, string $officeType, string $uf, ?string $municipio): Collection
+    private function officePolls(Eleicao $election, string $officeType, int $round, string $uf, ?string $municipio): Collection
     {
         return PesquisaEleitoral::query()
             ->with(['resultados' => fn ($query) => $query->orderByDesc('percentual')])
             ->where('eleicao_id', $election->id)
+            ->where('turno', $round)
             ->where('uf', $uf)
             ->when(
                 $municipio !== null,
@@ -822,7 +1000,7 @@ class PoliticalPanelController extends Controller
      * datasets do TSE (`electorate`, `candidates`, `turnout`,
      * `candidate_votes`) cobrem o Brasil inteiro de uma vez só e por isso
      * são sempre gravados com `gabinete_id` nulo (ver
-     * GlobalPoliticalDataSyncController); filtrar essas consultas pelo
+     * ElectionLifecycleService::syncDataset()); filtrar essas consultas pelo
      * gabinete do usuário nunca encontraria a sincronização real, deixando o
      * indicador preso em "ainda não sincronizado" mesmo após um sync global
      * concluído.

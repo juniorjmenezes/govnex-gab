@@ -136,7 +136,7 @@ export function StatCard({
                 <div className="flex items-start justify-between gap-3">
                     <p
                         data-slot="stat-card-title"
-                        className="min-w-0 truncate pt-1 text-sm font-medium text-muted-foreground"
+                        className="min-w-0 truncate pt-1 font-sans text-sm font-medium text-muted-foreground"
                         title={title}
                     >
                         {title}

@@ -7,6 +7,7 @@ use App\Models\CandidatoPolitico;
 use App\Models\Eleicao;
 use App\Models\PesquisaEleitoral;
 use App\Models\SincronizacaoTse;
+use App\Services\Politics\SecondRoundClassifier;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
@@ -68,6 +69,10 @@ class PollingDataService implements PesquisaResultProvider
 
     /** @var array<string, array<string, mixed>|null> Cache em memória por contexto — evita repetir uma chamada já feita nesta execução. */
     private array $cachedPayloads = [];
+
+    public function __construct(
+        private readonly SecondRoundClassifier $secondRound,
+    ) {}
 
     public function sourceUrl(): string
     {
@@ -135,7 +140,9 @@ class PollingDataService implements PesquisaResultProvider
 
     /**
      * Contextos padrão: Presidente nacional + Governador e Senador nas 27
-     * UFs. Presidente por UF fica de fora do padrão (opcional — ver
+     * UFs, mais o 2º turno de quem já foi classificado (ver
+     * {@see runoffContexts()}) — nunca Senador, que não tem 2º turno.
+     * Presidente por UF fica de fora do padrão (opcional — ver
      * {@see presidencialEstadualContexts()}), pra não multiplicar 27x uma
      * corrida que já é coberta pela visão nacional.
      *
@@ -153,7 +160,160 @@ class PollingDataService implements PesquisaResultProvider
             $contexts[] = ElectionContext::senador($year, $uf);
         }
 
+        foreach ($this->runoffContexts($year) as $context) {
+            $contexts[] = $context;
+        }
+
         return $contexts;
+    }
+
+    /**
+     * Contextos de 2º turno — só das disputas que o SecondRoundClassifier já
+     * classificou de verdade (`avancou_segundo_turno`), nunca de pesquisas
+     * hipotéticas de confronto que o PollingData publica antes do 1º turno
+     * (o mesmo cargo/UF pode ter várias dessas sem que a disputa real tenha
+     * ido a 2º turno). Presidente é sempre nacional; Governador é por UF;
+     * Senador nunca entra (não está em {@see SecondRoundClassifier::OFFICES},
+     * `activeRound()` nunca devolve 2 pra ele).
+     *
+     * @return list<ElectionContext>
+     */
+    public function runoffContexts(int $year): array
+    {
+        $election = Eleicao::query()->where('ano', $year)->first();
+
+        if (! $election instanceof Eleicao) {
+            return [];
+        }
+
+        $contexts = [];
+
+        if ($this->secondRound->activeRound($election, 'presidente', null, null) === 2) {
+            $context = $this->runoffContext($election, 'presidente', 'BR');
+
+            if ($context !== null) {
+                $contexts[] = $context;
+            }
+        }
+
+        foreach (self::UFS as $uf) {
+            if ($this->secondRound->activeRound($election, 'governador', $uf, null) !== 2) {
+                continue;
+            }
+
+            $context = $this->runoffContext($election, 'governador', $uf);
+
+            if ($context !== null) {
+                $contexts[] = $context;
+            }
+        }
+
+        return $contexts;
+    }
+
+    /**
+     * Resolve o contexto de 2º turno de uma disputa já classificada: busca
+     * no PollingData o cenário cujos dois candidatos são exatamente os dois
+     * classificados (`avancou_segundo_turno = true`) — nunca monta a URL às
+     * cegas, porque o slug embute o confronto (`t2_flavio-lula`) e não tem
+     * padrão previsível a partir dos nossos próprios dados. Sem uma
+     * correspondência exata e inequívoca, devolve null (melhor não
+     * sincronizar do que sincronizar o confronto errado).
+     */
+    private function runoffContext(Eleicao $election, string $office, string $uf): ?ElectionContext
+    {
+        $advanced = $this->secondRound->raceQuery($election, $office, $uf, null)
+            ->where('avancou_segundo_turno', true)
+            ->get(['nome_urna', 'nome']);
+
+        if ($advanced->count() !== 2) {
+            return null;
+        }
+
+        $names = $advanced
+            ->map(fn (CandidatoPolitico $candidate): string => $this->normalize($candidate->nome_urna ?: $candidate->nome))
+            ->sort()
+            ->values();
+
+        $scenarios = $this->fetchScenarios($election->ano, $office, $uf);
+        $matches = [];
+
+        foreach ($scenarios as $scenario) {
+            $scenarioNames = collect($scenario['candidates'] ?? [])
+                ->map(fn (array $candidate): string => $this->normalize((string) ($candidate['name'] ?? '')))
+                ->sort()
+                ->values();
+
+            if ($scenarioNames->count() === 2 && $scenarioNames->all() === $names->all()) {
+                $url = $this->nullableString($scenario['url'] ?? null);
+
+                if ($url !== null) {
+                    $matches[] = $url;
+                }
+            }
+        }
+
+        if ($matches === []) {
+            Log::info('PollingData: nenhum cenário de 2º turno encontrado para a disputa classificada.', [
+                'office' => $office,
+                'uf' => $uf,
+                'ano' => $election->ano,
+            ]);
+
+            return null;
+        }
+
+        // Entre as variantes do mesmo confronto (geral, só presencial, só
+        // telefônica, "após 1º turno" etc.), a URL sem sufixo — a mais curta —
+        // é a agregação de todos os institutos, equivalente ao t1_todas do
+        // 1º turno.
+        usort($matches, fn (string $a, string $b): int => strlen($a) <=> strlen($b));
+
+        return new ElectionContext($election->ano, $office, mb_strtoupper($uf), 2, 't2', $matches[0]);
+    }
+
+    /**
+     * `GET /scenarios-overview` — diferente de `/candidates`, filtra de
+     * verdade por cargo/UF/turno sem precisar de `url` (confirmado
+     * manualmente contra a API real). É só descoberta: devolve os cenários
+     * disponíveis (com a lista de candidatos de cada um) pra localizar a URL
+     * certa antes de buscar os resultados em si.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function fetchScenarios(int $year, string $office, string $uf): array
+    {
+        try {
+            $response = $this->request()->get((string) config('services.pollingdata.scenarios_url'), [
+                'ano' => $year,
+                'cargo' => ucfirst($office),
+                'turno' => 2,
+                'uf' => mb_strtoupper($uf),
+            ]);
+        } catch (ConnectionException $exception) {
+            Log::warning('Falha de conexão ao descobrir cenários de 2º turno no PollingData.', [
+                'office' => $office,
+                'uf' => $uf,
+                'exception' => $exception,
+            ]);
+
+            return [];
+        }
+
+        if ($response->failed()) {
+            Log::warning('Falha ao descobrir cenários de 2º turno no PollingData.', [
+                'office' => $office,
+                'uf' => $uf,
+                'status' => $response->status(),
+            ]);
+
+            return [];
+        }
+
+        $payload = $response->json();
+        $scenarios = is_array($payload) ? ($payload['scenarios'] ?? []) : [];
+
+        return is_array($scenarios) ? $scenarios : [];
     }
 
     /** @return list<ElectionContext> */

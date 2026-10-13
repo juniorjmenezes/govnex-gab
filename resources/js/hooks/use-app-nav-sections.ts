@@ -139,7 +139,12 @@ export function useAppNavSections(): NavSection[] {
                       icon: BuildingsIcon,
                   },
                   {
-                      title: 'Sincronização política',
+                      title: 'Eleições',
+                      href: '/admin/eleicoes',
+                      icon: CalendarDateIcon,
+                  },
+                  {
+                      title: 'Pesquisas do PollingData',
                       href: '/admin/sincronizacao-politica',
                       icon: RefreshCircleIcon,
                   },
