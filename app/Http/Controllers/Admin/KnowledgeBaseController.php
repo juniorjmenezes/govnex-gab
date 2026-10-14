@@ -30,7 +30,7 @@ class KnowledgeBaseController extends Controller
         $user = $request->user();
         $search = trim((string) $request->query('q', ''));
         $page = ConhecimentoDocumento::query()
-            ->whereNull('gabinete_id')
+            ->platformLibrary()
             ->with('enviadoPor:id,name')
             ->when($search !== '', fn (Builder $query) => $query->where(
                 fn (Builder $match) => $match

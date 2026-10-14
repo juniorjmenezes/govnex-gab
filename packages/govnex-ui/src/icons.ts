@@ -1487,3 +1487,8 @@ export {
 // Icone unico de exclusao em todo o sistema (trash-bin-2-outline). Os
 // consumidores usam o nome TrashBinTrashIcon; trocar o icone e mudar so aqui.
 export { TrashBin2Icon as TrashBinTrashIcon } from '@solar-icons/react/outline';
+
+// Marca de "selecionado" do Checkbox (check-outline, sem o circulo em volta
+// — o proprio Checkbox ja desenha o quadrado de fundo). Nome proprio porque
+// "CheckIcon" ja esta ocupado pelo alias de CheckCircleIcon acima.
+export { CheckIcon as CheckOutlineIcon } from '@solar-icons/react/outline';

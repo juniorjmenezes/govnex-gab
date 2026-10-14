@@ -13,6 +13,7 @@ enum EntidadeModule: string
     case Reports = 'RELATORIOS';
     case WhatsApp = 'WHATSAPP';
     case KnowledgeBase = 'BASE_CONHECIMENTO';
+    case LegislativeSecretariat = 'SECRETARIA_LEGISLATIVA';
 
     public function scope(): ModuleScope
     {
@@ -31,6 +32,34 @@ enum EntidadeModule: string
             self::Reports => 'Relatórios',
             self::WhatsApp => 'WhatsApp',
             self::KnowledgeBase => 'Base de Conhecimento',
+            self::LegislativeSecretariat => 'Secretaria legislativa',
         };
+    }
+
+    /**
+     * Se a entidade deste tipo pode contratar o módulo. A Secretaria
+     * legislativa só existe em Câmara Municipal.
+     */
+    public function availableFor(EntidadeType $tipo): bool
+    {
+        return $this !== self::LegislativeSecretariat || $tipo === EntidadeType::CityCouncil;
+    }
+
+    /** @return list<self> */
+    public static function availableCases(EntidadeType $tipo): array
+    {
+        return array_values(array_filter(
+            self::cases(),
+            fn (self $module): bool => $module->availableFor($tipo),
+        ));
+    }
+
+    /**
+     * Módulo opcional: nasce contratado, mas desligado, e a Câmara decide
+     * quando ligar. Os demais nascem ligados, como sempre foram.
+     */
+    public function activeByDefault(): bool
+    {
+        return $this !== self::LegislativeSecretariat;
     }
 }

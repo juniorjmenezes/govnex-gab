@@ -7,7 +7,8 @@ export type GabineteModuleCode =
     | 'POLITICA'
     | 'RELATORIOS'
     | 'WHATSAPP'
-    | 'BASE_CONHECIMENTO';
+    | 'BASE_CONHECIMENTO'
+    | 'SECRETARIA_LEGISLATIVA';
 
 export type GabineteModuleDefinition = {
     code: GabineteModuleCode;

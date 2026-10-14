@@ -1,4 +1,4 @@
-@import '@fontsource-variable/inter-tight';
+@import '@fontsource-variable/outfit';
 @import '@fontsource-variable/fira-code';
 @import '@fontsource/dm-serif-text';
 
@@ -141,7 +141,7 @@
 }
 
 @theme inline {
-    --font-sans: 'Inter Tight Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Outfit Variable', ui-sans-serif, system-ui, sans-serif;
     --font-heading: 'DM Serif Text', ui-serif, Georgia, serif;
     --font-mono: 'Fira Code Variable', ui-monospace, monospace;
     --text-badge: 0.687rem;

@@ -13,6 +13,7 @@ enum GabineteModule: string
     case Reports = 'RELATORIOS';
     case WhatsApp = 'WHATSAPP';
     case KnowledgeBase = 'BASE_CONHECIMENTO';
+    case LegislativeSecretariat = 'SECRETARIA_LEGISLATIVA';
 
     public function label(): string
     {
@@ -26,6 +27,7 @@ enum GabineteModule: string
             self::Reports => 'Relatórios',
             self::WhatsApp => 'WhatsApp',
             self::KnowledgeBase => 'Base de Conhecimento',
+            self::LegislativeSecretariat => 'Secretaria legislativa',
         };
     }
 
@@ -41,6 +43,34 @@ enum GabineteModule: string
             self::Reports => 'Relatórios e exportações de demandas.',
             self::WhatsApp => 'Notificações operacionais pelo Gateway WhatsApp.',
             self::KnowledgeBase => 'Biblioteca de PDFs para leitura da equipe.',
+            self::LegislativeSecretariat => 'Gestão dos recursos compartilhados entre os gabinetes da Câmara.',
         };
+    }
+
+    /**
+     * Se um gabinete deste tipo pode ativar o módulo. Sem tipo, vale o
+     * padrão de qualquer gabinete. A gestão da Secretaria legislativa é
+     * exclusiva do gabinete Secretaria — os vereadores só veem o que ela
+     * compartilha, pelos módulos-base (Agenda, Base de Conhecimento).
+     * A Secretaria, por sua vez, não atende cidadão nem faz política: fica
+     * só com os módulos de `secretariatModules()`.
+     */
+    public function availableFor(?GabineteType $tipo): bool
+    {
+        if ($tipo === GabineteType::LegislativeSecretariat) {
+            return in_array($this, self::secretariatModules(), true);
+        }
+
+        return $this !== self::LegislativeSecretariat;
+    }
+
+    /**
+     * Módulos que o gabinete Secretaria legislativa pode ativar.
+     *
+     * @return list<self>
+     */
+    private static function secretariatModules(): array
+    {
+        return [self::Schedule, self::WhatsApp, self::KnowledgeBase, self::LegislativeSecretariat];
     }
 }

@@ -34,7 +34,7 @@ class EntidadeModulesTest extends TestCase
     {
         $gabinete = Gabinete::factory()->create();
         $root = User::factory()->root()->create();
-        $modules = array_column(EntidadeModule::cases(), 'value');
+        $modules = array_column(EntidadeModule::availableCases($gabinete->entidade->tipo), 'value');
 
         $this->actingAs($root)
             ->patch(route('entidades.modules.update', $gabinete->entidade), [

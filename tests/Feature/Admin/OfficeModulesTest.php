@@ -43,10 +43,10 @@ class OfficeModulesTest extends TestCase
         $office = Gabinete::factory()->create();
 
         $this->assertSame(
-            array_column(GabineteModule::cases(), 'value'),
+            app(GabineteModuleManager::class)->allEnabled(),
             app(GabineteModuleManager::class)->activeFor($office),
         );
-        $this->assertDatabaseCount('gabinete_modulos', count(GabineteModule::cases()));
+        $this->assertDatabaseCount('gabinete_modulos', count(app(GabineteModuleManager::class)->allEnabled()));
     }
 
     public function test_demo_seeder_enables_every_module_for_each_seeded_office(): void
@@ -61,18 +61,18 @@ class OfficeModulesTest extends TestCase
         foreach ($offices as $office) {
             $this->assertNotNull($office->entidade_id);
             $this->assertSame(
-                array_column(GabineteModule::cases(), 'value'),
+                app(GabineteModuleManager::class)->allEnabled(),
                 app(GabineteModuleManager::class)->activeFor($office),
             );
         }
 
         $this->assertDatabaseCount(
             'gabinete_modulos',
-            count(GabineteModule::cases()) * $offices->count(),
+            count(app(GabineteModuleManager::class)->allEnabled()) * $offices->count(),
         );
         $this->assertDatabaseCount(
             'entidade_modulos',
-            count(EntidadeModule::cases()) * $entidades->count(),
+            $entidades->sum(fn (Entidade $entidade): int => count(EntidadeModule::availableCases($entidade->tipo))),
         );
         $this->assertDatabaseCount('entidade_membros', 9);
         $this->assertDatabaseCount('gabinete_membros', 9);
@@ -113,7 +113,7 @@ class OfficeModulesTest extends TestCase
 
         $this->assertSame($selection, app(GabineteModuleManager::class)->activeFor($office));
         // Um evento por módulo desativado.
-        $disabledCount = count(GabineteModule::cases()) - count($selection);
+        $disabledCount = count(app(GabineteModuleManager::class)->allEnabled()) - count($selection);
         $this->assertDatabaseCount('gabinete_modulo_eventos', $disabledCount);
         $this->assertDatabaseHas('gabinete_modulo_eventos', [
             'gabinete_id' => $office->id,
@@ -129,7 +129,7 @@ class OfficeModulesTest extends TestCase
         $this->patch(route('admin.offices.modules.update', $office), ['modules' => []])
             ->assertSessionHasNoErrors();
         $this->assertSame([], app(GabineteModuleManager::class)->activeFor($office));
-        $this->assertDatabaseCount('gabinete_modulo_eventos', count(GabineteModule::cases()));
+        $this->assertDatabaseCount('gabinete_modulo_eventos', count(app(GabineteModuleManager::class)->allEnabled()));
     }
 
     public function test_invalid_dependencies_are_rejected_without_changing_the_office(): void
@@ -145,7 +145,7 @@ class OfficeModulesTest extends TestCase
             ->assertSessionHasErrors('modules');
 
         $this->assertCount(
-            count(GabineteModule::cases()),
+            count(app(GabineteModuleManager::class)->allEnabled()),
             app(GabineteModuleManager::class)->activeFor($office),
         );
         $this->assertDatabaseCount('gabinete_modulo_eventos', 0);
@@ -165,7 +165,7 @@ class OfficeModulesTest extends TestCase
             ->assertForbidden();
 
         $this->assertCount(
-            count(GabineteModule::cases()),
+            count(app(GabineteModuleManager::class)->allEnabled()),
             app(GabineteModuleManager::class)->activeFor($office),
         );
     }
@@ -178,7 +178,7 @@ class OfficeModulesTest extends TestCase
         $restrictedUser = User::factory()->operator()->forGabinete($restrictedOffice)->create();
         $activeUser = User::factory()->operator()->forGabinete($activeOffice)->create();
         $selection = array_values(array_filter(
-            array_column(GabineteModule::cases(), 'value'),
+            app(GabineteModuleManager::class)->allEnabled(),
             fn (string $module): bool => ! in_array($module, [
                 GabineteModule::Demands->value,
                 GabineteModule::Reports->value,

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasTieredVisibility;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -11,12 +12,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
 /**
- * PDF da Base de Conhecimento. Sem `gabinete_id`, pertence à biblioteca da
- * plataforma e é visível a todos os gabinetes com o módulo ativo; por isso não
- * usa o escopo global de tenant e filtra a visibilidade com `visibleTo()`.
+ * PDF da Base de Conhecimento, com visibilidade em três níveis
+ * (`HasTieredVisibility`): do gabinete, compartilhado com a entidade pela
+ * Secretaria legislativa ou da biblioteca da plataforma. Por isso não usa o
+ * escopo global de tenant e filtra a visibilidade com `visibleTo()`.
  *
  * @property int $id
  * @property int|null $gabinete_id
+ * @property int|null $entidade_id
  * @property string $titulo
  * @property string|null $descricao
  * @property string $disk
@@ -31,35 +34,52 @@ use Illuminate\Support\Carbon;
 #[Hidden(['disk', 'caminho', 'deleted_at'])]
 class ConhecimentoDocumento extends Model
 {
+    use HasTieredVisibility;
     use SoftDeletes;
 
     protected $table = 'conhecimento_documentos';
 
     /** @var list<string> */
-    protected $guarded = ['id', 'gabinete_id'];
+    protected $guarded = ['id', 'gabinete_id', 'entidade_id'];
 
-    public function isPlatform(): bool
+    /**
+     * De onde o documento vem, para a listagem: biblioteca da plataforma,
+     * compartilhado com a entidade (Secretaria legislativa) ou do gabinete.
+     *
+     * @return 'plataforma'|'entidade'|'gabinete'
+     */
+    public function origin(): string
     {
-        return $this->gabinete_id === null;
+        return match (true) {
+            $this->isPlatform() => 'plataforma',
+            $this->isEntidadeWide() => 'entidade',
+            default => 'gabinete',
+        };
     }
 
     /**
-     * Biblioteca da plataforma mais os documentos do próprio gabinete.
+     * Só a biblioteca da plataforma (sem gabinete e sem entidade) — a área
+     * administrativa não pode listar o compartilhado de uma Câmara.
      *
      * @param  Builder<self>  $query
      * @return Builder<self>
      */
-    public function scopeVisibleTo(Builder $query, int $gabineteId): Builder
+    public function scopePlatformLibrary(Builder $query): Builder
     {
-        return $query->where(fn (Builder $visible) => $visible
-            ->whereNull('gabinete_id')
-            ->orWhere('gabinete_id', $gabineteId));
+        return $query->whereNull($query->qualifyColumn('gabinete_id'))
+            ->whereNull($query->qualifyColumn('entidade_id'));
     }
 
     /** @return BelongsTo<Gabinete, $this> */
     public function gabinete(): BelongsTo
     {
         return $this->belongsTo(Gabinete::class)->withoutGlobalScopes();
+    }
+
+    /** @return BelongsTo<Entidade, $this> */
+    public function entidade(): BelongsTo
+    {
+        return $this->belongsTo(Entidade::class);
     }
 
     /** @return BelongsTo<User, $this> */

@@ -104,7 +104,7 @@ class EntidadeController extends Controller
                 'code' => $module->value,
                 'name' => $module->label(),
                 'scope' => $module->scope()->value,
-            ], EntidadeModule::cases()),
+            ], EntidadeModule::availableCases($entidade->tipo)),
             'activeModules' => $modules->activeFor($entidade),
             'license' => $license ? [
                 'status' => $license->status->value,

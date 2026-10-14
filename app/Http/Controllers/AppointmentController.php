@@ -6,6 +6,7 @@ use App\Actions\Appointments\SaveAppointment;
 use App\Actions\Demands\CompleteNextAction;
 use App\Enums\AppointmentRecurrence;
 use App\Enums\AppointmentStatus;
+use App\Enums\EntidadeModule;
 use App\Enums\EventDuration;
 use App\Enums\EventStatus;
 use App\Enums\GabineteModule;
@@ -16,11 +17,13 @@ use App\Http\Requests\Appointments\AppointmentRequest;
 use App\Models\Appointment;
 use App\Models\AppointmentReminder;
 use App\Models\Cidadao;
+use App\Models\CompromissoInstitucional;
 use App\Models\Demanda;
 use App\Models\Evento;
 use App\Models\NotificationAttempt;
 use App\Models\User;
 use App\Services\Appointments\AppointmentReminderScheduler;
+use App\Services\Modules\EntidadeModuleManager;
 use App\Services\Modules\GabineteModuleManager;
 use App\Services\WhatsApp\WhatsAppEligibilityService;
 use App\Services\WhatsApp\WhatsAppEventNotificationService;
@@ -35,8 +38,11 @@ use Inertia\Response;
 
 class AppointmentController extends Controller
 {
-    public function index(Request $request, GabineteModuleManager $modules): Response
-    {
+    public function index(
+        Request $request,
+        GabineteModuleManager $modules,
+        EntidadeModuleManager $entidadeModules,
+    ): Response {
         $this->authorize('viewAny', Appointment::class);
         $user = $request->user();
         abort_unless($user instanceof User && $user->gabinete_id !== null, 403);
@@ -117,8 +123,40 @@ class AppointmentController extends Controller
                 $timezone,
             )) : collect();
 
+        // Agenda da Câmara, publicada pela Secretaria legislativa: só com o
+        // módulo ligado na entidade (o módulo Agenda do gabinete já é exigido
+        // pela rota). Não tem responsável neste gabinete, por isso sai quando
+        // a agenda é filtrada por integrante.
+        $gabinete = $user->gabinete;
+        $institutionalEnabled = $gabinete !== null
+            && $entidadeModules->isActive($gabinete->entidade_id, EntidadeModule::LegislativeSecretariat);
+        $canManageInstitutional = $institutionalEnabled
+            && $user->can('create', CompromissoInstitucional::class)
+            && $modules->isActive($user->gabinete_id, GabineteModule::LegislativeSecretariat);
+        $institutional = $institutionalEnabled && $filters['responsavel_id'] === null
+            ? CompromissoInstitucional::query()
+                ->visibleTo($gabinete)
+                ->where('inicio_em', '<', $end)
+                ->where('fim_em', '>', $start)
+                ->when($filters['status'] !== '', fn (Builder $query) => $query->where('status', $filters['status']))
+                ->when($filters['tipo'] !== '', fn (Builder $query) => $query->where('tipo', $filters['tipo']))
+                ->with([
+                    'criadoPorGabinete:id,nome,tipo_gabinete',
+                    'criadoPor:id,name',
+                ])
+                ->orderBy('inicio_em')
+                ->limit(500)
+                ->get()
+                ->map(fn (CompromissoInstitucional $compromisso): array => $this->serializeInstitutional(
+                    $compromisso,
+                    $timezone,
+                    $canManageInstitutional && $compromisso->isPublishedBy($user->gabinete_id),
+                ))
+            : collect();
+
         $agendaItems = $appointments
             ->concat($events)
+            ->concat($institutional)
             ->sortBy('starts_at')
             ->take(500)
             ->values();
@@ -144,6 +182,7 @@ class AppointmentController extends Controller
                 'whatsapp' => $whatsAppEnabled,
                 'attendances' => $attendancesEnabled,
             ],
+            'canManageInstitutional' => $canManageInstitutional,
             'options' => $this->formOptions($user, $demandsEnabled),
         ]);
     }
@@ -651,6 +690,59 @@ class AppointmentController extends Controller
             'demand' => null,
             'created_by' => $event->criadoPor,
             'reminders' => [],
+        ];
+    }
+
+    /**
+     * Mesmo formato de `serializeEvent()`, mais o gabinete que publicou
+     * (`origin_office`, para o selo da Secretaria legislativa) e se quem vê
+     * pode editar (`can_edit`, só a própria Secretaria).
+     *
+     * @return array<string, mixed>
+     */
+    private function serializeInstitutional(
+        CompromissoInstitucional $compromisso,
+        string $timezone,
+        bool $canEdit,
+    ): array {
+        $start = CarbonImmutable::instance($compromisso->inicio_em);
+        $end = CarbonImmutable::instance($compromisso->fim_em);
+        $origin = $compromisso->criadoPorGabinete;
+
+        return [
+            'id' => $compromisso->id,
+            'source' => 'institutional',
+            'occurrence_key' => 'institutional-'.$compromisso->id.'-'.$start->format('YmdHis'),
+            'title' => $compromisso->titulo,
+            'description' => $compromisso->descricao,
+            'starts_at' => $start->toIso8601String(),
+            'ends_at' => $end->toIso8601String(),
+            'series_starts_at' => $start->toIso8601String(),
+            'series_ends_at' => $end->toIso8601String(),
+            'all_day' => $compromisso->dia_inteiro,
+            'location' => $compromisso->local,
+            'type' => $compromisso->tipo,
+            'status' => $compromisso->status->value,
+            'status_label' => $compromisso->status->label(),
+            'is_past' => $start
+                ->setTimezone($timezone)
+                ->startOfDay()
+                ->lt(CarbonImmutable::now($timezone)->startOfDay()),
+            'notes' => null,
+            'recurrence' => AppointmentRecurrence::None->value,
+            'recurrence_until' => null,
+            'responsible' => null,
+            'participants' => [],
+            'citizen' => null,
+            'demand' => null,
+            'created_by' => $compromisso->criadoPor,
+            'reminders' => [],
+            'origin_office' => [
+                'id' => $origin->id,
+                'name' => $origin->nome,
+                'type_label' => $origin->tipo_gabinete->label(),
+            ],
+            'can_edit' => $canEdit,
         ];
     }
 

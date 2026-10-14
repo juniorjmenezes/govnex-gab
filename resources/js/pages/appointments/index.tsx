@@ -31,6 +31,7 @@ import {
     AddIcon,
     AltArrowLeftIcon,
     AltArrowRightIcon,
+    BuildingsIcon,
     CalendarDateIcon,
     CalendarIcon,
     ChatRoundDotsIcon,
@@ -46,7 +47,14 @@ import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { useCanWrite } from '@/hooks/use-can-write';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
@@ -77,6 +85,7 @@ const statusClass: Record<AppointmentStatus, string> = {
 export default function AppointmentsIndex({
     appointments,
     canDelete,
+    canManageInstitutional,
     filters,
     timezone,
     today,
@@ -89,6 +98,9 @@ export default function AppointmentsIndex({
     const canWrite = useCanWrite();
     const [editing, setEditing] = useState<Appointment | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [institutional, setInstitutional] = useState<Appointment | null>(
+        null,
+    );
     const appointmentForm = useAppointmentForm({
         appointment: editing,
         options,
@@ -124,6 +136,22 @@ export default function AppointmentsIndex({
     const openAgendaItem = (appointment: Appointment) => {
         if (appointment.source === 'event') {
             router.visit(tenantUrl(`/eventos/${appointment.id}`));
+
+            return;
+        }
+
+        // Da Câmara: a Secretaria edita na página própria; os demais só
+        // consultam.
+        if (appointment.source === 'institutional') {
+            if (appointment.can_edit) {
+                router.visit(
+                    tenantUrl(`/agenda/institucional/${appointment.id}/editar`),
+                );
+
+                return;
+            }
+
+            setInstitutional(appointment);
 
             return;
         }
@@ -172,10 +200,24 @@ export default function AppointmentsIndex({
                     description={`Compromissos, eventos, participantes e lembretes em ${timezone}.`}
                     actions={
                         canWrite ? (
-                            <Button onClick={() => openCreate()}>
-                                <AddIcon aria-hidden="true" />
-                                Novo compromisso
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                                {canManageInstitutional && (
+                                    <Button variant="outline" asChild>
+                                        <Link
+                                            href={tenantUrl(
+                                                '/agenda/institucional/novo',
+                                            )}
+                                        >
+                                            <BuildingsIcon aria-hidden="true" />
+                                            Compromisso institucional
+                                        </Link>
+                                    </Button>
+                                )}
+                                <Button onClick={() => openCreate()}>
+                                    <AddIcon aria-hidden="true" />
+                                    Novo compromisso
+                                </Button>
+                            </div>
                         ) : undefined
                     }
                 />
@@ -430,7 +472,90 @@ export default function AppointmentsIndex({
                     </ScrollableDialogFooter>
                 </ScrollableDialogContent>
             </Dialog>
+
+            <InstitutionalDetailsDialog
+                appointment={institutional}
+                onClose={() => setInstitutional(null)}
+            />
         </>
+    );
+}
+
+/** Selo dos compromissos publicados pela Secretaria legislativa. */
+function InstitutionalBadge({ appointment }: { appointment: Appointment }) {
+    return (
+        <Badge variant="info">
+            <BuildingsIcon aria-hidden="true" />
+            {appointment.origin_office?.type_label ?? 'Secretaria legislativa'}
+        </Badge>
+    );
+}
+
+function InstitutionalDetailsDialog({
+    appointment,
+    onClose,
+}: {
+    appointment: Appointment | null;
+    onClose: () => void;
+}) {
+    return (
+        <Dialog
+            open={appointment !== null}
+            onOpenChange={(open) => !open && onClose()}
+        >
+            <DialogContent>
+                {appointment && (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle>{appointment.title}</DialogTitle>
+                            <DialogDescription>
+                                Publicado por {appointment.origin_office?.name}{' '}
+                                na agenda da Câmara.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-3 text-sm">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <InstitutionalBadge appointment={appointment} />
+                                <Badge variant="outline">
+                                    {appointment.status_label}
+                                </Badge>
+                                <Badge variant="secondary">
+                                    {appointment.type}
+                                </Badge>
+                            </div>
+                            <p className="flex items-center gap-2 text-muted-foreground">
+                                <ClockCircleIcon
+                                    aria-hidden="true"
+                                    className="size-4 shrink-0"
+                                />
+                                {appointment.all_day
+                                    ? `${format(parseISO(appointment.starts_at), 'dd/MM/yyyy')} · dia inteiro`
+                                    : `${format(parseISO(appointment.starts_at), "dd/MM/yyyy 'das' HH:mm")} às ${format(parseISO(appointment.ends_at), 'HH:mm')}`}
+                            </p>
+                            {appointment.location && (
+                                <p className="flex items-center gap-2 text-muted-foreground">
+                                    <MapPointIcon
+                                        aria-hidden="true"
+                                        className="size-4 shrink-0"
+                                    />
+                                    {appointment.location}
+                                </p>
+                            )}
+                            {appointment.description && (
+                                <p className="whitespace-pre-line">
+                                    {appointment.description}
+                                </p>
+                            )}
+                        </div>
+                        <DialogFooter>
+                            <Button variant="ghost" onClick={onClose}>
+                                Fechar
+                            </Button>
+                        </DialogFooter>
+                    </>
+                )}
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -446,7 +571,13 @@ function AppointmentButton({
     const timeLabel = appointment.all_day
         ? 'Dia inteiro'
         : format(parseISO(appointment.starts_at), 'HH:mm');
-    const accessibleLabel = `${appointment.source === 'event' ? 'Evento · ' : ''}${timeLabel} · ${appointment.title}`;
+    const sourceLabel =
+        appointment.source === 'event'
+            ? 'Evento · '
+            : appointment.source === 'institutional'
+              ? `${appointment.origin_office?.type_label ?? 'Secretaria legislativa'} · `
+              : '';
+    const accessibleLabel = `${sourceLabel}${timeLabel} · ${appointment.title}`;
 
     return (
         <button
@@ -459,6 +590,8 @@ function AppointmentButton({
                 statusClass[appointment.status],
                 appointment.source === 'event' &&
                     'border-violet-300 ring-1 ring-violet-300/50 dark:border-violet-700 dark:ring-violet-700/50',
+                appointment.source === 'institutional' &&
+                    'border-info/40 ring-1 ring-info/30',
             )}
         >
             <p className="flex w-full min-w-0 items-center gap-1 text-xs font-semibold">
@@ -466,6 +599,12 @@ function AppointmentButton({
                     <CalendarDateIcon
                         aria-hidden="true"
                         className="size-3 shrink-0"
+                    />
+                )}
+                {appointment.source === 'institutional' && (
+                    <BuildingsIcon
+                        aria-hidden="true"
+                        className="size-3 shrink-0 text-info"
                     />
                 )}
                 <span className="truncate">
@@ -717,6 +856,11 @@ function ListView({
                                         <CalendarDateIcon className="size-3" />
                                         Evento · {appointment.type}
                                     </Badge>
+                                )}
+                                {appointment.source === 'institutional' && (
+                                    <InstitutionalBadge
+                                        appointment={appointment}
+                                    />
                                 )}
                             </div>
                             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">

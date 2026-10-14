@@ -18,8 +18,10 @@ import {
     CheckCircleIcon,
     ClipboardListIcon,
     ClockCircleIcon,
+    DocumentTextIcon,
     InboxIcon,
     UsersGroupRoundedIcon,
+    UsersGroupTwoRoundedIcon,
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
@@ -73,6 +75,7 @@ export default function Dashboard({
     recentDemands,
     attentionDemands,
     upcomingDeadlines,
+    legislativeSecretariat,
 }: DashboardProps) {
     const { auth } = usePage<{ auth: Auth }>().props;
     const href = (path: string) => contextualUrl(auth, path);
@@ -147,7 +150,9 @@ export default function Dashboard({
                     description={
                         capabilities.demands
                             ? 'Prioridades de hoje e evolução do atendimento do gabinete.'
-                            : 'Acompanhe as funcionalidades habilitadas para este gabinete.'
+                            : capabilities.legislativeSecretariat
+                              ? 'Compromissos e comissões da Câmara.'
+                              : 'Acompanhe as funcionalidades habilitadas para este gabinete.'
                     }
                     actions={
                         capabilities.demands ? (
@@ -175,6 +180,43 @@ export default function Dashboard({
                         ) : undefined
                     }
                 />
+
+                {capabilities.legislativeSecretariat &&
+                    legislativeSecretariat && (
+                        <section
+                            aria-label="Indicadores da Secretaria legislativa"
+                            className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+                        >
+                            <StatCard
+                                title="Compromissos hoje"
+                                value={legislativeSecretariat.appointments_today.toLocaleString(
+                                    'pt-BR',
+                                )}
+                                icon={CalendarMarkIcon}
+                            />
+                            <StatCard
+                                title="Comissões ativas"
+                                value={legislativeSecretariat.active_committees.toLocaleString(
+                                    'pt-BR',
+                                )}
+                                icon={UsersGroupTwoRoundedIcon}
+                            />
+                            <StatCard
+                                title="Membros em comissões"
+                                value={legislativeSecretariat.committee_members.toLocaleString(
+                                    'pt-BR',
+                                )}
+                                icon={UsersGroupRoundedIcon}
+                            />
+                            <StatCard
+                                title="Documentos recentes"
+                                value={legislativeSecretariat.recent_documents.toLocaleString(
+                                    'pt-BR',
+                                )}
+                                icon={DocumentTextIcon}
+                            />
+                        </section>
+                    )}
 
                 {kpis.length > 0 && (
                     <section
@@ -350,6 +392,71 @@ export default function Dashboard({
                                     demands={recentDemands.slice(0, 6)}
                                     hrefFor={(demand) =>
                                         href(`/demandas/${demand.id}`)
+                                    }
+                                />
+                            )}
+                        </SectionCard>
+                    </div>
+                ) : capabilities.legislativeSecretariat ? (
+                    <div className="grid items-start gap-6 lg:grid-cols-2">
+                        {capabilities.schedule && (
+                            <UpcomingAppointments
+                                appointments={upcomingAppointments}
+                                href={href}
+                                canWrite={canWrite}
+                            />
+                        )}
+                        <SectionCard
+                            title="Comissões legislativas"
+                            description="Ativas e com membros em exercício"
+                            actions={
+                                <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="shrink-0"
+                                >
+                                    <Link href={href('/comissoes')}>
+                                        Ver comissões
+                                    </Link>
+                                </Button>
+                            }
+                            contentClassName="p-0"
+                        >
+                            {legislativeSecretariat?.active_committees === 0 ? (
+                                <EmptyState
+                                    size="compact"
+                                    icon={UsersGroupTwoRoundedIcon}
+                                    title="Nenhuma comissão ativa"
+                                    description="Cadastre as comissões da Câmara para acompanhar aqui."
+                                    action={
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            <Link href={href('/comissoes')}>
+                                                Cadastrar comissão
+                                            </Link>
+                                        </Button>
+                                    }
+                                />
+                            ) : (
+                                <EmptyState
+                                    size="compact"
+                                    icon={UsersGroupTwoRoundedIcon}
+                                    title="Composição das comissões"
+                                    description="Veja a lista completa, os membros e os documentos vinculados."
+                                    action={
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            <Link href={href('/comissoes')}>
+                                                Ver comissões
+                                            </Link>
+                                        </Button>
                                     }
                                 />
                             )}

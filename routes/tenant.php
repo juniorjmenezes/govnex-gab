@@ -6,6 +6,9 @@ use App\Http\Controllers\BairroController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\CidadaoController;
 use App\Http\Controllers\CitizenLocationController;
+use App\Http\Controllers\CommitteeController;
+use App\Http\Controllers\CommitteeDocumentController;
+use App\Http\Controllers\CommitteeMemberController;
 use App\Http\Controllers\DemandaController;
 use App\Http\Controllers\DemandAttachmentController;
 use App\Http\Controllers\DemandReferralController;
@@ -14,6 +17,7 @@ use App\Http\Controllers\ElectionTallyController;
 use App\Http\Controllers\ElectoralHeatmapController;
 use App\Http\Controllers\EventoController;
 use App\Http\Controllers\GabineteSettingsController;
+use App\Http\Controllers\InstitutionalAppointmentController;
 use App\Http\Controllers\KnowledgeBaseController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PoliticalPanelController;
@@ -53,6 +57,45 @@ $registerTenantRoutes = static function (): void {
         Route::patch('agenda/{appointment}/cancelar', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
         Route::delete('agenda/{appointment}', [AppointmentController::class, 'destroy'])->name('appointments.destroy');
     });
+
+    // Gestão da agenda institucional e das comissões: só o gabinete
+    // Secretaria legislativa ativa este módulo. Os vereadores veem os
+    // compromissos na própria agenda e as comissões pelas rotas de leitura.
+    Route::middleware('module:SECRETARIA_LEGISLATIVA')->group(function () {
+        Route::get('agenda/institucional/novo', [InstitutionalAppointmentController::class, 'create'])
+            ->name('appointments.institutional.create');
+        Route::post('agenda/institucional', [InstitutionalAppointmentController::class, 'store'])
+            ->name('appointments.institutional.store');
+        Route::get('agenda/institucional/{compromisso}/editar', [InstitutionalAppointmentController::class, 'edit'])
+            ->name('appointments.institutional.edit');
+        Route::put('agenda/institucional/{compromisso}', [InstitutionalAppointmentController::class, 'update'])
+            ->name('appointments.institutional.update');
+        Route::delete('agenda/institucional/{compromisso}', [InstitutionalAppointmentController::class, 'destroy'])
+            ->name('appointments.institutional.destroy');
+
+        // Gestão das comissões legislativas; a leitura fica logo abaixo,
+        // fora deste grupo.
+        Route::post('comissoes', [CommitteeController::class, 'store'])->name('committees.store');
+        Route::get('comissoes/{comissao}/editar', [CommitteeController::class, 'edit'])->name('committees.edit');
+        Route::put('comissoes/{comissao}', [CommitteeController::class, 'update'])->name('committees.update');
+        Route::delete('comissoes/{comissao}', [CommitteeController::class, 'destroy'])->name('committees.destroy');
+        Route::post('comissoes/{comissao}/membros', [CommitteeMemberController::class, 'store'])
+            ->name('committees.members.store');
+        Route::put('comissoes/{comissao}/membros/{membro}', [CommitteeMemberController::class, 'update'])
+            ->name('committees.members.update');
+        Route::delete('comissoes/{comissao}/membros/{membro}', [CommitteeMemberController::class, 'destroy'])
+            ->name('committees.members.destroy');
+        Route::post('comissoes/{comissao}/documentos', [CommitteeDocumentController::class, 'store'])
+            ->name('committees.documents.store');
+        Route::delete('comissoes/{comissao}/documentos/{documento}', [CommitteeDocumentController::class, 'destroy'])
+            ->name('committees.documents.destroy');
+    });
+
+    // Leitura das comissões: qualquer gabinete da Câmara, sem módulo de
+    // gabinete — o gate é o módulo da entidade, checado na Policy
+    // (`ComissaoLegislativaPolicy::viewAny`/`view`).
+    Route::get('comissoes', [CommitteeController::class, 'index'])->name('committees.index');
+    Route::get('comissoes/{comissao}', [CommitteeController::class, 'show'])->name('committees.show');
 
     Route::middleware('module:RELATORIOS')->group(function () {
         Route::get('relatorios', [ReportController::class, 'index'])->name('reports.index');

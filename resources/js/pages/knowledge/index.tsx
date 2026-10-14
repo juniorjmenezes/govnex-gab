@@ -5,6 +5,7 @@ import { PaginationLinks } from '@/components/common/pagination-links';
 import { TableActionButton } from '@/components/common/table-action-button';
 import { EmptyState } from '@/components/feedback/empty-state';
 import {
+    BuildingsIcon,
     CloseIcon,
     EyeIcon,
     LibraryIcon,
@@ -44,13 +45,15 @@ export default function KnowledgeIndex({
     documents,
     filters,
     canUpload,
+    canShareWithEntidade = false,
     maxUploadMb,
 }: KnowledgeIndexProps) {
     const tenantUrl = useTenantUrl();
     const baseUrl = knowledgeBaseUrl(scope, tenantUrl);
     const isPlatform = scope === 'plataforma';
     const [query, setQuery] = useState(filters.q);
-    const [selectedDocument, setSelectedDocument] = useState<KnowledgeDocument | null>(null);
+    const [selectedDocument, setSelectedDocument] =
+        useState<KnowledgeDocument | null>(null);
     const [openingId, setOpeningId] = useState<number | null>(null);
     const isFirstRender = useRef(true);
 
@@ -110,7 +113,7 @@ export default function KnowledgeIndex({
                     description={
                         isPlatform
                             ? 'PDFs disponíveis para leitura em todos os gabinetes com o módulo ativo.'
-                            : 'Biblioteca de PDFs para leitura da equipe, com os documentos da plataforma e os do gabinete.'
+                            : 'Biblioteca de PDFs para leitura da equipe, com os documentos da plataforma, os compartilhados com a Câmara e os do gabinete.'
                     }
                 />
 
@@ -118,6 +121,7 @@ export default function KnowledgeIndex({
                     <KnowledgeUploadForm
                         url={baseUrl}
                         maxUploadMb={maxUploadMb}
+                        canShareWithEntidade={canShareWithEntidade}
                         title={
                             isPlatform
                                 ? 'Novo documento da plataforma'
@@ -206,7 +210,9 @@ export default function KnowledgeIndex({
                                             baseUrl={baseUrl}
                                             showOrigin={!isPlatform}
                                             onOpen={openDocument}
-                                            isLoading={openingId === document.id}
+                                            isLoading={
+                                                openingId === document.id
+                                            }
                                         />
                                     ))}
                                 </TableBody>
@@ -222,8 +228,16 @@ export default function KnowledgeIndex({
 
             <KnowledgeReaderDialog
                 document={selectedDocument}
-                fileUrl={selectedDocument ? `${baseUrl}/${selectedDocument.id}/arquivo` : null}
-                progressUrl={selectedDocument ? `${baseUrl}/${selectedDocument.id}/leitura` : null}
+                fileUrl={
+                    selectedDocument
+                        ? `${baseUrl}/${selectedDocument.id}/arquivo`
+                        : null
+                }
+                progressUrl={
+                    selectedDocument
+                        ? `${baseUrl}/${selectedDocument.id}/leitura`
+                        : null
+                }
                 onClose={closeDocument}
             />
         </>
@@ -259,7 +273,7 @@ function DocumentRow({
                     type="button"
                     onClick={() => onOpen(document)}
                     disabled={isLoading}
-                    className="font-medium hover:underline text-left disabled:opacity-50"
+                    className="text-left font-medium hover:underline disabled:opacity-50"
                 >
                     {document.title}
                 </button>
@@ -271,11 +285,7 @@ function DocumentRow({
             </TableCell>
             {showOrigin && (
                 <TableCell>
-                    <Badge variant="outline">
-                        {document.origin === 'plataforma'
-                            ? 'Plataforma'
-                            : 'Gabinete'}
-                    </Badge>
+                    <OriginBadge document={document} />
                 </TableCell>
             )}
             <TableCell className="min-w-40">
@@ -330,6 +340,27 @@ function DocumentRow({
                 </div>
             </TableCell>
         </TableRow>
+    );
+}
+
+/**
+ * Compartilhados com a Câmara levam o mesmo selo dos compromissos da
+ * Secretaria legislativa na agenda; os demais seguem com o rótulo neutro.
+ */
+function OriginBadge({ document }: { document: KnowledgeDocument }) {
+    if (document.origin === 'entidade') {
+        return (
+            <Badge variant="info">
+                <BuildingsIcon aria-hidden="true" />
+                {document.origin_label ?? 'Secretaria legislativa'}
+            </Badge>
+        );
+    }
+
+    return (
+        <Badge variant="outline">
+            {document.origin === 'plataforma' ? 'Plataforma' : 'Gabinete'}
+        </Badge>
     );
 }
 

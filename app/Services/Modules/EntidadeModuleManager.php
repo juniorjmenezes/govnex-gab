@@ -135,6 +135,16 @@ class EntidadeModuleManager
             ]);
         }
 
+        if (in_array(EntidadeModule::LegislativeSecretariat->value, $selection, true)
+            && array_diff([
+                EntidadeModule::Schedule->value,
+                EntidadeModule::KnowledgeBase->value,
+            ], $selection) !== []) {
+            throw ValidationException::withMessages([
+                'modules' => 'Secretaria legislativa exige Agenda e Base de Conhecimento.',
+            ]);
+        }
+
         return array_values(array_filter(
             $known,
             fn (string $module): bool => in_array($module, $selection, true),

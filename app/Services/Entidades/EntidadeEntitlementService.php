@@ -29,14 +29,16 @@ class EntidadeEntitlementService
                 ],
             );
 
-            foreach (EntidadeModule::cases() as $module) {
+            foreach (EntidadeModule::availableCases($entidade->tipo) as $module) {
+                $active = $module->activeByDefault();
+
                 EntidadeModulo::query()->firstOrCreate(
                     ['entidade_id' => $entidade->id, 'modulo' => $module],
                     [
                         'escopo' => $module->scope(),
                         'contratado' => true,
-                        'ativo' => true,
-                        'ativado_em' => now(),
+                        'ativo' => $active,
+                        'ativado_em' => $active ? now() : null,
                     ],
                 );
             }

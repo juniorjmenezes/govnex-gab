@@ -22,7 +22,11 @@ enum EntidadeType: string
     {
         return match ($this) {
             self::IndependentOffice => [GabineteType::IndependentOffice],
-            self::CityCouncil => [GabineteType::CouncilorOffice, GabineteType::AdministrativeDepartment],
+            self::CityCouncil => [
+                GabineteType::CouncilorOffice,
+                GabineteType::AdministrativeDepartment,
+                GabineteType::LegislativeSecretariat,
+            ],
             self::CityHall => [GabineteType::MayorOffice, GabineteType::Secretariat, GabineteType::AdministrativeDepartment],
         };
     }

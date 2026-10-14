@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\EntidadeModule;
 use App\Http\Requests\KnowledgeBase\RecordKnowledgeReadingRequest;
 use App\Http\Requests\KnowledgeBase\StoreKnowledgeDocumentRequest;
 use App\Models\ConhecimentoDocumento;
 use App\Models\ConhecimentoLeitura;
 use App\Services\KnowledgeBase\KnowledgeDocumentService;
+use App\Services\Modules\EntidadeModuleManager;
 use App\Support\PerPage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -17,19 +19,29 @@ use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Base de Conhecimento no contexto de um gabinete: biblioteca da plataforma
- * mais os PDFs enviados pela própria equipe.
+ * Base de Conhecimento no contexto de um gabinete: biblioteca da plataforma,
+ * os PDFs que a Secretaria legislativa compartilhou com a entidade e os
+ * enviados pela própria equipe.
  */
 class KnowledgeBaseController extends Controller
 {
     public function __construct(private readonly KnowledgeDocumentService $documents) {}
 
-    public function index(Request $request): Response
+    public function index(Request $request, EntidadeModuleManager $entidadeModules): Response
     {
         $user = $request->user();
         $search = trim((string) $request->query('q', ''));
+        // O compartilhado com a entidade só entra com a Secretaria legislativa
+        // ligada na entidade (como a agenda institucional); a Base de
+        // Conhecimento do gabinete já é exigida pela rota. A entidade vem do
+        // gabinete em contexto, nunca da requisição.
+        $gabinete = $user->gabinete;
+        $entidadeId = $gabinete !== null
+            && $entidadeModules->isActive($gabinete->entidade_id, EntidadeModule::LegislativeSecretariat)
+                ? $gabinete->entidade_id
+                : null;
         $page = ConhecimentoDocumento::query()
-            ->visibleTo((int) $user->gabinete_id)
+            ->visibleTo((int) $user->gabinete_id, $entidadeId)
             ->with('enviadoPor:id,name')
             ->when($search !== '', fn (Builder $query) => $query->where(
                 fn (Builder $match) => $match
@@ -51,21 +63,26 @@ class KnowledgeBaseController extends Controller
                 ->summary($document, $user, $readings->get($document->id))),
             'filters' => ['q' => $search],
             'canUpload' => $user->can('create', ConhecimentoDocumento::class),
+            'canShareWithEntidade' => $user->can('createEntidadeWide', ConhecimentoDocumento::class),
             'maxUploadMb' => intdiv(StoreKnowledgeDocumentRequest::MAX_KILOBYTES, 1024),
         ]);
     }
 
     public function store(StoreKnowledgeDocumentRequest $request): RedirectResponse
     {
-        $this->authorize('create', ConhecimentoDocumento::class);
+        $shared = $request->sharesWithEntidade();
+        $this->authorize($shared ? 'createEntidadeWide' : 'create', ConhecimentoDocumento::class);
         $this->documents->store(
             $request->file('arquivo'),
             $request->validated('titulo'),
             $request->validated('descricao'),
             (int) $request->user()->gabinete_id,
             $request->user(),
+            $shared ? $request->user()->gabinete?->entidade_id : null,
         );
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Documento adicionado à Base de Conhecimento.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => $shared
+            ? 'Documento compartilhado com a Câmara na Base de Conhecimento.'
+            : 'Documento adicionado à Base de Conhecimento.']);
 
         return to_route('knowledge.index');
     }

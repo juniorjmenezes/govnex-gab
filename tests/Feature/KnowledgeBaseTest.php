@@ -42,6 +42,8 @@ class KnowledgeBaseTest extends TestCase
 
         $document = ConhecimentoDocumento::query()->sole();
         $this->assertSame($office->id, $document->gabinete_id);
+        $this->assertSame($office->entidade_id, $document->entidade_id);
+        $this->assertTrue($document->isGabinete());
         $this->assertSame($advisor->id, $document->enviado_por_id);
         $this->assertSame('regimento.pdf', $document->nome_original);
         $this->assertStringStartsWith("gabinetes/{$office->id}/conhecimento/", $document->caminho);

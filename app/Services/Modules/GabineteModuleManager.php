@@ -3,6 +3,7 @@
 namespace App\Services\Modules;
 
 use App\Enums\GabineteModule;
+use App\Enums\GabineteType;
 use App\Models\Gabinete;
 use App\Models\GabineteModulo;
 use App\Models\GabineteModuloEvento;
@@ -20,10 +21,16 @@ class GabineteModuleManager
         private readonly EntidadeModuleManager $entidadeModules,
     ) {}
 
-    /** @return list<string> */
-    public function allEnabled(): array
+    /**
+     * Módulos com que um gabinete do tipo nasce: tudo o que ele pode ativar.
+     * Sem tipo, o padrão de qualquer gabinete (sem os módulos exclusivos de
+     * um tipo, como a Secretaria legislativa).
+     *
+     * @return list<string>
+     */
+    public function allEnabled(?GabineteType $tipo = null): array
     {
-        return $this->catalog->values();
+        return array_column($this->catalog->availableFor($tipo), 'value');
     }
 
     /** @return list<string> */
@@ -99,9 +106,10 @@ class GabineteModuleManager
     }
 
     /** @param list<string> $selection
+     * @param  GabineteType|null  $tipo  sem tipo, as dependências de qualquer gabinete
      * @return list<string>
      */
-    public function validateSelection(array $selection): array
+    public function validateSelection(array $selection, ?GabineteType $tipo = null): array
     {
         $allowed = array_fill_keys($this->catalog->values(), true);
         $normalized = [];
@@ -128,7 +136,7 @@ class GabineteModuleManager
             $this->catalog->values(),
             fn (string $module): bool => isset($normalized[$module]),
         ));
-        $errors = $this->catalog->errors($ordered);
+        $errors = $this->catalog->errors($ordered, $tipo);
 
         if ($errors !== []) {
             throw ValidationException::withMessages([
@@ -145,7 +153,21 @@ class GabineteModuleManager
      */
     public function sync(Gabinete $office, array $selection, ?User $administrator, array $context = []): void
     {
-        $selection = $this->validateSelection($selection);
+        $selection = $this->validateSelection($selection, $office->tipo_gabinete);
+
+        $unavailable = array_values(array_filter(
+            $selection,
+            fn (string $module): bool => ! GabineteModule::from($module)->availableFor($office->tipo_gabinete),
+        ));
+        if ($unavailable !== []) {
+            throw ValidationException::withMessages([
+                'modules' => 'Este tipo de gabinete não aceita: '.implode(', ', array_map(
+                    fn (string $module): string => GabineteModule::from($module)->label(),
+                    $unavailable,
+                )).'.',
+            ]);
+        }
+
         $selected = array_fill_keys($selection, true);
 
         DB::transaction(function () use ($office, $administrator, $selected, $context): void {
@@ -156,8 +178,16 @@ class GabineteModuleManager
                 ->keyBy(fn (GabineteModulo $setting): string => $setting->modulo->value);
 
             foreach ($this->catalog->all() as $module) {
-                $enabled = isset($selected[$module->value]);
                 $setting = $current->get($module->value);
+
+                // Módulos que o tipo não aceita nem ganham linha desligada; a
+                // linha anterior à restrição do tipo é desligada (já foram
+                // recusados acima, então nunca estão na seleção).
+                if ($setting === null && ! $module->availableFor($office->tipo_gabinete)) {
+                    continue;
+                }
+
+                $enabled = isset($selected[$module->value]);
                 $changed = $setting === null || $setting->ativo !== $enabled;
 
                 if ($setting === null) {

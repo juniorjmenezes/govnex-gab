@@ -32,7 +32,10 @@ class GabineteFactory extends Factory
                     'created_at' => $now,
                     'updated_at' => $now,
                 ],
-                GabineteModule::cases(),
+                array_values(array_filter(
+                    GabineteModule::cases(),
+                    fn (GabineteModule $module): bool => $module->availableFor($office->tipo_gabinete),
+                )),
             ));
         });
     }

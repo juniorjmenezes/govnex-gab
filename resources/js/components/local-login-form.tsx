@@ -1,10 +1,7 @@
 import { Form, Link } from '@inertiajs/react';
 import { useRef } from 'react';
-import { FieldError } from '@/components/forms/field-error';
 import PasskeyVerify from '@/components/passkey-verify';
-import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { checkRequiredFormFields } from '@/lib/required-fields';
 import type { InertiaFormRef } from '@/lib/required-fields';
@@ -20,10 +17,9 @@ import { AuthField, AuthRememberToggle } from '@govnex/ui';
  * configurado, o acesso local vira uma página própria, não um trecho
  * recolhido — recolher aumentava a altura da página de forma inconsistente).
  *
- * O campo de e-mail usa o `AuthField` compartilhado da `@govnex/ui` — mesmo
- * arranjo em todos os produtos Govnex. O de senha fica de fora porque só o
- * GAB tem `PasswordInput` (alternar mostrar/ocultar); o padrão compartilhado
- * não força esse recurso onde ele ainda não existe.
+ * Os dois campos usam o `AuthField` compartilhado da `@govnex/ui` — mesmo
+ * arranjo em todos os produtos Govnex; `type="password"` já traz o botão de
+ * mostrar/ocultar embutido.
  */
 export function LocalLoginForm({
     canResetPassword,
@@ -63,19 +59,17 @@ export function LocalLoginForm({
                             error={errors.email}
                         />
 
-                        <div className="space-y-1">
-                            <Label htmlFor="password">Senha</Label>
-                            <PasswordInput
-                                id="password"
-                                name="password"
-                                aria-required="true"
-                                tabIndex={2}
-                                autoComplete="current-password"
-                                placeholder="Sua senha"
-                                aria-invalid={Boolean(errors.password)}
-                            />
-                            <FieldError message={errors.password} />
-                        </div>
+                        <AuthField
+                            id="password"
+                            label="Senha"
+                            type="password"
+                            name="password"
+                            aria-required="true"
+                            tabIndex={2}
+                            autoComplete="current-password"
+                            placeholder="Sua senha"
+                            error={errors.password}
+                        />
 
                         <AuthRememberToggle name="remember" tabIndex={3} />
 

@@ -27,7 +27,7 @@ class EntidadeLicensingTest extends TestCase
         $office = Gabinete::factory()->create();
 
         $this->assertCount(
-            count(EntidadeModule::cases()),
+            count(EntidadeModule::availableCases($office->entidade->tipo)),
             app(EntidadeModuleManager::class)->activeFor($office->entidade_id),
         );
         $this->assertDatabaseHas('entidade_licencas', [
@@ -101,7 +101,7 @@ class EntidadeLicensingTest extends TestCase
         $admin = User::factory()->root()->create();
         $manager = app(EntidadeModuleManager::class);
         $selection = array_values(array_filter(
-            array_column(EntidadeModule::cases(), 'value'),
+            array_column(EntidadeModule::availableCases($office->entidade->tipo), 'value'),
             fn (string $module): bool => $module !== EntidadeModule::Reports->value,
         ));
 

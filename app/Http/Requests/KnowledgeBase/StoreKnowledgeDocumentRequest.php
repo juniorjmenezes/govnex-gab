@@ -21,6 +21,9 @@ class StoreKnowledgeDocumentRequest extends FormRequest
         return [
             'titulo' => ['required', 'string', 'min:3', 'max:180'],
             'descricao' => ['nullable', 'string', 'max:1000'],
+            // Só a Secretaria legislativa pode marcar: o controller exige
+            // `createEntidadeWide` quando vem verdadeiro.
+            'compartilhar_entidade' => ['sometimes', 'boolean'],
             'arquivo' => [
                 'required',
                 'file',
@@ -29,6 +32,11 @@ class StoreKnowledgeDocumentRequest extends FormRequest
                 'mimetypes:application/pdf',
             ],
         ];
+    }
+
+    public function sharesWithEntidade(): bool
+    {
+        return (bool) $this->validated('compartilhar_entidade', false);
     }
 
     /** @return array<string, string> */

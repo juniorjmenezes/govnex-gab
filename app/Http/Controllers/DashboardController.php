@@ -43,6 +43,6 @@ class DashboardController extends Controller
 
         $timezone = $gabinete->timezone ?? 'America/Sao_Paulo';
 
-        return Inertia::render('dashboard', $dashboard->build($period, $timezone, $activeModules));
+        return Inertia::render('dashboard', $dashboard->build($period, $timezone, $activeModules, $gabinete));
     }
 }

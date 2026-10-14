@@ -74,6 +74,14 @@ export type DashboardActivity = {
     demand: { id: number; protocol: string; title: string } | null;
 };
 
+/** Visão geral dedicada do gabinete Secretaria legislativa (sem Demandas). */
+export type DashboardLegislativeSecretariat = {
+    appointments_today: number;
+    active_committees: number;
+    committee_members: number;
+    recent_documents: number;
+};
+
 export type DashboardProps = {
     filters: { period: number; start: string; end: string };
     periodOptions: Array<{ value: number; label: string }>;
@@ -83,6 +91,7 @@ export type DashboardProps = {
         schedule: boolean;
         politics: boolean;
         whatsapp: boolean;
+        legislativeSecretariat: boolean;
     };
     metrics: DashboardMetrics;
     /** Presente só para os indicadores dos módulos ativos. */
@@ -100,4 +109,6 @@ export type DashboardProps = {
     attentionDemands: DashboardDemand[];
     upcomingDeadlines: DashboardDemand[];
     recentActivity: DashboardActivity[];
+    /** Presente só quando `capabilities.legislativeSecretariat` é verdadeiro. */
+    legislativeSecretariat?: DashboardLegislativeSecretariat;
 };

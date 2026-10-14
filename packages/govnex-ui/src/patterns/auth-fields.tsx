@@ -1,8 +1,12 @@
 import type { InputHTMLAttributes } from 'react';
+import { useState } from 'react';
 
+import { EyeClosedIcon, EyeIcon } from '../icons';
+import { Button } from '../components/button';
 import { Input } from '../components/input';
 import { Label } from '../components/label';
 import { Switch } from '../components/switch';
+import { cn } from '../lib/utils';
 import { FieldError } from './field-error';
 
 export interface AuthFieldProps
@@ -18,12 +22,52 @@ export interface AuthFieldProps
  * controlado (`value`/`onChange`) ou não controlado (`name`, submissão
  * nativa) — só repassa `...inputProps` para o `Input`, então cada app usa o
  * estilo de formulário que já tem (Inertia `<Form>`, `useForm`, etc.).
+ *
+ * `type="password"` ganha automaticamente o botão de mostrar/ocultar senha
+ * (alterna só a exibição local, nunca envia o campo como texto).
  */
-export function AuthField({ id, label, error, ...inputProps }: AuthFieldProps) {
+export function AuthField({
+    id,
+    label,
+    error,
+    type,
+    className,
+    ...inputProps
+}: AuthFieldProps) {
+    const [showPassword, setShowPassword] = useState(false);
+    const isPassword = type === 'password';
+
     return (
         <div className="space-y-1">
             <Label htmlFor={id}>{label}</Label>
-            <Input id={id} aria-invalid={Boolean(error)} {...inputProps} />
+            <div className={isPassword ? 'relative' : undefined}>
+                <Input
+                    id={id}
+                    type={isPassword && showPassword ? 'text' : type}
+                    aria-invalid={Boolean(error)}
+                    className={cn(isPassword && 'pr-10', className)}
+                    {...inputProps}
+                />
+                {isPassword && (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label={
+                            showPassword ? 'Ocultar senha' : 'Mostrar senha'
+                        }
+                        aria-pressed={showPassword}
+                    >
+                        {showPassword ? (
+                            <EyeClosedIcon className="size-4" />
+                        ) : (
+                            <EyeIcon className="size-4" />
+                        )}
+                    </Button>
+                )}
+            </div>
             <FieldError message={error} />
         </div>
     );

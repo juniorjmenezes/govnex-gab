@@ -206,7 +206,7 @@ class PlatformAdministrationTest extends TestCase
         app(GabineteModuleManager::class)->sync(
             $office,
             array_values(array_diff(
-                array_map(fn (GabineteModule $module): string => $module->value, GabineteModule::cases()),
+                app(GabineteModuleManager::class)->allEnabled(),
                 [GabineteModule::Politics->value],
             )),
             $admin,

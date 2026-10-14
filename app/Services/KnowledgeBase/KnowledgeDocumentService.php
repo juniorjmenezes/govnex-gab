@@ -2,8 +2,10 @@
 
 namespace App\Services\KnowledgeBase;
 
+use App\Enums\GabineteType;
 use App\Models\ConhecimentoDocumento;
 use App\Models\ConhecimentoLeitura;
+use App\Models\Gabinete;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -17,19 +19,36 @@ class KnowledgeDocumentService
 {
     public const DISK = 'local';
 
-    /** Guarda o PDF em disco privado; `$gabineteId` nulo = biblioteca da plataforma. */
+    /**
+     * Guarda o PDF em disco privado. `$gabineteId` nulo = biblioteca da
+     * plataforma. Com `$entidadeId`, o documento é compartilhado com todos os
+     * gabinetes daquela entidade e deixa de ser do gabinete (`gabinete_id`
+     * nulo) — quem pode fazer isso é decidido pela Policy
+     * (`createEntidadeWide`), não aqui. Sem ele, o documento de gabinete
+     * guarda a entidade do gabinete só para consistência.
+     */
     public function store(
         UploadedFile $file,
         string $title,
         ?string $description,
         ?int $gabineteId,
         User $user,
+        ?int $entidadeId = null,
     ): ConhecimentoDocumento {
         $this->assertPdfSignature($file);
 
-        $directory = $gabineteId === null
-            ? 'conhecimento/plataforma'
-            : "gabinetes/{$gabineteId}/conhecimento";
+        if ($entidadeId !== null) {
+            $gabineteId = null;
+        } elseif ($gabineteId !== null) {
+            $ownerEntidade = Gabinete::withoutGlobalScopes()->whereKey($gabineteId)->value('entidade_id');
+            $entidadeId = $ownerEntidade === null ? null : (int) $ownerEntidade;
+        }
+
+        $directory = match (true) {
+            $gabineteId !== null => "gabinetes/{$gabineteId}/conhecimento",
+            $entidadeId !== null => "entidades/{$entidadeId}/conhecimento",
+            default => 'conhecimento/plataforma',
+        };
         $path = $file->storeAs($directory, Str::uuid().'.pdf', self::DISK);
 
         if (! is_string($path)) {
@@ -40,6 +59,7 @@ class KnowledgeDocumentService
             $document = new ConhecimentoDocumento;
             $document->forceFill([
                 'gabinete_id' => $gabineteId,
+                'entidade_id' => $entidadeId,
                 'titulo' => $title,
                 'descricao' => $description,
                 'disk' => self::DISK,
@@ -140,7 +160,11 @@ class KnowledgeDocumentService
             'id' => $document->id,
             'title' => $document->titulo,
             'description' => $document->descricao,
-            'origin' => $document->isPlatform() ? 'plataforma' : 'gabinete',
+            'origin' => $document->origin(),
+            // Rótulo do selo dos documentos compartilhados com a entidade: só
+            // a Secretaria legislativa publica nesse nível (mesmo selo da
+            // agenda institucional).
+            'origin_label' => $document->isEntidadeWide() ? GabineteType::LegislativeSecretariat->label() : null,
             'size' => $document->tamanho,
             'total_pages' => $document->total_paginas,
             'completed_readings' => $document->leituras_completas,

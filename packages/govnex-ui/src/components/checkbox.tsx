@@ -1,7 +1,7 @@
 import { Checkbox as CheckboxPrimitive } from 'radix-ui';
 import * as React from 'react';
 
-import { CheckCircleIcon } from '../icons';
+import { CheckOutlineIcon } from '../icons';
 import { cn } from '../lib/utils';
 
 function Checkbox({
@@ -21,7 +21,7 @@ function Checkbox({
                 data-slot="checkbox-indicator"
                 className="grid place-content-center text-current transition-none [&>svg]:size-3.5"
             >
-                <CheckCircleIcon />
+                <CheckOutlineIcon />
             </CheckboxPrimitive.Indicator>
         </CheckboxPrimitive.Root>
     );

@@ -11,11 +11,16 @@ return new class extends Migration
 
     public function up(): void
     {
-        // gabinete_id nulo = biblioteca da plataforma, visível a todos os
-        // gabinetes com o módulo ativo; preenchido = só aquele gabinete.
+        // Visibilidade em três níveis (`HasTieredVisibility`): gabinete_id
+        // preenchido = só aquele gabinete; gabinete_id nulo e entidade_id
+        // preenchido = todos os gabinetes da entidade (publicado pela
+        // Secretaria legislativa); ambos nulos = biblioteca da plataforma.
+        // Documento de gabinete também guarda a entidade dele, só para
+        // consistência e auditoria — isso não amplia a visibilidade.
         Schema::create('conhecimento_documentos', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('gabinete_id')->nullable()->constrained('gabinetes')->cascadeOnDelete();
+            $table->foreignId('entidade_id')->nullable()->constrained('entidades')->cascadeOnDelete();
             $table->string('titulo', 180);
             $table->text('descricao')->nullable();
             $table->string('disk', 20)->default('local');
@@ -44,6 +49,7 @@ return new class extends Migration
         });
 
         $this->enableForExistingTenants();
+        $this->backfillDocumentEntidade();
     }
 
     public function down(): void
@@ -87,5 +93,24 @@ return new class extends Migration
                 'updated_at' => $now,
             ])->all());
         });
+    }
+
+    /**
+     * Documento de gabinete sem `entidade_id` recebe a entidade do gabinete
+     * dono. Não muda a visibilidade: `gabinete_id` continua preenchido, então
+     * ele segue privado daquele gabinete. Logo após o `create` a tabela está
+     * vazia e nada acontece; o método é público para reprocessar bases locais
+     * que já tinham documentos e para o teste conferir a regra. Idempotente.
+     */
+    public function backfillDocumentEntidade(): void
+    {
+        DB::table('conhecimento_documentos')
+            ->whereNotNull('gabinete_id')
+            ->whereNull('entidade_id')
+            ->update([
+                'entidade_id' => DB::table('gabinetes')
+                    ->select('entidade_id')
+                    ->whereColumn('gabinetes.id', 'conhecimento_documentos.gabinete_id'),
+            ]);
     }
 };

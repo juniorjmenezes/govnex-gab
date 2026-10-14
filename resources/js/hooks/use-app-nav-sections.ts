@@ -19,13 +19,27 @@ import {
     ShieldCheckIcon,
     StructureIcon,
     UsersGroupRoundedIcon,
+    UsersGroupTwoRoundedIcon,
     WidgetIcon,
 } from '@/components/icons';
 import { contextualUrl } from '@/lib/entity-context';
 import { hasModule } from '@/lib/modules';
-import type { Auth, GabineteModuleCode, NavItem } from '@/types';
+import type {
+    Auth,
+    EntidadeModuleCode,
+    GabineteModuleCode,
+    NavItem,
+} from '@/types';
 
-type ModuleNavItem = NavItem & { module?: GabineteModuleCode };
+/**
+ * `module`: exige o módulo no gabinete. `entidadeModule`: exige só o módulo
+ * na entidade — para o que a Câmara compartilha com todos os gabinetes dela
+ * (ex.: comissões, que todo vereador lê sem ativar nada no gabinete).
+ */
+type ModuleNavItem = NavItem & {
+    module?: GabineteModuleCode;
+    entidadeModule?: EntidadeModuleCode;
+};
 
 const overviewItems: ModuleNavItem[] = [
     { title: 'Visão geral', href: '/dashboard', icon: WidgetIcon },
@@ -40,6 +54,12 @@ const overviewItems: ModuleNavItem[] = [
         href: '/conhecimento',
         icon: LibraryIcon,
         module: 'BASE_CONHECIMENTO',
+    },
+    {
+        title: 'Comissões',
+        href: '/comissoes',
+        icon: UsersGroupTwoRoundedIcon,
+        entidadeModule: 'SECRETARIA_LEGISLATIVA',
     },
 ];
 const tenantServiceItems: ModuleNavItem[] = [
@@ -121,7 +141,12 @@ export function useAppNavSections(): NavSection[] {
               ]
             : overviewItems.filter(
                   (item) =>
-                      !item.module || hasModule(auth.modules, item.module),
+                      (!item.module || hasModule(auth.modules, item.module)) &&
+                      (!item.entidadeModule ||
+                          hasModule(
+                              auth.entidade_modules,
+                              item.entidadeModule,
+                          )),
               )
     ).map(withContext);
 

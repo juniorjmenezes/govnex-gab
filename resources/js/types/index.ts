@@ -15,6 +15,7 @@ export type * from './electoral-map';
 export type * from './events';
 export type * from './politics';
 export type * from './knowledge';
+export type * from './committees';
 
 export type * from './admin';
 export type * from './poll-curation';

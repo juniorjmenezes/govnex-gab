@@ -1,5 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import { AppLogoMark } from '@/components/app-logo-mark';
+import { SettingsIcon } from '@/components/icons';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -54,6 +55,8 @@ export function AppSidebar() {
                     <NavMain
                         label="Gestão do gabinete"
                         items={managementItems}
+                        icon={SettingsIcon}
+                        flyout
                     />
                 )}
             </SidebarContent>

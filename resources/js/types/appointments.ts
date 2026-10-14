@@ -34,7 +34,8 @@ export type AppointmentReminder = {
 
 export type Appointment = {
     id: number;
-    source: 'appointment' | 'event';
+    /** `institutional`: publicado pela Secretaria legislativa da Câmara. */
+    source: 'appointment' | 'event' | 'institutional';
     occurrence_key: string;
     title: string;
     description: string | null;
@@ -62,11 +63,17 @@ export type Appointment = {
     demand: { id: number; protocolo: string; titulo: string } | null;
     created_by: { id: number; name: string };
     reminders: AppointmentReminder[];
+    /** Só nos itens institucionais: quem publicou. */
+    origin_office?: { id: number; name: string; type_label: string };
+    /** Só nos itens institucionais: a própria Secretaria pode editar. */
+    can_edit?: boolean;
 };
 
 export type AppointmentPageProps = {
     appointments: Appointment[];
     canDelete: boolean;
+    /** Gabinete Secretaria legislativa com o módulo de gestão ativo. */
+    canManageInstitutional: boolean;
     filters: {
         view: 'mes' | 'semana' | 'dia' | 'lista';
         date: string;
@@ -108,4 +115,43 @@ export type AppointmentOptions = {
         whatsapp_ready: boolean;
     }>;
     demands: Array<{ id: number; protocolo: string; titulo: string }>;
+};
+
+/** Compromisso institucional como a página de edição recebe. */
+export type InstitutionalAppointmentInput = {
+    id: number;
+    titulo: string;
+    descricao: string | null;
+    /** `yyyy-MM-ddTHH:mm`, já no fuso do gabinete. */
+    inicio_em: string;
+    fim_em: string;
+    dia_inteiro: boolean;
+    local: string | null;
+    tipo: string;
+    status: AppointmentStatus;
+    /** Reunião de comissão: o público é o retrato dos membros ao vincular. */
+    comissao_id: number | null;
+    /** Vazio = todos os gabinetes de vereador da Câmara. */
+    gabinetes: number[];
+    is_past: boolean;
+};
+
+export type InstitutionalCommitteeOption = {
+    id: number;
+    name: string;
+    is_active: boolean;
+    /** Gabinetes dos membros ativos hoje (prévia de quem seria convocado). */
+    offices: number[];
+};
+
+export type InstitutionalAppointmentFormProps = {
+    appointment: InstitutionalAppointmentInput | null;
+    today: string;
+    timezone: string;
+    defaults: { date: string };
+    options: {
+        statuses: Array<{ value: string; label: string }>;
+        committees: InstitutionalCommitteeOption[];
+        offices: Array<{ id: number; name: string; leader: string | null }>;
+    };
 };

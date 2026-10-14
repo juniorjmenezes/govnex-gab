@@ -4,16 +4,25 @@ namespace App\Services\Dashboard;
 
 use App\Enums\AppointmentRecurrence;
 use App\Enums\AppointmentStatus;
+use App\Enums\CommitteeStatus;
 use App\Enums\DemandOrigin;
 use App\Enums\DemandStatus;
+use App\Enums\EntidadeModule;
 use App\Enums\GabineteModule;
+use App\Enums\GabineteType;
 use App\Models\Appointment;
 use App\Models\Bairro;
 use App\Models\Categoria;
 use App\Models\Cidadao;
+use App\Models\ComissaoLegislativa;
+use App\Models\ComissaoMembro;
+use App\Models\CompromissoInstitucional;
+use App\Models\ConhecimentoDocumento;
 use App\Models\Demanda;
 use App\Models\DemandaEvento;
+use App\Models\Gabinete;
 use App\Models\User;
+use App\Services\Modules\EntidadeModuleManager;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -28,7 +37,7 @@ class DashboardMetricsService
     /** @var list<string> */
     private array $openStatuses;
 
-    public function __construct()
+    public function __construct(private readonly EntidadeModuleManager $entidadeModules)
     {
         $this->openStatuses = DemandStatus::openValues();
     }
@@ -40,6 +49,7 @@ class DashboardMetricsService
         int $period,
         string $timezone = 'America/Sao_Paulo',
         array $activeModules = [],
+        ?Gabinete $gabinete = null,
     ): array {
         $now = CarbonImmutable::now();
         $start = $now->subDays($period - 1)->startOfDay();
@@ -49,9 +59,14 @@ class DashboardMetricsService
             'schedule' => in_array(GabineteModule::Schedule->value, $activeModules, true),
             'politics' => in_array(GabineteModule::Politics->value, $activeModules, true),
             'whatsapp' => in_array(GabineteModule::WhatsApp->value, $activeModules, true),
+            'legislativeSecretariat' => $gabinete?->tipo_gabinete === GabineteType::LegislativeSecretariat,
         ];
 
         if (! $capabilities['demands']) {
+            if ($capabilities['legislativeSecretariat'] && $gabinete !== null) {
+                return $this->buildLegislativeSecretariat($gabinete, $timezone, $capabilities, $period, $start, $now);
+            }
+
             return [
                 'filters' => [
                     'period' => $period,
@@ -192,6 +207,133 @@ class DashboardMetricsService
                     ] : null,
                 ]),
         ];
+    }
+
+    /**
+     * Visão geral da Secretaria legislativa: nunca tem o módulo Demandas, por
+     * isso não reaproveita o branch genérico de métricas vazias. Mostra
+     * compromissos de hoje (próprios + institucionais visíveis a ela) e um
+     * recorte de comissões — o que ela de fato opera no dia a dia.
+     *
+     * @param  array<string, bool>  $capabilities
+     * @return array<string, mixed>
+     */
+    private function buildLegislativeSecretariat(
+        Gabinete $gabinete,
+        string $timezone,
+        array $capabilities,
+        int $period,
+        CarbonImmutable $start,
+        CarbonImmutable $now,
+    ): array {
+        return [
+            'filters' => [
+                'period' => $period,
+                'start' => $start->toIso8601String(),
+                'end' => $now->toIso8601String(),
+            ],
+            'periodOptions' => $this->periodOptions(),
+            'capabilities' => $capabilities,
+            'metrics' => [
+                'open_total' => 0,
+                'new' => 0,
+                'in_progress' => 0,
+                'awaiting' => 0,
+                'for_today' => 0,
+                'overdue' => 0,
+                'resolved_month' => 0,
+                'citizens' => 0,
+                'average_resolution_hours' => null,
+                'near_deadline' => 0,
+                'resolved_period' => 0,
+            ],
+            'trends' => [],
+            'charts' => [
+                'status' => [],
+                'category' => [],
+                'neighborhood' => [],
+                'responsible' => [],
+                'origin' => [],
+                'monthly' => [],
+            ],
+            'upcomingAppointments' => $capabilities['schedule']
+                ? $this->upcomingAppointments($timezone)
+                : [],
+            'recentDemands' => [],
+            'attentionDemands' => [],
+            'upcomingDeadlines' => [],
+            'recentActivity' => [],
+            'legislativeSecretariat' => [
+                'appointments_today' => $this->appointmentsTodayForGabinete($gabinete, $timezone),
+                'active_committees' => ComissaoLegislativa::query()
+                    ->ofEntidade($gabinete->entidade_id)
+                    ->where('status', CommitteeStatus::Active)
+                    ->count(),
+                'committee_members' => ComissaoMembro::query()
+                    ->active()
+                    ->whereHas('comissao', fn (Builder $query): Builder => $query
+                        ->where('entidade_id', $gabinete->entidade_id)
+                        ->where('status', CommitteeStatus::Active))
+                    ->count(),
+                'recent_documents' => ConhecimentoDocumento::query()
+                    ->visibleTo($gabinete->id, $gabinete->entidade_id)
+                    ->where('created_at', '>=', $start)
+                    ->count(),
+            ],
+        ];
+    }
+
+    /**
+     * Compromissos com início hoje (no fuso do gabinete): os privados da
+     * Secretaria (`Appointment`) somados aos institucionais visíveis a ela
+     * (`CompromissoInstitucional::visibleTo()`), só quando a entidade tem o
+     * módulo Secretaria legislativa ativo. Compromissos institucionais não
+     * têm recorrência, então o overlap simples já conta corretamente;
+     * compromissos próprios recorrentes passam pela mesma expansão de
+     * ocorrências usada em `upcomingAppointments()`.
+     */
+    private function appointmentsTodayForGabinete(Gabinete $gabinete, string $timezone): int
+    {
+        $localToday = CarbonImmutable::now($timezone)->startOfDay();
+        $rangeStart = $localToday->utc();
+        $rangeEnd = $localToday->endOfDay()->utc();
+
+        $own = Appointment::query()
+            ->whereIn('status', [AppointmentStatus::Scheduled, AppointmentStatus::Confirmed])
+            ->where('inicio_em', '<=', $rangeEnd)
+            ->where(function (Builder $query) use ($rangeStart, $localToday): void {
+                $query->where(function (Builder $single) use ($rangeStart): void {
+                    $single->where('recorrencia', AppointmentRecurrence::None)
+                        ->where('fim_em', '>=', $rangeStart);
+                })->orWhere(function (Builder $recurring) use ($localToday): void {
+                    $recurring->where('recorrencia', '!=', AppointmentRecurrence::None)
+                        ->where(function (Builder $until) use ($localToday): void {
+                            $until->whereNull('recorrencia_ate')
+                                ->orWhereDate('recorrencia_ate', '>=', $localToday->toDateString());
+                        });
+                });
+            })
+            ->limit(200)
+            ->get()
+            ->flatMap(fn (Appointment $appointment): array => $this->appointmentOccurrences(
+                $appointment,
+                $rangeStart,
+                $rangeEnd,
+                $timezone,
+            ))
+            ->count();
+
+        $institutionalEnabled = $this->entidadeModules->isActive($gabinete->entidade_id, EntidadeModule::LegislativeSecretariat);
+        $institutional = $institutionalEnabled
+            ? CompromissoInstitucional::query()
+                ->visibleTo($gabinete)
+                ->whereIn('status', [AppointmentStatus::Scheduled, AppointmentStatus::Confirmed])
+                ->where('inicio_em', '<=', $rangeEnd)
+                ->where('fim_em', '>=', $rangeStart)
+                ->count()
+            : 0;
+
+        return $own + $institutional;
     }
 
     /** @return Collection<int, array{value: int, label: string}> */

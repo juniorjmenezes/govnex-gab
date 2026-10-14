@@ -312,7 +312,7 @@ class OfficeController extends Controller
                 ->map(fn (GabineteModulo $setting): string => $setting->modulo->value)
                 ->values()
                 ->all(),
-            'moduleCatalog' => array_values($moduleCatalog->definitions()),
+            'moduleCatalog' => array_values($moduleCatalog->definitions($office->tipo_gabinete)),
             'moduleHistory' => $office->moduloEventos
                 ->map(fn (GabineteModuloEvento $event): array => [
                     'id' => $event->id,
