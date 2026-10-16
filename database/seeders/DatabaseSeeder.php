@@ -6,6 +6,7 @@ use App\Enums\DemandEventType;
 use App\Enums\DemandOrigin;
 use App\Enums\DemandPriority;
 use App\Enums\DemandStatus;
+use App\Enums\EntidadeModule;
 use App\Enums\EntidadeStatus;
 use App\Enums\EntidadeType;
 use App\Enums\GabineteStatus;
@@ -24,6 +25,7 @@ use App\Models\TenantModel;
 use App\Models\User;
 use App\Services\Entidades\EntidadeEntitlementService;
 use App\Services\Entidades\EntidadeMembershipService;
+use App\Services\Modules\EntidadeModuleManager;
 use App\Services\Modules\GabineteModuleManager;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -36,9 +38,10 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        // Cores oficiais de partido não são dado de demonstração — rodam em
-        // qualquer ambiente, inclusive produção.
+        // Cores oficiais de partido e a conta root da plataforma não são dado
+        // de demonstração — rodam em qualquer ambiente, inclusive produção.
         $this->call(PartidoCorSeeder::class);
+        $this->call(RootUserSeeder::class);
 
         if (! app()->environment(['local', 'testing'])) {
             return;
@@ -60,7 +63,7 @@ class DatabaseSeeder extends Seeder
      */
     private function seed(array $accounts, bool $deployment): void
     {
-        $fortaleza = $this->upsertIndependentOffice('gabinete-modelo-fortaleza', [
+        $avulso = $this->upsertIndependentOffice('gabinete-modelo-fortaleza', [
             'nome' => 'Gabinete Santos',
             'status' => GabineteStatus::Active,
             'vereador_nome' => 'Marina Oliveira',
@@ -74,52 +77,37 @@ class DatabaseSeeder extends Seeder
             'cabecalho_relatorios' => 'Gabinete da Vereadora Marina Oliveira',
         ]);
 
-        $caucaia = $this->upsertIndependentOffice('gabinete-modelo-caucaia', [
-            'nome' => 'Gabinete Modelo de Caucaia',
-            'status' => GabineteStatus::Active,
-            'vereador_nome' => 'Carlos Nascimento',
-            'municipio' => 'Caucaia',
-            'estado' => 'CE',
-            'email' => 'caucaia@gabinetefacil.test',
-        ]);
-
         $entitlements = app(EntidadeEntitlementService::class);
-        foreach ([$fortaleza, $caucaia] as $office) {
-            $entitlements->provisionLegacyCompatible($office->entidade()->firstOrFail());
-        }
+        $entitlements->provisionLegacyCompatible($avulso->entidade()->firstOrFail());
 
         $this->upsertUser($accounts['admin'], UserRole::Root, null);
-        $this->upsertUser($accounts['councilor'], UserRole::Administrator, $fortaleza);
-        $this->upsertUser($accounts['chief'], UserRole::Administrator, $fortaleza);
-        $this->upsertUser($accounts['advisor'], UserRole::Operator, $fortaleza);
-        $this->upsertUser($accounts['second_councilor'], UserRole::Administrator, $caucaia);
+        $this->upsertUser($accounts['councilor'], UserRole::Administrator, $avulso);
+        $this->upsertUser($accounts['chief'], UserRole::Administrator, $avulso);
+        $this->upsertUser($accounts['advisor'], UserRole::Operator, $avulso);
 
         $administrator = User::query()->where('email', $accounts['admin']['email'])->firstOrFail();
         $memberships = app(EntidadeMembershipService::class);
         User::query()
-            ->whereIn('gabinete_id', [$fortaleza->id, $caucaia->id])
+            ->where('gabinete_id', $avulso->id)
             ->get()
             ->each(fn (User $user) => $memberships->syncLegacyUser($user, $administrator));
 
         $moduleManager = app(GabineteModuleManager::class);
-        foreach ([$fortaleza, $caucaia] as $office) {
-            $moduleManager->sync(
-                $office,
-                $moduleManager->allEnabled(),
-                $administrator,
-                ['source' => 'database-seeder'],
-            );
-        }
+        $moduleManager->sync(
+            $avulso,
+            $moduleManager->allEnabled(),
+            $administrator,
+            ['source' => 'database-seeder'],
+        );
 
-        $this->seedOffice($fortaleza, ['Aldeota', 'Benfica', 'Centro', 'Cidade 2000', 'Dionísio Torres', 'Jangurussu', 'Messejana', 'Mondubim']);
-        $this->seedOffice($caucaia, ['Centro', 'Cumbuco', 'Icaraí', 'Jurema', 'Parque Potira', 'Tabapuá']);
+        $this->seedOffice($avulso, ['Aldeota', 'Benfica', 'Centro', 'Cidade 2000', 'Dionísio Torres', 'Jangurussu', 'Messejana', 'Mondubim']);
 
         if ($deployment) {
             app(AppointmentSeeder::class)->runForDeployment();
         } else {
-            // Câmara/Prefeitura de exemplo com usuários de senha fixa —
-            // dados de demonstração, nunca criados num bootstrap de produção.
-            $this->seedMultiUnitEntidades($administrator);
+            // Câmara Municipal de exemplo com usuários de senha fixa — dado
+            // de demonstração, nunca criado num bootstrap de produção.
+            $this->seedCityCouncil($administrator);
             $this->call(AppointmentSeeder::class);
         }
     }
@@ -156,21 +144,21 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
-     * Além dos dois gabinetes independentes (o cenário de demonstração
-     * principal, com dados completos), cria exemplos mínimos de entidade com
-     * múltiplos gabinetes — Câmara Municipal e Prefeitura — para que o
-     * cadastro administrativo, o seletor de entidades e os módulos
-     * institucionais tenham pelo menos um caso real de "vários gabinetes
-     * numa mesma entidade" para conferir. Não recebem o conjunto completo de
-     * bairros/cidadãos/demandas do cenário principal — só o necessário para
-     * existirem de forma consistente (entidade, gabinetes, vínculos e
-     * módulos).
+     * Câmara Municipal de exemplo com os 5 gabinetes de vereador e a
+     * Secretaria legislativa compartilhada — o cenário que exercita vários
+     * gabinetes numa mesma entidade, o módulo institucional e a visibilidade
+     * cruzada entre eles (agenda/documentos da Secretaria, vista pelos
+     * vereadores). Cada vereador recebe o conjunto completo de
+     * bairros/cidadãos/demandas, como o gabinete avulso; a Secretaria não —
+     * ela não atende cidadão nem abre demanda (ver AGENTS.md: "demandas só
+     * para os gabinetes").
      */
-    private function seedMultiUnitEntidades(User $administrator): void
+    private function seedCityCouncil(User $administrator): void
     {
         $entitlements = app(EntidadeEntitlementService::class);
         $memberships = app(EntidadeMembershipService::class);
         $moduleManager = app(GabineteModuleManager::class);
+        $entidadeModules = app(EntidadeModuleManager::class);
 
         $cityCouncil = Entidade::withoutGlobalScopes()->updateOrCreate(
             ['slug' => 'camara-municipal-barra-nova'],
@@ -186,11 +174,24 @@ class DatabaseSeeder extends Seeder
         );
         $entitlements->provisionLegacyCompatible($cityCouncil);
 
-        $councilorOffices = [
-            ['gabinete-horizonte', 'Gabinete Horizonte', 'Ana Beatriz Ferreira'],
-            ['gabinete-progresso', 'Gabinete Progresso', 'Ricardo Menezes'],
+        // O módulo Secretaria legislativa nasce contratado, mas desligado —
+        // aqui a Câmara "decide ligar", como faria pela tela de módulos.
+        $entidadeModules->syncActivation(
+            $cityCouncil,
+            array_map(fn (EntidadeModule $module): string => $module->value, EntidadeModule::cases()),
+            $administrator,
+        );
+
+        $vereadores = [
+            ['gabinete-horizonte', 'Gabinete Horizonte', 'Ana Beatriz Ferreira', ['Centro', 'Jardim das Flores']],
+            ['gabinete-progresso', 'Gabinete Progresso', 'Ricardo Menezes', ['Vila Progresso', 'Bela Vista']],
+            ['gabinete-cidadania', 'Gabinete Cidadania', 'Paulo Henrique Souza', ['Novo Horizonte', 'São José']],
+            ['gabinete-renovacao', 'Gabinete Renovação', 'Juliana Albuquerque', ['Alto da Serra', 'Boa Esperança']],
+            ['gabinete-vanguarda', 'Gabinete Vanguarda', 'Marcos Vinícius Teixeira', ['Industrial', 'Parque das Águas']],
         ];
-        foreach ($councilorOffices as [$slug, $nome, $vereador]) {
+
+        $councilorOffices = [];
+        foreach ($vereadores as [$slug, $nome, $vereador, $bairros]) {
             $office = Gabinete::withoutGlobalScopes()->updateOrCreate(
                 ['slug' => $slug],
                 [
@@ -209,82 +210,40 @@ class DatabaseSeeder extends Seeder
                 'password' => 'password',
             ], UserRole::Administrator, $office);
             $moduleManager->sync($office, $moduleManager->allEnabled(), $administrator, ['source' => 'database-seeder']);
+            $councilorOffices[$office->id] = [$office, $bairros];
         }
 
-        $administrativeSector = Gabinete::withoutGlobalScopes()->updateOrCreate(
-            ['slug' => 'diretoria-legislativa'],
+        $secretariat = Gabinete::withoutGlobalScopes()->updateOrCreate(
+            ['slug' => 'secretaria-legislativa-barra-nova'],
             [
-                'nome' => 'Diretoria Legislativa',
+                'nome' => 'Secretaria Legislativa',
                 'status' => GabineteStatus::Active,
                 'municipio' => $cityCouncil->municipio,
                 'estado' => $cityCouncil->estado,
                 'entidade_id' => $cityCouncil->id,
-                'tipo_gabinete' => GabineteType::AdministrativeDepartment,
+                'tipo_gabinete' => GabineteType::LegislativeSecretariat,
             ],
         );
         $this->upsertUser([
-            'name' => 'Diretoria Legislativa',
-            'email' => 'diretoria-legislativa@gabinetefacil.test',
-            'password' => 'password',
-        ], UserRole::Operator, $administrativeSector);
-        $moduleManager->sync($administrativeSector, $moduleManager->allEnabled(), $administrator, ['source' => 'database-seeder']);
-
-        $cityHall = Entidade::withoutGlobalScopes()->updateOrCreate(
-            ['slug' => 'prefeitura-barra-nova'],
-            [
-                'tipo' => EntidadeType::CityHall,
-                'nome' => 'Prefeitura de Barra Nova',
-                'status' => EntidadeStatus::Active,
-                'municipio' => 'Barra Nova',
-                'estado' => 'CE',
-                'timezone' => 'America/Fortaleza',
-                'interface_simplificada' => false,
-            ],
-        );
-        $entitlements->provisionLegacyCompatible($cityHall);
-
-        $mayorOffice = Gabinete::withoutGlobalScopes()->updateOrCreate(
-            ['slug' => 'gabinete-do-prefeito-barra-nova'],
-            [
-                'nome' => 'Gabinete do Prefeito',
-                'status' => GabineteStatus::Active,
-                'municipio' => $cityHall->municipio,
-                'estado' => $cityHall->estado,
-                'entidade_id' => $cityHall->id,
-                'tipo_gabinete' => GabineteType::MayorOffice,
-            ],
-        );
-        $this->upsertUser([
-            'name' => 'Prefeito Municipal',
-            'email' => 'prefeito.barra-nova@gabinetefacil.test',
-            'password' => 'password',
-        ], UserRole::Administrator, $mayorOffice);
-        $moduleManager->sync($mayorOffice, $moduleManager->allEnabled(), $administrator, ['source' => 'database-seeder']);
-
-        $secretariat = Gabinete::withoutGlobalScopes()->updateOrCreate(
-            ['slug' => 'secretaria-de-obras-barra-nova'],
-            [
-                'nome' => 'Secretaria de Obras',
-                'status' => GabineteStatus::Active,
-                'municipio' => $cityHall->municipio,
-                'estado' => $cityHall->estado,
-                'entidade_id' => $cityHall->id,
-                'tipo_gabinete' => GabineteType::Secretariat,
-            ],
-        );
-        $this->upsertUser([
-            'name' => 'Secretário de Obras',
-            'email' => 'secretaria-obras.barra-nova@gabinetefacil.test',
+            'name' => 'Secretária Legislativa',
+            'email' => 'secretaria-legislativa.barra-nova@gabinetefacil.test',
             'password' => 'password',
         ], UserRole::Administrator, $secretariat);
-        $moduleManager->sync($secretariat, $moduleManager->allEnabled(), $administrator, ['source' => 'database-seeder']);
+        $moduleManager->sync(
+            $secretariat,
+            $moduleManager->allEnabled(GabineteType::LegislativeSecretariat),
+            $administrator,
+            ['source' => 'database-seeder'],
+        );
 
         User::withoutGlobalScopes()
-            ->whereIn('gabinete_id', Gabinete::withoutGlobalScopes()
-                ->whereIn('entidade_id', [$cityCouncil->id, $cityHall->id])
-                ->pluck('id'))
+            ->whereIn('gabinete_id', [...array_keys($councilorOffices), $secretariat->id])
             ->get()
             ->each(fn (User $user) => $memberships->syncLegacyUser($user, $administrator));
+
+        foreach ($councilorOffices as [$office, $bairros]) {
+            $this->seedOffice($office, $bairros);
+        }
     }
 
     /** @param list<string> $neighborhoodNames */
@@ -509,11 +468,6 @@ class DatabaseSeeder extends Seeder
             'advisor' => [
                 'name' => 'Assessor Parlamentar',
                 'email' => 'assessor@gabinetefacil.test',
-                'password' => 'password',
-            ],
-            'second_councilor' => [
-                'name' => 'Vereador Carlos Nascimento',
-                'email' => 'vereador.caucaia@gabinetefacil.test',
                 'password' => 'password',
             ],
         ];

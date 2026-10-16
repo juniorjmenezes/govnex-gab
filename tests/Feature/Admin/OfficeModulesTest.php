@@ -56,19 +56,21 @@ class OfficeModulesTest extends TestCase
         $offices = Gabinete::withoutGlobalScopes()->get();
         $entidades = Entidade::withoutGlobalScopes()->get();
         $this->assertCount(7, $offices);
-        $this->assertCount(4, $entidades);
+        $this->assertCount(2, $entidades);
 
+        // Toda unidade recebe o conjunto completo de módulos, exceto a
+        // Secretaria legislativa: ela só tem o catálogo restrito aos
+        // módulos que lhe fazem sentido (sem Demandas/Relacionamento — ver
+        // AGENTS.md).
         foreach ($offices as $office) {
             $this->assertNotNull($office->entidade_id);
-            $this->assertSame(
-                app(GabineteModuleManager::class)->allEnabled(),
-                app(GabineteModuleManager::class)->activeFor($office),
-            );
+            $expected = app(GabineteModuleManager::class)->allEnabled($office->tipo_gabinete);
+            $this->assertSame($expected, app(GabineteModuleManager::class)->activeFor($office));
         }
 
         $this->assertDatabaseCount(
             'gabinete_modulos',
-            count(app(GabineteModuleManager::class)->allEnabled()) * $offices->count(),
+            $offices->sum(fn (Gabinete $office): int => count(app(GabineteModuleManager::class)->allEnabled($office->tipo_gabinete))),
         );
         $this->assertDatabaseCount(
             'entidade_modulos',
@@ -76,7 +78,7 @@ class OfficeModulesTest extends TestCase
         );
         $this->assertDatabaseCount('entidade_membros', 9);
         $this->assertDatabaseCount('gabinete_membros', 9);
-        $this->assertDatabaseCount('entidade_bairros', 14);
+        $this->assertDatabaseCount('entidade_bairros', 18);
         $this->assertSame(0, DB::table('bairros')->whereNull('entidade_bairro_id')->count());
     }
 

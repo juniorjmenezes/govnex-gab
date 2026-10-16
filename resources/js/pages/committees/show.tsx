@@ -624,7 +624,7 @@ function EditMemberForm({
     };
 
     return (
-        <form noValidate onSubmit={submit} className="grid gap-4">
+        <form noValidate onSubmit={submit} className="contents">
             <DialogHeader>
                 <DialogTitle>Editar membro</DialogTitle>
                 <DialogDescription>
@@ -633,36 +633,40 @@ function EditMemberForm({
                         : member.office.name}
                 </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-2">
-                <Label htmlFor="member-person">Pessoa indicada</Label>
-                <AppSelect
-                    id="member-person"
-                    placeholder="Titular do gabinete"
-                    emptyLabel="Titular do gabinete"
-                    value={form.data.usuario_id}
-                    onValueChange={(value) => form.setData('usuario_id', value)}
-                    options={people.map((person) => ({
-                        value: String(person.id),
-                        label: person.name,
-                    }))}
-                />
-                <FieldError message={form.errors.usuario_id} />
-            </div>
-            <div className="grid gap-2">
-                <Label htmlFor="member-role">Cargo na comissão</Label>
-                <AppSelect
-                    id="member-role"
-                    value={form.data.cargo}
-                    onValueChange={(value) =>
-                        form.setData(
-                            'cargo',
-                            (value || 'membro') as CommitteeRole,
-                        )
-                    }
-                    options={options.roles}
-                    clearable={false}
-                />
-                <FieldError message={form.errors.cargo} />
+            <div className="grid gap-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="member-person">Pessoa indicada</Label>
+                    <AppSelect
+                        id="member-person"
+                        placeholder="Titular do gabinete"
+                        emptyLabel="Titular do gabinete"
+                        value={form.data.usuario_id}
+                        onValueChange={(value) =>
+                            form.setData('usuario_id', value)
+                        }
+                        options={people.map((person) => ({
+                            value: String(person.id),
+                            label: person.name,
+                        }))}
+                    />
+                    <FieldError message={form.errors.usuario_id} />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="member-role">Cargo na comissão</Label>
+                    <AppSelect
+                        id="member-role"
+                        value={form.data.cargo}
+                        onValueChange={(value) =>
+                            form.setData(
+                                'cargo',
+                                (value || 'membro') as CommitteeRole,
+                            )
+                        }
+                        options={options.roles}
+                        clearable={false}
+                    />
+                    <FieldError message={form.errors.cargo} />
+                </div>
             </div>
             <DialogFooter>
                 <Button type="button" variant="ghost" onClick={onClose}>

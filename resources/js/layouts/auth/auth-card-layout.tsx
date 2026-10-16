@@ -1,13 +1,13 @@
-import { AppLogoMark, AppWordmark } from '@/components/app-logo-mark';
+import { AppLogoMark } from '@/components/app-logo-mark';
 import type { AuthLayoutProps } from '@/types';
-import { AuthSplitLayout } from '@govnex/ui';
+import { AuthCardLayout as SharedAuthCardLayout } from '@govnex/ui';
 
 /**
- * Tela cheia dividida em duas colunas (`AuthSplitLayout` da `@govnex/ui`),
- * usada só pela tela de login (ver `auth-layout.tsx`); as demais telas de
- * autenticação seguem no `auth-simple-layout`. Conteúdo de marca (logo,
- * frase e blocos de destaque) é só do GAB — o padrão compartilhado não fixa
- * nada disso.
+ * Cartão flutuante centralizado (`AuthCardLayout` da `@govnex/ui`), mesmo
+ * container do Govnex Hub — usada só pela tela de login (ver
+ * `auth-layout.tsx`); as demais telas de autenticação seguem no
+ * `auth-simple-layout`. Conteúdo de marca (logo, frase e blocos de ajuda) é
+ * só do GAB — o padrão compartilhado não fixa nada disso.
  */
 export default function AuthCardLayout({
     children,
@@ -15,35 +15,43 @@ export default function AuthCardLayout({
     description,
 }: AuthLayoutProps) {
     return (
-        <AuthSplitLayout
+        <SharedAuthCardLayout
             title={title}
             description={description}
-            brand={
-                <div className="flex flex-col items-start gap-2">
-                    <AppLogoMark className="h-8 w-auto" aria-hidden="true" />
-                    <AppWordmark className="text-2xl font-semibold tracking-tight" />
+            logo={
+                <AppLogoMark
+                    className="block h-10 w-auto self-start text-foreground"
+                    aria-hidden="true"
+                />
+            }
+            footer={
+                <div className="space-y-4">
+                    <p>
+                        Gestão de gabinete legislativo, do jeito que devia ser.
+                    </p>
+                    <div className="grid grid-cols-2 gap-6">
+                        <div>
+                            <p className="text-sm font-medium text-foreground">
+                                Precisa de ajuda?
+                            </p>
+                            <p className="mt-1 text-xs">
+                                Fale com o suporte do seu gabinete.
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-foreground">
+                                Primeiro acesso?
+                            </p>
+                            <p className="mt-1 text-xs">
+                                Peça o convite a quem administra seu gabinete.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             }
-            tagline="Gestão de gabinete legislativo, do jeito que devia ser."
-            panelFooter={
-                <>
-                    <div>
-                        <p className="text-sm font-medium">Precisa de ajuda?</p>
-                        <p className="mt-1 text-xs text-sidebar-header-foreground/80">
-                            Fale com o suporte do seu gabinete.
-                        </p>
-                    </div>
-                    <div>
-                        <p className="text-sm font-medium">Primeiro acesso?</p>
-                        <p className="mt-1 text-xs text-sidebar-header-foreground/80">
-                            Peça o convite a quem administra seu gabinete.
-                        </p>
-                    </div>
-                </>
-            }
-            formFooter={`© ${new Date().getFullYear()} Govnex GAB`}
+            copyright={`© ${new Date().getFullYear()} Govnex GAB`}
         >
             {children}
-        </AuthSplitLayout>
+        </SharedAuthCardLayout>
     );
 }

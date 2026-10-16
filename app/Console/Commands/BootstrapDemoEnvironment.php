@@ -108,7 +108,6 @@ class BootstrapDemoEnvironment extends Command
             'councilor' => $this->account('Vereadora Marina Oliveira', 'vereador@gabinetefacil.test'),
             'chief' => $this->account('Chefe de Gabinete', 'chefe@gabinetefacil.test'),
             'advisor' => $this->account('Assessor Parlamentar', 'assessor@gabinetefacil.test'),
-            'second_councilor' => $this->account('Vereador Carlos Nascimento', 'vereador.caucaia@gabinetefacil.test'),
         ];
     }
 

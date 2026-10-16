@@ -13,9 +13,8 @@ import { AuthField, AuthRememberToggle } from '@govnex/ui';
  * Passkey + formulário de e-mail/senha do acesso local (restrito a root, ver
  * `FortifyServiceProvider::configureAuthentication`). Reaproveitado pela tela
  * de login normal (quando o Hub não está configurado, esse é o único
- * caminho) e pela tela dedicada `/login/local` (quando o Hub está
- * configurado, o acesso local vira uma página própria, não um trecho
- * recolhido — recolher aumentava a altura da página de forma inconsistente).
+ * caminho) e pelo modal de acesso local de emergência (quando o Hub está
+ * configurado).
  *
  * Os dois campos usam o `AuthField` compartilhado da `@govnex/ui` — mesmo
  * arranjo em todos os produtos Govnex; `type="password"` já traz o botão de

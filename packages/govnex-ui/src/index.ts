@@ -285,6 +285,8 @@ export { AttachmentField } from './patterns/attachment-field';
 export type { AttachmentCurrentFile } from './patterns/attachment-field';
 export { AuthSplitLayout } from './patterns/auth-split-layout';
 export type { AuthSplitLayoutProps } from './patterns/auth-split-layout';
+export { AuthCardLayout } from './patterns/auth-card-layout';
+export type { AuthCardLayoutProps } from './patterns/auth-card-layout';
 export { AuthField, AuthRememberToggle } from './patterns/auth-fields';
 export type {
     AuthFieldProps,

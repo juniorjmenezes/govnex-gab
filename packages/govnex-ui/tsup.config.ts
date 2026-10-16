@@ -43,12 +43,19 @@ export default defineConfig({
     ],
     esbuildOptions(options) {
         // As duas animações do `DestructiveAlertDialog` são .gif pequenos
-        // (≈50 KB juntos) importados como módulo — copiamos para
-        // `dist/assets` em vez de embutir em base64, mantendo o JS enxuto.
+        // (≈50 KB juntos), embutidos em base64 direto no JS. O loader
+        // `file` (caminho relativo copiado para `dist/assets`) só funciona
+        // quando quem consome reprocessa o import pelo próprio bundler —
+        // é o caso do GAB (código-fonte direto), mas não de quem instala
+        // `@govnex/ui` como dependência de verdade (Hub, API, GHO): aí o
+        // JS já vem compilado, o caminho relativo vira texto literal, e o
+        // navegador tenta buscá-lo relativo à própria página — imagem
+        // quebrada. `dataurl` resolve isso embutindo o arquivo inteiro,
+        // sem depender de onde o pacote foi instalado nem de como foi
+        // servido.
         options.loader = {
             ...options.loader,
-            '.gif': 'file',
+            '.gif': 'dataurl',
         };
-        options.assetNames = 'assets/[name]-[hash]';
     },
 });

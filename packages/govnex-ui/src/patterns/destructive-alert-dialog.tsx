@@ -125,15 +125,11 @@ export function DestructiveAlertDialog({
                     <div className="border-t px-6 py-5">{children}</div>
                 )}
 
-                <AlertDialogFooter className="border-t bg-muted/30 p-4">
-                    <AlertDialogCancel
-                        className="w-full sm:w-auto sm:min-w-28"
-                        disabled={submitting}
-                    >
+                <AlertDialogFooter className="mx-0 mb-0">
+                    <AlertDialogCancel disabled={submitting}>
                         {cancelLabel}
                     </AlertDialogCancel>
                     <AlertDialogAction
-                        className="w-full sm:w-auto sm:min-w-36"
                         variant="destructive-solid"
                         disabled={confirmDisabled || submitting}
                         aria-busy={submitting}

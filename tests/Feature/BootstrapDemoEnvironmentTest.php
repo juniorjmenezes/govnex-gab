@@ -58,8 +58,8 @@ class BootstrapDemoEnvironmentTest extends TestCase
             }
         }
 
-        $this->assertCount(5, $accounts);
-        $this->assertCount(5, array_unique(array_column($accounts, 'password')));
+        $this->assertCount(4, $accounts);
+        $this->assertCount(4, array_unique(array_column($accounts, 'password')));
         $this->assertSame('Admin F3', $accounts['admin']['name']);
         $this->assertSame('fabriciovlw1@gmail.com', $accounts['admin']['email']);
 
@@ -70,8 +70,8 @@ class BootstrapDemoEnvironmentTest extends TestCase
             $this->assertNotNull($user->email_verified_at);
         }
 
-        $this->assertSame(2, Gabinete::withoutGlobalScopes()->count());
-        $this->assertSame(5, User::query()->count());
+        $this->assertSame(1, Gabinete::withoutGlobalScopes()->count());
+        $this->assertSame(4, User::query()->count());
     }
 
     public function test_refuses_to_run_again_or_overwrite_the_credentials_file(): void
@@ -83,7 +83,7 @@ class BootstrapDemoEnvironmentTest extends TestCase
         $this->artisan('govnexgab:bootstrap-demo')->assertFailed();
 
         $this->assertSame($originalHash, hash_file('sha256', $credentialsPath));
-        $this->assertSame(2, Gabinete::withoutGlobalScopes()->count());
-        $this->assertSame(5, User::query()->count());
+        $this->assertSame(1, Gabinete::withoutGlobalScopes()->count());
+        $this->assertSame(4, User::query()->count());
     }
 }

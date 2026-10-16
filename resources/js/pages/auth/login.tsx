@@ -1,7 +1,15 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
+import { useState } from 'react';
 import { ShieldUserIcon } from '@/components/icons';
 import { LocalLoginForm } from '@/components/local-login-form';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 
 /**
  * A entrada padrão é o SSO do Govnex Hub
@@ -10,11 +18,12 @@ import { Button } from '@/components/ui/button';
  * plataforma quando o Hub estiver fora do ar (decisões #6 e #10) — e só conta
  * root consegue usá-lo: `Fortify::authenticateUsing` recusa as demais.
  *
- * Com o Hub configurado, o acesso local vira um botão para a página própria
- * `/login/local` (ver `routes/web.php`) em vez de um trecho recolhido: um
- * `Collapsible` aqui mudava a altura da página de forma inconsistente ao
- * abrir. Sem o Hub configurado, esse é o único caminho de entrada, então o
- * formulário aparece direto, sem precisar de um botão para chegar nele.
+ * Com o Hub configurado, o acesso local vira um modal aberto a partir de um
+ * botão, em vez de uma página própria: menos navegação para um fluxo raro
+ * (Hub indisponível) e nenhuma rota/`Inertia::render` extra para manter em
+ * sincronia com a tela principal. Sem o Hub configurado, esse é o único
+ * caminho de entrada, então o formulário aparece direto, sem precisar de um
+ * botão para chegar nele.
  *
  * O botão do Hub e o link de troca de conta são âncoras, não `Link` do
  * Inertia: o destino é uma navegação de página inteira para outro domínio.
@@ -33,6 +42,8 @@ export default function Login({
     canResetPassword,
     hubEnabled = false,
 }: Props) {
+    const [acessoLocalAberto, setAcessoLocalAberto] = useState(false);
+
     return (
         <>
             <Head title="Entrar" />
@@ -66,11 +77,34 @@ export default function Login({
                         </a>
                     </p>
 
-                    <Button asChild variant="outline" className="w-full">
-                        <Link href="/login/local">
-                            Acesso local de emergência
-                        </Link>
+                    <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setAcessoLocalAberto(true)}
+                    >
+                        Acesso local de emergência
                     </Button>
+
+                    <Dialog
+                        open={acessoLocalAberto}
+                        onOpenChange={setAcessoLocalAberto}
+                    >
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>
+                                    Acesso local de emergência
+                                </DialogTitle>
+                                <DialogDescription>
+                                    Restrito à conta root, para quando o
+                                    Govnex Hub estiver indisponível.
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <LocalLoginForm
+                                canResetPassword={canResetPassword}
+                            />
+                        </DialogContent>
+                    </Dialog>
                 </div>
             ) : (
                 <LocalLoginForm canResetPassword={canResetPassword} />

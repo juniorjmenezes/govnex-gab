@@ -63,7 +63,7 @@ function AlertDialogContent({
                     data-slot="alert-dialog-content"
                     data-size={size}
                     className={cn(
-                        'group/alert-dialog-content pointer-events-auto grid w-full gap-6 rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/8 duration-100 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-md dark:ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+                        'group/alert-dialog-content pointer-events-auto grid w-full gap-6 overflow-hidden rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/8 duration-100 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-md dark:ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
                         className,
                     )}
                     {...props}
@@ -97,7 +97,10 @@ function AlertDialogFooter({
         <div
             data-slot="alert-dialog-footer"
             className={cn(
-                'flex flex-col-reverse gap-2 group-data-[size=sm]/alert-dialog-content:grid group-data-[size=sm]/alert-dialog-content:grid-cols-2 sm:flex-row sm:justify-end',
+                '-mx-6 -mb-6 flex flex-col-reverse gap-2 border-t bg-muted/30 p-4 group-data-[size=sm]/alert-dialog-content:grid group-data-[size=sm]/alert-dialog-content:grid-cols-2 sm:flex-row sm:justify-end',
+                '*:data-[slot=alert-dialog-action]:w-full *:data-[slot=alert-dialog-action]:sm:w-auto *:data-[slot=alert-dialog-action]:sm:min-w-28',
+                '*:data-[slot=alert-dialog-cancel]:w-full *:data-[slot=alert-dialog-cancel]:sm:w-auto *:data-[slot=alert-dialog-cancel]:sm:min-w-28',
+                '*:data-[slot=button]:w-full *:data-[slot=button]:sm:w-auto *:data-[slot=button]:sm:min-w-28',
                 className,
             )}
             {...props}
@@ -129,7 +132,7 @@ function AlertDialogTitle({
         <AlertDialogPrimitive.Title
             data-slot="alert-dialog-title"
             className={cn(
-                'text-sm leading-5 font-semibold text-foreground group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2',
+                'shrink-0 text-lg leading-5 font-semibold tracking-tight text-foreground group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2',
                 className,
             )}
             {...props}

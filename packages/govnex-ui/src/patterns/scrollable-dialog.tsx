@@ -56,7 +56,10 @@ export function ScrollableDialogFooter({
 }: ComponentProps<typeof DialogFooter>) {
     return (
         <DialogFooter
-            className={cn('shrink-0 border-t bg-popover px-6 py-4', className)}
+            className={cn(
+                'mx-0 mb-0 shrink-0 border-t bg-popover px-6 py-4',
+                className,
+            )}
             {...props}
         />
     );
