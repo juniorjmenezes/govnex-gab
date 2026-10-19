@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import { BackButton } from '@/components/common/back-button';
 import { DemandForm } from '@/components/demands/demand-form';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
@@ -18,6 +19,7 @@ export default function EditDemand({
                 <PageHeader
                     title="Editar demanda"
                     description="Atualize a solicitação, o responsável, o prazo e a localização."
+                    actions={<BackButton />}
                 />
                 <DemandForm demand={demand} options={options} />
             </PageContainer>

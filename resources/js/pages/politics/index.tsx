@@ -1427,48 +1427,38 @@ export default function PoliticalPanel({
                 </section>
 
                 {countdown && (
-                    <Surface
-                        as="section"
-                        className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
-                    >
-                        <div className="flex min-w-0 items-center gap-3">
+                    <Surface as="section">
+                        <SurfaceHeader
+                            actions={
+                                <div className="w-full shrink-0 sm:w-auto sm:max-w-sm">
+                                    <Countdown
+                                        key={countdown.target}
+                                        target={countdown.target}
+                                        serverNow={serverNow}
+                                        expiredFallback={
+                                            <Button asChild className="w-full">
+                                                <Link href="/painel-politico/apuracao">
+                                                    <ClockCircleIcon aria-hidden="true" />
+                                                    Apurações
+                                                </Link>
+                                            </Button>
+                                        }
+                                    />
+                                </div>
+                            }
+                        >
                             <CalendarMarkIcon
                                 className="size-5 shrink-0 text-primary"
                                 aria-hidden="true"
                             />
-                            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                                <h2 className="text-sm font-semibold">
-                                    {countdown.label}
-                                </h2>
-                                <span
-                                    className="hidden text-muted-foreground/60 sm:inline"
-                                    aria-hidden="true"
-                                >
-                                    &middot;
-                                </span>
-                                <p className="basis-full text-xs text-muted-foreground sm:basis-auto">
-                                    {countdown.round_label} em{' '}
-                                    {dateFormatter.format(
-                                        new Date(`${countdown.date}T12:00:00`),
-                                    )}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="w-full shrink-0 sm:w-auto sm:max-w-sm">
-                            <Countdown
-                                key={countdown.target}
-                                target={countdown.target}
-                                serverNow={serverNow}
-                                expiredFallback={
-                                    <Button asChild className="w-full">
-                                        <Link href="/painel-politico/apuracao">
-                                            <ClockCircleIcon aria-hidden="true" />
-                                            Apurações
-                                        </Link>
-                                    </Button>
-                                }
-                            />
-                        </div>
+                            <SurfaceTitle>{countdown.label}</SurfaceTitle>
+                            <SurfaceDescription>
+                                {countdown.round_label} em{' '}
+                                {dateFormatter.format(
+                                    new Date(`${countdown.date}T12:00:00`),
+                                )}
+                            </SurfaceDescription>
+                        </SurfaceHeader>
                     </Surface>
                 )}
 

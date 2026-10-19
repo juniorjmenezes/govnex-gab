@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import { BackButton } from '@/components/common/back-button';
 import { EventForm } from '@/components/events/event-form';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
@@ -20,6 +21,7 @@ export default function EditEvent({
                 <PageHeader
                     title="Editar evento"
                     description={`Atualize as informações de ${event.titulo}.`}
+                    actions={<BackButton />}
                 />
                 <EventForm
                     event={event}

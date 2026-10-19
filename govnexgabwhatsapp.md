@@ -58,6 +58,7 @@ Telefones e parâmetros são cifrados no banco. Hash e últimos quatro dígitos 
 | `AGENDA_ALTERADA` | Participantes aplicáveis | Imediato |
 | `AGENDA_CANCELADA` | Participantes aplicáveis | Imediato |
 | `PESQUISA_ELEITORAL_PUBLICADA` | Equipe autorizada | Desativado até consentimento de marketing próprio |
+| `SECRETARIA_CONVOCACAO` | Equipe dos gabinetes de vereador do público de um compromisso institucional | Manual, pela Secretaria legislativa ("Convocar por WhatsApp"); módulo de origem Agenda no gabinete de quem recebe |
 
 As notificações internas do Laravel são independentes. Falha no WhatsApp nunca impede uma operação do GOVNEX GAB.
 
@@ -86,7 +87,7 @@ Templates são administrados pelo ADMIN do GOVNEX GAB através dos endpoints pri
 
 `WHATSAPP_GATEWAY_ACCOUNT_ID` fixa a conta de destino para listagem, criação,
 submissão e sincronização dos templates. A ausência desse valor bloqueia a
-recriação de versões. A rotina operacional padrão recria as oito finalidades
+recriação de versões. A rotina operacional padrão recria as nove finalidades
 `UTILITY` e exclui `PESQUISA_ELEITORAL_PUBLICADA`, que foi classificada como
 marketing pela Meta e exige consentimento separado.
 
@@ -145,7 +146,9 @@ são exibidos no terminal.
 
 ### Ensaio ampliado em LIVE
 
-O comando `govnexgab:whatsapp-live-test` valida os oito templates operacionais com
+O comando `govnexgab:whatsapp-live-test` exige todas as finalidades operacionais
+habilitadas e com template pronto (inclusive `SECRETARIA_CONVOCACAO`, que o ensaio
+não dispara) e exercita as oito finalidades de demandas e agenda com
 dois contatos de equipe e três cidadãos. A execução padrão é uma simulação e
 mostra somente nomes, IDs internos e os quatro últimos dígitos. O envio real
 exige gabinete em `LIVE`, outbox sem pendências externas ao ensaio, um UUID,

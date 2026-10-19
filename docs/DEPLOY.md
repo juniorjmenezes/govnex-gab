@@ -177,7 +177,7 @@ envio real, submeter templates ou chamar a Meta exige autorização separada.
 Consulte [`govnexgabwhatsapp.md`](../govnexgabwhatsapp.md) para o contrato completo.
 
 Para mudança de WABA, use primeiro a simulação do comando abaixo. A execução
-confirmada recria somente as oito finalidades operacionais na conta configurada
+confirmada recria somente as nove finalidades operacionais na conta configurada
 e não inclui pesquisa eleitoral:
 
 ```bash

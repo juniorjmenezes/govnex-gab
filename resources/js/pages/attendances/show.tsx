@@ -1,4 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import { BackButton } from '@/components/common/back-button';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import { StatusBadge } from '@/components/demands/status-badge';
 import {
@@ -56,6 +57,7 @@ export default function AttendanceShow({
                     description={`${attendance.cidadao.nome} • ${formatDateTime(attendance.atendido_em)}`}
                     actions={
                         <div className="flex gap-2">
+                            <BackButton />
                             {canWrite && (
                                 <Button variant="outline" asChild>
                                     <Link

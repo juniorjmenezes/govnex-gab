@@ -154,4 +154,10 @@ export type InstitutionalAppointmentFormProps = {
         committees: InstitutionalCommitteeOption[];
         offices: Array<{ id: number; name: string; leader: string | null }>;
     };
+    /**
+     * Convocação por WhatsApp (só na edição). `available` já considera
+     * permissão, situação do compromisso e o canal ligado na Câmara;
+     * `offices` é o público atual.
+     */
+    broadcast: { available: boolean; offices: number } | null;
 };

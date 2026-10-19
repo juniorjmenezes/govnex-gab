@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { lazy, Suspense } from 'react';
+import { BackButton } from '@/components/common/back-button';
 import {
     CalendarMarkIcon,
     ChatRoundIcon,
@@ -95,18 +96,21 @@ export default function CitizenShow({
                     title={citizen.nome}
                     description="Perfil, contato e histórico de atendimento."
                     actions={
-                        canWrite ? (
-                            <Button asChild>
-                                <Link
-                                    href={tenantUrl(
-                                        `/cidadaos/${citizen.id}/edit`,
-                                    )}
-                                >
-                                    <PenIcon />
-                                    Editar cadastro
-                                </Link>
-                            </Button>
-                        ) : undefined
+                        <div className="flex gap-2">
+                            <BackButton />
+                            {canWrite && (
+                                <Button asChild>
+                                    <Link
+                                        href={tenantUrl(
+                                            `/cidadaos/${citizen.id}/edit`,
+                                        )}
+                                    >
+                                        <PenIcon />
+                                        Editar cadastro
+                                    </Link>
+                                </Button>
+                            )}
+                        </div>
                     }
                 />
                 {possibleDuplicates.length > 0 && (

@@ -287,6 +287,8 @@ export { AuthSplitLayout } from './patterns/auth-split-layout';
 export type { AuthSplitLayoutProps } from './patterns/auth-split-layout';
 export { AuthCardLayout } from './patterns/auth-card-layout';
 export type { AuthCardLayoutProps } from './patterns/auth-card-layout';
+export { BackButton } from './patterns/back-button';
+export type { BackButtonProps } from './patterns/back-button';
 export { AuthField, AuthRememberToggle } from './patterns/auth-fields';
 export type {
     AuthFieldProps,

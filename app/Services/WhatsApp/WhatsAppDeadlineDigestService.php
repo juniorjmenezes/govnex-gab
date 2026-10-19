@@ -8,6 +8,7 @@ use App\Enums\WhatsAppMode;
 use App\Enums\WhatsAppPurpose;
 use App\Models\Demanda;
 use App\Models\Gabinete;
+use App\Models\GabineteMembro;
 use App\Models\User;
 use App\Models\WhatsAppConfiguration;
 use App\Services\Modules\GabineteModuleManager;
@@ -42,11 +43,9 @@ final class WhatsAppDeadlineDigestService
             if (substr((string) $configuration->resumo_diario_em, 0, 5) !== $now->format('H:i')) {
                 continue;
             }
-            $users = User::query()
-                ->where('gabinete_id', $office->id)
-                ->where('is_active', true)
-                ->whereHas('whatsappContact')
-                ->get();
+            $query = User::query();
+            GabineteMembro::constrainActiveUsers($query, $office->id);
+            $users = $query->whereHas('whatsappContact')->get();
             foreach ($users as $user) {
                 [$overdue, $soon, $referrals] = $this->counts($user, $now->utc());
                 if (($overdue + $soon + $referrals) === 0) {

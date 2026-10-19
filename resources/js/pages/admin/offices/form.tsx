@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { BackButton } from '@/components/common/back-button';
 import { AddressFields } from '@/components/forms/address-fields';
 import { FieldError } from '@/components/forms/field-error';
 import { FieldLabel } from '@/components/forms/field-label';
@@ -197,6 +198,7 @@ export default function OfficeForm({ office, responsible, entidade }: Props) {
                 <PageHeader
                     title="Editar gabinete"
                     description="Atualize os dados operacionais do gabinete. Estrutura, contas e vínculos são geridos no Govnex Hub."
+                    actions={<BackButton />}
                 />
                 <form
                     noValidate

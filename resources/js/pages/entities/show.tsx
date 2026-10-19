@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
 import { ActivityMark } from '@/components/common/activity-mark';
 import { ActivityToggleButton } from '@/components/common/activity-toggle-button';
+import { BackButton } from '@/components/common/back-button';
 import { HubManagedHint } from '@/components/common/hub-managed-hint';
 import { HubStructureLink } from '@/components/common/hub-structure-link';
 import { AttachmentField } from '@/components/forms/attachment-field';
@@ -294,6 +295,7 @@ export default function EntidadeShow({
                         </span>
                     }
                     description={`${entidade.type_label} · ${entidade.city}/${entidade.state}`}
+                    actions={<BackButton />}
                 />
 
                 <Surface as="section" className="overflow-hidden">

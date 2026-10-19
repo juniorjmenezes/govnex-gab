@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Demands;
 
 use App\Models\Demanda;
+use App\Models\GabineteMembro;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -26,9 +27,7 @@ class SetNextActionRequest extends FormRequest
             'responsavel_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->where(fn ($query) => $query
-                    ->where('gabinete_id', $officeId)
-                    ->where('is_active', true)),
+                Rule::exists('users', 'id')->where(fn ($query) => GabineteMembro::constrainActiveUsers($query, $officeId)),
             ],
         ];
     }

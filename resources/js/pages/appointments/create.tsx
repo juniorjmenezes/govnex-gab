@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { AppointmentFields } from '@/components/appointments/appointment-fields';
 import { useAppointmentForm } from '@/components/appointments/use-appointment-form';
+import { BackButton } from '@/components/common/back-button';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ export default function CreateAppointment({
                 <PageHeader
                     title="Novo compromisso"
                     description="Reuniões e visitas do gabinete, com participantes e lembretes."
+                    actions={<BackButton />}
                 />
                 <form
                     noValidate

@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { CitizenForm } from '@/components/citizens/citizen-form';
+import { BackButton } from '@/components/common/back-button';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import type { Neighborhood, OfficeLocation } from '@/types';
@@ -20,6 +21,7 @@ export default function CreateCitizen({
                 <PageHeader
                     title="Novo cidadão"
                     description="Registre os dados de contato e localização para agilizar os atendimentos."
+                    actions={<BackButton />}
                 />
                 <CitizenForm
                     neighborhoods={neighborhoods}

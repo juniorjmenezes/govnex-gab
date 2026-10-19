@@ -10,6 +10,7 @@ use App\Enums\UserRole;
 use App\Enums\WhatsAppPurpose;
 use App\Models\Cidadao;
 use App\Models\Demanda;
+use App\Models\GabineteMembro;
 use App\Models\User;
 use App\Models\WhatsAppContact;
 use App\Services\Modules\GabineteModuleManager;
@@ -43,19 +44,15 @@ class AppointmentRequest extends FormRequest
             'responsavel_id' => [
                 'nullable',
                 'integer',
-                Rule::exists(User::class, 'id')->where(fn ($query) => $query
-                    ->where('gabinete_id', $gabineteId)
-                    ->where('role', '!=', UserRole::Root->value)
-                    ->where('is_active', true)),
+                Rule::exists(User::class, 'id')->where(fn ($query) => GabineteMembro::constrainActiveUsers($query, $gabineteId)
+                    ->where('role', '!=', UserRole::Root->value)),
             ],
             'participantes' => ['array', 'max:30'],
             'participantes.*' => [
                 'integer',
                 'distinct',
-                Rule::exists(User::class, 'id')->where(fn ($query) => $query
-                    ->where('gabinete_id', $gabineteId)
-                    ->where('role', '!=', UserRole::Root->value)
-                    ->where('is_active', true)),
+                Rule::exists(User::class, 'id')->where(fn ($query) => GabineteMembro::constrainActiveUsers($query, $gabineteId)
+                    ->where('role', '!=', UserRole::Root->value)),
             ],
             'cidadao_id' => [
                 'nullable',

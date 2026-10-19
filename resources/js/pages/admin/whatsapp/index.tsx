@@ -71,7 +71,7 @@ type Props = {
         whatsapp_enabled: boolean;
     }>;
     selectedOfficeId: number | null;
-    selectedEntidade: { id: number; name: string } | null;
+    selectedEntidade: { id: number; slug: string; name: string } | null;
     connection: {
         id: number;
         gateway_account_id: number;
@@ -342,9 +342,15 @@ export default function WhatsAppAdmin(props: Props) {
                                     size="sm"
                                     variant="outline"
                                     className="shrink-0"
+                                    disabled={!gatewayReady}
+                                    title={
+                                        gatewayReady
+                                            ? undefined
+                                            : 'Configure a URL e os segredos do Gateway WhatsApp (.env) antes de consultar contas.'
+                                    }
                                     onClick={() =>
                                         router.post(
-                                            `/admin/whatsapp/entidades/${props.selectedEntidade?.id}/contas/consultar`,
+                                            `/admin/whatsapp/entidades/${props.selectedEntidade?.slug}/contas/consultar`,
                                             {},
                                             { preserveScroll: true },
                                         )
@@ -396,7 +402,7 @@ export default function WhatsAppAdmin(props: Props) {
                                                     )
                                                 ) {
                                                     router.delete(
-                                                        `/admin/whatsapp/entidades/${props.selectedEntidade?.id}/conexao`,
+                                                        `/admin/whatsapp/entidades/${props.selectedEntidade?.slug}/conexao`,
                                                         {
                                                             preserveScroll: true,
                                                         },
@@ -432,7 +438,7 @@ export default function WhatsAppAdmin(props: Props) {
                                             }
 
                                             connectionForm.post(
-                                                `/admin/whatsapp/entidades/${props.selectedEntidade?.id}/conexao`,
+                                                `/admin/whatsapp/entidades/${props.selectedEntidade?.slug}/conexao`,
                                                 { preserveScroll: true },
                                             );
                                         }}

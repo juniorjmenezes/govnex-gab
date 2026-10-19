@@ -23,6 +23,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 
 final class WhatsAppController extends Controller
 {
@@ -34,7 +35,7 @@ final class WhatsAppController extends Controller
         EntidadeWhatsAppConnectionService $connections,
     ): Response {
         $officeModels = Gabinete::withoutGlobalScopes()
-            ->with('entidade:id,nome')
+            ->with('entidade:id,slug,nome')
             ->orderBy('nome')
             ->get(['id', 'entidade_id', 'nome', 'status']);
         $office = $officeModels->firstWhere('id', $request->integer('gabinete_id')) ?? $officeModels->first();
@@ -96,6 +97,7 @@ final class WhatsAppController extends Controller
             'selectedOfficeId' => $office?->id,
             'selectedEntidade' => $entidade ? [
                 'id' => $entidade->id,
+                'slug' => $entidade->slug,
                 'name' => $entidade->nome,
             ] : null,
             'connection' => $connection ? $this->presentConnection($connection) : null,
@@ -152,7 +154,19 @@ final class WhatsAppController extends Controller
         Entidade $entidade,
         EntidadeWhatsAppConnectionService $connections,
     ): RedirectResponse {
-        $request->session()->flash('whatsapp_gateway_accounts', $connections->availableGatewayAccounts());
+        try {
+            $accounts = $connections->availableGatewayAccounts();
+        } catch (RuntimeException $exception) {
+            // `WhatsAppGatewayClient` recusa a chamada sem segredo/URL
+            // configurados (RuntimeException) ou falha ao falar com o
+            // gateway (WhatsAppGatewayException, que estende a mesma
+            // classe) — nos dois casos a mensagem já é segura para exibir.
+            Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+
+            return back();
+        }
+
+        $request->session()->flash('whatsapp_gateway_accounts', $accounts);
         $request->session()->flash('whatsapp_gateway_accounts_entidade_id', $entidade->id);
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Contas do cliente GABINETE consultadas com segurança.']);
 
@@ -250,15 +264,16 @@ final class WhatsAppController extends Controller
         if ($connection === null) {
             throw ValidationException::withMessages(['entidade_id' => 'Vincule uma conta WhatsApp antes de criar templates.']);
         }
-        $templates->createDraft(
-            WhatsAppPurpose::from($validated['purpose']),
-            $validated['body'] ?? null,
-            $request->user()->id,
-            $connection,
-        );
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Rascunho criado na conta vinculada.']);
 
-        return back();
+        return $this->performTemplateAction(
+            fn () => $templates->createDraft(
+                WhatsAppPurpose::from($validated['purpose']),
+                $validated['body'] ?? null,
+                $request->user()->id,
+                $connection,
+            ),
+            'Rascunho criado na conta vinculada.',
+        );
     }
 
     public function updateTemplate(
@@ -268,10 +283,11 @@ final class WhatsAppController extends Controller
     ): RedirectResponse {
         $this->assertEntidadeTemplate($template);
         $validated = $request->validate(['body' => ['required', 'string', 'min:20', 'max:1024']]);
-        $templates->updateDraft($template, $validated['body'], $request->user()->id);
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Rascunho atualizado.']);
 
-        return back();
+        return $this->performTemplateAction(
+            fn () => $templates->updateDraft($template, $validated['body'], $request->user()->id),
+            'Rascunho atualizado.',
+        );
     }
 
     public function createTemplateVersion(
@@ -283,14 +299,15 @@ final class WhatsAppController extends Controller
         $validated = $request->validate([
             'body' => ['nullable', 'string', 'min:20', 'max:1024'],
         ]);
-        $templates->createReplacementDraft(
-            $template,
-            $validated['body'] ?? null,
-            $request->user()->id,
-        );
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Nova versão criada na conta WhatsApp vinculada.']);
 
-        return back();
+        return $this->performTemplateAction(
+            fn () => $templates->createReplacementDraft(
+                $template,
+                $validated['body'] ?? null,
+                $request->user()->id,
+            ),
+            'Nova versão criada na conta WhatsApp vinculada.',
+        );
     }
 
     public function submitTemplate(
@@ -298,10 +315,11 @@ final class WhatsAppController extends Controller
         WhatsAppTemplateService $templates,
     ): RedirectResponse {
         $this->assertEntidadeTemplate($template);
-        $templates->submit($template);
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Template submetido para análise.']);
 
-        return back();
+        return $this->performTemplateAction(
+            fn () => $templates->submit($template),
+            'Template submetido para análise.',
+        );
     }
 
     public function syncTemplates(
@@ -317,10 +335,11 @@ final class WhatsAppController extends Controller
         if ($connection === null) {
             throw ValidationException::withMessages(['entidade_id' => 'Vincule uma conta WhatsApp antes de sincronizar templates.']);
         }
-        $templates->sync($connection);
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Estados dos templates sincronizados.']);
 
-        return back();
+        return $this->performTemplateAction(
+            fn () => $templates->sync($connection),
+            'Estados dos templates sincronizados.',
+        );
     }
 
     public function updateTemplateStatus(
@@ -330,8 +349,29 @@ final class WhatsAppController extends Controller
     ): RedirectResponse {
         $this->assertEntidadeTemplate($template);
         $validated = $request->validate(['active' => ['required', 'boolean']]);
-        $templates->setActive($template, (bool) $validated['active']);
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Ativação da finalidade atualizada.']);
+
+        return $this->performTemplateAction(
+            fn () => $templates->setActive($template, (bool) $validated['active']),
+            'Ativação da finalidade atualizada.',
+        );
+    }
+
+    /**
+     * `WhatsAppTemplateService` recusa estado inválido (rascunho já
+     * submetido, conexão inativa, etc.) e falhas do Gateway WhatsApp com
+     * `RuntimeException`/`WhatsAppGatewayException` — mensagem já pronta
+     * para exibir, nunca uma exceção não tratada por um clique de botão.
+     */
+    private function performTemplateAction(callable $action, string $successMessage): RedirectResponse
+    {
+        try {
+            $action();
+        } catch (RuntimeException $exception) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+
+            return back();
+        }
+        Inertia::flash('toast', ['type' => 'success', 'message' => $successMessage]);
 
         return back();
     }

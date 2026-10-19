@@ -72,6 +72,9 @@ $registerTenantRoutes = static function (): void {
             ->name('appointments.institutional.update');
         Route::delete('agenda/institucional/{compromisso}', [InstitutionalAppointmentController::class, 'destroy'])
             ->name('appointments.institutional.destroy');
+        Route::post('agenda/institucional/{compromisso}/convocar', [InstitutionalAppointmentController::class, 'broadcast'])
+            ->middleware('throttle:10,1')
+            ->name('appointments.institutional.broadcast');
 
         // Gestão das comissões legislativas; a leitura fica logo abaixo,
         // fora deste grupo.

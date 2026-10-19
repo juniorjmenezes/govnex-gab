@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { AttendanceForm } from '@/components/attendances/attendance-form';
+import { BackButton } from '@/components/common/back-button';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import type { AttendanceOptions } from '@/types';
@@ -26,6 +27,7 @@ export default function CreateAttendance({
                 <PageHeader
                     title="Novo atendimento presencial"
                     description="Registre a visita realizada no gabinete e as providências adotadas."
+                    actions={<BackButton />}
                 />
                 <AttendanceForm
                     options={options}

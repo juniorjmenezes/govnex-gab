@@ -1,12 +1,26 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { addHours, format, parseISO } from 'date-fns';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import { DateTimeFieldPair } from '@/components/forms/date-time-field-pair';
 import { FieldError } from '@/components/forms/field-error';
 import { PeoplePicker } from '@/components/forms/people-picker';
+import { ChatRoundDotsIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogMedia,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -88,6 +102,7 @@ export default function InstitutionalAppointmentForm({
     timezone,
     defaults,
     options,
+    broadcast,
 }: InstitutionalAppointmentFormProps) {
     const tenantUrl = useTenantUrl();
     const form = useForm<FormValues>(initialValues(appointment, defaults.date));
@@ -427,7 +442,7 @@ export default function InstitutionalAppointmentForm({
                     </Section>
 
                     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
+                        <div className="flex items-center gap-3">
                             {appointment && (
                                 <DeleteRecordButton
                                     url={tenantUrl(
@@ -441,6 +456,20 @@ export default function InstitutionalAppointmentForm({
                                         "dd/MM/yyyy 'às' HH:mm",
                                     )}
                                     description="O compromisso deixará de aparecer na agenda dos gabinetes de vereador. O registro permanecerá preservado no banco de dados."
+                                />
+                            )}
+                            {appointment && broadcast?.available && (
+                                <BroadcastButton
+                                    url={tenantUrl(
+                                        `/agenda/institucional/${appointment.id}/convocar`,
+                                    )}
+                                    subject={appointment.titulo}
+                                    subjectDetail={format(
+                                        parseISO(appointment.inicio_em),
+                                        "dd/MM/yyyy 'às' HH:mm",
+                                    )}
+                                    offices={broadcast.offices}
+                                    unsaved={form.isDirty}
                                 />
                             )}
                         </div>
@@ -462,6 +491,112 @@ export default function InstitutionalAppointmentForm({
                 </form>
             </PageContainer>
         </>
+    );
+}
+
+/**
+ * Convocação por WhatsApp da equipe dos gabinetes do público. Ação de
+ * confirmação com resultado de uma linha (toast), por isso um AlertDialog e
+ * não uma página. A mensagem sai com os dados gravados: com alterações não
+ * salvas, a confirmação fica bloqueada até salvar.
+ */
+function BroadcastButton({
+    url,
+    subject,
+    subjectDetail,
+    offices,
+    unsaved,
+}: {
+    url: string;
+    subject: string;
+    subjectDetail: string;
+    offices: number;
+    unsaved: boolean;
+}) {
+    const [open, setOpen] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const audience =
+        offices === 1
+            ? 'do gabinete convocado'
+            : `dos ${offices} gabinetes convocados`;
+
+    const send = () => {
+        router.post(
+            url,
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setSubmitting(true),
+                onFinish: () => setSubmitting(false),
+                onSuccess: () => setOpen(false),
+            },
+        );
+    };
+
+    return (
+        <AlertDialog
+            open={open}
+            onOpenChange={(next) => {
+                if (!submitting || next) {
+                    setOpen(next);
+                }
+            }}
+        >
+            <AlertDialogTrigger asChild>
+                <Button
+                    type="button"
+                    variant="outline"
+                    disabled={offices === 0}
+                >
+                    <ChatRoundDotsIcon aria-hidden="true" />
+                    Convocar por WhatsApp
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="gap-0 overflow-hidden p-0">
+                <AlertDialogHeader className="p-6">
+                    <AlertDialogMedia className="bg-primary/10 text-primary">
+                        <ChatRoundDotsIcon aria-hidden="true" />
+                    </AlertDialogMedia>
+                    <AlertDialogTitle>Convocar por WhatsApp?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        A equipe {audience} recebe o título, a data, o horário e
+                        o local deste compromisso. Só chega a quem já deu
+                        consentimento e está em gabinete com o WhatsApp e a
+                        convocação institucional habilitados. Quem já recebeu
+                        não recebe de novo, a menos que o horário mude.
+                    </AlertDialogDescription>
+                    <div className="col-start-2 mt-3 min-w-0 rounded-md border bg-muted/40 px-3 py-2 text-left">
+                        <p className="text-sm font-medium break-words text-foreground">
+                            {subject}
+                        </p>
+                        <p className="text-xs break-words text-muted-foreground">
+                            {subjectDetail}
+                        </p>
+                    </div>
+                    {unsaved && (
+                        <p className="col-start-2 mt-3 text-sm text-warning">
+                            Há alterações não salvas. Salve o compromisso antes
+                            de convocar: a mensagem usa os dados gravados.
+                        </p>
+                    )}
+                </AlertDialogHeader>
+                <AlertDialogFooter className="mx-0 mb-0">
+                    <AlertDialogCancel disabled={submitting}>
+                        Cancelar
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                        disabled={unsaved || submitting}
+                        aria-busy={submitting}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            send();
+                        }}
+                    >
+                        {submitting ? 'Enviando...' : 'Convocar'}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     );
 }
 

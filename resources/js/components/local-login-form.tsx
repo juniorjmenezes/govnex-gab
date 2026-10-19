@@ -29,7 +29,7 @@ export function LocalLoginForm({
 
     return (
         <div className="space-y-4">
-            <PasskeyVerify className="uppercase" />
+            <PasskeyVerify />
 
             <Form
                 noValidate
@@ -75,7 +75,7 @@ export function LocalLoginForm({
                         <div className="space-y-2">
                             <Button
                                 type="submit"
-                                className="w-full uppercase"
+                                className="w-full"
                                 tabIndex={4}
                                 disabled={processing}
                                 data-test="login-button"

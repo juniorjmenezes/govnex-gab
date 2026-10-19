@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { BackButton } from '@/components/common/back-button';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import { DestructiveAlertDialog } from '@/components/common/destructive-alert-dialog';
 import { TableActionButton } from '@/components/common/table-action-button';
@@ -97,6 +98,7 @@ export default function CommitteeShow({
                         .join(' · ')}
                     actions={
                         <>
+                            <BackButton />
                             <Badge variant={isActive ? 'success' : 'outline'}>
                                 {committee.status_label}
                             </Badge>

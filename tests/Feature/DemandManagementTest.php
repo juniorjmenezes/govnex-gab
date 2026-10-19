@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AccessRole;
 use App\Enums\DemandResultado;
 use App\Enums\DemandStatus;
 use App\Models\Bairro;
@@ -10,6 +11,7 @@ use App\Models\Cidadao;
 use App\Models\Demanda;
 use App\Models\DemandaEvento;
 use App\Models\Gabinete;
+use App\Models\GabineteMembro;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
@@ -46,6 +48,32 @@ class DemandManagementTest extends TestCase
         $this->assertSame(now()->year.'-000002', $demands[1]->protocolo);
         $this->assertSame(DemandStatus::New, $demands[0]->status);
         $this->assertSame(2, DemandaEvento::withoutGlobalScopes()->where('tipo', 'demanda_criada')->count());
+    }
+
+    /**
+     * `responsavel_id` só aceita `users.gabinete_id`/`is_active`, sem olhar
+     * `gabinete_membros`. Pausar alguém no Time (toggle "ativo" na tela de
+     * equipe) não muda nenhum dos dois campos — só essa linha — então a
+     * pessoa continuava podendo ser escolhida como responsável mesmo pausada.
+     */
+    public function test_a_team_member_paused_in_the_team_screen_cannot_be_assigned_as_responsible(): void
+    {
+        $office = Gabinete::factory()->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
+        $pausedMember = User::factory()->operator()->forGabinete($office)->create();
+        GabineteMembro::query()->updateOrCreate(
+            ['gabinete_id' => $office->id, 'usuario_id' => $pausedMember->id],
+            ['papel' => AccessRole::Operator, 'ativo' => false, 'ingressou_em' => now(), 'desativado_em' => now()],
+        );
+        $citizen = Cidadao::factory()->forGabinete($office)->create();
+        $category = Categoria::factory()->forGabinete($office)->create();
+
+        $this->actingAs($advisor)
+            ->post(route('demands.store'), [
+                ...$this->payload($citizen, $category),
+                'responsavel_id' => $pausedMember->id,
+            ])
+            ->assertSessionHasErrors('responsavel_id');
     }
 
     public function test_demand_can_be_created_without_category(): void

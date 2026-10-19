@@ -1,5 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
+import { BackButton } from '@/components/common/back-button';
 import { FieldError } from '@/components/forms/field-error';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
@@ -49,6 +50,7 @@ export default function CommitteeEdit({
                 <PageHeader
                     title="Editar comissão"
                     description={committee.nome}
+                    actions={<BackButton />}
                 />
                 <Surface as="section" className="overflow-hidden">
                     <SurfaceHeader>

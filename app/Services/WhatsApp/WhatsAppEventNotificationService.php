@@ -6,9 +6,12 @@ use App\Enums\WhatsAppPurpose;
 use App\Models\Appointment;
 use App\Models\Cidadao;
 use App\Models\Demanda;
+use App\Models\Gabinete;
+use App\Models\GabineteMembro;
 use App\Models\PesquisaEleitoral;
 use App\Models\User;
 use App\Models\WhatsAppContact;
+use App\Tenancy\GabineteContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
@@ -16,7 +19,10 @@ use Throwable;
 
 final class WhatsAppEventNotificationService
 {
-    public function __construct(private readonly WhatsAppOutboxService $outbox) {}
+    public function __construct(
+        private readonly WhatsAppOutboxService $outbox,
+        private readonly GabineteContext $context,
+    ) {}
 
     public function demandAssigned(Demanda $demand, User $recipient): void
     {
@@ -108,7 +114,10 @@ final class WhatsAppEventNotificationService
         array $parameters,
         ?Model $origin = null,
     ): void {
-        if (! $user->gabinete_id || ! $user->is_active) {
+        // `is_active` sozinho não reflete um membro pausado no próprio
+        // gabinete (toggle do Time): esse estado só existe em
+        // `gabinete_membros`, nunca em `users`.
+        if (! $user->gabinete_id || ! GabineteMembro::isActiveMember($user, (int) $user->gabinete_id)) {
             return;
         }
         $contact = WhatsAppContact::withoutGlobalScopes()
@@ -169,8 +178,25 @@ final class WhatsAppEventNotificationService
         if (! $contact) {
             return;
         }
+        // O contato pode ser de um gabinete diferente do contexto atual da
+        // requisição (ex.: aviso de pesquisa eleitoral para favoritos de
+        // várias câmaras). Sem isto, `BelongsToGabinete::creating` grava a
+        // notificação com o `gabinete_id` do contexto, não o do contato —
+        // vazando o registro para o gabinete errado.
+        $office = Gabinete::query()->withoutGlobalScopes()->find($contact->gabinete_id);
+        if (! $office) {
+            Log::warning('Falha ao registrar notificação WhatsApp: gabinete do contato não encontrado.', [
+                'purpose' => $purpose->value,
+                'contact_id' => $contact->id,
+            ]);
+
+            return;
+        }
         try {
-            $this->outbox->enqueue($contact, $purpose, $eventKey, $parameters, origin: $origin);
+            $this->context->runAs(
+                $office,
+                fn () => $this->outbox->enqueue($contact, $purpose, $eventKey, $parameters, origin: $origin),
+            );
         } catch (Throwable $exception) {
             Log::warning('Falha ao registrar notificação WhatsApp na outbox.', [
                 'purpose' => $purpose->value,

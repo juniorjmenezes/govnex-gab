@@ -5,6 +5,7 @@ namespace App\Http\Requests\Demands;
 use App\Enums\DemandOrigin;
 use App\Enums\DemandPriority;
 use App\Models\Demanda;
+use App\Models\GabineteMembro;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -58,9 +59,7 @@ abstract class DemandRequest extends FormRequest
             'responsavel_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->where(fn ($query) => $query
-                    ->where('gabinete_id', $officeId)
-                    ->where('is_active', true)),
+                Rule::exists('users', 'id')->where(fn ($query) => GabineteMembro::constrainActiveUsers($query, $officeId)),
             ],
             'endereco' => ['nullable', 'string', 'max:255'],
             'numero' => ['nullable', 'string', 'max:20'],

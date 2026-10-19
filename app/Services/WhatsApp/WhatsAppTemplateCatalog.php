@@ -111,6 +111,12 @@ final class WhatsAppTemplateCatalog
                 'body' => 'Olá, {{1}}. Uma nova pesquisa eleitoral foi publicada: {{2}}. Abrangência: {{3}}. Consulte o painel político do GOVNEX GAB.',
                 'examples' => ['Marina', 'Pesquisa municipal de agosto', 'Fortaleza/CE'],
             ],
+            // {{3}} já vem montado ("10/11/2026 às 09:00" ou "10/11/2026, dia
+            // inteiro"): compromisso de dia inteiro não tem horário a citar.
+            WhatsAppPurpose::InstitutionalConvocation->value => [
+                'body' => 'Olá, {{1}}. A Secretaria legislativa convoca o seu gabinete para {{2}}, em {{3}}. Local: {{4}}. Consulte a agenda do GOVNEX GAB para os detalhes.',
+                'examples' => ['Marina', 'Sessão ordinária', '10/11/2026 às 09:00', 'Plenário'],
+            ],
         ];
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\AppointmentStatus;
 use App\Enums\CommitteeStatus;
+use App\Enums\EntidadeModule;
 use App\Enums\GabineteStatus;
 use App\Enums\GabineteType;
 use App\Http\Requests\Appointments\InstitutionalAppointmentRequest;
@@ -12,6 +13,8 @@ use App\Models\CompromissoInstitucional;
 use App\Models\Gabinete;
 use App\Models\User;
 use App\Services\Appointments\InstitutionalAudienceService;
+use App\Services\Modules\EntidadeModuleManager;
+use App\Services\WhatsApp\InstitutionalWhatsAppBroadcastService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,6 +43,7 @@ class InstitutionalAppointmentController extends Controller
             'timezone' => $timezone,
             'defaults' => ['date' => max($date, $today)],
             'options' => $this->formOptions($user),
+            'broadcast' => null,
         ]);
     }
 
@@ -67,8 +71,11 @@ class InstitutionalAppointmentController extends Controller
         return $this->toAgenda($compromisso);
     }
 
-    public function edit(Request $request, CompromissoInstitucional $compromisso): Response
-    {
+    public function edit(
+        Request $request,
+        CompromissoInstitucional $compromisso,
+        EntidadeModuleManager $entidadeModules,
+    ): Response {
         $this->authorize('update', $compromisso);
         $user = $this->user($request);
         $timezone = $this->timezone($user);
@@ -98,6 +105,14 @@ class InstitutionalAppointmentController extends Controller
             'timezone' => $timezone,
             'defaults' => ['date' => $start->toDateString()],
             'options' => $this->formOptions($user, $compromisso->comissao_id),
+            // Convocação por WhatsApp: só com o canal ligado na Câmara e para
+            // compromisso que ainda vai acontecer. `offices` é o público atual.
+            'broadcast' => [
+                'available' => $user->can('broadcastWhatsApp', $compromisso)
+                    && $this->convocable($compromisso)
+                    && $entidadeModules->isActive($compromisso->entidade_id, EntidadeModule::WhatsApp),
+                'offices' => $compromisso->audienceOffices()->count(),
+            ],
         ]);
     }
 
@@ -116,6 +131,33 @@ class InstitutionalAppointmentController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Compromisso institucional atualizado.']);
 
         return $this->toAgenda($compromisso);
+    }
+
+    /**
+     * Convoca por WhatsApp a equipe dos gabinetes do público do compromisso.
+     * O público é o já gravado no compromisso (o mesmo de quem o vê na
+     * agenda), nunca uma lista enviada na requisição.
+     */
+    public function broadcast(
+        Request $request,
+        CompromissoInstitucional $compromisso,
+        InstitutionalWhatsAppBroadcastService $broadcasts,
+    ): RedirectResponse {
+        $this->authorize('broadcastWhatsApp', $compromisso);
+
+        if (! $this->convocable($compromisso)) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'Compromisso cancelado ou já encerrado não recebe convocação.',
+            ]);
+
+            return back();
+        }
+
+        $summary = $broadcasts->broadcast($compromisso, $this->user($request));
+        Inertia::flash('toast', $this->broadcastToast($summary));
+
+        return back();
     }
 
     public function destroy(CompromissoInstitucional $compromisso): RedirectResponse
@@ -181,6 +223,39 @@ class InstitutionalAppointmentController extends Controller
                 ->values()
                 ->all(),
         ];
+    }
+
+    /** Convocação só faz sentido para o que ainda vai acontecer. */
+    private function convocable(CompromissoInstitucional $compromisso): bool
+    {
+        return $compromisso->status !== AppointmentStatus::Cancelled
+            && $compromisso->fim_em->isFuture();
+    }
+
+    /**
+     * @param  array{offices:int, reached_offices:int, contacts:int, queued:int, already_sent:int, skipped:int}  $summary
+     * @return array{type:string, message:string}
+     */
+    private function broadcastToast(array $summary): array
+    {
+        $plural = fn (int $count, string $one, string $many): string => $count.' '.($count === 1 ? $one : $many);
+
+        if ($summary['queued'] === 0) {
+            return [
+                'type' => 'info',
+                'message' => $summary['already_sent'] > 0
+                    ? 'Nenhuma convocação nova: '.$plural($summary['already_sent'], 'pessoa já tinha', 'pessoas já tinham').' recebido esta convocação.'
+                    : 'Nenhuma convocação enviada: ninguém nos gabinetes convocados está habilitado a receber por WhatsApp.',
+            ];
+        }
+
+        $message = 'Convocação enviada a '.$plural($summary['queued'], 'pessoa', 'pessoas')
+            .' em '.$plural($summary['reached_offices'], 'gabinete', 'gabinetes').'.';
+        if ($summary['skipped'] > 0) {
+            $message .= ' '.$plural($summary['skipped'], 'contato ficou', 'contatos ficaram').' de fora por consentimento ou configuração do gabinete.';
+        }
+
+        return ['type' => 'success', 'message' => $message];
     }
 
     private function toAgenda(CompromissoInstitucional $compromisso): RedirectResponse

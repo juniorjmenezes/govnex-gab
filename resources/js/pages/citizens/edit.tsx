@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { CitizenForm } from '@/components/citizens/citizen-form';
+import { BackButton } from '@/components/common/back-button';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import type { Citizen, Neighborhood, OfficeLocation } from '@/types';
@@ -21,6 +22,7 @@ export default function EditCitizen({
                 <PageHeader
                     title="Editar cadastro"
                     description={`Atualize os dados de ${citizen.nome}.`}
+                    actions={<BackButton />}
                 />
                 <CitizenForm
                     citizen={citizen}

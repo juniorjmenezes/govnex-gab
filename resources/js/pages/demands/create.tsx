@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import { BackButton } from '@/components/common/back-button';
 import { DemandForm } from '@/components/demands/demand-form';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
@@ -18,6 +19,7 @@ export default function CreateDemand({
                 <PageHeader
                     title="Nova demanda"
                     description="Registre a solicitação recebida. O protocolo será gerado automaticamente."
+                    actions={<BackButton />}
                 />
                 <DemandForm options={options} officeLocation={officeLocation} />
             </PageContainer>

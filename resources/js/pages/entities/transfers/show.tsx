@@ -1,5 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
+import { BackButton } from '@/components/common/back-button';
 import { FieldError } from '@/components/forms/field-error';
 import { CheckCircleIcon, CloseCircleIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
@@ -85,7 +86,12 @@ export default function EntidadeTransferShow({
                     title={transfer.gabinete.name}
                     description={`${transfer.source.name} → ${transfer.destination.name}`}
                     actions={
-                        <Badge variant="outline">{transfer.status_label}</Badge>
+                        <>
+                            <BackButton />
+                            <Badge variant="outline">
+                                {transfer.status_label}
+                            </Badge>
+                        </>
                     }
                 />
 

@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { AttendanceForm } from '@/components/attendances/attendance-form';
+import { BackButton } from '@/components/common/back-button';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import type { Attendance, AttendanceOptions } from '@/types';
@@ -20,6 +21,7 @@ export default function EditAttendance({
                 <PageHeader
                     title="Editar atendimento"
                     description={`Atualize o registro de ${attendance.cidadao?.nome ?? 'atendimento presencial'}.`}
+                    actions={<BackButton />}
                 />
                 <AttendanceForm
                     attendance={attendance}

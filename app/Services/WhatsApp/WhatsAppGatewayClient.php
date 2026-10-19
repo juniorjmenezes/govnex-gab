@@ -7,7 +7,6 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use RuntimeException;
 use Throwable;
 
 final class WhatsAppGatewayClient
@@ -121,7 +120,11 @@ final class WhatsAppGatewayClient
         $clientCode = trim((string) config('whatsapp.client_code'));
         $secret = trim((string) config('whatsapp.request_secret'));
         if (! $this->validBaseUrl($baseUrl) || ! preg_match('/^[A-Z0-9_]{2,60}$/', $clientCode) || strlen($secret) < 32) {
-            throw new RuntimeException('A integração com o Gateway WhatsApp não está configurada.');
+            // Mesmo tipo das falhas de rede/HTTP do gateway: permite um único
+            // handler global (bootstrap/app.php) tratar "não configurado" e
+            // "fora do ar" do mesmo jeito, sem exigir try/catch em cada ação
+            // de controller que chama este cliente.
+            throw new WhatsAppGatewayException('A integração com o Gateway WhatsApp não está configurada.');
         }
 
         $method = strtoupper($method);

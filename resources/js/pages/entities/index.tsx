@@ -14,7 +14,13 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Surface, surfaceClasses } from '@/components/ui/surface';
+import {
+    Surface,
+    SurfaceDescription,
+    SurfaceHeader,
+    SurfaceTitle,
+    surfaceClasses,
+} from '@/components/ui/surface';
 import { preservedListParams } from '@/lib/pagination';
 import { cn } from '@/lib/utils';
 import type { Pagination } from '@/types';
@@ -137,22 +143,23 @@ export default function Entidades({
                                     key={entidade.id}
                                     className="flex h-full flex-col overflow-hidden"
                                 >
-                                    <div className="flex items-center justify-between gap-3 border-b p-4">
-                                        <div className="min-w-0">
-                                            <h2 className="truncate text-sm font-semibold">
-                                                {entidade.name}
-                                            </h2>
-                                            <p className="truncate text-xs text-muted-foreground">
-                                                {entidade.city}/{entidade.state}
-                                            </p>
-                                        </div>
-                                        <Badge
-                                            variant="outline"
-                                            className="shrink-0"
-                                        >
-                                            {entidade.type_label}
-                                        </Badge>
-                                    </div>
+                                    <SurfaceHeader
+                                        actions={
+                                            <Badge
+                                                variant="outline"
+                                                className="shrink-0"
+                                            >
+                                                {entidade.type_label}
+                                            </Badge>
+                                        }
+                                    >
+                                        <SurfaceTitle className="truncate">
+                                            {entidade.name}
+                                        </SurfaceTitle>
+                                        <SurfaceDescription>
+                                            {entidade.city}/{entidade.state}
+                                        </SurfaceDescription>
+                                    </SurfaceHeader>
 
                                     <div className="flex flex-1 flex-col p-4">
                                         <div className="flex min-w-0 items-start gap-3">

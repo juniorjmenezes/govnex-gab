@@ -8,6 +8,7 @@ use App\Enums\EventType;
 use App\Enums\UserRole;
 use App\Models\Cidadao;
 use App\Models\Evento;
+use App\Models\GabineteMembro;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -40,20 +41,16 @@ class EventRequest extends FormRequest
             'responsavel_id' => [
                 'nullable',
                 'integer',
-                Rule::exists(User::class, 'id')->where(fn ($query) => $query
-                    ->where('gabinete_id', $officeId)
+                Rule::exists(User::class, 'id')->where(fn ($query) => GabineteMembro::constrainActiveUsers($query, $officeId)
                     ->where('role', '!=', UserRole::Root->value)
-                    ->where('is_active', true)
                     ->whereNull('deleted_at')),
             ],
             'participantes_usuarios' => ['array', 'max:100'],
             'participantes_usuarios.*' => [
                 'integer',
                 'distinct',
-                Rule::exists(User::class, 'id')->where(fn ($query) => $query
-                    ->where('gabinete_id', $officeId)
+                Rule::exists(User::class, 'id')->where(fn ($query) => GabineteMembro::constrainActiveUsers($query, $officeId)
                     ->where('role', '!=', UserRole::Root->value)
-                    ->where('is_active', true)
                     ->whereNull('deleted_at')),
             ],
             'participantes_cidadaos' => ['array', 'max:500'],

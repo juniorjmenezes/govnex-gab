@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AccessRole;
 use App\Enums\DemandStatus;
 use App\Enums\GabineteModule;
 use App\Enums\ReminderChannel;
@@ -17,6 +18,7 @@ use App\Models\Cidadao;
 use App\Models\Demanda;
 use App\Models\Eleicao;
 use App\Models\Gabinete;
+use App\Models\GabineteMembro;
 use App\Models\PesquisaEleitoral;
 use App\Models\ResultadoPesquisaEleitoral;
 use App\Models\User;
@@ -94,6 +96,36 @@ class WhatsAppEventIntegrationTest extends TestCase
         $this->assertSame(1, WhatsAppNotification::query()
             ->where('finalidade', WhatsAppPurpose::DemandObservationAdded->value)
             ->count());
+    }
+
+    /**
+     * `BelongsToGabinete::creating` grava `gabinete_id` a partir do CONTEXTO
+     * atual, e módulos/conexões ativos também são resolvidos por ele. Um
+     * destinatário elegível de OUTRO gabinete (ex.: aviso de pesquisa
+     * eleitoral a favoritos de várias câmaras, disparado durante uma
+     * requisição de um gabinete diferente) tinha a avaliação de elegibilidade
+     * e a notificação resolvidas para o gabinete de quem disparou o evento,
+     * não o do próprio destinatário — a notificação não saía, silenciosamente.
+     * `safeEnqueue()` agora troca o contexto para o gabinete do contato antes
+     * de enfileirar.
+     */
+    public function test_enqueueing_for_a_recipient_in_another_office_keeps_the_notification_in_the_recipients_office(): void
+    {
+        [$otherOffice, $recipient] = $this->eligibleTeamContact([WhatsAppPurpose::DemandAssigned]);
+        $actorOffice = Gabinete::factory()->create();
+        $actor = User::factory()->forGabinete($actorOffice)->create();
+
+        $this->actingAs($actor);
+        app(WhatsAppEventNotificationService::class)->enqueueForUser(
+            $recipient,
+            WhatsAppPurpose::DemandAssigned,
+            'cross-office-test',
+            [$recipient->name, 'PROTO-1', 'Sem prazo definido'],
+        );
+
+        $notification = WhatsAppNotification::withoutGlobalScopes()->sole();
+        $this->assertSame($otherOffice->id, $notification->gabinete_id);
+        $this->assertNotSame($actorOffice->id, $notification->gabinete_id);
     }
 
     public function test_disabling_demands_stops_new_internal_and_whatsapp_notifications(): void
@@ -194,6 +226,56 @@ class WhatsAppEventIntegrationTest extends TestCase
         $notification = WhatsAppNotification::query()->firstOrFail();
         $this->assertSame(WhatsAppPurpose::DemandDeadlineDigest, $notification->finalidade);
         $this->assertSame($office->id, $notification->gabinete_id);
+    }
+
+    /**
+     * O membro pausado no Time continua com `whatsapp_contatos` elegível e
+     * `users.is_active = true` — só `gabinete_membros.ativo` muda. Sem o
+     * gate, o dígest diário continuava avisando quem foi pausado.
+     */
+    public function test_daily_deadline_digest_skips_a_team_member_paused_in_the_team_screen(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-08-03 11:00:00', 'UTC'));
+        [$office, $responsible, $citizen] = $this->eligibleOffice([
+            WhatsAppPurpose::DemandDeadlineDigest,
+        ]);
+        $office->forceFill(['timezone' => 'America/Fortaleza'])->save();
+        GabineteMembro::query()->updateOrCreate(
+            ['gabinete_id' => $office->id, 'usuario_id' => $responsible->id],
+            ['papel' => AccessRole::Operator, 'ativo' => false, 'ingressou_em' => now(), 'desativado_em' => now()],
+        );
+
+        Demanda::factory()->forGabinete($office, $citizen, creator: $responsible)->create([
+            'responsavel_id' => $responsible->id,
+            'prazo' => now()->subHour(),
+        ]);
+
+        $digest = app(WhatsAppDeadlineDigestService::class);
+        $this->assertSame(0, $digest->dispatchDue());
+        $this->assertDatabaseCount('whatsapp_notificacoes', 0);
+    }
+
+    /**
+     * Mesmo gate, mas no caminho de evento único (`enqueueForUser`), usado
+     * por atribuição/mudança de status de demanda, lembretes de compromisso
+     * e pesquisa eleitoral publicada.
+     */
+    public function test_assignment_notification_skips_a_team_member_paused_in_the_team_screen(): void
+    {
+        [$office, $responsible] = $this->eligibleTeamContact([WhatsAppPurpose::DemandAssigned]);
+        GabineteMembro::query()->updateOrCreate(
+            ['gabinete_id' => $office->id, 'usuario_id' => $responsible->id],
+            ['papel' => AccessRole::Operator, 'ativo' => false, 'ingressou_em' => now(), 'desativado_em' => now()],
+        );
+        $author = User::factory()->forGabinete($office)->create();
+        $citizen = Cidadao::factory()->forGabinete($office)->create();
+        $demand = Demanda::factory()->forGabinete($office, $citizen, creator: $author)->create([
+            'responsavel_id' => $responsible->id,
+        ]);
+
+        app(DemandNotificationService::class)->assigned($demand);
+
+        $this->assertDatabaseCount('whatsapp_notificacoes', 0);
     }
 
     public function test_published_poll_keeps_internal_notification_without_enqueuing_marketing_whatsapp(): void

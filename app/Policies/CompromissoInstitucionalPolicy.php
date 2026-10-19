@@ -48,6 +48,17 @@ class CompromissoInstitucionalPolicy
     }
 
     /**
+     * Convocar por WhatsApp a equipe dos gabinetes do público: a mesma
+     * Secretaria que pode alterar o compromisso. Se o compromisso ainda cabe
+     * convocação (não cancelado, não encerrado) é regra de negócio, conferida
+     * no controller — aqui fica só quem pode.
+     */
+    public function broadcastWhatsApp(User $user, CompromissoInstitucional $compromisso): bool
+    {
+        return $this->update($user, $compromisso);
+    }
+
+    /**
      * O gabinete em contexto (`users.gabinete_id`). Lido sem o escopo global
      * para a regra não depender de haver contexto resolvido (ex.: checagem
      * fora de uma requisição) — o id já é o do próprio usuário.

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { PollCandidateRows } from '@/components/admin/poll-candidate-rows';
+import { BackButton } from '@/components/common/back-button';
 import { DatePicker } from '@/components/forms/date-picker';
 import { FieldError } from '@/components/forms/field-error';
 import { AddIcon } from '@/components/icons';
@@ -239,6 +240,7 @@ export default function CreatePoll({ elections }: Props) {
                 <PageHeader
                     title="Nova pesquisa manual"
                     description="Registre à mão uma pesquisa que o PollingData não cobre"
+                    actions={<BackButton />}
                 />
                 <form
                     noValidate

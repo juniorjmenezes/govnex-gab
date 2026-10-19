@@ -16,6 +16,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use InvalidArgumentException;
+use RuntimeException;
 
 class CidadaoController extends Controller
 {
@@ -63,18 +65,29 @@ class CidadaoController extends Controller
         unset($validated['whatsapp_consentimento_operacional']);
         $validated = $this->normalizeLocation($validated);
         $matches = $duplicates->find($validated);
-        $citizen = DB::transaction(function () use ($validated, $whatsappConsent, $request, $whatsappContacts): Cidadao {
-            $citizen = Cidadao::query()->create($validated);
-            if ($whatsappConsent) {
-                $whatsappContacts->declareForCitizen(
-                    $citizen,
-                    (string) $citizen->whatsapp,
-                    $request->user(),
-                );
-            }
 
-            return $citizen;
-        });
+        try {
+            $citizen = DB::transaction(function () use ($validated, $whatsappConsent, $request, $whatsappContacts): Cidadao {
+                $citizen = Cidadao::query()->create($validated);
+                if ($whatsappConsent) {
+                    $whatsappContacts->declareForCitizen(
+                        $citizen,
+                        (string) $citizen->whatsapp,
+                        $request->user(),
+                    );
+                }
+
+                return $citizen;
+            });
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            // Telefone mal formado ou segredo de hash do WhatsApp não
+            // configurado: mensagem já pronta para exibir, nunca uma
+            // exceção não tratada — o cadastro inteiro volta (a pessoa não
+            // nasce sem o consentimento que pediu explicitamente).
+            Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+
+            return back()->withInput();
+        }
 
         if ($matches->isNotEmpty()) {
             session()->flash('possible_duplicates', $matches->all());
@@ -161,19 +174,26 @@ class CidadaoController extends Controller
         unset($validated['whatsapp_consentimento_operacional']);
         $validated = $this->normalizeLocation($validated);
         $matches = $duplicates->find($validated, $cidadao);
-        DB::transaction(function () use ($cidadao, $validated, $whatsappConsent, $request, $whatsappContacts): void {
-            $cidadao->update($validated);
-            $contact = $cidadao->whatsappContact()->first();
-            if ($whatsappConsent) {
-                $whatsappContacts->declareForCitizen(
-                    $cidadao,
-                    (string) $cidadao->whatsapp,
-                    $request->user(),
-                );
-            } elseif ($contact && $contact->isEligible()) {
-                $whatsappContacts->revoke($contact, $request->user(), 'CITIZEN_FORM');
-            }
-        });
+
+        try {
+            DB::transaction(function () use ($cidadao, $validated, $whatsappConsent, $request, $whatsappContacts): void {
+                $cidadao->update($validated);
+                $contact = $cidadao->whatsappContact()->first();
+                if ($whatsappConsent) {
+                    $whatsappContacts->declareForCitizen(
+                        $cidadao,
+                        (string) $cidadao->whatsapp,
+                        $request->user(),
+                    );
+                } elseif ($contact && $contact->isEligible()) {
+                    $whatsappContacts->revoke($contact, $request->user(), 'CITIZEN_FORM');
+                }
+            });
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+
+            return back()->withInput();
+        }
 
         if ($matches->isNotEmpty()) {
             session()->flash('possible_duplicates', $matches->all());

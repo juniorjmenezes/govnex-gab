@@ -55,6 +55,33 @@ class BasicRegistrationsTest extends TestCase
         ])->assertSessionHasErrors('bairro_id');
     }
 
+    /**
+     * Sem `WHATSAPP_PHONE_HASH_SECRET` configurado,
+     * `WhatsAppContactService::declareForCitizen()` lança `RuntimeException`.
+     * Antes da correção, o controller não capturava isso: o cidadão nascia
+     * no banco pela `DB::transaction()` mas a exceção subia sem tratamento.
+     * Com a correção, a transação inteira desfaz e uma mensagem amigável é
+     * exibida — a pessoa não é cadastrada sem o consentimento que marcou.
+     */
+    public function test_citizen_registration_with_whatsapp_consent_rolls_back_when_hash_secret_is_missing(): void
+    {
+        config(['whatsapp.phone_hash_secret' => null]);
+        $office = Gabinete::factory()->create();
+        $advisor = User::factory()->operator()->forGabinete($office)->create();
+
+        $this->actingAs($advisor)->post(route('citizens.store'), [
+            'nome' => 'Consentimento sem segredo',
+            'whatsapp' => '(85) 99999-1111',
+            'whatsapp_consentimento_operacional' => true,
+            'consentimento_contato' => true,
+            'eleitor' => false,
+        ])->assertRedirect();
+
+        $this->assertSame(0, Cidadao::withoutGlobalScopes()->count());
+        $flash = session('inertia.flash_data', []);
+        $this->assertSame('error', $flash['toast']['type'] ?? null);
+    }
+
     public function test_advisor_can_search_an_address_for_citizen_location(): void
     {
         $office = Gabinete::factory()->create();

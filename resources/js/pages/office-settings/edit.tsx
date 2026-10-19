@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Head, router, usePage } from '@inertiajs/react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
+import { BackButton } from '@/components/common/back-button';
 import { AddressFields } from '@/components/forms/address-fields';
 import { AttachmentField } from '@/components/forms/attachment-field';
 import { ColorPicker } from '@/components/forms/color-picker';
@@ -213,6 +214,7 @@ export default function OfficeSettings({
                 <PageHeader
                     title="Configurações do gabinete"
                     description="Identidade institucional, contato e padrões usados em protocolos e relatórios."
+                    actions={<BackButton />}
                 />
                 {!canUpdate && (
                     <Alert variant="info">

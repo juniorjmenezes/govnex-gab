@@ -95,8 +95,8 @@ export default function Login({
                                     Acesso local de emergência
                                 </DialogTitle>
                                 <DialogDescription>
-                                    Restrito à conta root, para quando o
-                                    Govnex Hub estiver indisponível.
+                                    Restrito à conta root, para quando o Govnex
+                                    Hub estiver indisponível.
                                 </DialogDescription>
                             </DialogHeader>
 

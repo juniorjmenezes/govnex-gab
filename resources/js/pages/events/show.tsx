@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { BackButton } from '@/components/common/back-button';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
 import {
     CalendarMarkIcon,
@@ -80,6 +81,7 @@ export default function EventShow({
                     description={typeLabels[event.tipo]}
                     actions={
                         <div className="flex gap-2">
+                            <BackButton />
                             {canWrite && (
                                 <Button variant="outline" asChild>
                                     <Link

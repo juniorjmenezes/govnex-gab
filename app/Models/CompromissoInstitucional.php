@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Enums\AppointmentStatus;
+use App\Enums\GabineteStatus;
 use App\Enums\GabineteType;
+use App\Models\Scopes\GabineteVisibilityScope;
 use Database\Factories\CompromissoInstitucionalFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -96,6 +98,34 @@ class CompromissoInstitucional extends Model
                             ->whereColumn("{$targets}.compromisso_institucional_id", $key)),
                     );
             });
+    }
+
+    /**
+     * Gabinetes de vereador que o compromisso alcança hoje — a mesma regra de
+     * público de `visibleTo()`, vista do lado do compromisso: sem linha na
+     * tabela de alvos, todos os gabinetes de vereador ativos da Câmara; com
+     * linhas, só os listados que continuam ativos, de vereador e da mesma
+     * Câmara (a gravação já exige isso; o filtro repete a regra para um alvo
+     * suspenso depois não receber nada). A Secretaria que publicou não entra:
+     * ela enxerga o compromisso, mas não é público dele.
+     *
+     * Fora do escopo de visibilidade de `Gabinete` de propósito (o de exclusão
+     * lógica continua valendo): no contexto da Secretaria, aquele escopo só
+     * enxerga ela mesma, e o recorte aqui é a entidade do próprio compromisso.
+     *
+     * @return Collection<int, Gabinete>
+     */
+    public function audienceOffices(): Collection
+    {
+        $targets = $this->gabinetesAlvo()->pluck('gabinetes.id')->map(fn ($id): int => (int) $id)->all();
+
+        return Gabinete::withoutGlobalScope(GabineteVisibilityScope::class)
+            ->where('entidade_id', $this->entidade_id)
+            ->where('tipo_gabinete', GabineteType::CouncilorOffice)
+            ->where('status', GabineteStatus::Active)
+            ->when($targets !== [], fn (Builder $query) => $query->whereKey($targets))
+            ->orderBy('id')
+            ->get();
     }
 
     public function isPublishedBy(Gabinete|int|null $gabinete): bool

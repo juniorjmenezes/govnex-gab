@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { PollCandidateRows } from '@/components/admin/poll-candidate-rows';
+import { BackButton } from '@/components/common/back-button';
 import { FieldError } from '@/components/forms/field-error';
 import { AddIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
@@ -178,6 +179,7 @@ export default function EditPoll({
                 <PageHeader
                     title="Editar resultados"
                     description={`${pesquisa.instituto ?? 'Instituto não informado'} · ${cargoLabels[pesquisa.cargo] ?? pesquisa.cargo} · ${territory}`}
+                    actions={<BackButton />}
                 />
                 <form noValidate onSubmit={submit} className="space-y-6">
                     <Card className="gap-0 py-0">

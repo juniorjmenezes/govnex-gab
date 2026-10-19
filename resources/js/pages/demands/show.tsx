@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { VoterMark } from '@/components/citizens/voter-mark';
+import { BackButton } from '@/components/common/back-button';
 import { DemandStatusActions } from '@/components/demands/demand-status-actions';
 import { DemandTimeline } from '@/components/demands/demand-timeline';
 import { NextActionPanel } from '@/components/demands/next-action-panel';
@@ -113,34 +114,37 @@ export default function DemandShow({
                         </span>
                     }
                     actions={
-                        canWrite ? (
-                            <>
-                                <Button onClick={() => setSheet('update')}>
-                                    <ChatSquareIcon />
-                                    Atualizar
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setSheet('referral')}
-                                >
-                                    <ChatSquareArrowIcon />
-                                    Encaminhar
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setSheet('response')}
-                                >
-                                    <ClipboardCheckIcon />
-                                    Registrar retorno
-                                </Button>
-                                <DemandStatusActions
-                                    demand={demand}
-                                    allowedTransitions={allowedTransitions}
-                                    resultados={resultados}
-                                    canDelete={canDelete}
-                                />
-                            </>
-                        ) : undefined
+                        <>
+                            <BackButton />
+                            {canWrite && (
+                                <>
+                                    <Button onClick={() => setSheet('update')}>
+                                        <ChatSquareIcon />
+                                        Atualizar
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setSheet('referral')}
+                                    >
+                                        <ChatSquareArrowIcon />
+                                        Encaminhar
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setSheet('response')}
+                                    >
+                                        <ClipboardCheckIcon />
+                                        Registrar retorno
+                                    </Button>
+                                    <DemandStatusActions
+                                        demand={demand}
+                                        allowedTransitions={allowedTransitions}
+                                        resultados={resultados}
+                                        canDelete={canDelete}
+                                    />
+                                </>
+                            )}
+                        </>
                     }
                 />
 

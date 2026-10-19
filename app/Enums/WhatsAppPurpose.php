@@ -13,6 +13,7 @@ enum WhatsAppPurpose: string
     case AppointmentChanged = 'AGENDA_ALTERADA';
     case AppointmentCancelled = 'AGENDA_CANCELADA';
     case PoliticalPollPublished = 'PESQUISA_ELEITORAL_PUBLICADA';
+    case InstitutionalConvocation = 'SECRETARIA_CONVOCACAO';
 
     public function label(): string
     {
@@ -26,6 +27,7 @@ enum WhatsAppPurpose: string
             self::AppointmentChanged => 'Agenda alterada',
             self::AppointmentCancelled => 'Agenda cancelada',
             self::PoliticalPollPublished => 'Pesquisa eleitoral publicada',
+            self::InstitutionalConvocation => 'Convocação institucional da Câmara',
         };
     }
 
@@ -38,7 +40,9 @@ enum WhatsAppPurpose: string
     {
         return match ($this) {
             self::DemandDeadlineDigest => 12,
-            self::AppointmentStaffReminder, self::AppointmentCitizenReminder => 24,
+            self::AppointmentStaffReminder,
+            self::AppointmentCitizenReminder,
+            self::InstitutionalConvocation => 24,
             default => 24,
         };
     }
@@ -55,6 +59,11 @@ enum WhatsAppPurpose: string
             self::AppointmentChanged,
             self::AppointmentCancelled => GabineteModule::Schedule,
             self::PoliticalPollPublished => GabineteModule::Politics,
+            // O módulo de origem é conferido no gabinete de quem RECEBE (o de
+            // vereador), e lá o compromisso institucional aparece pela Agenda.
+            // `LegislativeSecretariat` só existe na própria Secretaria: usá-lo
+            // aqui recusaria todo destinatário.
+            self::InstitutionalConvocation => GabineteModule::Schedule,
         };
     }
 

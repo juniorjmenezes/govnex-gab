@@ -617,7 +617,7 @@ final class RunWhatsAppLiveTest extends Command
             ->get()
             ->filter->isReady();
         if ($readyTemplates->count() !== count($purposes)) {
-            throw new RuntimeException('Os oito templates operacionais precisam estar aprovados, sincronizados e ativos.');
+            throw new RuntimeException('Os '.count($purposes).' templates operacionais precisam estar aprovados, sincronizados e ativos.');
         }
         if ($teamContacts->count() !== 2 || $citizenContacts->count() !== 3) {
             throw new RuntimeException('O ensaio exige exatamente dois contatos de equipe e três cidadãos.');
