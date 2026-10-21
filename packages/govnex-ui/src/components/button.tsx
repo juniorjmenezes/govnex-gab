@@ -11,16 +11,16 @@ const buttonVariants = cva(
         variants: {
             variant: {
                 default:
-                    'bg-primary text-primary-foreground shadow-xs hover:bg-primary/90',
+                    'bg-primary text-primary-foreground hover:bg-primary/90',
                 outline:
-                    'border-border bg-card shadow-xs hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-input/30',
+                    'bg-[color-mix(in_oklch,var(--muted),var(--foreground)_8%)] text-foreground hover:bg-[color-mix(in_oklch,var(--muted),var(--foreground)_14%)] aria-expanded:bg-[color-mix(in_oklch,var(--muted),var(--foreground)_14%)]',
                 secondary:
-                    'bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
+                    'bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_8%)] text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_14%)] aria-expanded:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_14%)] aria-expanded:text-secondary-foreground',
                 ghost: 'hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50',
                 destructive:
                     'bg-destructive/10 text-destructive hover:bg-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30',
                 'destructive-solid':
-                    'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90',
+                    'bg-destructive text-destructive-foreground hover:bg-destructive/90',
                 link: 'text-primary underline underline-offset-4 hover:underline',
             },
             size: {

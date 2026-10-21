@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
@@ -19,11 +18,11 @@ import {
  * root consegue usá-lo: `Fortify::authenticateUsing` recusa as demais.
  *
  * Com o Hub configurado, o acesso local vira um modal aberto a partir de um
- * botão, em vez de uma página própria: menos navegação para um fluxo raro
- * (Hub indisponível) e nenhuma rota/`Inertia::render` extra para manter em
- * sincronia com a tela principal. Sem o Hub configurado, esse é o único
- * caminho de entrada, então o formulário aparece direto, sem precisar de um
- * botão para chegar nele.
+ * botão, em vez de ficar no próprio cartão: mantém o cartão principal curto
+ * (sem a rolagem vertical que o conteúdo somado dos dois causava) e separa
+ * claramente o caminho raro (Hub fora do ar) do caminho padrão. Sem o Hub
+ * configurado, o formulário é o único caminho de entrada, então aparece
+ * direto, sem precisar de um botão para chegar nele.
  *
  * O botão do Hub e o link de troca de conta são âncoras, não `Link` do
  * Inertia: o destino é uma navegação de página inteira para outro domínio.
@@ -66,16 +65,9 @@ export default function Login({
                         </a>
                     </Button>
 
-                    <p className="text-center text-xs text-muted-foreground">
-                        Sua conta, sua senha e seus vínculos ficam no Govnex
-                        Hub.{' '}
-                        <a
-                            href={HUB_TROCAR_CONTA_URL}
-                            className="underline underline-offset-2 hover:text-foreground"
-                        >
-                            Trocar de conta
-                        </a>
-                    </p>
+                    <Button asChild variant="outline" className="w-full">
+                        <a href={HUB_TROCAR_CONTA_URL}>Trocar de conta</a>
+                    </Button>
 
                     <Button
                         variant="outline"
@@ -94,10 +86,6 @@ export default function Login({
                                 <DialogTitle>
                                     Acesso local de emergência
                                 </DialogTitle>
-                                <DialogDescription>
-                                    Restrito à conta root, para quando o Govnex
-                                    Hub estiver indisponível.
-                                </DialogDescription>
                             </DialogHeader>
 
                             <LocalLoginForm
@@ -114,6 +102,6 @@ export default function Login({
 }
 
 Login.layout = {
-    title: 'Entrar na sua conta',
-    description: 'Use o Govnex Hub ou o acesso local para continuar.',
+    title: 'Entrar no GOVNEX GAB',
+    description: 'Use sua conta do Govnex Hub para continuar.',
 };

@@ -49,7 +49,7 @@ depois de qualquer mudanca de cor em `styles.css`.
   `text-base`; `interactive` eleva o cartao no hover.
 - `StatCard`: rotulo, valor, `trend` (variacao % vs periodo anterior, cor
   semantica; `positiveIsGood={false}` inverte) e `sparkline` (serie curta).
-  Rotulo e textos usam Inter Tight; valores usam Fira Code. `StatCardSkeleton`
+  Rotulo, textos e valores usam Outfit (`--font-sans`). `StatCardSkeleton`
   para carregamento.
 - `EmptyState` (`size="compact"` dentro de cartoes) e `Sparkline`.
 
@@ -73,9 +73,9 @@ token, componente ou padrao e feita **somente aqui**.
 
 ## Tipografia
 
-Inter Tight e a fonte de interface (`--font-sans`), DM Serif Text compoe os
-titulos (`--font-heading`) e Fira Code e reservada para dados quantitativos e
-codigo (`--font-mono`).
+Outfit e a fonte de interface (`--font-sans`, inclusive os valores do
+`StatCard`), DM Serif Text compoe os titulos (`--font-heading`) e Fira Code
+fica reservada para codigo (`--font-mono`).
 
 ## Instalacao
 

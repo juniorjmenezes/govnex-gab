@@ -5,6 +5,44 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Cor primária do GOVNEX GAB, por cima do laranja padrão da govnex-ui — único
+ * token que varia por produto (ver comentário em @govnex/ui/styles.css).
+ * `--primary-foreground` reaproveita o near-white padrão do pacote: o
+ * contraste do novo verde com ele passa de 5:1 nos dois temas.
+ *
+ * `OfficeTheme` (resources/js/components/layout/office-theme.tsx) continua
+ * sobrescrevendo estas mesmas variáveis em tempo de execução quando o
+ * gabinete ou a entidade tem cor própria — este bloco só vale como padrão de
+ * quem não personalizou.
+ */
+:root {
+    --primary: oklch(0.508 0.118 165.612);
+    --primary-foreground: oklch(0.99 0.008 73.684);
+    --sidebar-primary: oklch(0.508 0.118 165.612);
+    --sidebar-primary-foreground: oklch(0.99 0.008 73.684);
+}
+
+.dark {
+    --primary: oklch(0.508 0.118 165.612);
+    --primary-foreground: oklch(0.99 0.008 73.684);
+    --sidebar-primary: oklch(0.508 0.118 165.612);
+    --sidebar-primary-foreground: oklch(0.99 0.008 73.684);
+}
+
+/*
+ * `AuthCardLayout` da govnex-ui reserva `md:min-h-[22rem]` na coluna de
+ * conteúdo, calibrado para o fluxo de duas etapas do Hub (e-mail → senha).
+ * O login do GAB, sem a tagline e os blocos de ajuda que preenchiam a
+ * coluna esquerda, sobrava vazio com essa altura fixa — então ela volta a
+ * acompanhar o próprio conteúdo só aqui, via o `data-slot` que o pacote
+ * expõe para isso. Decisão deliberada de não mexer no pacote compartilhado
+ * (afetaria Hub/API/GHO) nem no `className`, que só chega na div externa.
+ */
+[data-slot='auth-card-layout'] > div > div > :last-child {
+    min-height: auto;
+}
+
 @source '../views';
 @source '../js';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
