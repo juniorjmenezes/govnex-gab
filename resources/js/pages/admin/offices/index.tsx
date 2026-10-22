@@ -2,6 +2,10 @@ import { Head, Link, router } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { SyncStatusDot } from '@/components/admin/sync-progress';
+import {
+    EntityCellSubtitle,
+    EntityCellTitle,
+} from '@/components/common/entity-cell';
 import { HubStructureLink } from '@/components/common/hub-structure-link';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import { TableActionButton } from '@/components/common/table-action-button';
@@ -207,19 +211,19 @@ export default function Offices({ offices, filters, statuses }: Props) {
                         <table className="w-full text-sm">
                             <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
                                 <tr>
-                                    <th className="px-3 py-3 font-medium first:px-5 last:px-5">
+                                    <th className="px-3 py-3 font-medium uppercase first:px-5 last:px-5">
                                         Gabinete
                                     </th>
-                                    <th className="px-3 py-3 font-medium first:px-5 last:px-5">
+                                    <th className="px-3 py-3 font-medium uppercase first:px-5 last:px-5">
                                         Responsável
                                     </th>
-                                    <th className="px-3 py-3 text-right font-medium first:px-5 last:px-5">
+                                    <th className="px-3 py-3 text-right font-medium uppercase first:px-5 last:px-5">
                                         Demandas
                                     </th>
-                                    <th className="px-3 py-3 font-medium first:px-5 last:px-5">
+                                    <th className="px-3 py-3 font-medium uppercase first:px-5 last:px-5">
                                         Situação
                                     </th>
-                                    <th className="px-3 py-3 text-right font-medium first:px-5 last:px-5">
+                                    <th className="px-3 py-3 text-right font-medium uppercase first:px-5 last:px-5">
                                         Ações
                                     </th>
                                 </tr>
@@ -228,25 +232,25 @@ export default function Offices({ offices, filters, statuses }: Props) {
                                 {offices.data.map((office) => (
                                     <tr key={office.id}>
                                         <td className="px-3 py-3 font-normal first:px-5 last:px-5">
-                                            <p className="font-normal">
+                                            <EntityCellTitle>
                                                 {office.name}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
+                                            </EntityCellTitle>
+                                            <EntityCellSubtitle>
                                                 {office.entidade?.name ??
                                                     'Entidade não definida'}
                                                 {' · '}
                                                 {office.city}/{office.state}
-                                            </p>
+                                            </EntityCellSubtitle>
                                         </td>
                                         <td className="px-3 py-3 font-normal first:px-5 last:px-5">
-                                            <p>
+                                            <EntityCellTitle>
                                                 {office.responsible?.name ??
                                                     'Não definido'}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
+                                            </EntityCellTitle>
+                                            <EntityCellSubtitle>
                                                 {office.responsible?.email ??
                                                     '—'}
-                                            </p>
+                                            </EntityCellSubtitle>
                                         </td>
                                         <td className="px-3 py-3 text-right font-normal tabular-nums first:px-5 last:px-5">
                                             {office.demands_count.toLocaleString(

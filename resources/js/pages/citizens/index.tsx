@@ -2,6 +2,10 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import { VoterMark } from '@/components/citizens/voter-mark';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
+import {
+    EntityCellSubtitle,
+    EntityCellTitle,
+} from '@/components/common/entity-cell';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import { TableActionButton } from '@/components/common/table-action-button';
 import { EmptyState } from '@/components/feedback/empty-state';
@@ -151,20 +155,19 @@ export default function CitizensIndex({
                                                 />
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex flex-wrap items-center gap-2">
+                                                <EntityCellTitle>
                                                     <Link
-                                                        className="font-normal hover:underline"
                                                         href={tenantUrl(
                                                             `/cidadaos/${citizen.id}`,
                                                         )}
                                                     >
                                                         {citizen.nome}
                                                     </Link>
-                                                </div>
-                                                <p className="text-xs text-muted-foreground">
+                                                </EntityCellTitle>
+                                                <EntityCellSubtitle>
                                                     {citizen.email ??
                                                         'Sem e-mail'}
-                                                </p>
+                                                </EntityCellSubtitle>
                                             </TableCell>
                                             <TableCell>
                                                 {citizen.whatsapp ||

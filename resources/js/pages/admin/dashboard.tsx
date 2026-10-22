@@ -114,19 +114,19 @@ export default function PlatformDashboard({ summary, usage }: Props) {
                             <table className="w-full text-sm">
                                 <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
                                     <tr>
-                                        <th className="px-3 py-3 font-medium first:px-5 last:px-5">
+                                        <th className="px-3 py-3 font-medium uppercase first:px-5 last:px-5">
                                             Gabinete
                                         </th>
-                                        <th className="px-3 py-3 font-medium first:px-5 last:px-5">
+                                        <th className="px-3 py-3 font-medium uppercase first:px-5 last:px-5">
                                             Situação
                                         </th>
-                                        <th className="px-3 py-3 text-right font-medium first:px-5 last:px-5">
+                                        <th className="px-3 py-3 text-right font-medium uppercase first:px-5 last:px-5">
                                             Usuários
                                         </th>
-                                        <th className="px-3 py-3 text-right font-medium first:px-5 last:px-5">
+                                        <th className="px-3 py-3 text-right font-medium uppercase first:px-5 last:px-5">
                                             Cidadãos
                                         </th>
-                                        <th className="px-3 py-3 text-right font-medium first:px-5 last:px-5">
+                                        <th className="px-3 py-3 text-right font-medium uppercase first:px-5 last:px-5">
                                             Demandas
                                         </th>
                                     </tr>

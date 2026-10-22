@@ -1,6 +1,10 @@
 import { Head, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import { DeleteRecordButton } from '@/components/common/delete-record-button';
+import {
+    EntityCellSubtitle,
+    EntityCellTitle,
+} from '@/components/common/entity-cell';
 import { PaginationLinks } from '@/components/common/pagination-links';
 import { TableActionButton } from '@/components/common/table-action-button';
 import { EmptyState } from '@/components/feedback/empty-state';
@@ -269,19 +273,21 @@ function DocumentRow({
     return (
         <TableRow>
             <TableCell className="whitespace-normal">
-                <button
-                    type="button"
-                    onClick={() => onOpen(document)}
-                    disabled={isLoading}
-                    className="text-left font-medium hover:underline disabled:opacity-50"
-                >
-                    {document.title}
-                </button>
-                <p className="line-clamp-1 text-xs text-muted-foreground">
+                <EntityCellTitle>
+                    <button
+                        type="button"
+                        onClick={() => onOpen(document)}
+                        disabled={isLoading}
+                        className="text-left disabled:opacity-50"
+                    >
+                        {document.title}
+                    </button>
+                </EntityCellTitle>
+                <EntityCellSubtitle className="line-clamp-1">
                     {document.description
                         ? `${document.description} · ${details}`
                         : details}
-                </p>
+                </EntityCellSubtitle>
             </TableCell>
             {showOrigin && (
                 <TableCell>
@@ -311,12 +317,14 @@ function DocumentRow({
                 {document.completed_readings}
             </TableCell>
             <TableCell className="whitespace-normal">
-                <p className="text-sm">{document.uploaded_by ?? '—'}</p>
-                <p className="text-xs text-muted-foreground">
+                <EntityCellTitle>
+                    {document.uploaded_by ?? '—'}
+                </EntityCellTitle>
+                <EntityCellSubtitle>
                     {document.created_at
                         ? dateFormatter.format(new Date(document.created_at))
                         : ''}
-                </p>
+                </EntityCellSubtitle>
             </TableCell>
             <TableCell className="w-px">
                 <div className="flex justify-end gap-2">

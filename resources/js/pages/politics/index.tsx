@@ -1613,33 +1613,51 @@ export default function PoliticalPanel({
                 <section className="grid gap-4 rounded-2xl bg-muted/35 p-5 text-xs text-muted-foreground ring-1 ring-foreground/8 sm:grid-cols-3">
                     <div className="flex gap-3">
                         <DatabaseIcon className="size-4 shrink-0" />
-                        <div>
+                        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                             <p className="font-medium text-foreground">
                                 Eleitorado oficial
                             </p>
-                            <p className="mt-1">
+                            <span
+                                className="hidden text-muted-foreground/60 sm:inline"
+                                aria-hidden="true"
+                            >
+                                &middot;
+                            </span>
+                            <p className="basis-full sm:min-w-0 sm:basis-auto sm:truncate">
                                 {syncDescription(sync.electorate)}
                             </p>
                         </div>
                     </div>
                     <div className="flex gap-3">
                         <DatabaseIcon className="size-4 shrink-0" />
-                        <div>
+                        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                             <p className="font-medium text-foreground">
                                 Candidaturas oficiais
                             </p>
-                            <p className="mt-1">
+                            <span
+                                className="hidden text-muted-foreground/60 sm:inline"
+                                aria-hidden="true"
+                            >
+                                &middot;
+                            </span>
+                            <p className="basis-full sm:min-w-0 sm:basis-auto sm:truncate">
                                 {syncDescription(sync.candidates)}
                             </p>
                         </div>
                     </div>
                     <div className="flex gap-3">
                         <DatabaseIcon className="size-4 shrink-0" />
-                        <div>
+                        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                             <p className="font-medium text-foreground">
                                 Pesquisas eleitorais · PollingData
                             </p>
-                            <p className="mt-1">
+                            <span
+                                className="hidden text-muted-foreground/60 sm:inline"
+                                aria-hidden="true"
+                            >
+                                &middot;
+                            </span>
+                            <p className="basis-full sm:min-w-0 sm:basis-auto sm:truncate">
                                 {syncDescription(sync.polls)}
                             </p>
                         </div>

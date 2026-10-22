@@ -1,6 +1,6 @@
 import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
-import { CheckCircleIcon, InfoCircleIcon, DangerTriangleIcon, ForbiddenIcon } from "@/components/icons"
+import { CheckCircleBoldIcon, InfoCircleBoldIcon, DangerTriangleBoldIcon, ForbiddenBoldIcon } from "@/components/icons"
 import { Spinner } from "@/components/ui/spinner"
 
 const Toaster = ({ ...props }: ToasterProps) => {
@@ -12,16 +12,16 @@ const Toaster = ({ ...props }: ToasterProps) => {
       className="toaster group"
       icons={{
         success: (
-          <CheckCircleIcon className="size-4" />
+          <CheckCircleBoldIcon className="size-4" />
         ),
         info: (
-          <InfoCircleIcon className="size-4" />
+          <InfoCircleBoldIcon className="size-4" />
         ),
         warning: (
-          <DangerTriangleIcon className="size-4" />
+          <DangerTriangleBoldIcon className="size-4" />
         ),
         error: (
-          <ForbiddenIcon className="size-4" />
+          <ForbiddenBoldIcon className="size-4" />
         ),
         loading: (
           <Spinner className="size-4" />
@@ -33,6 +33,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
+          fontFamily: "var(--font-sans)",
         } as React.CSSProperties
       }
       toastOptions={{
