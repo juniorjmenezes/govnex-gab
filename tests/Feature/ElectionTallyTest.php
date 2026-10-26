@@ -8,6 +8,7 @@ use App\Models\Eleicao;
 use App\Models\Gabinete;
 use App\Models\MunicipioEleitoral;
 use App\Models\User;
+use App\Models\VotacaoCandidatoMunicipio;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -429,42 +430,15 @@ class ElectionTallyTest extends TestCase
             );
     }
 
-    public function test_the_municipal_section_uses_the_offices_city_file(): void
-    {
-        $municipality = MunicipioEleitoral::query()->create([
-            'codigo_tse' => '13692',
-            'nome' => 'Cruz',
-            'uf' => 'CE',
-        ]);
-        $office = Gabinete::factory()->create(['estado' => 'CE', 'municipio' => 'Cruz', 'municipio_eleitoral_id' => $municipality->id]);
-        $user = User::factory()->operator()->forGabinete($office)->create();
-        Http::fake($this->tseFakes(
-            ['ce' => ['3' => [['5', 'CANDIDATO CE', '0']]]],
-            true,
-            ['3' => [['5', 'CANDIDATO DA CIDADE', '321']]],
-        ));
-
-        $this->travelTo(CarbonImmutable::parse('2026-10-04 18:00:00', 'America/Sao_Paulo'));
-
-        $this->actingAs($user)
-            ->get(route('politics.tally.index'))
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('municipal.name', 'Cruz')
-                ->where('municipal.results.1.cargo', 'governador')
-                ->where('municipal.results.1.candidates.0.name', 'CANDIDATO DA CIDADE')
-                ->where('municipal.results.1.candidates.0.votes', 321)
-            );
-
-        Http::assertSent(fn ($request) => str_contains($request->url(), '/dados/ce/ce13692-c0003-e006259-u.json'));
-    }
-
     /**
-     * Quem venceu na cidade não é necessariamente quem a eleição elegeu —
-     * presidente se decide na contagem nacional, governador na estadual. O
-     * card do município mostra os votos locais, mas o selo de "eleito" vem
-     * da apuração de verdade, não de quem tirou mais voto só ali.
+     * Eleição geral: `municipal` traz os mesmos 5 cargos de `results`,
+     * recortados pela cidade do gabinete — é o escopo alternativo do
+     * seletor "Geral"/cidade na mesma seção, não mais uma seção paralela.
+     * Quem venceu na cidade não é necessariamente quem a eleição elegeu — o
+     * selo de "eleito" vem da contagem que decide o cargo (estadual, para
+     * governador), não da votação local.
      */
-    public function test_the_municipal_section_marks_elected_from_the_statewide_result_not_the_local_vote_leader(): void
+    public function test_a_general_election_offers_the_city_as_an_alternate_scope(): void
     {
         $municipality = MunicipioEleitoral::query()->create([
             'codigo_tse' => '13692',
@@ -490,17 +464,25 @@ class ElectionTallyTest extends TestCase
         $this->actingAs($user)
             ->get(route('politics.tally.index'))
             ->assertInertia(fn (Assert $page) => $page
+                ->where('results.1.cargo', 'governador')
+                // A lista estadual continua com o eleito de verdade...
+                ->where('results.1.candidates.0.name', 'VENCEDOR ESTADUAL')
+                ->where('results.1.candidates.0.elected', true)
+                ->where('municipal.name', 'Cruz')
+                // ...e o recorte da cidade mostra os votos locais, mas o
+                // "eleito" continua sendo quem venceu de verdade (estadual).
                 ->where('municipal.results.1.cargo', 'governador')
-                // Mais votado na cidade continua sendo quem a tela lista primeiro...
                 ->where('municipal.results.1.candidates.0.name', 'FAVORITO LOCAL')
-                // ...mas não é ele quem está marcado como eleito.
+                ->where('municipal.results.1.candidates.0.votes', 900)
                 ->where('municipal.results.1.candidates.0.elected', false)
                 ->where('municipal.results.1.candidates.1.name', 'VENCEDOR ESTADUAL')
                 ->where('municipal.results.1.candidates.1.elected', true)
             );
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/dados/ce/ce13692-c0003-e006259-u.json'));
     }
 
-    public function test_the_municipal_section_is_null_without_a_linked_city(): void
+    public function test_the_city_scope_is_unavailable_without_a_linked_city(): void
     {
         $office = Gabinete::factory()->create(['estado' => 'CE', 'municipio_eleitoral_id' => null]);
         $user = User::factory()->operator()->forGabinete($office)->create();
@@ -510,7 +492,189 @@ class ElectionTallyTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('politics.tally.index'))
-            ->assertInertia(fn (Assert $page) => $page->where('municipal', null));
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('municipal', null)
+            );
+    }
+
+    public function test_a_municipal_election_shows_the_offices_mayor_race_going_to_the_second_round(): void
+    {
+        [$election, $user, $municipality] = $this->municipalScenario();
+        $mayors = [];
+
+        foreach (['15' => [4000, '2º TURNO'], '45' => [3500, '2º TURNO'], '77' => [2500, 'NÃO ELEITO']] as $number => [$votes, $status]) {
+            $mayors[$number] = $this->municipalCandidate($election, $municipality, $number, 'Prefeito');
+            $this->municipalVote($election, $mayors[$number], 1, $status, $votes);
+        }
+
+        $councilor = $this->municipalCandidate($election, $municipality, '55123', 'Vereador');
+        $this->municipalVote($election, $councilor, 1, 'ELEITO POR QP', 900);
+        $runnerUp = $this->municipalCandidate($election, $municipality, '55999', 'Vereador');
+        $this->municipalVote($election, $runnerUp, 1, 'SUPLENTE', 100);
+
+        // Outra cidade, mesma eleição: não pode vazar para o gabinete de Cruz.
+        $otherCity = MunicipioEleitoral::query()->create(['codigo_tse' => '13897', 'nome' => 'Sobral', 'uf' => 'CE']);
+        $outsider = $this->municipalCandidate($election, $otherCity, '22', 'Prefeito');
+        $this->municipalVote($election, $outsider, 1, 'ELEITO', 99999);
+
+        $this->actingAs($user)
+            ->get(route('politics.tally.index', ['data' => '2024-10-06']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('round.type', 'municipal')
+                ->where('round.round', 1)
+                // Sem seção geral numa eleição municipal: a disputa é a da cidade.
+                ->where('results', null)
+                ->where('municipal.name', 'Cruz')
+                ->where('municipal.section_percent', null)
+                ->where('municipal.results.0.cargo', 'prefeito')
+                ->where('municipal.results.0.available', true)
+                ->where('municipal.results.0.section_percent', null)
+                ->where('municipal.results.0.finished', true)
+                ->where('municipal.results.0.goes_to_second_round', true)
+                ->where('municipal.results.0.total_candidates', 3)
+                ->where('municipal.results.0.candidates.0.number', '15')
+                ->where('municipal.results.0.candidates.0.votes', 4000)
+                ->where('municipal.results.0.candidates.0.vote_percent', 40)
+                ->where('municipal.results.0.candidates.0.elected', false)
+                ->where('municipal.results.0.candidates.2.number', '77')
+                ->where('municipal.results.0.seats', null)
+                ->where('municipal.results.1.cargo', 'vereador')
+                ->where('municipal.results.1.goes_to_second_round', false)
+                ->where('municipal.results.1.candidates.0.elected', true)
+                ->where('municipal.results.1.seats.0.party', 'ABC')
+                ->where('municipal.results.1.seats.0.seats', 1)
+            );
+
+        // A classificação veio do SecondRoundClassifier, não do controller.
+        $this->assertTrue($mayors['15']->fresh()->avancou_segundo_turno);
+        $this->assertTrue($mayors['45']->fresh()->avancou_segundo_turno);
+        $this->assertFalse($mayors['77']->fresh()->avancou_segundo_turno);
+        // Nenhuma leitura do feed ao vivo do TSE: cargo municipal não está lá.
+        Http::assertNothingSent();
+    }
+
+    public function test_a_mayor_elected_in_the_first_round_is_marked_elected_without_second_round(): void
+    {
+        [$election, $user, $municipality] = $this->municipalScenario();
+        $winner = $this->municipalCandidate($election, $municipality, '15', 'Prefeito');
+        $this->municipalVote($election, $winner, 1, 'ELEITO', 6000);
+        $loser = $this->municipalCandidate($election, $municipality, '45', 'Prefeito');
+        $this->municipalVote($election, $loser, 1, 'NÃO ELEITO', 4000);
+
+        $this->actingAs($user)
+            ->get(route('politics.tally.index', ['data' => '2024-10-06']))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('municipal.results.0.goes_to_second_round', false)
+                ->where('municipal.results.0.candidates.0.number', '15')
+                ->where('municipal.results.0.candidates.0.elected', true)
+                ->where('municipal.results.0.candidates.0.vote_percent', 60)
+                ->where('municipal.results.0.candidates.1.elected', false)
+            );
+    }
+
+    public function test_the_municipal_second_round_shows_only_the_mayor_race_of_that_round(): void
+    {
+        [$election, $user, $municipality] = $this->municipalScenario();
+        $mayors = [];
+
+        foreach (['15' => [4000, '2º TURNO'], '45' => [3500, '2º TURNO'], '77' => [2500, 'NÃO ELEITO']] as $number => [$votes, $status]) {
+            $mayors[$number] = $this->municipalCandidate($election, $municipality, $number, 'Prefeito');
+            $this->municipalVote($election, $mayors[$number], 1, $status, $votes);
+        }
+
+        $councilor = $this->municipalCandidate($election, $municipality, '55123', 'Vereador');
+        $this->municipalVote($election, $councilor, 1, 'ELEITO POR QP', 900);
+        $this->municipalVote($election, $mayors['45'], 2, 'ELEITO', 5200);
+        $this->municipalVote($election, $mayors['15'], 2, 'NÃO ELEITO', 4800);
+
+        $this->actingAs($user)
+            ->get(route('politics.tally.index', ['data' => '2024-10-27']))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('round.round', 2)
+                // Vereador não tem 2º turno.
+                ->has('municipal.results', 1)
+                ->where('municipal.results.0.cargo', 'prefeito')
+                ->where('municipal.results.0.goes_to_second_round', false)
+                ->where('municipal.results.0.total_candidates', 2)
+                ->where('municipal.results.0.candidates.0.number', '45')
+                ->where('municipal.results.0.candidates.0.elected', true)
+                ->where('municipal.results.0.candidates.0.votes', 5200)
+            );
+    }
+
+    public function test_a_municipal_election_without_a_linked_city_has_no_municipal_section(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2024-10-07 10:00:00', 'America/Sao_Paulo'));
+        $office = Gabinete::factory()->create(['estado' => 'CE', 'municipio_eleitoral_id' => null]);
+        $user = User::factory()->operator()->forGabinete($office)->create();
+        Http::fake();
+
+        $this->actingAs($user)
+            ->get(route('politics.tally.index', ['data' => '2024-10-06']))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('round.type', 'municipal')
+                ->where('results', null)
+                ->where('municipal', null)
+            );
+
+        Http::assertNothingSent();
+    }
+
+    /**
+     * Cruz/CE no dia seguinte ao 1º turno de 2024 (eleição municipal semeada
+     * pela migration), com o gabinete vinculado ao município.
+     *
+     * @return array{0: Eleicao, 1: User, 2: MunicipioEleitoral}
+     */
+    private function municipalScenario(): array
+    {
+        $this->travelTo(CarbonImmutable::parse('2024-10-07 10:00:00', 'America/Sao_Paulo'));
+        Http::fake();
+        $municipality = MunicipioEleitoral::query()->create(['codigo_tse' => '15890', 'nome' => 'Cruz', 'uf' => 'CE']);
+        $office = Gabinete::factory()->create([
+            'estado' => 'CE',
+            'municipio' => 'Cruz',
+            'municipio_eleitoral_id' => $municipality->id,
+        ]);
+        $user = User::factory()->operator()->forGabinete($office)->create();
+
+        return [Eleicao::query()->where('ano', 2024)->firstOrFail(), $user, $municipality];
+    }
+
+    private function municipalCandidate(Eleicao $election, MunicipioEleitoral $municipality, string $number, string $office): CandidatoPolitico
+    {
+        return CandidatoPolitico::query()->create([
+            'eleicao_id' => $election->id,
+            'sq_candidato' => "9{$municipality->codigo_tse}{$number}",
+            'abrangencia' => CandidateScope::Municipal,
+            'municipio_eleitoral_id' => $municipality->id,
+            'uf' => 'CE',
+            'cargo' => $office,
+            'nome' => "Candidato {$number}",
+            'nome_urna' => "Nome {$number}",
+            'numero' => $number,
+            'partido_sigla' => 'ABC',
+            'situacao' => 'APTO',
+        ]);
+    }
+
+    private function municipalVote(Eleicao $election, CandidatoPolitico $candidate, int $round, string $status, int $votes): void
+    {
+        VotacaoCandidatoMunicipio::query()->create([
+            'candidato_politico_id' => $candidate->id,
+            'municipio_eleitoral_id' => $candidate->municipio_eleitoral_id,
+            'eleicao_id' => $election->id,
+            'codigo_eleicao_tse' => '619',
+            'ano' => $election->ano,
+            'turno' => $round,
+            'data_eleicao' => $round === 1 ? '2024-10-06' : '2024-10-27',
+            'votos_nominais' => $votes,
+            'votos_nominais_validos' => $votes,
+            'situacao_totalizacao' => $status,
+            'eleito' => str_starts_with($status, 'ELEITO'),
+            'fonte_url' => 'https://dadosabertos.tse.jus.br/',
+        ]);
     }
 
     /**

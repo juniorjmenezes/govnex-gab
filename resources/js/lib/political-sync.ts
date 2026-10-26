@@ -42,6 +42,22 @@ const progressStageLabels: Record<string, string> = {
     gravando_registros: 'Gravando registros',
 };
 
+/**
+ * Minutos/segundos corridos desde `since` até agora — em vez de um horário
+ * fixo ("Processando desde 14:27"), que nunca muda na tela e faz qualquer
+ * sincronização em andamento parecer travada mesmo quando está avançando
+ * sozinha. Como a tela já faz polling a cada poucos segundos (ver
+ * router.poll nas páginas que usam isto), o texto sobe a cada atualização.
+ */
+function elapsedSince(since: string): string {
+    const ms = Date.now() - new Date(since).getTime();
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    return minutes > 0 ? `${minutes} min ${seconds}s` : `${seconds}s`;
+}
+
 export function syncStatusDetail(sync: PoliticalDataSync): string {
     const reference =
         sync.status === 'concluida' && sync.completed_at
@@ -54,7 +70,7 @@ export function syncStatusDetail(sync: PoliticalDataSync): string {
         case 'cancelada':
             return sync.error ?? 'Cancelada';
         case 'pendente':
-            return `Na fila desde ${formatted}`;
+            return `Na fila há ${elapsedSince(sync.started_at)}`;
         case 'processando':
             if (sync.progress_percent !== null) {
                 const stage =
@@ -65,8 +81,8 @@ export function syncStatusDetail(sync: PoliticalDataSync): string {
             }
 
             return sync.processed_records > 0
-                ? `${sync.processed_records.toLocaleString('pt-BR')} registros processados`
-                : `Processando desde ${formatted}`;
+                ? `${sync.processed_records.toLocaleString('pt-BR')} registros processados — ${elapsedSince(sync.started_at)}`
+                : `Processando há ${elapsedSince(sync.started_at)}`;
         default:
             return sync.processed_records > 0
                 ? `${sync.processed_records.toLocaleString('pt-BR')} registros atualizados`

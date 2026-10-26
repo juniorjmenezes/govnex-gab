@@ -95,12 +95,12 @@ export function SyncStatusRow({
             <div className="flex items-center justify-between gap-3 text-xs">
                 <span className="flex min-w-0 items-center gap-1.5 font-medium">
                     <SyncStatusDot status={sync.status} />
-                    <span className="truncate">
+                    <span className="truncate font-mono">
                         {syncStatusLabels[sync.status] ?? sync.status}
                     </span>
                 </span>
                 {failure === null && (
-                    <span className="shrink-0 text-right text-muted-foreground">
+                    <span className="shrink-0 font-mono text-right text-muted-foreground">
                         {syncStatusDetail(sync)}
                     </span>
                 )}

@@ -73,6 +73,11 @@ return [
     'govnex_api' => [
         'url' => env('GOVNEX_API_URL', 'http://127.0.0.1:8010/api/v1'),
         'key' => env('GOVNEX_API_KEY'),
+        // Em dev, a GOVNEX API costuma rodar em `php -S` (single-threaded):
+        // uma recusa de conexão passageira sob uso concorrente é esperada,
+        // não um sinal de que a API caiu de verdade. Mais tentativas aqui
+        // evitam que isso derrube um sync inteiro por um soluço momentâneo.
+        'retries' => (int) env('GOVNEX_API_RETRIES', 6),
     ],
 
     /*

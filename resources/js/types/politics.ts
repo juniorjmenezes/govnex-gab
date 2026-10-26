@@ -280,6 +280,12 @@ export type ElectionRound = {
     round: number;
     /** A eleição tem 2º turno cadastrado. */
     has_second_round: boolean;
+    /** Geral: cargos federais/estaduais do feed ao vivo do TSE. Municipal:
+     * prefeito e vereador do município do gabinete, da votação nominal
+     * sincronizada — só em "Meu município", sem seção geral. Em eleição
+     * geral não há "Meu município": o líder da cidade em presidente e
+     * governador vem dentro do card do cargo. */
+    type: 'geral' | 'municipal';
     /** Início da votação (08h local), instante ISO 8601. */
     window_start: string;
     /** Fim da votação (17h local), instante ISO 8601. */
@@ -309,9 +315,13 @@ export type ElectionResult = {
         | 'governador'
         | 'senador'
         | 'deputado_federal'
-        | 'deputado_estadual';
+        | 'deputado_estadual'
+        | 'prefeito'
+        | 'vereador';
     label: string;
     available: boolean;
+    /** Null em prefeito/vereador: a votação nominal não traz progresso por
+     * seção, e a tela mostra só a contagem de candidatos. */
     section_percent: number | null;
     total_sections: number | null;
     /** Top 5 por votos, para a tela. */
@@ -360,7 +370,11 @@ export type ElectionFavorite = {
     section_percent: number | null;
 };
 
-/** Apuração recortada pelo município do gabinete ("Meu município"). */
+/**
+ * Apuração recortada pela cidade do gabinete. Em eleição municipal, prefeito
+ * e vereador — o conteúdo principal da tela. Em eleição geral, os mesmos
+ * cargos de `results`, oferecidos como escopo alternativo ("Minha cidade").
+ */
 export type ElectionMunicipal = {
     name: string;
     section_percent: number | null;
@@ -369,7 +383,10 @@ export type ElectionMunicipal = {
 
 export type ElectionTallyProps = {
     round: ElectionRound | null;
-    /** Null quando o gabinete ainda não tem município eleitoral vinculado. */
+    /** Mesmos cargos de `results`, recortados pela cidade do gabinete — null
+     * sem município vinculado. Em eleição municipal, é o conteúdo principal
+     * (prefeito e vereador); em eleição geral, é o escopo alternativo do
+     * seletor "Geral"/"Minha cidade" da mesma seção. */
     municipal: ElectionMunicipal | null;
     /** Todos os turnos cadastrados, para escolher qual apurar. */
     rounds: { date: string; label: string }[];

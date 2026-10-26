@@ -23,33 +23,19 @@ const percentFormatter = new Intl.NumberFormat('pt-BR', {
     maximumFractionDigits: 1,
 });
 
-/** Eleito quando o TSE marca; "Não eleito" só depois da apuração concluída
- * (antes disso, ninguém está definitivamente fora). */
-function ElectionBadge({
-    candidate,
-    finished,
-}: {
-    candidate: ElectionResultCandidate;
-    finished: boolean;
-}) {
-    if (candidate.elected) {
-        return <Badge variant="success">Eleito</Badge>;
+function ElectionBadge({ candidate }: { candidate: ElectionResultCandidate }) {
+    if (!candidate.elected) {
+        return null;
     }
 
-    if (finished) {
-        return <Badge variant="outline">Não eleito</Badge>;
-    }
-
-    return null;
+    return <Badge variant="success">Eleito</Badge>;
 }
 
 function CandidateRows({
     candidates,
-    finished,
     flush = false,
 }: {
     candidates: ElectionResultCandidate[];
-    finished: boolean;
     /** Dentro do diálogo, o padding vem do corpo: a linha não repete o recuo. */
     flush?: boolean;
 }) {
@@ -71,10 +57,7 @@ function CandidateRows({
                             <span className="truncate">
                                 {candidate.ballot_name}
                             </span>
-                            <ElectionBadge
-                                candidate={candidate}
-                                finished={finished}
-                            />
+                            <ElectionBadge candidate={candidate} />
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
                             {candidate.party}
@@ -123,7 +106,13 @@ export function ElectionResultCard({
                       .toLowerCase()
                       .includes(term),
               );
-    const sectionPercent = result.section_percent ?? 0;
+    // Prefeito/vereador não têm progresso por seção (section_percent null):
+    // no lugar, a contagem de candidatos — sem fingir um percentual.
+    const progress =
+        result.section_percent !== null
+            ? `${percentFormatter.format(result.section_percent)}% das seções apuradas`
+            : null;
+    const candidateCount = `${result.total_candidates} candidatos`;
     const hasMore = result.total_candidates > result.candidates.length;
     const title =
         uf && result.cargo !== 'presidente'
@@ -135,9 +124,7 @@ export function ElectionResultCard({
             <SectionCard
                 title={title}
                 description={
-                    result.available
-                        ? `${percentFormatter.format(sectionPercent)}% das seções apuradas`
-                        : undefined
+                    result.available ? (progress ?? candidateCount) : undefined
                 }
                 actions={
                     result.goes_to_second_round ? (
@@ -163,24 +150,25 @@ export function ElectionResultCard({
                     />
                 ) : (
                     <>
-                        <CandidateRows
-                            candidates={result.candidates}
-                            finished={result.finished}
-                        />
-                        {hasMore && (
-                            <div className="mt-auto border-t px-4 py-2.5">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="w-full"
-                                    onClick={() => setShowAll(true)}
-                                >
-                                    <CheckCircleIcon aria-hidden="true" />
-                                    Ver todos os resultados (
-                                    {result.total_candidates})
-                                </Button>
-                            </div>
-                        )}
+                        <CandidateRows candidates={result.candidates} />
+                        {/* Rodapé colado embaixo: cards lado a lado no grid
+                            têm alturas iguais mesmo com listas diferentes. */}
+                        <div className="mt-auto">
+                            {hasMore && (
+                                <div className="border-t px-4 py-2.5">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full"
+                                        onClick={() => setShowAll(true)}
+                                    >
+                                        <CheckCircleIcon aria-hidden="true" />
+                                        Ver todos os resultados (
+                                        {result.total_candidates})
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
                     </>
                 )}
             </SectionCard>
@@ -190,9 +178,9 @@ export function ElectionResultCard({
                     <ScrollableDialogHeader>
                         <DialogTitle>{title}</DialogTitle>
                         <DialogDescription>
-                            {result.total_candidates} candidatos ·{' '}
-                            {percentFormatter.format(sectionPercent)}% das
-                            seções apuradas
+                            {progress
+                                ? `${candidateCount} · ${progress}`
+                                : candidateCount}
                         </DialogDescription>
                     </ScrollableDialogHeader>
                     <ScrollableDialogBody>
@@ -217,11 +205,7 @@ export function ElectionResultCard({
                                 Nenhum candidato encontrado.
                             </p>
                         ) : (
-                            <CandidateRows
-                                candidates={filtered}
-                                finished={result.finished}
-                                flush
-                            />
+                            <CandidateRows candidates={filtered} flush />
                         )}
                     </ScrollableDialogBody>
                 </ScrollableDialogContent>

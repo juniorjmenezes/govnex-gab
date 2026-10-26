@@ -282,15 +282,23 @@ class TsePoliticalDataSyncService
 
             $municipalityCodesForUf = [];
             $unexpectedUfs = [];
+            $rowsReadForUf = 0;
 
             $this->govnexApi->eachRecord($located['source'], $located['slug'], function (array $row) use (
                 $year,
                 $uf,
+                $run,
                 &$totals,
                 &$referenceDates,
                 &$municipalityCodesForUf,
                 &$unexpectedUfs,
+                &$rowsReadForUf,
             ): void {
+                $rowsReadForUf++;
+                if ($rowsReadForUf % 2000 === 0) {
+                    $this->touchProcessedCount($run, $rowsReadForUf);
+                }
+
                 $rowUf = mb_strtoupper($this->value($row, 'SG_UF'));
                 $name = $this->value($row, 'NM_MUNICIPIO');
                 $code = $this->value($row, 'CD_MUNICIPIO');
@@ -866,6 +874,7 @@ class TsePoliticalDataSyncService
                     ];
                 },
                 $run,
+                progressOffset: $totalProcessed,
                 progressTotal: 0,
                 filters: ['SG_UF' => $state],
             );
@@ -1593,6 +1602,7 @@ class TsePoliticalDataSyncService
                     $located,
                     $collect,
                     $run,
+                    progressOffset: $read,
                     progressTotal: 0,
                     filters: ['SQ_CANDIDATO' => (string) $sequence],
                 );
@@ -2005,8 +2015,15 @@ class TsePoliticalDataSyncService
             function (array $row) use (&$read, $total, $run, $progressOffset, $callback): void {
                 $read++;
 
-                if ($run !== null && $read % 5000 === 0) {
+                // A cada 1.000 linhas (era 5.000): num dataset de dezenas de
+                // milhares de linhas, 5.000 podia demorar minutos pra bater
+                // uma vez só — tempo suficiente pra parecer travado sem
+                // nenhum sinal na tela. registros_processados some junto,
+                // pra refletir o que já foi lido mesmo enquanto a
+                // transação que grava ainda não comitou nada.
+                if ($run !== null && $read % 1000 === 0) {
                     $this->ensureRunIsActive($run);
+                    $this->touchProcessedCount($run, $progressOffset + $read);
 
                     if ($total > 0) {
                         $this->touchProgress(
@@ -2097,6 +2114,27 @@ class TsePoliticalDataSyncService
      * disparar eventos do Eloquent — evita sobrecarregar o banco com um
      * UPDATE completo do model a cada tick de leitura/gravação.
      */
+    /**
+     * Atualiza só a contagem de registros lidos, sem esperar o fim de uma UF
+     * inteira — para datasets grandes (ex.: eleitorado de um estado só),
+     * `touchProgress()` por UF deixava a tela "Processando desde HH:MM"
+     * parada por minutos sem nenhum sinal de que algo estava de fato
+     * acontecendo. Mesma lógica de update direto via DB::table(), sem
+     * disparar eventos do Eloquent a cada linha.
+     */
+    private function touchProcessedCount(?SincronizacaoTse $run, int $count): void
+    {
+        if ($run === null) {
+            return;
+        }
+
+        $run->registros_processados = $count;
+
+        DB::table('sincronizacoes_tse')
+            ->where('id', $run->id)
+            ->update(['registros_processados' => $count]);
+    }
+
     private function touchProgress(?SincronizacaoTse $run, string $stage, int $percent): void
     {
         if ($run === null) {

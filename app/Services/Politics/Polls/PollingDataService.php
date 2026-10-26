@@ -13,6 +13,7 @@ use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -451,7 +452,7 @@ class PollingDataService implements PesquisaResultProvider
      * @param  list<ElectionContext>  $contexts
      * @return array<string, int|null> Contagem de registros processados por contexto (label), null quando o contexto falhou.
      */
-    public function syncMany(array $contexts, ResultResolver $resultResolver): array
+    public function syncMany(array $contexts, ResultResolver $resultResolver, ?SincronizacaoTse $run = null): array
     {
         $results = [];
         $intervalMs = max(0, (int) config('services.pollingdata.interval_ms', 300));
@@ -466,6 +467,20 @@ class PollingDataService implements PesquisaResultProvider
                     'exception' => $exception,
                 ]);
                 $results[$context->label()] = null;
+            }
+
+            // Cada contexto é um candidato/eleição consultado à parte — o
+            // intervalo entre eles (pacing pro WAF do PollingData, ver acima)
+            // já é tempo suficiente pra parecer travado sem nenhum sinal na
+            // tela se ninguém tocar o progresso entretanto.
+            if ($run !== null) {
+                $processedSoFar = (int) array_sum(array_filter($results, 'is_int'));
+
+                DB::table('sincronizacoes_tse')->where('id', $run->id)->update([
+                    'progresso_etapa' => 'lendo_govnex_api',
+                    'progresso_percentual' => (int) round(($index + 1) / max(1, $total) * 100),
+                    'registros_processados' => $processedSoFar,
+                ]);
             }
 
             if ($intervalMs > 0 && $index < $total - 1) {
@@ -486,7 +501,7 @@ class PollingDataService implements PesquisaResultProvider
         ])->save();
 
         try {
-            $results = $this->syncMany($this->defaultContexts($run->ano), $resultResolver);
+            $results = $this->syncMany($this->defaultContexts($run->ano), $resultResolver, $run);
             $succeeded = array_filter($results, fn (?int $value): bool => $value !== null);
             $failedLabels = array_keys(array_filter($results, fn (?int $value): bool => $value === null));
 

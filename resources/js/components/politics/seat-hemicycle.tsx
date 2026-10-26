@@ -1,3 +1,13 @@
+import { useState } from 'react';
+import {
+    ScrollableDialogBody,
+    ScrollableDialogContent,
+    ScrollableDialogHeader,
+} from '@/components/common/scrollable-dialog';
+import { CheckCircleIcon, MagnifierIcon } from '@/components/icons';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 export interface SeatParty {
@@ -111,51 +121,10 @@ function seatLayout(total: number) {
     return { positions, dotRadius, viewBoxHeight: 56 };
 }
 
-/** Margem interna do viewBox nas duas grades (linhas e semicírculo) usam a
- * mesma área útil, então os dois modos ficam visualmente alinhados. */
-const GRID_MARGIN_X = 3;
-const GRID_MARGIN_Y = 3;
-
-/** Espaço (centro a centro) entre cadeiras na grade em linhas — fixo, pelo
- * mesmo raio usado no semicírculo pequeno, para o ponto ter sempre o mesmo
- * tamanho em qualquer um dos gráficos de composição. */
-const GRID_CELL_SIZE = FIXED_DOT_RADIUS * 2 * 1.15;
-
-/**
- * Casas muito grandes (Deputado Federal, 513 cadeiras) ficam com o ponto
- * encolhido e de tamanho inconsistente entre fileiras no semicírculo — o
- * raio ali varia conforme a fileira para preencher o arco. Em linha reta, o
- * raio é sempre {@link FIXED_DOT_RADIUS}, igual ao do Senado/Assembleia; o
- * que varia é a altura do gráfico, que cresce conforme precisa de mais
- * fileiras para caber todo mundo na mesma largura.
- */
-function rowLayout(total: number) {
-    const usableWidth = 100 - GRID_MARGIN_X * 2;
-    const columns = Math.max(1, Math.floor(usableWidth / GRID_CELL_SIZE));
-    const rows = Math.ceil(total / columns);
-    const viewBoxHeight = GRID_MARGIN_Y * 2 + rows * GRID_CELL_SIZE;
-
-    const positions: { x: number; y: number }[] = [];
-    let remaining = total;
-
-    for (let row = 0; row < rows; row += 1) {
-        const rowCount = Math.min(columns, remaining);
-        // Fileira incompleta (a última) fica centralizada, não grudada à
-        // esquerda — mais parecido com uma bancada de verdade.
-        const offsetX = ((columns - rowCount) * GRID_CELL_SIZE) / 2;
-
-        for (let col = 0; col < rowCount; col += 1) {
-            positions.push({
-                x: GRID_MARGIN_X + offsetX + GRID_CELL_SIZE * (col + 0.5),
-                y: GRID_MARGIN_Y + GRID_CELL_SIZE * (row + 0.5),
-            });
-        }
-
-        remaining -= rowCount;
-    }
-
-    return { positions, dotRadius: FIXED_DOT_RADIUS, viewBoxHeight };
-}
+/** Partidos visíveis de cara na lista; o resto só no diálogo "ver todos" —
+ * o Congresso brasileiro costuma ter 20-30+ partidos numa casa, muitos com
+ * 1-2 cadeiras, e listar todos sempre estouraria o card bem além do gráfico. */
+const PARTY_LIMIT = 8;
 
 /**
  * Semicírculo da casa. Em bancada estadual (Assembleia), mostra só as
@@ -165,6 +134,37 @@ function rowLayout(total: number) {
  * partido, com um contorno nos pontos do estado do gabinete. Cores vêm de
  * `PartidoCor`.
  */
+function PartyRow({
+    item,
+    nationwide,
+    uf,
+}: {
+    item: SeatParty;
+    nationwide: boolean;
+    uf?: string;
+}) {
+    return (
+        <li className="flex items-center justify-between gap-2 py-2">
+            <span className="flex min-w-0 items-center gap-2">
+                <span
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: item.color ?? FALLBACK_COLOR }}
+                    aria-hidden="true"
+                />
+                <span className="truncate font-medium">{item.party}</span>
+                {nationwide && item.home_seats ? (
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                        · {item.home_seats} em {uf}
+                    </span>
+                ) : null}
+            </span>
+            <span className="text-muted-foreground tabular-nums">
+                {item.seats}
+            </span>
+        </li>
+    );
+}
+
 export function SeatHemicycle({
     parties,
     chamberTotal,
@@ -185,10 +185,19 @@ export function SeatHemicycle({
     othersLabel?: string;
     className?: string;
 }) {
+    const [showAll, setShowAll] = useState(false);
+    const [query, setQuery] = useState('');
     const nationwide = parties.some((p) => p.home_seats !== undefined);
     const elected = parties.reduce((sum, p) => sum + p.seats, 0);
     const total = Math.max(elected, chamberTotal ?? elected);
     const others = total - elected;
+    const shownParties = parties.slice(0, PARTY_LIMIT);
+    const hasMoreParties = parties.length > shownParties.length;
+    const term = query.trim().toLowerCase();
+    const filteredParties =
+        term === ''
+            ? parties
+            : parties.filter((item) => item.party.toLowerCase().includes(term));
 
     if (total === 0) {
         return (
@@ -198,10 +207,7 @@ export function SeatHemicycle({
         );
     }
 
-    const useRowLayout = total > FIXED_DOT_MAX_SEATS;
-    const { positions, dotRadius, viewBoxHeight } = useRowLayout
-        ? rowLayout(total)
-        : seatLayout(total);
+    const { positions, dotRadius, viewBoxHeight } = seatLayout(total);
     const colors = [
         ...parties.flatMap((p) =>
             Array.from({ length: p.seats }, () => p.color ?? FALLBACK_COLOR),
@@ -278,35 +284,72 @@ export function SeatHemicycle({
                         </span>
                     </li>
                 )}
-                {parties.map((item) => (
-                    <li
+                {shownParties.map((item) => (
+                    <PartyRow
                         key={item.party}
-                        className="flex items-center justify-between gap-2 py-2"
-                    >
-                        <span className="flex min-w-0 items-center gap-2">
-                            <span
-                                className="size-2.5 shrink-0 rounded-full"
-                                style={{
-                                    backgroundColor:
-                                        item.color ?? FALLBACK_COLOR,
-                                }}
-                                aria-hidden="true"
-                            />
-                            <span className="truncate font-medium">
-                                {item.party}
-                            </span>
-                            {nationwide && item.home_seats ? (
-                                <span className="shrink-0 text-xs text-muted-foreground">
-                                    · {item.home_seats} em {uf}
-                                </span>
-                            ) : null}
-                        </span>
-                        <span className="text-muted-foreground tabular-nums">
-                            {item.seats}
-                        </span>
-                    </li>
+                        item={item}
+                        nationwide={nationwide}
+                        uf={uf}
+                    />
                 ))}
             </ul>
+            {hasMoreParties && (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setShowAll(true)}
+                >
+                    <CheckCircleIcon aria-hidden="true" />
+                    Ver todos os partidos ({parties.length})
+                </Button>
+            )}
+
+            <Dialog open={showAll} onOpenChange={setShowAll}>
+                <ScrollableDialogContent className="h-[calc(100svh-1rem)] sm:h-[min(42rem,90svh)] sm:max-w-md">
+                    <ScrollableDialogHeader>
+                        <DialogTitle>Partidos</DialogTitle>
+                        <DialogDescription>
+                            {parties.length} partidos · {elected} cadeiras
+                            eleitas
+                        </DialogDescription>
+                    </ScrollableDialogHeader>
+                    <ScrollableDialogBody>
+                        <div className="relative mb-4">
+                            <MagnifierIcon
+                                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            <Input
+                                type="search"
+                                value={query}
+                                onChange={(event) =>
+                                    setQuery(event.target.value)
+                                }
+                                placeholder="Buscar por sigla do partido"
+                                aria-label="Buscar partidos"
+                                className="pl-9"
+                            />
+                        </div>
+                        {filteredParties.length === 0 ? (
+                            <p className="py-8 text-center text-sm text-muted-foreground">
+                                Nenhum partido encontrado.
+                            </p>
+                        ) : (
+                            <ul className="divide-y text-sm">
+                                {filteredParties.map((item) => (
+                                    <PartyRow
+                                        key={item.party}
+                                        item={item}
+                                        nationwide={nationwide}
+                                        uf={uf}
+                                    />
+                                ))}
+                            </ul>
+                        )}
+                    </ScrollableDialogBody>
+                </ScrollableDialogContent>
+            </Dialog>
         </div>
     );
 }

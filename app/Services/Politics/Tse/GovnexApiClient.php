@@ -434,7 +434,7 @@ class GovnexApiClient
             // erro 5xx e o limite por minuto. Um 404 ou 409 repetido daria a
             // mesma resposta.
             ->retry(
-                3,
+                (int) config('services.govnex_api.retries', 6),
                 // Ler um dataset grande encosta no limite por minuto mais de
                 // uma vez: o 429 vem com Retry-After, e esperar o que a API
                 // pediu é o que faz o sync atravessar em vez de falhar no

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ElectionType;
 use App\Models\CandidatoFavorito;
 use App\Models\CandidatoPolitico;
 use App\Models\Eleicao;
@@ -9,6 +10,9 @@ use App\Models\Gabinete;
 use App\Models\PartidoCor;
 use App\Models\User;
 use App\Services\Politics\ElectionLifecycleService;
+use App\Services\Politics\ElectionResultRecorder;
+use App\Services\Politics\MunicipalVoteTally;
+use App\Services\Politics\SecondRoundClassifier;
 use App\Services\Politics\Tse\TseResultsClient;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -18,6 +22,9 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * @phpstan-type TallyRound array{election_id: int, label: string, date: string, pleito_date: string, round: int, has_second_round: bool, type: string}
+ */
 class ElectionTallyController extends Controller
 {
     /**
@@ -28,10 +35,9 @@ class ElectionTallyController extends Controller
     private const VOTING_END_HOUR = 17;
 
     /**
-     * Cargos mostrados na apuração: as eleições gerais não elegem vereador
-     * (isso ocorre nas municipais, acompanhadas no painel político comum) —
-     * o que o eleitorado do gabinete vota aqui é a chapa nacional e a
-     * estadual da sua própria UF.
+     * Cargos mostrados na apuração de uma eleição geral — o que o eleitorado
+     * do gabinete vota é a chapa nacional e a estadual da sua própria UF.
+     * Eleição municipal usa {@see self::MUNICIPAL_CARGOS}.
      *
      * @var array<string, string>
      */
@@ -43,12 +49,30 @@ class ElectionTallyController extends Controller
         'deputado_estadual' => 'Deputado Estadual',
     ];
 
+    /**
+     * Cargos da apuração de uma eleição municipal — só existem no município
+     * do gabinete e vêm da votação nominal sincronizada, não do feed ao vivo
+     * do TSE (ver MunicipalVoteTally).
+     *
+     * @var array<string, string>
+     */
+    private const MUNICIPAL_CARGOS = [
+        'prefeito' => 'Prefeito',
+        'vereador' => 'Vereador',
+    ];
+
     /** Cargos proporcionais têm dezenas de candidatos por UF — mostra só os
      * mais votados, com a contagem do restante. */
     private const CANDIDATE_LIMIT = 5;
 
     /** Cargos que elegem cadeiras (e não um único vencedor). */
     private const SEAT_CARGOS = ['senador', 'deputado_federal', 'deputado_estadual'];
+
+    /** Únicos cargos gerais com 2º turno possível — mesma regra de
+     * {@see ElectionResultRecorder::MAJORITY_OFFICES}.
+     * Senador e os proporcionais se decidem inteiramente no 1º turno; não
+     * fazem parte da apuração do 2º turno. */
+    private const SECOND_ROUND_CARGOS = ['presidente', 'governador'];
 
     /** Total da casa para os cargos de bancada nacional. A Assembleia
      * estadual não entra aqui: o gráfico dela mostra só as cadeiras do estado. */
@@ -80,11 +104,15 @@ class ElectionTallyController extends Controller
         'SENADOR' => 'senador',
         'DEPUTADO FEDERAL' => 'deputado_federal',
         'DEPUTADO ESTADUAL' => 'deputado_estadual',
+        'PREFEITO' => 'prefeito',
+        'VEREADOR' => 'vereador',
     ];
 
     public function __construct(
         private readonly TseResultsClient $tseResults,
         private readonly ElectionLifecycleService $lifecycle,
+        private readonly MunicipalVoteTally $municipalTally,
+        private readonly SecondRoundClassifier $secondRound,
     ) {}
 
     public function index(Request $request): Response
@@ -126,7 +154,27 @@ class ElectionTallyController extends Controller
                 'window_end' => $windowEnd->toIso8601String(),
                 'round' => $selected['round'],
                 'has_second_round' => $selected['has_second_round'],
+                'type' => $selected['type'],
             ];
+
+            $election = Eleicao::query()->find($selected['election_id']);
+
+            // Eleição municipal: prefeito e vereador, só do município do
+            // gabinete e da votação nominal já sincronizada — o feed ao vivo
+            // do TSE não publica esses cargos, e os cargos gerais não existem
+            // nesse pleito. "Meu município" é a própria disputa; não há
+            // seção geral.
+            if ($election instanceof Eleicao && $election->tipo === ElectionType::Municipal) {
+                $raw = $this->fetchMunicipalResults($office, $election, $selected['round']);
+                $municipal = $raw === null ? null : [
+                    'name' => $office->municipio,
+                    'section_percent' => null,
+                    'results' => $this->municipalResults($raw),
+                ];
+                $favorites = $this->favorites($raw ?? [], $office, $election->id);
+
+                return $this->render($office, $rounds, $round, null, $municipal, $favorites);
+            }
 
             // O TSE publica a lista de candidatos (com votos zerados) desde
             // antes da votação fechar, não só depois das 17h — então a
@@ -139,8 +187,6 @@ class ElectionTallyController extends Controller
             // do gabinete — resultado de todos os cargos e, no 1º turno, quem
             // foi ao 2º — sem outra leitura do TSE. O comando agendado
             // politics:tally-elections cobre quem não abrir esta tela.
-            $election = Eleicao::query()->find($selected['election_id']);
-
             if ($election instanceof Eleicao) {
                 $this->lifecycle->recordLiveTally($election, $office->estado, $selected['round'], $raw);
             }
@@ -151,6 +197,18 @@ class ElectionTallyController extends Controller
             $results = $this->withNationwideSeats($results, $selected['pleito_date'], $selected['round'], $office->estado);
         }
 
+        return $this->render($office, $rounds, $round, $results, $municipal, $favorites);
+    }
+
+    /**
+     * @param  Collection<int, TallyRound>  $rounds
+     * @param  array<string, mixed>|null  $round
+     * @param  array<int, array<string, mixed>>|null  $results
+     * @param  array<string, mixed>|null  $municipal
+     * @param  array<int, array<string, mixed>>|null  $favorites
+     */
+    private function render(Gabinete $office, Collection $rounds, ?array $round, ?array $results, ?array $municipal, ?array $favorites): Response
+    {
         return Inertia::render('politics/apuracao', [
             'round' => $round,
             'rounds' => $rounds->map(fn (array $item): array => [
@@ -174,22 +232,99 @@ class ElectionTallyController extends Controller
      */
     private function fetchResults(string $pleitoDate, int $round, string $uf, ?string $municipality = null): array
     {
-        return collect(self::CARGOS)
+        return collect($this->cargosForRound($round))
             ->keys()
             ->mapWithKeys(fn (string $cargo): array => [$cargo => $this->tseResults->results($cargo, $uf, $pleitoDate, $round, $municipality)])
             ->all();
     }
 
     /**
-     * "Meu município": a mesma apuração por cargo, recortada pelos votos da
-     * cidade do gabinete. Sem município vinculado, devolve null e a tela
-     * pede a vinculação.
+     * Cargos gerais que o turno pedido realmente apura: no 2º turno, só
+     * presidente e governador ({@see self::SECOND_ROUND_CARGOS}) — senador e
+     * os proporcionais já se decidiram no 1º e não devem aparecer de novo.
+     *
+     * @return array<string, string>
+     */
+    private function cargosForRound(int $round): array
+    {
+        return $round === 2
+            ? array_intersect_key(self::CARGOS, array_flip(self::SECOND_ROUND_CARGOS))
+            : self::CARGOS;
+    }
+
+    /**
+     * Prefeito e vereador do município do gabinete, no formato cru do
+     * TseResultsClient. Sem município vinculado, devolve null e a tela pede
+     * a vinculação.
+     *
+     * Antes de ler, classifica o 2º turno de prefeito com a votação já no
+     * banco — sem custo quando já classificado, e sem esperar o comando
+     * agendado (o mesmo que o PoliticalPanelController faz).
+     *
+     * @return array<string, array<string, mixed>|null>|null
+     */
+    private function fetchMunicipalResults(Gabinete $office, Eleicao $election, int $round): ?array
+    {
+        $municipalityId = $office->municipio_eleitoral_id;
+
+        if ($municipalityId === null) {
+            return null;
+        }
+
+        if ($election->primeiro_turno_em->lte(today())) {
+            $this->secondRound->classify($election, 'prefeito', null, $municipalityId);
+        }
+
+        return $this->municipalTally->results($election, $municipalityId, $round);
+    }
+
+    /**
+     * Mesmo formato de {@see self::results()} para prefeito e vereador.
+     * "Eleito", "Vai ao 2º turno" e "concluído" já vêm prontos da fonte
+     * (votação nominal + classificação gravada), sem refazer a regra aqui.
+     * Vereador é cargo de cadeiras: entra na composição da Câmara
+     * Municipal, sem total constitucional (a casa são as cadeiras eleitas).
+     *
+     * @param  array<string, array<string, mixed>|null>  $raw
+     * @return array<int, array<string, mixed>>
+     */
+    private function municipalResults(array $raw): array
+    {
+        return collect($raw)
+            ->map(function (?array $result, string $cargo): array {
+                $candidates = $result['candidates'] ?? [];
+
+                return [
+                    'cargo' => $cargo,
+                    'label' => self::MUNICIPAL_CARGOS[$cargo],
+                    'available' => $result !== null,
+                    'section_percent' => null,
+                    'total_sections' => null,
+                    'candidates' => array_slice($candidates, 0, self::CANDIDATE_LIMIT),
+                    'all_candidates' => $candidates,
+                    'total_candidates' => count($candidates),
+                    'seats' => $cargo === 'vereador'
+                        ? $this->seatsByParty(array_values(array_filter($candidates, fn (array $c): bool => $c['elected'])))
+                        : null,
+                    'goes_to_second_round' => $result['goes_to_second_round'] ?? false,
+                    'finished' => $result['finished'] ?? false,
+                    'chamber_total' => null,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Apuração geral recortada pela cidade do gabinete, nos mesmos cargos e
+     * formato de {@see self::results()} — é o que a tela mostra ao trocar o
+     * escopo para a cidade (em vez de uma seção paralela sempre visível).
+     * Sem município vinculado, devolve null e a tela não oferece a troca.
      *
      * Quem está "eleito" aqui vem de `$nationalResults`, não dos votos da
      * própria cidade: presidente se decide na contagem nacional e governador
      * na estadual — o candidato mais votado no município pode não ser o
-     * eleito de verdade. O card de favoritos também não se repete aqui: o do
-     * topo da página já cobre a UF inteira, incluindo o município.
+     * eleito de verdade.
      *
      * @param  array<string, mixed>  $selected
      * @param  array<int, array<string, mixed>>  $nationalResults
@@ -214,7 +349,7 @@ class ElectionTallyController extends Controller
 
         $raw = $this->fetchResults($selected['pleito_date'], $selected['round'], $office->estado, $code);
         $results = $this->results($raw, false, $selected['round'], $electedByCargo);
-        $sectionPercent = collect($results)->firstWhere('section_percent', '!==', null)['section_percent'] ?? null;
+        $sectionPercent = collect($results)->first(fn (array $r): bool => $r['section_percent'] !== null)['section_percent'] ?? null;
 
         return [
             'name' => $office->municipio,
@@ -225,19 +360,17 @@ class ElectionTallyController extends Controller
 
     /**
      * @param  array<string, array<string, mixed>|null>  $raw
-     * @return array<int, array{cargo: string, label: string, available: bool, section_percent: float|null, total_sections: int|null, candidates: array<int, array<string, mixed>>, hidden_candidates: int}>
-     */
-    /**
      * @param  array<string, array<int, string>>|null  $electedOverride  Número dos
      *                                                                   candidatos realmente eleitos por cargo, já apurado na votação que
      *                                                                   decide o cargo (nacional para presidente, estadual para
      *                                                                   governador). Usado pelo recorte municipal: lá os votos são só da
      *                                                                   cidade, e quem ganha na cidade não necessariamente é quem a
      *                                                                   eleição elege — isso só se decide na contagem de verdade.
+     * @return array<int, array<string, mixed>>
      */
     private function results(array $raw, bool $electionHasSecondRound, int $round, ?array $electedOverride = null): array
     {
-        return collect(self::CARGOS)
+        return collect($this->cargosForRound($round))
             ->map(function (string $label, string $cargo) use ($raw, $electionHasSecondRound, $round, $electedOverride): array {
                 $result = $raw[$cargo] ?? null;
                 $candidates = $result['candidates'] ?? [];
@@ -399,7 +532,9 @@ class ElectionTallyController extends Controller
             ->map(function (CandidatoPolitico $candidate) use ($raw): ?array {
                 $cargo = self::CARGO_BY_OFFICE_LABEL[Str::upper(trim($candidate->cargo))] ?? null;
 
-                if ($cargo === null) {
+                // Só cargos que este turno apura: vereador não tem 2º turno,
+                // e cargo municipal não existe numa eleição geral.
+                if ($cargo === null || ! array_key_exists($cargo, $raw)) {
                     return null;
                 }
 
@@ -412,7 +547,7 @@ class ElectionTallyController extends Controller
                     'name' => $candidate->nome_urna,
                     'party' => (string) $candidate->partido_sigla,
                     'number' => $candidate->numero,
-                    'cargo_label' => self::CARGOS[$cargo],
+                    'cargo_label' => (self::CARGOS + self::MUNICIPAL_CARGOS)[$cargo],
                     'found' => $match !== null,
                     'votes' => $match['votes'] ?? null,
                     'vote_percent' => $match['vote_percent'] ?? null,
@@ -430,13 +565,14 @@ class ElectionTallyController extends Controller
      * cadastrada, mais novo primeiro — achatado para facilitar a escolha do
      * turno relevante em `index()`.
      *
-     * @return Collection<int, array{election_id: int, label: string, date: string}>
+     * @return Collection<int, TallyRound>
      */
     private function rounds(): Collection
     {
         return Eleicao::query()
             ->orderByDesc('ano')
             ->get()
+            ->toBase()
             ->flatMap(function (Eleicao $election): array {
                 // `pleito_date` é a data do 1º turno: o TSE indexa o pleito
                 // por ela, e o 2º turno é o mesmo pleito com outro código.
@@ -449,6 +585,7 @@ class ElectionTallyController extends Controller
                         'pleito_date' => $pleitoDate,
                         'round' => 1,
                         'has_second_round' => $election->segundo_turno_em !== null,
+                        'type' => $election->tipo->value,
                     ],
                 ];
 
@@ -460,6 +597,7 @@ class ElectionTallyController extends Controller
                         'pleito_date' => $pleitoDate,
                         'round' => 2,
                         'has_second_round' => true,
+                        'type' => $election->tipo->value,
                     ];
                 }
 
