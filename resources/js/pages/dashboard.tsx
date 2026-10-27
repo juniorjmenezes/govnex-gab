@@ -9,7 +9,6 @@ import {
     RecentDemandsTable,
 } from '@/components/dashboard/dashboard-lists';
 import { EvolutionChart } from '@/components/dashboard/evolution-chart';
-import { StatusOverview } from '@/components/dashboard/status-overview';
 import { EmptyState } from '@/components/feedback/empty-state';
 import {
     AddIcon,
@@ -32,8 +31,27 @@ import { SectionCard } from '@/components/ui/section-card';
 import { useCanWrite } from '@/hooks/use-can-write';
 import { contextualUrl } from '@/lib/entity-context';
 import { cn } from '@/lib/utils';
-import type { Auth, DashboardProps, DashboardTrendKey } from '@/types';
+import type {
+    Auth,
+    DashboardProps,
+    DashboardTrendKey,
+    DemandStatus,
+} from '@/types';
 import type { IconComponent } from '@/types/icon';
+
+/**
+ * Mesma família de cor do `StatusBadge` suave, para o rodapé contar a mesma
+ * história da tabela. "Em andamento" usa o violeta categórico (`--chart-3`),
+ * não o destaque: com gabinete azul, ele se confundiria com "Nova"
+ * (`--info`). "Encerrada" fica neutra.
+ */
+const statusColor: Record<DemandStatus, string> = {
+    nova: 'var(--info)',
+    em_andamento: 'var(--chart-3)',
+    aguardando: 'var(--warning)',
+    resolvida: 'var(--success)',
+    encerrada: 'var(--muted-foreground)',
+};
 
 type Kpi = {
     key: DashboardTrendKey;
@@ -275,17 +293,40 @@ export default function Dashboard({
                             description={`Por mês · ${periodLabel.toLowerCase()}`}
                             contentClassName="p-0"
                         >
-                            {/* O resumo por status mora dentro do cartão do
-                                gráfico, como painel lateral — não um cartão à
-                                parte disputando altura com o resto da página. */}
-                            <div className="grid gap-6 p-5 lg:grid-cols-[2fr_1fr]">
-                                <div className="min-w-0">
-                                    <EvolutionChart data={charts.monthly} />
-                                </div>
-                                <div className="lg:flex lg:h-full lg:flex-col lg:justify-center lg:border-l lg:pl-6">
-                                    <StatusOverview data={charts.status} />
-                                </div>
+                            <div className="p-5">
+                                <EvolutionChart data={charts.monthly} />
                             </div>
+                            {/* Composição por status como rodapé: só os
+                                quantitativos, sem disputar outro gráfico com
+                                a evolução acima. */}
+                            {charts.status.some((item) => item.total > 0) && (
+                                <div className="flex flex-wrap items-center justify-center gap-x-0 gap-y-2 divide-x border-t px-5 py-3">
+                                    {charts.status
+                                        .filter((item) => item.total > 0)
+                                        .map((item) => (
+                                            <div
+                                                key={item.key}
+                                                className="flex items-center gap-1.5 px-4 text-sm text-muted-foreground first:pl-0 last:pr-0"
+                                            >
+                                                <span
+                                                    className="size-2 shrink-0 rounded-[2px]"
+                                                    style={{
+                                                        backgroundColor:
+                                                            statusColor[
+                                                                item.key as DemandStatus
+                                                            ] ??
+                                                            'var(--chart-5)',
+                                                    }}
+                                                    aria-hidden="true"
+                                                />
+                                                {item.label}
+                                                <span className="font-medium text-foreground tabular-nums">
+                                                    {item.total}
+                                                </span>
+                                            </div>
+                                        ))}
+                                </div>
+                            )}
                         </SectionCard>
 
                         <div className="grid gap-6 lg:grid-cols-2">

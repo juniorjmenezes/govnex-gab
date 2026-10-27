@@ -59,7 +59,7 @@ export function EvolutionChart({ data }: { data: DashboardMonthlyDatum[] }) {
                     <div key={key} className="flex flex-col gap-0.5">
                         <dt className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span
-                                className="size-2 shrink-0 rounded-full"
+                                className="size-2 shrink-0 rounded-[2px]"
                                 style={{ backgroundColor: config[key].color }}
                                 aria-hidden="true"
                             />
