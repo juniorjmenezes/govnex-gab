@@ -59,7 +59,7 @@ export function EvolutionChart({ data }: { data: DashboardMonthlyDatum[] }) {
                     <div key={key} className="flex flex-col gap-0.5">
                         <dt className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span
-                                className="h-0.5 w-3 rounded-full"
+                                className="size-2 shrink-0 rounded-full"
                                 style={{ backgroundColor: config[key].color }}
                                 aria-hidden="true"
                             />
@@ -123,7 +123,7 @@ export function EvolutionChart({ data }: { data: DashboardMonthlyDatum[] }) {
                     />
                     <ChartTooltip
                         cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
-                        content={<ChartTooltipContent indicator="line" />}
+                        content={<ChartTooltipContent />}
                     />
                     {series.map((key) => (
                         <Area
