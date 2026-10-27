@@ -275,7 +275,7 @@ export default function ProspectingMap({
 function Metric({ value, label }: { value: number; label: string }) {
     return (
         <div className="rounded-lg bg-muted p-2">
-            <strong className="block font-mono text-lg font-bold tabular-nums">
+            <strong className="block text-lg font-bold tabular-nums">
                 {value}
             </strong>
             <span className="text-[11px] text-muted-foreground">{label}</span>

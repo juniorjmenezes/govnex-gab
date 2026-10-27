@@ -527,7 +527,7 @@ function MapPanelContent({
                                             .join(' · ')}
                                     </span>
                                 </span>
-                                <span className="shrink-0 font-mono text-sm font-bold tabular-nums">
+                                <span className="shrink-0 text-sm font-bold tabular-nums">
                                     {point.votes.toLocaleString('pt-BR')}
                                 </span>
                             </button>
@@ -554,7 +554,7 @@ function MapPanelContent({
 function Metric({ value, label }: { value: string; label: string }) {
     return (
         <div className="rounded-lg bg-muted p-2">
-            <strong className="block font-mono text-lg font-bold tabular-nums">
+            <strong className="block text-lg font-bold tabular-nums">
                 {value}
             </strong>
             <span className="text-[11px] text-muted-foreground">{label}</span>

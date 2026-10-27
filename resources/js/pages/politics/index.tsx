@@ -328,7 +328,7 @@ function MunicipalElectionResult({
                             >
                                 {party.party}
                             </p>
-                            <p className="mt-1 font-mono text-lg leading-none font-medium tabular-nums">
+                            <p className="mt-1 text-lg leading-none font-medium tabular-nums">
                                 {numberFormatter.format(party.seats)}
                             </p>
                             <p className="mt-1 text-xs text-muted-foreground">
@@ -993,7 +993,7 @@ function PollsSection({
                                                                       'var(--muted-foreground)',
                                                         }}
                                                     />
-                                                    <span className="shrink-0 text-right font-mono text-sm font-semibold tabular-nums">
+                                                    <span className="shrink-0 text-right text-sm font-semibold tabular-nums">
                                                         {percentFormatter.format(
                                                             result.percentage,
                                                         )}

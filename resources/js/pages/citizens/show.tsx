@@ -363,19 +363,19 @@ export default function CitizenShow({
                         <dl className="grid grid-cols-3 gap-2 p-5 text-center">
                             <div className="rounded-md bg-muted p-3">
                                 <dt className="text-xs">Total</dt>
-                                <dd className="font-mono text-xl font-semibold tabular-nums">
+                                <dd className="text-xl font-semibold tabular-nums">
                                     {serviceSummary.total}
                                 </dd>
                             </div>
                             <div className="rounded-md bg-muted p-3">
                                 <dt className="text-xs">Abertas</dt>
-                                <dd className="font-mono text-xl font-semibold tabular-nums">
+                                <dd className="text-xl font-semibold tabular-nums">
                                     {serviceSummary.open}
                                 </dd>
                             </div>
                             <div className="rounded-md bg-muted p-3">
                                 <dt className="text-xs">Concluídas</dt>
-                                <dd className="font-mono text-xl font-semibold tabular-nums">
+                                <dd className="text-xl font-semibold tabular-nums">
                                     {serviceSummary.completed}
                                 </dd>
                             </div>
