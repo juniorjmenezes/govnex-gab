@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\EntidadeWhatsAppConnectionStatus;
+use App\Enums\EntityWhatsAppConnectionStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('tipo', 16);
             $table->string('nome_exibicao', 160);
             $table->char('telefone_final', 4)->nullable();
-            $table->string('status', 20)->default(EntidadeWhatsAppConnectionStatus::Active->value);
+            $table->string('status', 20)->default(EntityWhatsAppConnectionStatus::Active->value);
             $table->boolean('ativo')->default(false);
             $table->json('metadados')->nullable();
             $table->foreignId('atribuido_por')->nullable()->constrained('users')->nullOnDelete();

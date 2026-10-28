@@ -1,16 +1,16 @@
 <?php
 
 use App\Http\Middleware\AddSecurityHeaders;
-use App\Http\Middleware\EnsureEntidadeModuleIsEnabled;
-use App\Http\Middleware\EnsureGabineteIsActive;
-use App\Http\Middleware\EnsureGabineteModuleIsEnabled;
+use App\Http\Middleware\EnsureEntityModuleIsEnabled;
+use App\Http\Middleware\EnsureOfficeIsActive;
+use App\Http\Middleware\EnsureOfficeModuleIsEnabled;
 use App\Http\Middleware\EnsureRoot;
 use App\Http\Middleware\EnsureTenantUser;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RedirectLegacyTenantRoute;
-use App\Http\Middleware\ResolveEntidadeContext;
+use App\Http\Middleware\ResolveEntityContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -49,19 +49,19 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'user.active' => EnsureUserIsActive::class,
-            'gabinete.active' => EnsureGabineteIsActive::class,
-            'module' => EnsureGabineteModuleIsEnabled::class,
+            'gabinete.active' => EnsureOfficeIsActive::class,
+            'module' => EnsureOfficeModuleIsEnabled::class,
             'tenant.user' => EnsureTenantUser::class,
             'root' => EnsureRoot::class,
-            'entidade.context' => ResolveEntidadeContext::class,
-            'entidade.module' => EnsureEntidadeModuleIsEnabled::class,
+            'entidade.context' => ResolveEntityContext::class,
+            'entidade.module' => EnsureEntityModuleIsEnabled::class,
             'tenant.legacy' => RedirectLegacyTenantRoute::class,
         ]);
 
         foreach ([
             EnsureUserIsActive::class,
-            EnsureGabineteIsActive::class,
-            ResolveEntidadeContext::class,
+            EnsureOfficeIsActive::class,
+            ResolveEntityContext::class,
             EnsureTenantUser::class,
             RedirectLegacyTenantRoute::class,
         ] as $tenantMiddleware) {

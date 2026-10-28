@@ -3,8 +3,8 @@
 namespace Tests\Feature\MultiEntidade;
 
 use App\Enums\AccessRole;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -16,10 +16,10 @@ class TeamMembershipTest extends TestCase
 
     public function test_secondary_office_member_appears_in_canonical_team_list(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $leader = User::factory()->administrator()->forGabinete($office)->create();
         $member = User::factory()->operator()->create();
-        GabineteMembro::query()->create([
+        OfficeMember::query()->create([
             'gabinete_id' => $office->id,
             'usuario_id' => $member->id,
             'papel' => AccessRole::Operator,
@@ -42,11 +42,11 @@ class TeamMembershipTest extends TestCase
 
     public function test_removing_office_access_is_blocked_now_that_links_are_managed_in_the_hub(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $leader = User::factory()->administrator()->forGabinete($office)->create();
-        $otherOffice = Gabinete::factory()->create();
+        $otherOffice = Office::factory()->create();
         $member = User::factory()->operator()->forGabinete($otherOffice)->create();
-        GabineteMembro::query()->create([
+        OfficeMember::query()->create([
             'gabinete_id' => $office->id,
             'usuario_id' => $member->id,
             'papel' => AccessRole::Operator,
@@ -77,7 +77,7 @@ class TeamMembershipTest extends TestCase
 
     public function test_linking_an_existing_account_is_blocked_now_that_links_are_managed_in_the_hub(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $leader = User::factory()->administrator()->forGabinete($office)->create();
         $existing = User::factory()->operator()->create();
         $passwordHash = $existing->password;

@@ -4,11 +4,12 @@ namespace App\Actions\Demands;
 
 use App\Enums\DemandEventType;
 use App\Enums\DemandStatus;
-use App\Models\Demanda;
+use App\Models\Demand;
 use App\Models\User;
 use App\Services\Demands\DemandNotificationService;
 use App\Services\Demands\DemandProtocolGenerator;
 use App\Services\Demands\DemandTimelineRecorder;
+use App\Tenancy\OfficeContext;
 use Illuminate\Support\Facades\DB;
 
 class CreateDemand
@@ -17,13 +18,14 @@ class CreateDemand
         private readonly DemandProtocolGenerator $protocols,
         private readonly DemandTimelineRecorder $timeline,
         private readonly DemandNotificationService $notifications,
+        private readonly OfficeContext $context,
     ) {}
 
     /** @param array<string, mixed> $data */
-    public function handle(array $data, User $user): Demanda
+    public function handle(array $data, User $user): Demand
     {
-        return DB::transaction(function () use ($data, $user): Demanda {
-            $office = $user->gabinete()->firstOrFail();
+        return DB::transaction(function () use ($data, $user): Demand {
+            $office = $this->context->requireOfficeFor($user);
             $openedAt = now();
             $protocol = $this->protocols->next(
                 $office->id,
@@ -31,7 +33,7 @@ class CreateDemand
                 $office->formato_protocolo ?: '{ANO}-{SEQUENCIAL}',
             );
 
-            $demand = new Demanda;
+            $demand = new Demand;
             $demand->forceFill([
                 ...$data,
                 'gabinete_id' => $office->id,

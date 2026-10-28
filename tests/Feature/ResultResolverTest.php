@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\Eleicao;
-use App\Models\PesquisaEleitoral;
-use App\Models\ResultadoPesquisaEleitoral;
+use App\Models\Election;
+use App\Models\ElectoralPoll;
+use App\Models\ElectoralPollResult;
 use App\Services\Politics\Polls\PesquisaResultProvider;
 use App\Services\Politics\Polls\ResultadoColeta;
 use App\Services\Politics\Polls\ResultResolver;
@@ -120,24 +120,24 @@ class ResultResolverTest extends TestCase
 
         $indisponivel = new class implements PesquisaResultProvider
         {
-            public function supports(PesquisaEleitoral $pesquisa): bool
+            public function supports(ElectoralPoll $pesquisa): bool
             {
                 return false;
             }
 
-            public function buscar(PesquisaEleitoral $pesquisa): ?ResultadoColeta
+            public function buscar(ElectoralPoll $pesquisa): ?ResultadoColeta
             {
                 throw new RuntimeException('Não deveria ser chamado.');
             }
         };
         $semResultado = new class implements PesquisaResultProvider
         {
-            public function supports(PesquisaEleitoral $pesquisa): bool
+            public function supports(ElectoralPoll $pesquisa): bool
             {
                 return true;
             }
 
-            public function buscar(PesquisaEleitoral $pesquisa): ?ResultadoColeta
+            public function buscar(ElectoralPoll $pesquisa): ?ResultadoColeta
             {
                 return null;
             }
@@ -146,12 +146,12 @@ class ResultResolverTest extends TestCase
         {
             public function __construct(private readonly ResultadoColeta $resultado) {}
 
-            public function supports(PesquisaEleitoral $pesquisa): bool
+            public function supports(ElectoralPoll $pesquisa): bool
             {
                 return true;
             }
 
-            public function buscar(PesquisaEleitoral $pesquisa): ?ResultadoColeta
+            public function buscar(ElectoralPoll $pesquisa): ?ResultadoColeta
             {
                 return $this->resultado;
             }
@@ -162,11 +162,11 @@ class ResultResolverTest extends TestCase
         $this->assertSame($resultadoFinal, $resolver->resolve($pesquisa));
     }
 
-    private function pesquisa(array $overrides = []): PesquisaEleitoral
+    private function pesquisa(array $overrides = []): ElectoralPoll
     {
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
 
-        return PesquisaEleitoral::query()->create([
+        return ElectoralPoll::query()->create([
             'eleicao_id' => $election->id,
             'external_id' => (string) Str::uuid(),
             'external_election_id' => (string) Str::uuid(),
@@ -180,9 +180,9 @@ class ResultResolverTest extends TestCase
         ]);
     }
 
-    private function createResultado(PesquisaEleitoral $pesquisa, string $externalCandidateId, string $nome, float $percentual): void
+    private function createResultado(ElectoralPoll $pesquisa, string $externalCandidateId, string $nome, float $percentual): void
     {
-        ResultadoPesquisaEleitoral::query()->create([
+        ElectoralPollResult::query()->create([
             'pesquisa_eleitoral_id' => $pesquisa->id,
             'external_candidate_id' => $externalCandidateId,
             'candidato_nome' => $nome,

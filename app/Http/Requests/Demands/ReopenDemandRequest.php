@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Demands;
 
-use App\Models\Demanda;
+use App\Models\Demand;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ReopenDemandRequest extends FormRequest
@@ -11,7 +11,7 @@ class ReopenDemandRequest extends FormRequest
     {
         $demand = $this->route('demanda');
 
-        return $demand instanceof Demanda
+        return $demand instanceof Demand
             && $this->user()->can('update', $demand)
             && $demand->status->isCompleted();
     }

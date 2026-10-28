@@ -44,9 +44,9 @@ enum AccessRole: string
      * ela não existe sem ele. Em Câmara ou Prefeitura, a entidade é maior que o
      * gabinete e o administrador dele é só mais um operador dela.
      */
-    public function forEntidadeOfUnit(?EntidadeType $tipo): self
+    public function forEntidadeOfUnit(?EntityType $tipo): self
     {
-        return $this === self::Administrator && $tipo !== EntidadeType::IndependentOffice
+        return $this === self::Administrator && $tipo !== EntityType::IndependentOffice
             ? self::Operator
             : $this;
     }

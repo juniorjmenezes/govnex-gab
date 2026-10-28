@@ -100,7 +100,7 @@ export function SyncStatusRow({
                     </span>
                 </span>
                 {failure === null && (
-                    <span className="shrink-0 font-mono text-right text-muted-foreground">
+                    <span className="shrink-0 text-right font-mono text-muted-foreground">
                         {syncStatusDetail(sync)}
                     </span>
                 )}

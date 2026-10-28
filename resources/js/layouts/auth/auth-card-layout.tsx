@@ -1,6 +1,6 @@
+import { AuthCardLayout as SharedAuthCardLayout } from '@govnex/ui';
 import { AppLogoMark, AppWordmark } from '@/components/app-logo-mark';
 import type { AuthLayoutProps } from '@/types';
-import { AuthCardLayout as SharedAuthCardLayout } from '@govnex/ui';
 
 /**
  * Cartão flutuante centralizado (`AuthCardLayout` da `@govnex/ui`), mesmo

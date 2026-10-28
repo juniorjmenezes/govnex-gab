@@ -2,14 +2,15 @@
 
 namespace App\Policies;
 
-use App\Enums\EntidadeModule;
-use App\Enums\GabineteModule;
-use App\Enums\GabineteType;
+use App\Enums\EntityModule;
+use App\Enums\OfficeModule;
+use App\Enums\OfficeType;
 use App\Models\ComissaoLegislativa;
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\User;
-use App\Services\Modules\EntidadeModuleManager;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\EntityModuleManager;
+use App\Services\Modules\OfficeModuleManager;
+use App\Tenancy\OfficeContext;
 
 /**
  * Gate assimétrico das comissões:
@@ -17,7 +18,7 @@ use App\Services\Modules\GabineteModuleManager;
  * - leitura: qualquer gabinete da mesma entidade, enquanto a Secretaria
  *   legislativa estiver ligada nela — gate de entidade, sem exigir módulo no
  *   gabinete (a rota de leitura não tem `module:`), como a biblioteca
- *   compartilhada em `ConhecimentoDocumentoPolicy::view()`;
+ *   compartilhada em `KnowledgeDocumentPolicy::view()`;
  * - gestão: só a Secretaria legislativa da mesma entidade, com o módulo ativo
  *   no gabinete (que já embute o da entidade) e permissão de escrita. As
  *   rotas de gestão também passam por `module:SECRETARIA_LEGISLATIVA`; o
@@ -26,8 +27,9 @@ use App\Services\Modules\GabineteModuleManager;
 class ComissaoLegislativaPolicy
 {
     public function __construct(
-        private readonly GabineteModuleManager $modules,
-        private readonly EntidadeModuleManager $entidadeModules,
+        private readonly OfficeModuleManager $modules,
+        private readonly EntityModuleManager $entidadeModules,
+        private readonly OfficeContext $context,
     ) {}
 
     public function viewAny(User $user): bool
@@ -35,7 +37,7 @@ class ComissaoLegislativaPolicy
         $gabinete = $this->gabinete($user);
 
         return $gabinete !== null
-            && $this->entidadeModules->isActive($gabinete->entidade_id, EntidadeModule::LegislativeSecretariat);
+            && $this->entidadeModules->isActive($gabinete->entidade_id, EntityModule::LegislativeSecretariat);
     }
 
     public function view(User $user, ComissaoLegislativa $comissao): bool
@@ -49,9 +51,9 @@ class ComissaoLegislativaPolicy
         $gabinete = $this->gabinete($user);
 
         return $gabinete !== null
-            && $gabinete->tipo_gabinete === GabineteType::LegislativeSecretariat
-            && $user->role->canWrite()
-            && $this->modules->isActive($gabinete, GabineteModule::LegislativeSecretariat);
+            && $gabinete->tipo_gabinete === OfficeType::LegislativeSecretariat
+            && $this->context->roleFor($user)->canWrite()
+            && $this->modules->isActive($gabinete, OfficeModule::LegislativeSecretariat);
     }
 
     /** Vale também para membros e documentos vinculados. */
@@ -67,19 +69,21 @@ class ComissaoLegislativaPolicy
     }
 
     /**
-     * O gabinete em contexto (`users.gabinete_id`), lido sem o escopo global
-     * como em `CompromissoInstitucionalPolicy`.
+     * O gabinete em que a pessoa atua (`OfficeContext::officeFor()`), lido
+     * sem o escopo global como em `CompromissoInstitucionalPolicy`.
      */
-    private function gabinete(User $user): ?Gabinete
+    private function gabinete(User $user): ?Office
     {
-        if ($user->gabinete_id === null) {
+        $officeId = $this->context->officeIdFor($user);
+
+        if ($officeId === null) {
             return null;
         }
 
-        $gabinete = $user->gabinete;
+        $gabinete = $this->context->officeFor($user);
 
-        return $gabinete?->id === $user->gabinete_id
+        return $gabinete?->id === $officeId
             ? $gabinete
-            : Gabinete::withoutGlobalScopes()->find($user->gabinete_id);
+            : Office::withoutGlobalScopes()->find($officeId);
     }
 }

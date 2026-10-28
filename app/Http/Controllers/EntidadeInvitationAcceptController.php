@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\EntidadeConvite;
+use App\Models\EntityInvitation;
 use App\Models\User;
-use App\Services\Entidades\EntidadeInvitationService;
+use App\Services\Entidades\EntityInvitationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,7 +15,7 @@ class EntidadeInvitationAcceptController extends Controller
     public function show(
         Request $request,
         string $credential,
-        EntidadeInvitationService $invitations,
+        EntityInvitationService $invitations,
     ): Response {
         $invitation = $invitations->findPending($credential);
         $existingUser = User::query()
@@ -41,7 +41,7 @@ class EntidadeInvitationAcceptController extends Controller
     public function store(
         Request $request,
         string $credential,
-        EntidadeInvitationService $invitations,
+        EntityInvitationService $invitations,
     ): RedirectResponse {
         $validated = $request->validate([
             'name' => ['nullable', 'string', 'max:180'],
@@ -59,7 +59,7 @@ class EntidadeInvitationAcceptController extends Controller
             $request->session()->regenerate();
         }
 
-        $invitation = EntidadeConvite::query()
+        $invitation = EntityInvitation::query()
             ->with('entidade')
             ->where('token_hash', hash('sha256', $credential))
             ->firstOrFail();

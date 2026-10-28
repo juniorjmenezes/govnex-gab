@@ -3,12 +3,12 @@
 namespace Tests\Feature\MultiEntidade;
 
 use App\Enums\AccessRole;
-use App\Enums\EntidadeType;
-use App\Enums\GabineteType;
+use App\Enums\EntityType;
+use App\Enums\OfficeType;
 use App\Http\Controllers\Admin\EstruturaNoHubController;
-use App\Models\Entidade;
-use App\Models\EntidadeMembro;
-use App\Models\Gabinete;
+use App\Models\Entity;
+use App\Models\EntityMember;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -44,12 +44,12 @@ class PlatformEntidadeProvisioningTest extends TestCase
     public function test_local_creation_is_refused_and_creates_nothing(): void
     {
         $admin = User::factory()->root()->create();
-        $entidade = Entidade::factory()->create(['tipo' => EntidadeType::CityCouncil]);
+        $entidade = Entity::factory()->create(['tipo' => EntityType::CityCouncil]);
         $usersBefore = User::query()->count();
 
         $this->actingAs($admin)
             ->post(route('admin.entities.store'), [
-                'tipo' => EntidadeType::IndependentOffice->value,
+                'tipo' => EntityType::IndependentOffice->value,
                 'nome' => 'Gabinete Horizonte',
                 'municipio' => 'Fortaleza',
                 'estado' => 'CE',
@@ -60,7 +60,7 @@ class PlatformEntidadeProvisioningTest extends TestCase
         $this->actingAs($admin)
             ->post(route('admin.offices.store'), [
                 'entidade_id' => $entidade->id,
-                'tipo_gabinete' => GabineteType::CouncilorOffice->value,
+                'tipo_gabinete' => OfficeType::CouncilorOffice->value,
                 'nome' => 'Gabinete Parlamentar 01',
                 'vereador_nome' => 'Marina Oliveira',
                 'responsavel_nome' => 'Marina Oliveira',
@@ -104,14 +104,14 @@ class PlatformEntidadeProvisioningTest extends TestCase
 
     public function test_contextual_entidade_role_is_not_downgraded_by_legacy_user_updates(): void
     {
-        $entidade = Entidade::factory()->create([
-            'tipo' => EntidadeType::CityCouncil,
+        $entidade = Entity::factory()->create([
+            'tipo' => EntityType::CityCouncil,
         ]);
-        $gabinete = Gabinete::factory()->for($entidade, 'entidade')->create([
-            'tipo_gabinete' => GabineteType::CouncilorOffice,
+        $gabinete = Office::factory()->for($entidade, 'entidade')->create([
+            'tipo_gabinete' => OfficeType::CouncilorOffice,
         ]);
         $leader = User::factory()->administrator()->forGabinete($gabinete)->create();
-        $membership = EntidadeMembro::query()
+        $membership = EntityMember::query()
             ->where('entidade_id', $entidade->id)
             ->where('usuario_id', $leader->id)
             ->firstOrFail();

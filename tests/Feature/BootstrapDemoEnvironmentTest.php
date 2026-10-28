@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -70,7 +70,7 @@ class BootstrapDemoEnvironmentTest extends TestCase
             $this->assertNotNull($user->email_verified_at);
         }
 
-        $this->assertSame(1, Gabinete::withoutGlobalScopes()->count());
+        $this->assertSame(1, Office::withoutGlobalScopes()->count());
         $this->assertSame(4, User::query()->count());
     }
 
@@ -83,7 +83,7 @@ class BootstrapDemoEnvironmentTest extends TestCase
         $this->artisan('govnexgab:bootstrap-demo')->assertFailed();
 
         $this->assertSame($originalHash, hash_file('sha256', $credentialsPath));
-        $this->assertSame(1, Gabinete::withoutGlobalScopes()->count());
+        $this->assertSame(1, Office::withoutGlobalScopes()->count());
         $this->assertSame(4, User::query()->count());
     }
 }

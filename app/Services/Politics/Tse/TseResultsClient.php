@@ -122,6 +122,7 @@ class TseResultsClient
         return null;
     }
 
+    /** @param array<string, mixed> $turno */
     private function turnoHasCargo(array $turno, string $cargoCode): bool
     {
         foreach ($turno['abr'] ?? [] as $abrangencia) {
@@ -199,7 +200,10 @@ class TseResultsClient
         });
     }
 
-    /** @return array<string, mixed>|null */
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{section_percent: float, total_sections: int, counted_sections: int, candidates: array<int, array{number: string, name: string, ballot_name: string, party: string, coalition: string|null, votes: int, vote_percent: float, elected: bool, status: string|null}>}|null
+     */
     private function normalize(array $payload, string $cargoCode): ?array
     {
         $sections = $payload['s'] ?? null;
@@ -215,7 +219,8 @@ class TseResultsClient
             return null;
         }
 
-        $candidates = collect($cargoBlock['agr'] ?? [])
+        $agrupamentos = $cargoBlock['agr'] ?? [];
+        $candidates = collect(is_array($agrupamentos) ? $agrupamentos : [])
             ->filter(fn (mixed $agrupamento): bool => is_array($agrupamento))
             ->flatMap(fn (array $agrupamento): array => $this->candidatesFromAgrupamento($agrupamento))
             ->sortByDesc('votes')
@@ -230,17 +235,22 @@ class TseResultsClient
         ];
     }
 
-    /** @return array<int, array<string, mixed>> */
+    /**
+     * @param  array<string, mixed>  $agrupamento
+     * @return array<int, array{number: string, name: string, ballot_name: string, party: string, coalition: string|null, votes: int, vote_percent: float, elected: bool, status: string|null}>
+     */
     private function candidatesFromAgrupamento(array $agrupamento): array
     {
         $coalition = is_string($agrupamento['com'] ?? null) ? $agrupamento['com'] : null;
+        $partidos = $agrupamento['par'] ?? [];
 
-        return collect($agrupamento['par'] ?? [])
+        return collect(is_array($partidos) ? $partidos : [])
             ->filter(fn (mixed $partido): bool => is_array($partido))
             ->flatMap(function (array $partido) use ($coalition): array {
                 $party = is_string($partido['sg'] ?? null) ? $partido['sg'] : '';
+                $candidatos = $partido['cand'] ?? [];
 
-                return collect($partido['cand'] ?? [])
+                return collect(is_array($candidatos) ? $candidatos : [])
                     ->filter(fn (mixed $candidato): bool => is_array($candidato))
                     ->map(fn (array $candidato): array => [
                         'number' => (string) ($candidato['n'] ?? ''),

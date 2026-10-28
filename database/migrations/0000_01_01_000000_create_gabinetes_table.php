@@ -1,8 +1,8 @@
 <?php
 
-use App\Enums\EntidadeStatus;
-use App\Enums\GabineteStatus;
-use App\Enums\GabineteType;
+use App\Enums\EntityStatus;
+use App\Enums\OfficeStatus;
+use App\Enums\OfficeType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('tipo', 40)->index();
             $table->string('nome', 180);
             $table->string('slug', 190)->unique();
-            $table->string('status', 20)->default(EntidadeStatus::Active->value)->index();
+            $table->string('status', 20)->default(EntityStatus::Active->value)->index();
             $table->string('municipio', 120);
             $table->char('estado', 2);
             $table->string('timezone', 80)->default('America/Sao_Paulo');
@@ -26,7 +26,7 @@ return new class extends Migration
             $table->boolean('interface_simplificada')->default(false);
             $table->json('configuracoes')->nullable();
             $table->unsignedBigInteger('gabinete_origem_id')->nullable()->unique();
-            // Identificador da Entidade correspondente no Govnex Hub
+            // Identificador da Entity correspondente no Govnex Hub
             // (docs/INTEGRACAO_GOVNEX_HUB.md). Nulo até a carga inicial.
             $table->string('hub_entidade_id')->nullable()->unique();
             // `atualizado_em` do último retrato do Hub aplicado aqui: evento
@@ -44,11 +44,11 @@ return new class extends Migration
                 ->constrained('entidades')
                 ->restrictOnDelete();
             $table->string('tipo_gabinete', 40)
-                ->default(GabineteType::IndependentOffice->value)
+                ->default(OfficeType::IndependentOffice->value)
                 ->index();
             $table->string('nome');
             $table->string('slug')->unique();
-            $table->string('status')->default(GabineteStatus::Active->value)->index();
+            $table->string('status')->default(OfficeStatus::Active->value)->index();
             $table->string('vereador_nome')->nullable();
             $table->string('municipio');
             $table->char('estado', 2);

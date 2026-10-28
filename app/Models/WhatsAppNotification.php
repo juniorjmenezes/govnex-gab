@@ -44,7 +44,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read WhatsAppContact|null $contact
  * @property-read WhatsAppTemplatePurpose|null $templatePurpose
- * @property-read EntidadeWhatsAppConexao|null $connection
+ * @property-read EntityWhatsAppConnection|null $connection
  */
 class WhatsAppNotification extends TenantModel
 {
@@ -69,10 +69,10 @@ class WhatsAppNotification extends TenantModel
         return $this->belongsTo(WhatsAppTemplatePurpose::class, 'whatsapp_template_finalidade_id');
     }
 
-    /** @return BelongsTo<EntidadeWhatsAppConexao, $this> */
+    /** @return BelongsTo<EntityWhatsAppConnection, $this> */
     public function connection(): BelongsTo
     {
-        return $this->belongsTo(EntidadeWhatsAppConexao::class, 'entidade_whatsapp_conexao_id');
+        return $this->belongsTo(EntityWhatsAppConnection::class, 'entidade_whatsapp_conexao_id');
     }
 
     /** @return MorphTo<Model, $this> */

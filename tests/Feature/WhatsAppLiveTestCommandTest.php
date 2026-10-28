@@ -5,9 +5,9 @@ namespace Tests\Feature;
 use App\Enums\WhatsAppMode;
 use App\Enums\WhatsAppNotificationStatus;
 use App\Enums\WhatsAppPurpose;
-use App\Models\Categoria;
-use App\Models\Cidadao;
-use App\Models\Gabinete;
+use App\Models\Category;
+use App\Models\Citizen;
+use App\Models\Office;
 use App\Models\User;
 use App\Models\WhatsAppNotification;
 use App\Services\WhatsApp\WhatsAppConfigurationService;
@@ -180,25 +180,25 @@ final class WhatsAppLiveTestCommandTest extends TestCase
         $this->assertArrayNotHasKey('agenda-reminders', $manifest['stages']);
     }
 
-    /** @return array{Gabinete, list<int>, list<int>, list<string>} */
+    /** @return array{Office, list<int>, list<int>, list<string>} */
     private function readyContext(): array
     {
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'nome' => 'Gabinete Fortaleza',
             'slug' => 'fortaleza',
             'municipio' => 'Fortaleza',
             'estado' => 'CE',
             'timezone' => 'America/Fortaleza',
         ]);
-        Categoria::factory()->for($office)->create(['ativo' => true]);
+        Category::factory()->for($office, 'gabinete')->create(['ativo' => true]);
         $team = [
             User::factory()->administrator()->forGabinete($office)->create(['name' => 'Marina Oliveira']),
             User::factory()->administrator()->forGabinete($office)->create(['name' => 'Chefe de Gabinete']),
         ];
         $citizens = [
-            Cidadao::factory()->forGabinete($office)->create(['nome' => 'Ana Martins']),
-            Cidadao::factory()->forGabinete($office)->create(['nome' => 'Carlos Lima']),
-            Cidadao::factory()->forGabinete($office)->create(['nome' => 'Joana Alves']),
+            Citizen::factory()->forGabinete($office)->create(['nome' => 'Ana Martins']),
+            Citizen::factory()->forGabinete($office)->create(['nome' => 'Carlos Lima']),
+            Citizen::factory()->forGabinete($office)->create(['nome' => 'Joana Alves']),
         ];
         $phones = [
             '5588999991101',

@@ -3,22 +3,22 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\ElectionType;
-use App\Enums\GabineteModule;
-use App\Enums\GabineteStatus;
-use App\Enums\GabineteType;
+use App\Enums\OfficeModule;
+use App\Enums\OfficeStatus;
+use App\Enums\OfficeType;
 use App\Enums\UserRole;
 use App\Jobs\PrepareOfficePoliticalData;
 use App\Jobs\SyncOfficeSectionVotesFromGovnexApi;
-use App\Models\CandidatoPolitico;
-use App\Models\Demanda;
-use App\Models\Eleicao;
-use App\Models\EleitoradoMunicipioSnapshot;
-use App\Models\Entidade;
-use App\Models\Gabinete;
-use App\Models\MunicipioEleitoral;
-use App\Models\SincronizacaoTse;
+use App\Models\Candidate;
+use App\Models\Demand;
+use App\Models\Election;
+use App\Models\ElectoralMunicipality;
+use App\Models\ElectorateSnapshot;
+use App\Models\Entity;
+use App\Models\Office;
+use App\Models\TseSync;
 use App\Models\User;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\Politics\Polls\PollingDataService;
 use App\Services\Politics\Polls\ResultResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -46,10 +46,10 @@ class PlatformAdministrationTest extends TestCase
     public function test_platform_admin_sees_global_metrics_and_office_usage(): void
     {
         $admin = User::factory()->root()->create();
-        $active = Gabinete::factory()->create(['nome' => 'Gabinete Ativo']);
-        Gabinete::factory()->suspended()->create();
+        $active = Office::factory()->create(['nome' => 'Gabinete Ativo']);
+        Office::factory()->suspended()->create();
         $tenantUser = User::factory()->forGabinete($active)->create();
-        Demanda::factory()->forGabinete($active, creator: $tenantUser)->count(2)->create();
+        Demand::factory()->forGabinete($active, creator: $tenantUser)->count(2)->create();
 
         $this->actingAs($admin)
             ->get(route('dashboard'))
@@ -67,7 +67,7 @@ class PlatformAdministrationTest extends TestCase
 
     public function test_only_platform_admin_can_open_office_management(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $tenantUser = User::factory()->forGabinete($office)->administrator()->create();
 
         $this->actingAs($tenantUser)
@@ -78,8 +78,8 @@ class PlatformAdministrationTest extends TestCase
     public function test_platform_admin_can_list_and_filter_offices(): void
     {
         $admin = User::factory()->root()->create();
-        Gabinete::factory()->create(['nome' => 'Gabinete Aurora', 'estado' => 'CE']);
-        Gabinete::factory()->suspended()->create(['nome' => 'Gabinete Horizonte', 'estado' => 'SP']);
+        Office::factory()->create(['nome' => 'Gabinete Aurora', 'estado' => 'CE']);
+        Office::factory()->suspended()->create(['nome' => 'Gabinete Horizonte', 'estado' => 'SP']);
 
         $this->actingAs($admin)
             ->get(route('admin.offices.index', ['q' => 'Aurora', 'estado' => 'CE']))
@@ -96,11 +96,11 @@ class PlatformAdministrationTest extends TestCase
     public function test_office_index_exposes_a_political_data_checklist_per_office(): void
     {
         $admin = User::factory()->root()->create();
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '15890', 'codigo_ibge' => '2304251', 'nome' => 'Cruz', 'uf' => 'CE',
         ]);
-        $election = Eleicao::query()->where('ano', 2024)->where('tipo', 'municipal')->firstOrFail();
-        $titular = CandidatoPolitico::query()->create([
+        $election = Election::query()->where('ano', 2024)->where('tipo', 'municipal')->firstOrFail();
+        $titular = Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => '60001945113',
             'abrangencia' => 'municipal',
@@ -112,7 +112,7 @@ class PlatformAdministrationTest extends TestCase
             'numero' => '11555',
             'partido_sigla' => 'PP',
         ]);
-        EleitoradoMunicipioSnapshot::query()->create([
+        ElectorateSnapshot::query()->create([
             'municipio_eleitoral_id' => $municipality->id,
             'ano_referencia' => 2026,
             'data_referencia' => now()->toDateString(),
@@ -120,7 +120,7 @@ class PlatformAdministrationTest extends TestCase
             'fonte_url' => 'https://cdn.tse.jus.br/perfil_eleitorado_2026.zip',
             'fonte_gerada_em' => now(),
         ]);
-        Gabinete::factory()->create([
+        Office::factory()->create([
             'nome' => 'Gabinete Checklist',
             'municipio' => 'Cruz',
             'estado' => 'CE',
@@ -153,7 +153,7 @@ class PlatformAdministrationTest extends TestCase
     {
         Queue::fake();
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
 
         $this->actingAs($admin)
             ->post(route('admin.offices.political-sync.store', $office), [
@@ -161,7 +161,7 @@ class PlatformAdministrationTest extends TestCase
             ])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame(1, SincronizacaoTse::query()->count());
+        $this->assertSame(1, TseSync::query()->count());
         $this->assertDatabaseHas('sincronizacoes_tse', [
             'gabinete_id' => $office->id,
             'dataset' => 'pollingdata_polls',
@@ -173,8 +173,8 @@ class PlatformAdministrationTest extends TestCase
     public function test_platform_admin_can_view_the_political_sync_page(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
-        SincronizacaoTse::query()->create([
+        $office = Office::factory()->create();
+        TseSync::query()->create([
             'gabinete_id' => $office->id,
             'dataset' => 'pollingdata_polls',
             'ano' => 2026,
@@ -202,12 +202,12 @@ class PlatformAdministrationTest extends TestCase
     public function test_political_sync_page_lists_only_offices_with_politics_active(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
-        app(GabineteModuleManager::class)->sync(
+        $office = Office::factory()->create();
+        app(OfficeModuleManager::class)->sync(
             $office,
             array_values(array_diff(
-                app(GabineteModuleManager::class)->allEnabled(),
-                [GabineteModule::Politics->value],
+                app(OfficeModuleManager::class)->allEnabled(),
+                [OfficeModule::Politics->value],
             )),
             $admin,
         );
@@ -223,7 +223,7 @@ class PlatformAdministrationTest extends TestCase
 
     public function test_tenant_user_cannot_view_the_political_sync_page(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $tenantUser = User::factory()->forGabinete($office)->administrator()->create();
 
         $this->actingAs($tenantUser)
@@ -235,8 +235,8 @@ class PlatformAdministrationTest extends TestCase
     {
         Queue::fake();
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
-        SincronizacaoTse::query()->create([
+        $office = Office::factory()->create();
+        TseSync::query()->create([
             'gabinete_id' => $office->id,
             'dataset' => 'pollingdata_polls',
             'ano' => now()->year,
@@ -251,7 +251,7 @@ class PlatformAdministrationTest extends TestCase
             ])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame(1, SincronizacaoTse::query()->count());
+        $this->assertSame(1, TseSync::query()->count());
         Queue::assertPushed(PrepareOfficePoliticalData::class, function (
             PrepareOfficePoliticalData $job,
         ): bool {
@@ -266,8 +266,8 @@ class PlatformAdministrationTest extends TestCase
         Queue::fake();
         config(['services.tse.stale_after_minutes' => 45]);
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
-        $staleRun = SincronizacaoTse::query()->create([
+        $office = Office::factory()->create();
+        $staleRun = TseSync::query()->create([
             'gabinete_id' => $office->id,
             'dataset' => 'pollingdata_polls',
             'ano' => now()->year,
@@ -292,7 +292,7 @@ class PlatformAdministrationTest extends TestCase
             'ano' => now()->year,
             'situacao' => 'pendente',
         ]);
-        $this->assertSame(2, SincronizacaoTse::query()->count());
+        $this->assertSame(2, TseSync::query()->count());
         Queue::assertPushed(PrepareOfficePoliticalData::class, 1);
     }
 
@@ -300,8 +300,8 @@ class PlatformAdministrationTest extends TestCase
     {
         Queue::fake();
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
-        $stuckRun = SincronizacaoTse::query()->create([
+        $office = Office::factory()->create();
+        $stuckRun = TseSync::query()->create([
             'gabinete_id' => $office->id,
             'dataset' => 'pollingdata_polls',
             'ano' => now()->year,
@@ -326,7 +326,7 @@ class PlatformAdministrationTest extends TestCase
             'ano' => now()->year,
             'situacao' => 'pendente',
         ]);
-        $this->assertSame(2, SincronizacaoTse::query()->count());
+        $this->assertSame(2, TseSync::query()->count());
         Queue::assertPushed(PrepareOfficePoliticalData::class, function (
             PrepareOfficePoliticalData $job,
         ) use ($stuckRun): bool {
@@ -339,8 +339,8 @@ class PlatformAdministrationTest extends TestCase
     {
         Queue::fake();
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
-        $completedRun = SincronizacaoTse::query()->create([
+        $office = Office::factory()->create();
+        $completedRun = TseSync::query()->create([
             'gabinete_id' => $office->id,
             'dataset' => 'pollingdata_polls',
             'ano' => now()->year,
@@ -358,7 +358,7 @@ class PlatformAdministrationTest extends TestCase
             ]);
 
         $this->assertSame('concluida', $completedRun->fresh()->situacao);
-        $this->assertSame(1, SincronizacaoTse::query()->count());
+        $this->assertSame(1, TseSync::query()->count());
         Queue::assertNotPushed(PrepareOfficePoliticalData::class);
     }
 
@@ -366,8 +366,8 @@ class PlatformAdministrationTest extends TestCase
     {
         Queue::fake();
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
-        $processingRun = SincronizacaoTse::query()->create([
+        $office = Office::factory()->create();
+        $processingRun = TseSync::query()->create([
             'gabinete_id' => $office->id,
             'dataset' => 'pollingdata_polls',
             'ano' => now()->year,
@@ -384,7 +384,7 @@ class PlatformAdministrationTest extends TestCase
             ]);
 
         $this->assertSame('processando', $processingRun->fresh()->situacao);
-        $this->assertSame(1, SincronizacaoTse::query()->count());
+        $this->assertSame(1, TseSync::query()->count());
         Queue::assertNotPushed(PrepareOfficePoliticalData::class);
     }
 
@@ -392,9 +392,9 @@ class PlatformAdministrationTest extends TestCase
     {
         Queue::fake();
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
-        $run = SincronizacaoTse::query()->create([
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
+        $run = TseSync::query()->create([
             'gabinete_id' => $otherOffice->id,
             'dataset' => 'municipalities',
             'ano' => now()->year,
@@ -416,9 +416,9 @@ class PlatformAdministrationTest extends TestCase
 
     public function test_tenant_user_cannot_restart_a_sync(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $tenantUser = User::factory()->forGabinete($office)->administrator()->create();
-        $run = SincronizacaoTse::query()->create([
+        $run = TseSync::query()->create([
             'gabinete_id' => $office->id,
             'dataset' => 'municipalities',
             'ano' => now()->year,
@@ -436,8 +436,8 @@ class PlatformAdministrationTest extends TestCase
     {
         Queue::fake();
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
-        $run = SincronizacaoTse::query()->create([
+        $office = Office::factory()->create();
+        $run = TseSync::query()->create([
             'gabinete_id' => $office->id,
             'dataset' => 'municipalities',
             'ano' => now()->year,
@@ -457,15 +457,15 @@ class PlatformAdministrationTest extends TestCase
         $run->refresh();
         $this->assertSame('cancelada', $run->situacao);
         $this->assertNotNull($run->concluida_em);
-        $this->assertSame(1, SincronizacaoTse::query()->count());
+        $this->assertSame(1, TseSync::query()->count());
         Queue::assertNotPushed(PrepareOfficePoliticalData::class);
     }
 
     public function test_cannot_cancel_a_completed_sync(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
-        $completedRun = SincronizacaoTse::query()->create([
+        $office = Office::factory()->create();
+        $completedRun = TseSync::query()->create([
             'gabinete_id' => $office->id,
             'dataset' => 'municipalities',
             'ano' => now()->year,
@@ -488,8 +488,8 @@ class PlatformAdministrationTest extends TestCase
     public function test_cannot_cancel_a_sync_that_is_already_processing(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
-        $processingRun = SincronizacaoTse::query()->create([
+        $office = Office::factory()->create();
+        $processingRun = TseSync::query()->create([
             'gabinete_id' => $office->id,
             'dataset' => 'pollingdata_polls',
             'ano' => now()->year,
@@ -511,9 +511,9 @@ class PlatformAdministrationTest extends TestCase
     public function test_cannot_cancel_a_sync_belonging_to_another_office(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
-        $run = SincronizacaoTse::query()->create([
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
+        $run = TseSync::query()->create([
             'gabinete_id' => $otherOffice->id,
             'dataset' => 'municipalities',
             'ano' => now()->year,
@@ -534,9 +534,9 @@ class PlatformAdministrationTest extends TestCase
 
     public function test_tenant_user_cannot_cancel_a_sync(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $tenantUser = User::factory()->forGabinete($office)->administrator()->create();
-        $run = SincronizacaoTse::query()->create([
+        $run = TseSync::query()->create([
             'gabinete_id' => $office->id,
             'dataset' => 'municipalities',
             'ano' => now()->year,
@@ -552,8 +552,8 @@ class PlatformAdministrationTest extends TestCase
 
     public function test_a_queued_job_does_not_resurrect_a_cancelled_sync(): void
     {
-        $office = Gabinete::factory()->create();
-        $run = SincronizacaoTse::query()->create([
+        $office = Office::factory()->create();
+        $run = TseSync::query()->create([
             'gabinete_id' => $office->id,
             'dataset' => 'pollingdata_polls',
             'ano' => now()->year,
@@ -567,7 +567,7 @@ class PlatformAdministrationTest extends TestCase
         app(PrepareOfficePoliticalData::class, ['runIds' => [$run->id]])->handle(
             app(PollingDataService::class),
             app(ResultResolver::class),
-            app(GabineteModuleManager::class),
+            app(OfficeModuleManager::class),
         );
 
         $this->assertSame('cancelada', $run->fresh()->situacao);
@@ -577,8 +577,8 @@ class PlatformAdministrationTest extends TestCase
     {
         Queue::fake();
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
-        Eleicao::query()->where('tipo', ElectionType::General)->delete();
+        $office = Office::factory()->create();
+        Election::query()->where('tipo', ElectionType::General)->delete();
 
         $this->actingAs($admin)
             ->post(route('admin.offices.political-sync.store', $office), [
@@ -601,7 +601,7 @@ class PlatformAdministrationTest extends TestCase
     public function test_political_sync_page_only_covers_polling_data(): void
     {
         $admin = User::factory()->root()->create();
-        Gabinete::factory()->create();
+        Office::factory()->create();
 
         $this->actingAs($admin)
             ->get(route('admin.political-sync.index'))
@@ -618,7 +618,7 @@ class PlatformAdministrationTest extends TestCase
     public function test_platform_admin_updates_office_without_touching_accounts(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $responsible = User::factory()->forGabinete($office)->administrator()->create([
             'email' => 'responsavel@gabinete.test',
         ]);
@@ -647,7 +647,7 @@ class PlatformAdministrationTest extends TestCase
     public function test_office_without_administrator_is_updated_without_creating_an_account(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $usersBefore = User::query()->count();
 
         $this->actingAs($admin)
@@ -666,13 +666,13 @@ class PlatformAdministrationTest extends TestCase
         // relink sem depender de um nome que a validação rejeitaria.
         Queue::fake();
         $admin = User::factory()->root()->create();
-        $fortalezaCe = MunicipioEleitoral::query()->create([
+        $fortalezaCe = ElectoralMunicipality::query()->create([
             'codigo_tse' => '10000', 'codigo_ibge' => '2304400', 'nome' => 'Fortaleza', 'uf' => 'CE',
         ]);
-        $fortalezaSp = MunicipioEleitoral::query()->create([
+        $fortalezaSp = ElectoralMunicipality::query()->create([
             'codigo_tse' => '20000', 'codigo_ibge' => '3548500', 'nome' => 'Fortaleza', 'uf' => 'SP',
         ]);
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'municipio' => 'Fortaleza',
             'estado' => 'CE',
             'municipio_eleitoral_id' => $fortalezaCe->id,
@@ -698,10 +698,10 @@ class PlatformAdministrationTest extends TestCase
     public function test_changing_to_a_municipality_without_electoral_data_unlinks_the_stale_one(): void
     {
         $admin = User::factory()->root()->create();
-        $fortalezaCe = MunicipioEleitoral::query()->create([
+        $fortalezaCe = ElectoralMunicipality::query()->create([
             'codigo_tse' => '10000', 'codigo_ibge' => '2304400', 'nome' => 'Fortaleza', 'uf' => 'CE',
         ]);
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'municipio' => 'Fortaleza',
             'estado' => 'CE',
             'municipio_eleitoral_id' => $fortalezaCe->id,
@@ -726,14 +726,14 @@ class PlatformAdministrationTest extends TestCase
     public function test_suspension_blocks_tenant_access_and_reactivation_restores_it(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $tenantUser = User::factory()->forGabinete($office)->create();
 
         $this->actingAs($admin)
-            ->patch(route('admin.offices.status', $office), ['status' => GabineteStatus::Suspended->value])
+            ->patch(route('admin.offices.status', $office), ['status' => OfficeStatus::Suspended->value])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame(GabineteStatus::Suspended, $office->fresh()->status);
+        $this->assertSame(OfficeStatus::Suspended, $office->fresh()->status);
         $this->assertNotNull($office->fresh()->suspended_at);
 
         $this->actingAs($tenantUser)
@@ -742,9 +742,9 @@ class PlatformAdministrationTest extends TestCase
         $this->assertAuthenticatedAs($tenantUser);
 
         $this->actingAs($admin)
-            ->patch(route('admin.offices.status', $office), ['status' => GabineteStatus::Active->value]);
+            ->patch(route('admin.offices.status', $office), ['status' => OfficeStatus::Active->value]);
 
-        $this->assertSame(GabineteStatus::Active, $office->fresh()->status);
+        $this->assertSame(OfficeStatus::Active, $office->fresh()->status);
         $this->assertNull($office->fresh()->suspended_at);
         $this->actingAs($tenantUser->refresh())->get(route('dashboard'))->assertOk();
     }
@@ -761,11 +761,11 @@ class PlatformAdministrationTest extends TestCase
     /** @param array<string, mixed> $overrides */
     private function payload(array $overrides = []): array
     {
-        $entidade = Entidade::factory()->create();
+        $entidade = Entity::factory()->create();
 
         return [
             'entidade_id' => $entidade->id,
-            'tipo_gabinete' => GabineteType::IndependentOffice->value,
+            'tipo_gabinete' => OfficeType::IndependentOffice->value,
             'nome' => 'Gabinete Cidadão',
             'vereador_nome' => 'Maria da Silva',
             'numero_eleitoral' => '12345',

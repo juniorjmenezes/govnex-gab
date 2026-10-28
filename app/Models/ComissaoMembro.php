@@ -9,9 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Gabinete de vereador numa comissão. `gabinete_id` é referência ao gabinete
+ * Office de vereador numa comissão. `gabinete_id` é referência ao gabinete
  * de origem, não posse: o registro é da comissão (e, por ela, da entidade).
- * Por isso as relações leem `Gabinete`/`User` sem o escopo global — no
+ * Por isso as relações leem `Office`/`User` sem o escopo global — no
  * contexto de outro gabinete da Câmara, o escopo só enxergaria o próprio.
  *
  * Criado e alterado só por `CommitteeMembershipService`, que garante as
@@ -25,7 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable $ingressou_em
  * @property CarbonImmutable|null $saiu_em
  * @property-read ComissaoLegislativa $comissao
- * @property-read Gabinete $gabinete
+ * @property-read Office $gabinete
  * @property-read User|null $usuario
  */
 class ComissaoMembro extends Model
@@ -53,10 +53,10 @@ class ComissaoMembro extends Model
         return $this->belongsTo(ComissaoLegislativa::class, 'comissao_id');
     }
 
-    /** @return BelongsTo<Gabinete, $this> */
+    /** @return BelongsTo<Office, $this> */
     public function gabinete(): BelongsTo
     {
-        return $this->belongsTo(Gabinete::class, 'gabinete_id')->withoutGlobalScopes();
+        return $this->belongsTo(Office::class, 'gabinete_id')->withoutGlobalScopes();
     }
 
     /** @return BelongsTo<User, $this> */

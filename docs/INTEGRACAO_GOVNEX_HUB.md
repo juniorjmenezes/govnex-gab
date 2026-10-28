@@ -41,7 +41,7 @@ Os vínculos têm `ativo`, `ingressou_em`, `desativado_em` e `criado_por`. Remov
 
 ### Como a autorização usa isso
 
-As rotas são `/entidades/{entidade}/gabinetes/{gabinete}/...`. O middleware `ResolveEntidadeContext` confere se há vínculo ativo e, durante a requisição, projeta o gabinete e o papel escolhidos nos campos antigos da conta, 1:1 (`ADMINISTRADOR` → `administrador`, `OPERADOR` → `operador`, `AUDITOR` → `auditor`). Papel projetado `auditor` recebe 403 em qualquer escrita dentro do contexto. As Policies e parte dos controllers ainda decidem por `users.role` e `users.gabinete_id`; o isolamento de dados usa o `GabineteContext`. Detalhes em [ARCHITECTURE.md](ARCHITECTURE.md#compatibilidade-do-contexto-legado).
+As rotas são `/entidades/{entidade}/gabinetes/{gabinete}/...`. O middleware `ResolveEntityContext` confere se há vínculo ativo e registra o gabinete da URL no `OfficeContext`, sem gravar nada na conta. Policies, controllers e Form Requests leem dali o gabinete (`officeIdFor()`) e o papel do vínculo com esse gabinete (`roleFor()`, 1:1: `ADMINISTRADOR` → `administrador`, `OPERADOR` → `operador`, `AUDITOR` → `auditor`; `root` não muda). Papel `auditor` no gabinete da URL recebe 403 em qualquer escrita dentro do contexto. O isolamento de dados usa o mesmo `OfficeContext`. Detalhes em [ARCHITECTURE.md](ARCHITECTURE.md#gabinete-e-papel-da-requisicao).
 
 A entrada após o login (`/dashboard`) usa `users.gabinete_id` enquanto a pessoa tiver acesso a esse gabinete; senão, o vínculo ativo mais antigo; sem nenhum, o diretório de entidades (`RedirectLegacyTenantRoute`).
 
@@ -56,7 +56,7 @@ A entrada após o login (`/dashboard`) usa `users.gabinete_id` enquanto a pessoa
 
 ### Problemas conhecidos, que ficam para o Hub
 
-- `gabinete_membros.papel` e `users.role` descrevem a mesma coisa; o mapeamento entre eles está repetido no middleware de contexto, no serviço de convites e no `syncLegacyUser`.
+- `gabinete_membros.papel` e `users.role` descrevem a mesma coisa; o mapeamento entre eles está repetido no `OfficeContext::roleFor()`, no serviço de convites e no `syncLegacyUser`.
 - ~~`GESTOR` existe nos dois enums com significados diferentes; `AUDITOR` pode ser concedido, mas nenhuma regra o diferencia de `OPERADOR`.~~ Resolvido em 23/09/2026: um só enum (`AccessRole`) e auditor somente leitura.
 - `users.role` não acompanha promoções: fora de uma requisição com contexto (filas, comandos, notificações), vale o papel da criação.
 - Existem duas noções de inativo (`users.is_active` e `gabinete_membros.ativo`) e nenhuma tela mostra as duas juntas.
@@ -415,7 +415,7 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    `hub:espelhar-estrutura --criar --dry-run` para ver o que falta.
 3. **Carga inicial:** ✅ acontece automaticamente — `HubProvisioningService` casa a conta por `hub_user_id` e, na falta dele, por e-mail (decisão #7), no primeiro login de cada pessoa. Falta revisar divergências (duplicados, e-mails que não batem) antes do corte em produção.
 4. **Corte:** ✅ **concluído em 24/09/2026 no que depende só de código.** Login local do GAB já recusa quem não é `root` desde a fase 2 (decisão #2); SSO pelo Hub é o caminho normal. Telas de gestão de usuários do GAB passaram a somente leitura: `TeamController`/`UserPolicy` (equipe do gabinete) e `EntidadeInvitationController::store` (convite novo) retornam 403 com "Gerenciado no Govnex Hub — altere lá" (`HubManagedHint`); convites pendentes anteriores ao corte ainda podem ser aceitos (`EntidadeInvitationAcceptController`, não tocado). Sessões já abertas continuam até expirar se o Hub cair (decisão #10); root continua local (decisão #6), fora desse corte. Falta só a decisão de produção sobre desligar senha/2FA/passkeys locais dos não-root (passo 5).
-5. **Limpeza:** remover senha, 2FA e passkeys locais do GAB, `users.role` como dado editável e as rotas legadas que dependem de `users.gabinete_id`.
+5. **Limpeza:** remover senha, 2FA e passkeys locais do GAB e `users.role` como dado editável. ✅ Em 28/10/2026 saiu a projeção do contexto em `users.gabinete_id`/`users.role` durante a requisição (`ResolveEntityContext`): Policies, controllers, Form Requests e middlewares passaram a ler gabinete e papel do `OfficeContext`. As rotas sem prefixo continuam, de propósito: `RedirectLegacyTenantRoute` é a entrada após o login e trata links antigos, e lê `users.gabinete_id` como gabinete de origem da conta (assim como `EnsureOfficeIsActive` nessas rotas e o gabinete padrão do `HandleInertiaRequests` em telas sem gabinete). As colunas ficam até os consumidores fora de requisição (filas, comandos, notificações) consultarem os vínculos.
 
 ## Vocabulário de papéis (decisão #5, fechada em 23/09/2026)
 
@@ -442,8 +442,10 @@ Quatro níveis, iguais em todos os produtos do ecossistema:
   quando ela é gabinete independente; em Câmara ou Prefeitura vira operador da
   entidade.
 - `users.role` é projeção 1:1 do papel do vínculo principal (`administrador`,
-  `operador`, `auditor`) ou `root`. A ponte continua como dívida registrada em
-  [ARCHITECTURE.md](ARCHITECTURE.md#compatibilidade-do-contexto-legado).
+  `operador`, `auditor`) ou `root`. Dentro de uma requisição com contexto a autorização não
+  lê mais essa coluna (ver
+  [ARCHITECTURE.md](ARCHITECTURE.md#gabinete-e-papel-da-requisicao)); ela ainda
+  vale fora de requisição.
 
 Mapeamento para os papéis antigos:
 

@@ -3,7 +3,7 @@
 namespace App\Services\Politics\Polls;
 
 use App\Http\Controllers\PoliticalPanelController;
-use App\Models\PesquisaEleitoral;
+use App\Models\ElectoralPoll;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
@@ -46,14 +46,14 @@ final class MediaCalculator
     ) {}
 
     /**
-     * @param  Collection<int, PesquisaEleitoral>  $pesquisas  Já filtradas por eleição/UF/município/cargo/cenário; precisa vir com resultados carregado (with('resultados'))
+     * @param  Collection<int, ElectoralPoll>  $pesquisas  Já filtradas por eleição/UF/município/cargo/cenário; precisa vir com resultados carregado (with('resultados'))
      * @return list<array{candidato_politico_id: int|null, external_candidate_id: string, nome: string, partido: string|null, media: float, pesquisas_incluidas: int, amostra_total: int}> Ordenado por média decrescente
      */
     public function calcular(Collection $pesquisas): array
     {
         $corte = CarbonImmutable::now()->subDays($this->lookbackDays);
         $recentes = $pesquisas->filter(
-            fn (PesquisaEleitoral $pesquisa): bool => CarbonImmutable::parse($pesquisa->publicada_em)->gte($corte),
+            fn (ElectoralPoll $pesquisa): bool => CarbonImmutable::parse($pesquisa->publicada_em)->gte($corte),
         );
 
         if ($recentes->isEmpty()) {

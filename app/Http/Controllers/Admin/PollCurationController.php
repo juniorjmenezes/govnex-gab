@@ -6,10 +6,10 @@ use App\Enums\CandidateScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StorePesquisaManualRequest;
 use App\Http\Requests\Admin\UpdatePesquisaResultadosRequest;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\PesquisaEleitoral;
-use App\Models\PesquisaFonte;
+use App\Models\Candidate;
+use App\Models\Election;
+use App\Models\ElectoralPoll;
+use App\Models\PollSource;
 use App\Services\Politics\Polls\ResultadoColeta;
 use App\Services\Politics\Polls\ResultResolver;
 use App\Support\PerPage;
@@ -37,10 +37,10 @@ class PollCurationController extends Controller
         abort_unless($request->user()->isRoot(), 403);
 
         return Inertia::render('admin/polls/create', [
-            'elections' => Eleicao::query()
+            'elections' => Election::query()
                 ->orderByDesc('ano')
                 ->get()
-                ->map(fn (Eleicao $election): array => [
+                ->map(fn (Election $election): array => [
                     'id' => $election->id,
                     'name' => $election->nome,
                     'year' => $election->ano,
@@ -52,7 +52,7 @@ class PollCurationController extends Controller
     {
         abort_unless($request->user()->isRoot(), 403);
 
-        $elections = Eleicao::query()->orderByDesc('ano')->get();
+        $elections = Election::query()->orderByDesc('ano')->get();
         $filters = [
             'eleicao_id' => $request->integer('eleicao_id') ?: null,
             'cargo' => $request->string('cargo')->toString(),
@@ -60,7 +60,7 @@ class PollCurationController extends Controller
             'q' => trim($request->string('q')->toString()),
         ];
 
-        $paginator = PesquisaEleitoral::query()
+        $paginator = ElectoralPoll::query()
             ->with([
                 'resultados' => fn ($query) => $query->orderByDesc('percentual'),
                 'fontes' => fn ($query) => $query->orderByDesc('id'),
@@ -83,11 +83,11 @@ class PollCurationController extends Controller
             ->withQueryString();
 
         $pesquisas = $paginator->getCollection()
-            ->map(fn (PesquisaEleitoral $pesquisa): array => $this->serialize($pesquisa))
+            ->map(fn (ElectoralPoll $pesquisa): array => $this->serialize($pesquisa))
             ->all();
 
         return Inertia::render('admin/polls/index', [
-            'elections' => $elections->map(fn (Eleicao $election): array => [
+            'elections' => $elections->map(fn (Election $election): array => [
                 'id' => $election->id,
                 'name' => $election->nome,
                 'year' => $election->ano,
@@ -120,7 +120,7 @@ class PollCurationController extends Controller
             return response()->json([]);
         }
 
-        $candidates = CandidatoPolitico::query()
+        $candidates = Candidate::query()
             ->where('eleicao_id', $eleicaoId)
             ->where('cargo', $cargo)
             ->when($cargo !== 'presidente' && $uf !== '', function (Builder $query) use ($uf, $municipio): void {
@@ -151,7 +151,7 @@ class PollCurationController extends Controller
             ->limit(30)
             ->get();
 
-        return response()->json($candidates->map(fn (CandidatoPolitico $candidate): array => [
+        return response()->json($candidates->map(fn (Candidate $candidate): array => [
             'id' => $candidate->id,
             'name' => $candidate->nome_urna,
             'party' => $candidate->partido_sigla,
@@ -162,9 +162,9 @@ class PollCurationController extends Controller
     public function store(StorePesquisaManualRequest $request, ResultResolver $resolver): RedirectResponse
     {
         $data = $request->validated();
-        $ano = Eleicao::query()->whereKey($data['eleicao_id'])->value('ano');
+        $ano = Election::query()->whereKey($data['eleicao_id'])->value('ano');
 
-        $pesquisa = PesquisaEleitoral::query()->create([
+        $pesquisa = ElectoralPoll::query()->create([
             'eleicao_id' => $data['eleicao_id'],
             'external_id' => (string) Str::uuid(),
             'external_election_id' => (string) Str::uuid(),
@@ -208,7 +208,7 @@ class PollCurationController extends Controller
         return to_route('admin.polls.index');
     }
 
-    public function edit(Request $request, PesquisaEleitoral $pesquisa): Response
+    public function edit(Request $request, ElectoralPoll $pesquisa): Response
     {
         abort_unless($request->user()->isRoot(), 403);
 
@@ -224,7 +224,7 @@ class PollCurationController extends Controller
 
     public function updateResultados(
         UpdatePesquisaResultadosRequest $request,
-        PesquisaEleitoral $pesquisa,
+        ElectoralPoll $pesquisa,
         ResultResolver $resolver,
     ): RedirectResponse {
         $data = $request->validated();
@@ -253,7 +253,7 @@ class PollCurationController extends Controller
         return to_route('admin.polls.index');
     }
 
-    public function destroy(Request $request, PesquisaEleitoral $pesquisa): RedirectResponse
+    public function destroy(Request $request, ElectoralPoll $pesquisa): RedirectResponse
     {
         abort_unless($request->user()->isRoot(), 403);
 
@@ -314,7 +314,7 @@ class PollCurationController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function serialize(PesquisaEleitoral $pesquisa): array
+    private function serialize(ElectoralPoll $pesquisa): array
     {
         return [
             'id' => $pesquisa->id,
@@ -336,7 +336,7 @@ class PollCurationController extends Controller
             'fonte_url' => $pesquisa->fonte_url,
             'confianca' => $pesquisa->confianca,
             'origem_provider' => $pesquisa->origem_provider,
-            'deletable' => ! $pesquisa->fontes->contains(fn (PesquisaFonte $fonte): bool => $fonte->tipo !== 'manual'),
+            'deletable' => ! $pesquisa->fontes->contains(fn (PollSource $fonte): bool => $fonte->tipo !== 'manual'),
             'resultados' => $pesquisa->resultados->map(fn ($resultado): array => [
                 'candidato_politico_id' => $resultado->candidato_politico_id,
                 'external_candidate_id' => $resultado->external_candidate_id,
@@ -344,7 +344,7 @@ class PollCurationController extends Controller
                 'partido' => $resultado->partido_sigla,
                 'percentual' => $resultado->percentual,
             ])->all(),
-            'fontes' => $pesquisa->fontes->take(6)->map(fn (PesquisaFonte $fonte): array => [
+            'fontes' => $pesquisa->fontes->take(6)->map(fn (PollSource $fonte): array => [
                 'id' => $fonte->id,
                 'tipo' => $fonte->tipo,
                 'provider' => $fonte->provider,

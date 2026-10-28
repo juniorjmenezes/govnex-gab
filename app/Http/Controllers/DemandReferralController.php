@@ -6,8 +6,8 @@ use App\Actions\Demands\CreateReferral;
 use App\Actions\Demands\RegisterReferralResponse;
 use App\Http\Requests\Demands\RegisterReferralResponseRequest;
 use App\Http\Requests\Demands\StoreDemandReferralRequest;
-use App\Models\Demanda;
-use App\Models\DemandaEvento;
+use App\Models\Demand;
+use App\Models\DemandEvent;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
@@ -15,7 +15,7 @@ class DemandReferralController extends Controller
 {
     public function store(
         StoreDemandReferralRequest $request,
-        Demanda $demanda,
+        Demand $demanda,
         CreateReferral $action,
     ): RedirectResponse {
         $files = array_values($request->file('arquivos', []));
@@ -27,12 +27,12 @@ class DemandReferralController extends Controller
 
     public function respond(
         RegisterReferralResponseRequest $request,
-        Demanda $demanda,
+        Demand $demanda,
         RegisterReferralResponse $action,
     ): RedirectResponse {
         $referralId = $request->validated('encaminhamento_id');
         $referral = $referralId
-            ? DemandaEvento::query()->where('demanda_id', $demanda->id)->where('id', $referralId)->first()
+            ? DemandEvent::query()->where('demanda_id', $demanda->id)->where('id', $referralId)->first()
             : null;
         $files = array_values($request->file('arquivos', []));
 

@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Gabinete;
-use App\Models\LocalVotacaoEleitoral;
+use App\Models\ElectoralPollingLocation;
+use App\Models\Office;
 use App\Models\User;
+use App\Tenancy\OfficeContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -16,11 +17,11 @@ class ElectoralHeatmapController extends Controller
     public function __invoke(Request $request): Response
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->gabinete_id !== null, 403);
+        abort_unless($user instanceof User && app(OfficeContext::class)->officeIdFor($user) !== null, 403);
 
-        $office = Gabinete::query()
+        $office = Office::query()
             ->with('candidatoTitular.eleicao')
-            ->findOrFail($user->gabinete_id);
+            ->findOrFail(app(OfficeContext::class)->officeIdFor($user));
         $candidate = $office->candidatoTitular;
 
         if ($candidate === null) {
@@ -56,7 +57,7 @@ class ElectoralHeatmapController extends Controller
             ->pluck('votes', 'local_id')
             ->map(fn (mixed $votes): int => (int) $votes);
 
-        $locations = LocalVotacaoEleitoral::query()
+        $locations = ElectoralPollingLocation::query()
             ->whereIn('id', $votesByLocation->keys())
             ->get(['id', 'nome', 'endereco', 'bairro', 'latitude', 'longitude']);
 
@@ -72,9 +73,9 @@ class ElectoralHeatmapController extends Controller
             ->map(fn (mixed $sections): int => (int) $sections);
 
         $points = $locations
-            ->filter(fn (LocalVotacaoEleitoral $location): bool => $location->latitude !== null
+            ->filter(fn (ElectoralPollingLocation $location): bool => $location->latitude !== null
                 && $location->longitude !== null)
-            ->map(fn (LocalVotacaoEleitoral $location): array => [
+            ->map(fn (ElectoralPollingLocation $location): array => [
                 'id' => $location->id,
                 'name' => $location->nome,
                 'address' => $location->endereco,

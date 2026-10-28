@@ -2,9 +2,9 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\ContextoAcessoEvento;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Models\AccessContextEvent;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\RedirectResponse;
@@ -70,7 +70,7 @@ class RedirectLegacyTenantRoute
         );
     }
 
-    private function resolveFromReferer(Request $request, User $user): ?Gabinete
+    private function resolveFromReferer(Request $request, User $user): ?Office
     {
         $referer = $request->headers->get('referer');
         if (! is_string($referer) || $referer === '') {
@@ -94,7 +94,7 @@ class RedirectLegacyTenantRoute
 
         $entidadeKey = rawurldecode($matches[1]);
         $gabineteKey = rawurldecode($matches[2]);
-        $gabinete = Gabinete::withoutGlobalScopes()
+        $gabinete = Office::withoutGlobalScopes()
             ->with('entidade')
             ->where(function ($query) use ($gabineteKey): void {
                 $query->where('slug', $gabineteKey);
@@ -124,13 +124,13 @@ class RedirectLegacyTenantRoute
      * vínculos. Vale enquanto a pessoa ainda tiver acesso a esse gabinete;
      * senão, entra no vínculo ativo mais antigo.
      */
-    private function resolveLegacyUnit(User $user): ?Gabinete
+    private function resolveLegacyUnit(User $user): ?Office
     {
         if ($user->gabinete_id === null) {
             return null;
         }
 
-        $origin = Gabinete::withoutGlobalScopes()
+        $origin = Office::withoutGlobalScopes()
             ->with('entidade')
             ->find($user->gabinete_id);
 
@@ -138,18 +138,18 @@ class RedirectLegacyTenantRoute
             return $origin;
         }
 
-        return GabineteMembro::query()
+        return OfficeMember::query()
             ->where('usuario_id', $user->id)
             ->where('ativo', true)
             ->when($origin !== null, fn ($query) => $query->where('gabinete_id', '!=', $origin->id))
             ->orderBy('ingressou_em')
             ->orderBy('id')
             ->pluck('gabinete_id')
-            ->map(fn (int $id): ?Gabinete => Gabinete::withoutGlobalScopes()->with('entidade')->find($id))
-            ->first(fn (?Gabinete $gabinete): bool => $gabinete !== null && $this->isAvailableTo($gabinete, $user));
+            ->map(fn (int $id): ?Office => Office::withoutGlobalScopes()->with('entidade')->find($id))
+            ->first(fn (?Office $gabinete): bool => $gabinete !== null && $this->isAvailableTo($gabinete, $user));
     }
 
-    private function isAvailableTo(Gabinete $gabinete, User $user): bool
+    private function isAvailableTo(Office $gabinete, User $user): bool
     {
         return $gabinete->isActive()
             && $gabinete->entidade?->isActive() === true
@@ -157,11 +157,11 @@ class RedirectLegacyTenantRoute
             && $user->canAccessGabinete($gabinete->id);
     }
 
-    private function audit(Request $request, User $user, Gabinete $gabinete, string $target): void
+    private function audit(Request $request, User $user, Office $gabinete, string $target): void
     {
         $key = (string) config('app.key');
 
-        ContextoAcessoEvento::query()->create([
+        AccessContextEvent::query()->create([
             'entidade_id' => $gabinete->entidade_id,
             'gabinete_id' => $gabinete->id,
             'usuario_id' => $user->id,

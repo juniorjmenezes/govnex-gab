@@ -30,16 +30,16 @@ class WhatsAppTemplatePurpose extends Model
 
     protected $guarded = [];
 
-    /** @return BelongsTo<Entidade, $this> */
+    /** @return BelongsTo<Entity, $this> */
     public function entidade(): BelongsTo
     {
-        return $this->belongsTo(Entidade::class, 'entidade_id');
+        return $this->belongsTo(Entity::class, 'entidade_id');
     }
 
-    /** @return BelongsTo<EntidadeWhatsAppConexao, $this> */
+    /** @return BelongsTo<EntityWhatsAppConnection, $this> */
     public function conexao(): BelongsTo
     {
-        return $this->belongsTo(EntidadeWhatsAppConexao::class, 'entidade_whatsapp_conexao_id');
+        return $this->belongsTo(EntityWhatsAppConnection::class, 'entidade_whatsapp_conexao_id');
     }
 
     public function isReady(): bool

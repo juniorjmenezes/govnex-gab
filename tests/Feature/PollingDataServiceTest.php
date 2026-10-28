@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\CandidateScope;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\PesquisaEleitoral;
-use App\Models\ResultadoPesquisaEleitoral;
+use App\Models\Candidate;
+use App\Models\Election;
+use App\Models\ElectoralPoll;
+use App\Models\ElectoralPollResult;
 use App\Services\Politics\Polls\ElectionContext;
 use App\Services\Politics\Polls\PollingDataService;
 use App\Services\Politics\Polls\ResultResolver;
@@ -102,9 +102,9 @@ class PollingDataServiceTest extends TestCase
         });
     }
 
-    private function seedElection(int $year = 2026): Eleicao
+    private function seedElection(int $year = 2026): Election
     {
-        return Eleicao::query()->where('ano', $year)->firstOrFail();
+        return Election::query()->where('ano', $year)->firstOrFail();
     }
 
     public function test_election_context_builds_the_expected_source_urls(): void
@@ -152,7 +152,7 @@ class PollingDataServiceTest extends TestCase
     public function test_it_populates_cargo_uf_turno_ano_from_the_context_not_from_the_payload(): void
     {
         $election = $this->seedElection();
-        CandidatoPolitico::query()->create([
+        Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => 'gov-ce-1',
             'abrangencia' => CandidateScope::State,
@@ -169,7 +169,7 @@ class PollingDataServiceTest extends TestCase
 
         app(PollingDataService::class)->syncContext($context, app(ResultResolver::class));
 
-        $poll = PesquisaEleitoral::query()->where('registro_tse', 'CE-00001/2026')->firstOrFail();
+        $poll = ElectoralPoll::query()->where('registro_tse', 'CE-00001/2026')->firstOrFail();
         $this->assertSame('governador', $poll->cargo);
         $this->assertSame('CE', $poll->uf);
         $this->assertSame(1, $poll->turno);
@@ -233,7 +233,7 @@ class PollingDataServiceTest extends TestCase
         $service->syncContext($governadorContext, $resolver);
         $service->syncContext($senadorContext, $resolver);
 
-        $polls = PesquisaEleitoral::query()->where('registro_tse', $sharedRegistro)->get();
+        $polls = ElectoralPoll::query()->where('registro_tse', $sharedRegistro)->get();
         $this->assertCount(2, $polls, 'Governador e Senador com o mesmo registro+cenarioId devem gerar pesquisas separadas.');
         $this->assertNotSame($polls[0]->external_id, $polls[1]->external_id);
         $this->assertEqualsCanonicalizing(
@@ -328,8 +328,8 @@ class PollingDataServiceTest extends TestCase
         $resolver = app(ResultResolver::class);
 
         $service->syncContext($context, $resolver);
-        $pollCount = PesquisaEleitoral::query()->count();
-        $resultCount = ResultadoPesquisaEleitoral::query()->count();
+        $pollCount = ElectoralPoll::query()->count();
+        $resultCount = ElectoralPollResult::query()->count();
 
         // Fingerprint idêntico faria a segunda chamada pular tudo — o que já
         // é coberto por outro teste — aqui simulamos um fingerprint novo
@@ -337,8 +337,8 @@ class PollingDataServiceTest extends TestCase
         Cache::flush();
         $service->syncContext($context, $resolver);
 
-        $this->assertSame($pollCount, PesquisaEleitoral::query()->count());
-        $this->assertSame($resultCount, ResultadoPesquisaEleitoral::query()->count());
+        $this->assertSame($pollCount, ElectoralPoll::query()->count());
+        $this->assertSame($resultCount, ElectoralPollResult::query()->count());
     }
 
     public function test_it_skips_processing_when_the_fingerprint_is_unchanged(): void
@@ -369,7 +369,7 @@ class PollingDataServiceTest extends TestCase
         $service = app(PollingDataService::class);
         $service->syncContext($context, $resolver);
 
-        $pesquisa = PesquisaEleitoral::query()->where('registro_tse', 'CE-00009/2026')->firstOrFail();
+        $pesquisa = ElectoralPoll::query()->where('registro_tse', 'CE-00009/2026')->firstOrFail();
 
         $resultado = $service->buscar($pesquisa);
 
@@ -465,15 +465,15 @@ class PollingDataServiceTest extends TestCase
     }
 
     private function candidate(
-        Eleicao $election,
+        Election $election,
         string $sequence,
         CandidateScope $scope,
         ?string $uf,
         string $office,
         string $name,
         bool $advancedToSecondRound,
-    ): CandidatoPolitico {
-        return CandidatoPolitico::query()->create([
+    ): Candidate {
+        return Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => $sequence,
             'abrangencia' => $scope,
@@ -494,10 +494,10 @@ class PollingDataServiceTest extends TestCase
         $service = app(PollingDataService::class);
 
         foreach (['presidente', 'governador', 'senador'] as $cargo) {
-            $pesquisa = new PesquisaEleitoral(['cargo' => $cargo]);
+            $pesquisa = new ElectoralPoll(['cargo' => $cargo]);
             $this->assertTrue($service->supports($pesquisa), "esperava suportar {$cargo}");
         }
 
-        $this->assertFalse($service->supports(new PesquisaEleitoral(['cargo' => 'prefeito'])));
+        $this->assertFalse($service->supports(new ElectoralPoll(['cargo' => 'prefeito'])));
     }
 }

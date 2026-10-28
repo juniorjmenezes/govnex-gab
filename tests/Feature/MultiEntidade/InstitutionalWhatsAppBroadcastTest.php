@@ -4,19 +4,19 @@ namespace Tests\Feature\MultiEntidade;
 
 use App\Enums\AccessRole;
 use App\Enums\AppointmentStatus;
-use App\Enums\EntidadeModule;
-use App\Enums\EntidadeType;
-use App\Enums\GabineteModule;
-use App\Enums\GabineteType;
+use App\Enums\EntityModule;
+use App\Enums\EntityType;
+use App\Enums\OfficeModule;
+use App\Enums\OfficeType;
 use App\Enums\WhatsAppMode;
 use App\Enums\WhatsAppPurpose;
-use App\Models\Cidadao;
+use App\Models\Citizen;
 use App\Models\CompromissoInstitucional;
-use App\Models\Entidade;
-use App\Models\EntidadeModulo;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
-use App\Models\GabineteModulo;
+use App\Models\Entity;
+use App\Models\EntityModuleSubscription;
+use App\Models\Office;
+use App\Models\OfficeMember;
+use App\Models\OfficeModuleSubscription;
 use App\Models\User;
 use App\Models\WhatsAppContact;
 use App\Models\WhatsAppNotification;
@@ -60,18 +60,18 @@ class InstitutionalWhatsAppBroadcastTest extends TestCase
     public function test_open_audience_reaches_staff_of_every_councilor_office_of_the_city_council_only(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereadorA = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $vereadorB = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereadorA = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $vereadorB = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $assessorA = $this->staff($vereadorA, '(88) 99999-0001');
         $assessorB = $this->staff($vereadorB, '(88) 99999-0002');
         // Cidadão com consentimento no gabinete de vereador: não é convocado.
-        $cidadao = Cidadao::factory()->forGabinete($vereadorA)->create();
+        $cidadao = Citizen::factory()->forGabinete($vereadorA)->create();
         app(WhatsAppContactService::class)->declareForCitizen($cidadao, '(88) 98888-0003', $assessorA);
         // A própria Secretaria e outra Câmara ficam de fora do público.
         $this->staff($secretaria, '(88) 99999-0004');
         $outraCamara = $this->camara();
-        $this->staff($this->gabinete($outraCamara, GabineteType::CouncilorOffice), '(88) 99999-0005');
+        $this->staff($this->gabinete($outraCamara, OfficeType::CouncilorOffice), '(88) 99999-0005');
         $compromisso = $this->compromisso($secretaria, ['titulo' => 'Sessão ordinária', 'local' => 'Plenário']);
 
         $this->convocar($this->usuario($secretaria), $compromisso)
@@ -100,9 +100,9 @@ class InstitutionalWhatsAppBroadcastTest extends TestCase
     public function test_restricted_audience_reaches_only_the_target_offices(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $membro = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $foraDaLista = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $membro = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $foraDaLista = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $this->staff($membro, '(88) 99999-0011');
         $this->staff($membro, '(88) 99999-0012');
         $this->staff($foraDaLista, '(88) 99999-0013');
@@ -123,11 +123,11 @@ class InstitutionalWhatsAppBroadcastTest extends TestCase
     public function test_only_the_publishing_secretariat_can_convoke(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $this->staff($vereador, '(88) 99999-0021');
         $compromisso = $this->compromisso($secretaria);
-        $outraSecretaria = $this->gabinete($this->camara(), GabineteType::LegislativeSecretariat);
+        $outraSecretaria = $this->gabinete($this->camara(), OfficeType::LegislativeSecretariat);
 
         foreach ([
             $this->usuario($vereador),
@@ -147,10 +147,10 @@ class InstitutionalWhatsAppBroadcastTest extends TestCase
     public function test_ineligible_contacts_are_skipped_without_errors(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $elegivel = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $semFinalidade = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $semModulo = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $elegivel = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $semFinalidade = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $semModulo = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $this->staff($elegivel, '(88) 99999-0031');
         $revogado = $this->staff($elegivel, '(88) 99999-0032');
         $inativo = $this->staff($elegivel, '(88) 99999-0033');
@@ -165,13 +165,13 @@ class InstitutionalWhatsAppBroadcastTest extends TestCase
         // Pausado pelo Time (`gabinete_membros.ativo = false`): diferente do
         // `$inativo` acima, `users.is_active` continua `true` — só o vínculo
         // de equipe muda.
-        GabineteMembro::query()->updateOrCreate(
+        OfficeMember::query()->updateOrCreate(
             ['gabinete_id' => $elegivel->id, 'usuario_id' => $pausado->id],
             ['papel' => AccessRole::Operator, 'ativo' => false, 'ingressou_em' => now(), 'desativado_em' => now()],
         );
-        GabineteModulo::query()
+        OfficeModuleSubscription::query()
             ->where('gabinete_id', $semModulo->id)
-            ->where('modulo', GabineteModule::WhatsApp->value)
+            ->where('modulo', OfficeModule::WhatsApp->value)
             ->update(['ativo' => false]);
         app()->forgetScopedInstances();
         $compromisso = $this->compromisso($secretaria);
@@ -193,8 +193,8 @@ class InstitutionalWhatsAppBroadcastTest extends TestCase
     public function test_repeating_the_convocation_does_not_duplicate_until_rescheduled(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $this->staff($vereador, '(88) 99999-0041');
         $compromisso = $this->compromisso($secretaria);
         $admin = $this->usuario($secretaria);
@@ -220,8 +220,8 @@ class InstitutionalWhatsAppBroadcastTest extends TestCase
     public function test_cancelled_or_finished_appointments_are_not_convoked(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $this->staff($vereador, '(88) 99999-0051');
         $cancelado = $this->compromisso($secretaria, ['status' => AppointmentStatus::Cancelled]);
         $encerrado = $this->compromisso($secretaria, [
@@ -247,9 +247,9 @@ class InstitutionalWhatsAppBroadcastTest extends TestCase
     public function test_edit_page_offers_the_convocation_only_with_whatsapp_on_in_the_city_council(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $membro = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $membro = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $this->gabinete($camara, OfficeType::CouncilorOffice);
         $compromisso = $this->compromisso($secretaria, [], [$membro]);
         $admin = $this->usuario($secretaria);
 
@@ -262,9 +262,9 @@ class InstitutionalWhatsAppBroadcastTest extends TestCase
             ->get(route('appointments.institutional.create'))
             ->assertInertia(fn (Assert $page) => $page->where('broadcast', null));
 
-        EntidadeModulo::query()
+        EntityModuleSubscription::query()
             ->where('entidade_id', $camara->id)
-            ->where('modulo', EntidadeModule::WhatsApp->value)
+            ->where('modulo', EntityModule::WhatsApp->value)
             ->update(['ativo' => false]);
         app()->forgetScopedInstances();
 
@@ -289,7 +289,7 @@ class InstitutionalWhatsAppBroadcastTest extends TestCase
      *
      * @param  list<WhatsAppPurpose>  $purposes
      */
-    private function staff(Gabinete $office, string $phone, array $purposes = [self::PURPOSE]): User
+    private function staff(Office $office, string $phone, array $purposes = [self::PURPOSE]): User
     {
         $user = User::factory()->forGabinete($office)->create();
         app(WhatsAppContactService::class)->declareForUser($user, $phone, $user);
@@ -305,39 +305,39 @@ class InstitutionalWhatsAppBroadcastTest extends TestCase
         return $user;
     }
 
-    private function camara(): Entidade
+    private function camara(): Entity
     {
-        $camara = Entidade::factory()->create([
-            'tipo' => EntidadeType::CityCouncil,
+        $camara = Entity::factory()->create([
+            'tipo' => EntityType::CityCouncil,
             'interface_simplificada' => false,
         ]);
-        EntidadeModulo::query()
+        EntityModuleSubscription::query()
             ->where('entidade_id', $camara->id)
-            ->where('modulo', EntidadeModule::LegislativeSecretariat->value)
+            ->where('modulo', EntityModule::LegislativeSecretariat->value)
             ->update(['ativo' => true, 'ativado_em' => now()]);
 
         return $camara;
     }
 
-    private function gabinete(Entidade $entidade, GabineteType $tipo): Gabinete
+    private function gabinete(Entity $entidade, OfficeType $tipo): Office
     {
-        return Gabinete::factory()->create([
+        return Office::factory()->create([
             'entidade_id' => $entidade->id,
             'tipo_gabinete' => $tipo,
             'timezone' => self::TIMEZONE,
         ]);
     }
 
-    private function usuario(Gabinete $gabinete): User
+    private function usuario(Office $gabinete): User
     {
         return User::factory()->administrator()->forGabinete($gabinete)->create();
     }
 
     /**
      * @param  array<string, mixed>  $attributes
-     * @param  list<Gabinete>  $alvos
+     * @param  list<Office>  $alvos
      */
-    private function compromisso(Gabinete $secretaria, array $attributes = [], array $alvos = []): CompromissoInstitucional
+    private function compromisso(Office $secretaria, array $attributes = [], array $alvos = []): CompromissoInstitucional
     {
         return CompromissoInstitucional::factory()
             ->publishedBy($secretaria)

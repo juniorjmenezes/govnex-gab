@@ -2,9 +2,9 @@
 
 namespace App\Jobs;
 
-use App\Enums\GabineteModule;
-use App\Models\Gabinete;
-use App\Services\Modules\GabineteModuleManager;
+use App\Enums\OfficeModule;
+use App\Models\Office;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\Politics\TsePoliticalDataSyncService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -32,14 +32,14 @@ class SyncOfficeSectionVotesFromGovnexApi implements ShouldQueue
 
     public function handle(
         TsePoliticalDataSyncService $service,
-        GabineteModuleManager $modules,
+        OfficeModuleManager $modules,
     ): void {
-        $office = Gabinete::withoutGlobalScopes()->find($this->officeId);
+        $office = Office::withoutGlobalScopes()->find($this->officeId);
 
         if (
-            ! $office instanceof Gabinete
+            ! $office instanceof Office
             || ! $office->isActive()
-            || ! $modules->isActive($office, GabineteModule::Politics)
+            || ! $modules->isActive($office, OfficeModule::Politics)
         ) {
             return;
         }

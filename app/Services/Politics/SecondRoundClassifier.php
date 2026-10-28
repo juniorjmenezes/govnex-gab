@@ -3,10 +3,10 @@
 namespace App\Services\Politics;
 
 use App\Enums\CandidateScope;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\ResultadoCandidatoEleicao;
-use App\Models\VotacaoCandidatoMunicipio;
+use App\Models\Candidate;
+use App\Models\CandidateElectionResult;
+use App\Models\CandidateMunicipalityVote;
+use App\Models\Election;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -49,15 +49,15 @@ class SecondRoundClassifier
      * Candidaturas de uma disputa. `$uf` só importa para governador e
      * `$municipalityId` só para prefeito.
      *
-     * @return Builder<CandidatoPolitico>
+     * @return Builder<Candidate>
      */
-    public function raceQuery(Eleicao $election, string $office, ?string $uf, ?int $municipalityId): Builder
+    public function raceQuery(Election $election, string $office, ?string $uf, ?int $municipalityId): Builder
     {
         if ($office !== 'prefeito') {
             return $this->results->raceQuery($election, $office, $uf);
         }
 
-        return CandidatoPolitico::query()
+        return Candidate::query()
             ->where('eleicao_id', $election->id)
             ->whereRaw('UPPER(cargo) = ?', [self::OFFICES['prefeito']])
             ->where('abrangencia', CandidateScope::Municipal)
@@ -69,7 +69,7 @@ class SecondRoundClassifier
      * classificados gravados, 1 em qualquer outro caso (inclusive cargos sem
      * 2º turno, como senador).
      */
-    public function activeRound(Eleicao $election, string $office, ?string $uf, ?int $municipalityId): int
+    public function activeRound(Election $election, string $office, ?string $uf, ?int $municipalityId): int
     {
         if (! isset(self::OFFICES[$office]) || ($office === 'prefeito' && $municipalityId === null)) {
             return 1;
@@ -95,7 +95,7 @@ class SecondRoundClassifier
      * @param  array<string, mixed>|null  $tseResult
      */
     public function classify(
-        Eleicao $election,
+        Election $election,
         string $office,
         ?string $uf,
         ?int $municipalityId,
@@ -134,10 +134,10 @@ class SecondRoundClassifier
      * Classifica todas as disputas ainda pendentes de uma eleição; devolve
      * quantas foram classificadas para o 2º turno agora.
      */
-    public function classifyElection(Eleicao $election): int
+    public function classifyElection(Election $election): int
     {
         $classified = 0;
-        $races = CandidatoPolitico::query()
+        $races = Candidate::query()
             ->where('eleicao_id', $election->id)
             ->whereRaw('UPPER(cargo) = ?', [self::OFFICES['governador']])
             ->whereNotNull('uf')
@@ -158,7 +158,7 @@ class SecondRoundClassifier
 
         // Só os municípios com algum sinal de 2º turno — a grande maioria se
         // decide no 1º e não precisa ser revisitada a cada execução.
-        $municipalities = VotacaoCandidatoMunicipio::query()
+        $municipalities = CandidateMunicipalityVote::query()
             ->where('eleicao_id', $election->id)
             ->whereIn('candidato_politico_id', $this->pending($election, 'prefeito')->select('id'))
             ->where(fn (Builder $query) => $query
@@ -178,14 +178,14 @@ class SecondRoundClassifier
      * Presidente e governador: os classificados vêm do resultado do 1º turno
      * já gravado pelo ElectionResultRecorder — "2º TURNO" na situação.
      *
-     * @param  Builder<CandidatoPolitico>  $race
+     * @param  Builder<Candidate>  $race
      * @return Collection<int, mixed>
      */
     private function advancedFromRecordedResults(Builder $race): Collection
     {
-        return ResultadoCandidatoEleicao::query()
+        return CandidateElectionResult::query()
             ->where('turno', 1)
-            ->where('situacao_totalizacao', ResultadoCandidatoEleicao::SECOND_ROUND)
+            ->where('situacao_totalizacao', CandidateElectionResult::SECOND_ROUND)
             ->whereIn('candidato_politico_id', (clone $race)->select('id'))
             ->pluck('candidato_politico_id');
     }
@@ -195,12 +195,12 @@ class SecondRoundClassifier
      * DS_SIT_TOT_TURNO dos classificados é "2º TURNO"; depois do 2º turno,
      * quem tem votação de turno 2 é quem disputou.
      *
-     * @param  Builder<CandidatoPolitico>  $race
+     * @param  Builder<Candidate>  $race
      * @return Collection<int, mixed>
      */
-    private function advancedFromMunicipalVotes(Eleicao $election, int $municipalityId, Builder $race): Collection
+    private function advancedFromMunicipalVotes(Election $election, int $municipalityId, Builder $race): Collection
     {
-        $votes = VotacaoCandidatoMunicipio::query()
+        $votes = CandidateMunicipalityVote::query()
             ->where('eleicao_id', $election->id)
             ->where('municipio_eleitoral_id', $municipalityId)
             ->whereIn('candidato_politico_id', (clone $race)->select('id'))
@@ -211,17 +211,17 @@ class SecondRoundClassifier
         if ($advanced->isEmpty()) {
             $advanced = $votes
                 ->where('turno', 1)
-                ->filter(fn (VotacaoCandidatoMunicipio $vote): bool => $this->marksSecondRound($vote->situacao_totalizacao))
+                ->filter(fn (CandidateMunicipalityVote $vote): bool => $this->marksSecondRound($vote->situacao_totalizacao))
                 ->pluck('candidato_politico_id');
         }
 
         return $advanced->unique()->values();
     }
 
-    /** @return Builder<CandidatoPolitico> */
-    private function pending(Eleicao $election, string $office): Builder
+    /** @return Builder<Candidate> */
+    private function pending(Election $election, string $office): Builder
     {
-        return CandidatoPolitico::query()
+        return Candidate::query()
             ->where('eleicao_id', $election->id)
             ->whereRaw('UPPER(cargo) = ?', [self::OFFICES[$office]])
             ->whereNull('avancou_segundo_turno');
@@ -232,7 +232,7 @@ class SecondRoundClassifier
      * em true. Sem nenhum classificado reconhecido localmente não grava nada —
      * melhor seguir mostrando todos do que esconder a disputa inteira.
      *
-     * @param  Builder<CandidatoPolitico>  $race
+     * @param  Builder<Candidate>  $race
      * @param  Collection<int, mixed>  $advancedIds
      */
     private function persist(Builder $race, Collection $advancedIds): bool
@@ -243,7 +243,7 @@ class SecondRoundClassifier
 
         DB::transaction(function () use ($race, $advancedIds): void {
             (clone $race)->update(['avancou_segundo_turno' => false]);
-            CandidatoPolitico::query()
+            Candidate::query()
                 ->whereKey($advancedIds->all())
                 ->update(['avancou_segundo_turno' => true]);
         });

@@ -2,43 +2,43 @@
 
 namespace App\Services\WhatsApp;
 
-use App\Enums\EntidadeModule;
-use App\Enums\EntidadeQuota;
-use App\Enums\GabineteModule;
+use App\Enums\EntityModule;
+use App\Enums\EntityQuota;
+use App\Enums\OfficeModule;
 use App\Enums\WhatsAppMode;
 use App\Enums\WhatsAppPurpose;
-use App\Models\EntidadeWhatsAppConexao;
-use App\Models\Gabinete;
+use App\Models\EntityWhatsAppConnection;
+use App\Models\Office;
 use App\Models\WhatsAppConfiguration;
 use App\Models\WhatsAppContact;
 use App\Models\WhatsAppTemplatePurpose;
-use App\Services\Entidades\EntidadeQuotaService;
-use App\Services\Modules\EntidadeModuleManager;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Entidades\EntityQuotaService;
+use App\Services\Modules\EntityModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use Illuminate\Validation\ValidationException;
 
 final class WhatsAppEligibilityService
 {
     public function __construct(
-        private readonly GabineteModuleManager $modules,
-        private readonly EntidadeModuleManager $entidadeModules,
-        private readonly EntidadeQuotaService $quotas,
+        private readonly OfficeModuleManager $modules,
+        private readonly EntityModuleManager $entidadeModules,
+        private readonly EntityQuotaService $quotas,
     ) {}
 
-    /** @return array{eligible:bool,reason:string,template:?WhatsAppTemplatePurpose,connection:?EntidadeWhatsAppConexao} */
+    /** @return array{eligible:bool,reason:string,template:?WhatsAppTemplatePurpose,connection:?EntityWhatsAppConnection} */
     public function evaluate(
         WhatsAppContact $contact,
         WhatsAppPurpose $purpose,
         bool $checkQuota = true,
     ): array {
-        $office = Gabinete::withoutGlobalScopes()->find($contact->gabinete_id);
+        $office = Office::withoutGlobalScopes()->find($contact->gabinete_id);
         if ($office === null) {
             return $this->denied('O contato não pertence a uma organização válida.');
         }
-        if (! $this->entidadeModules->isActive($office->entidade_id, EntidadeModule::WhatsApp)) {
+        if (! $this->entidadeModules->isActive($office->entidade_id, EntityModule::WhatsApp)) {
             return $this->denied('O módulo WhatsApp não está habilitado para a organização.');
         }
-        if (! $this->modules->isActive($contact->gabinete_id, GabineteModule::WhatsApp)) {
+        if (! $this->modules->isActive($contact->gabinete_id, OfficeModule::WhatsApp)) {
             return $this->denied('O módulo WhatsApp não está habilitado para o gabinete.');
         }
         if (! $this->modules->isActive($contact->gabinete_id, $purpose->sourceModule())) {
@@ -87,7 +87,7 @@ final class WhatsAppEligibilityService
             try {
                 $this->quotas->assertAvailable(
                     $office->entidade_id,
-                    EntidadeQuota::MonthlyWhatsAppMessages,
+                    EntityQuota::MonthlyWhatsAppMessages,
                 );
             } catch (ValidationException $exception) {
                 return $this->denied((string) collect($exception->errors())->flatten()->first());

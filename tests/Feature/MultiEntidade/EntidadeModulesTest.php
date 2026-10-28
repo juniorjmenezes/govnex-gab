@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\MultiEntidade;
 
-use App\Enums\EntidadeModule;
-use App\Models\Gabinete;
+use App\Enums\EntityModule;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -20,21 +20,21 @@ class EntidadeModulesTest extends TestCase
 
     public function test_entidade_administrator_cannot_toggle_institutional_modules(): void
     {
-        $gabinete = Gabinete::factory()->create();
+        $gabinete = Office::factory()->create();
         $councilor = User::factory()->administrator()->forGabinete($gabinete)->create();
 
         $this->actingAs($councilor)
             ->patch(route('entidades.modules.update', $gabinete->entidade), [
-                'modules' => array_column(EntidadeModule::cases(), 'value'),
+                'modules' => array_column(EntityModule::cases(), 'value'),
             ])
             ->assertForbidden();
     }
 
     public function test_root_can_toggle_institutional_modules(): void
     {
-        $gabinete = Gabinete::factory()->create();
+        $gabinete = Office::factory()->create();
         $root = User::factory()->root()->create();
-        $modules = array_column(EntidadeModule::availableCases($gabinete->entidade->tipo), 'value');
+        $modules = array_column(EntityModule::availableCases($gabinete->entidade->tipo), 'value');
 
         $this->actingAs($root)
             ->patch(route('entidades.modules.update', $gabinete->entidade), [
@@ -53,7 +53,7 @@ class EntidadeModulesTest extends TestCase
 
     public function test_entidade_show_hides_module_section_from_non_root_but_keeps_other_management(): void
     {
-        $gabinete = Gabinete::factory()->create();
+        $gabinete = Office::factory()->create();
         $councilor = User::factory()->administrator()->forGabinete($gabinete)->create();
 
         $response = $this->actingAs($councilor)

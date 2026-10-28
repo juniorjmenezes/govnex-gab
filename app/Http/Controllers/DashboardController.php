@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\GabineteModule;
-use App\Models\Demanda;
+use App\Enums\OfficeModule;
+use App\Models\Demand;
 use App\Services\Admin\PlatformMetricsService;
 use App\Services\Dashboard\DashboardMetricsService;
-use App\Services\Modules\GabineteModuleManager;
-use App\Tenancy\GabineteContext;
+use App\Services\Modules\OfficeModuleManager;
+use App\Tenancy\OfficeContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,14 +19,14 @@ class DashboardController extends Controller
         Request $request,
         DashboardMetricsService $dashboard,
         PlatformMetricsService $platform,
-        GabineteModuleManager $modules,
-        GabineteContext $gabinetes,
+        OfficeModuleManager $modules,
+        OfficeContext $gabinetes,
     ): Response|RedirectResponse {
         if ($request->user()?->isRoot() && ! $gabinetes->hasExplicitUnit()) {
             return Inertia::render('admin/dashboard', $platform->build());
         }
 
-        $gabinete = $gabinetes->gabinete() ?? $request->user()?->gabinete;
+        $gabinete = $gabinetes->gabinete() ?? $gabinetes->officeFor($request->user());
 
         if ($gabinete === null) {
             return to_route('entidades.index');
@@ -34,8 +34,8 @@ class DashboardController extends Controller
 
         $activeModules = $modules->activeFor($gabinete);
 
-        if (in_array(GabineteModule::Demands->value, $activeModules, true)) {
-            $this->authorize('viewAny', Demanda::class);
+        if (in_array(OfficeModule::Demands->value, $activeModules, true)) {
+            $this->authorize('viewAny', Demand::class);
         }
 
         $requestedPeriod = $request->integer('period', 90);

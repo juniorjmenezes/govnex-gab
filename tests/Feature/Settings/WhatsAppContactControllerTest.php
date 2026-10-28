@@ -3,11 +3,11 @@
 namespace Tests\Feature\Settings;
 
 use App\Enums\AccessRole;
-use App\Enums\GabineteModule;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Enums\OfficeModule;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -24,12 +24,12 @@ class WhatsAppContactControllerTest extends TestCase
     public function test_declaring_whatsapp_consent_flashes_a_friendly_error_when_hash_secret_is_missing(): void
     {
         config(['whatsapp.phone_hash_secret' => null]);
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        app(GabineteModuleManager::class)->sync($office, [
-            GabineteModule::Relationship->value,
-            GabineteModule::Schedule->value,
-            GabineteModule::WhatsApp->value,
+        app(OfficeModuleManager::class)->sync($office, [
+            OfficeModule::Relationship->value,
+            OfficeModule::Schedule->value,
+            OfficeModule::WhatsApp->value,
         ], $user);
 
         $this->actingAs($user)
@@ -50,14 +50,14 @@ class WhatsAppContactControllerTest extends TestCase
      */
     public function test_a_team_member_paused_in_the_team_screen_cannot_self_register_whatsapp(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        app(GabineteModuleManager::class)->sync($office, [
-            GabineteModule::Relationship->value,
-            GabineteModule::Schedule->value,
-            GabineteModule::WhatsApp->value,
+        app(OfficeModuleManager::class)->sync($office, [
+            OfficeModule::Relationship->value,
+            OfficeModule::Schedule->value,
+            OfficeModule::WhatsApp->value,
         ], $user);
-        GabineteMembro::query()->updateOrCreate(
+        OfficeMember::query()->updateOrCreate(
             ['gabinete_id' => $office->id, 'usuario_id' => $user->id],
             ['papel' => AccessRole::Operator, 'ativo' => false, 'ingressou_em' => now(), 'desativado_em' => now()],
         );

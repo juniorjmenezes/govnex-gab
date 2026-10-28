@@ -5,7 +5,7 @@ namespace Database\Factories;
 use App\Enums\AppointmentRecurrence;
 use App\Enums\AppointmentStatus;
 use App\Models\Appointment;
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -19,7 +19,7 @@ class AppointmentFactory extends Factory
         $start = now()->addDays(fake()->numberBetween(1, 30))->setTime(fake()->numberBetween(8, 16), 0);
 
         return [
-            'gabinete_id' => Gabinete::factory(),
+            'gabinete_id' => Office::factory(),
             'responsavel_id' => fn (array $attributes) => User::factory()->state(['gabinete_id' => $attributes['gabinete_id']]),
             'criado_por_id' => fn (array $attributes) => User::factory()->state(['gabinete_id' => $attributes['gabinete_id']]),
             'titulo' => fake()->sentence(4),
@@ -34,9 +34,9 @@ class AppointmentFactory extends Factory
         ];
     }
 
-    public function forGabinete(Gabinete|int $gabinete): static
+    public function forGabinete(Office|int $gabinete): static
     {
-        $id = $gabinete instanceof Gabinete ? $gabinete->id : $gabinete;
+        $id = $gabinete instanceof Office ? $gabinete->id : $gabinete;
 
         return $this->state(fn (): array => ['gabinete_id' => $id]);
     }

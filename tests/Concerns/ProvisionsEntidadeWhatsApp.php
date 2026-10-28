@@ -2,22 +2,22 @@
 
 namespace Tests\Concerns;
 
-use App\Enums\EntidadeWhatsAppConnectionStatus;
-use App\Enums\EntidadeWhatsAppConnectionType;
+use App\Enums\EntityWhatsAppConnectionStatus;
+use App\Enums\EntityWhatsAppConnectionType;
 use App\Enums\WhatsAppPurpose;
-use App\Models\EntidadeWhatsAppConexao;
-use App\Models\Gabinete;
+use App\Models\EntityWhatsAppConnection;
+use App\Models\Office;
 use App\Models\WhatsAppTemplatePurpose;
 use App\Services\WhatsApp\WhatsAppTemplateCatalog;
 
 trait ProvisionsEntidadeWhatsApp
 {
     protected function entidadeWhatsAppConnection(
-        Gabinete $office,
+        Office $office,
         int $gatewayAccountId = 6,
-        EntidadeWhatsAppConnectionType $type = EntidadeWhatsAppConnectionType::Central,
-    ): EntidadeWhatsAppConexao {
-        return EntidadeWhatsAppConexao::query()->updateOrCreate(
+        EntityWhatsAppConnectionType $type = EntityWhatsAppConnectionType::Central,
+    ): EntityWhatsAppConnection {
+        return EntityWhatsAppConnection::query()->updateOrCreate(
             [
                 'entidade_id' => $office->entidade_id,
                 'gateway_account_id' => $gatewayAccountId,
@@ -26,7 +26,7 @@ trait ProvisionsEntidadeWhatsApp
                 'tipo' => $type,
                 'nome_exibicao' => 'Conta de teste '.$gatewayAccountId,
                 'telefone_final' => str_pad((string) $gatewayAccountId, 4, '0', STR_PAD_LEFT),
-                'status' => EntidadeWhatsAppConnectionStatus::Active,
+                'status' => EntityWhatsAppConnectionStatus::Active,
                 'ativo' => true,
                 'metadados' => ['origem' => 'FIXTURE_TESTE'],
                 'atribuido_em' => now(),
@@ -37,7 +37,7 @@ trait ProvisionsEntidadeWhatsApp
     }
 
     protected function readyEntidadeWhatsAppTemplate(
-        Gabinete $office,
+        Office $office,
         WhatsAppPurpose $purpose,
         ?int $gatewayTemplateId = null,
     ): WhatsAppTemplatePurpose {

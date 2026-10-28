@@ -4,16 +4,16 @@ namespace Tests\Feature\Admin;
 
 use App\Enums\AppointmentRecurrence;
 use App\Enums\AppointmentStatus;
-use App\Enums\EntidadeModule;
-use App\Enums\GabineteModule;
-use App\Models\Cidadao;
-use App\Models\Demanda;
-use App\Models\Entidade;
-use App\Models\Evento;
-use App\Models\Gabinete;
-use App\Models\GabineteModuloEvento;
+use App\Enums\EntityModule;
+use App\Enums\OfficeModule;
+use App\Models\Citizen;
+use App\Models\Demand;
+use App\Models\Entity;
+use App\Models\Event;
+use App\Models\Office;
+use App\Models\OfficeModuleEvent;
 use App\Models\User;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -40,21 +40,21 @@ class OfficeModulesTest extends TestCase
 
     public function test_existing_behavior_is_preserved_with_every_module_enabled(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
 
         $this->assertSame(
-            app(GabineteModuleManager::class)->allEnabled(),
-            app(GabineteModuleManager::class)->activeFor($office),
+            app(OfficeModuleManager::class)->allEnabled(),
+            app(OfficeModuleManager::class)->activeFor($office),
         );
-        $this->assertDatabaseCount('gabinete_modulos', count(app(GabineteModuleManager::class)->allEnabled()));
+        $this->assertDatabaseCount('gabinete_modulos', count(app(OfficeModuleManager::class)->allEnabled()));
     }
 
     public function test_demo_seeder_enables_every_module_for_each_seeded_office(): void
     {
         $this->seed(DatabaseSeeder::class);
 
-        $offices = Gabinete::withoutGlobalScopes()->get();
-        $entidades = Entidade::withoutGlobalScopes()->get();
+        $offices = Office::withoutGlobalScopes()->get();
+        $entidades = Entity::withoutGlobalScopes()->get();
         $this->assertCount(7, $offices);
         $this->assertCount(2, $entidades);
 
@@ -64,17 +64,17 @@ class OfficeModulesTest extends TestCase
         // AGENTS.md).
         foreach ($offices as $office) {
             $this->assertNotNull($office->entidade_id);
-            $expected = app(GabineteModuleManager::class)->allEnabled($office->tipo_gabinete);
-            $this->assertSame($expected, app(GabineteModuleManager::class)->activeFor($office));
+            $expected = app(OfficeModuleManager::class)->allEnabled($office->tipo_gabinete);
+            $this->assertSame($expected, app(OfficeModuleManager::class)->activeFor($office));
         }
 
         $this->assertDatabaseCount(
             'gabinete_modulos',
-            $offices->sum(fn (Gabinete $office): int => count(app(GabineteModuleManager::class)->allEnabled($office->tipo_gabinete))),
+            $offices->sum(fn (Office $office): int => count(app(OfficeModuleManager::class)->allEnabled($office->tipo_gabinete))),
         );
         $this->assertDatabaseCount(
             'entidade_modulos',
-            $entidades->sum(fn (Entidade $entidade): int => count(EntidadeModule::availableCases($entidade->tipo))),
+            $entidades->sum(fn (Entity $entidade): int => count(EntityModule::availableCases($entidade->tipo))),
         );
         $this->assertDatabaseCount('entidade_membros', 9);
         $this->assertDatabaseCount('gabinete_membros', 9);
@@ -84,8 +84,8 @@ class OfficeModulesTest extends TestCase
 
     public function test_active_modules_are_cached_only_for_the_current_manager_scope(): void
     {
-        $office = Gabinete::factory()->create();
-        $manager = app(GabineteModuleManager::class);
+        $office = Office::factory()->create();
+        $manager = app(OfficeModuleManager::class);
 
         DB::flushQueryLog();
         DB::enableQueryLog();
@@ -103,23 +103,23 @@ class OfficeModulesTest extends TestCase
     public function test_platform_admin_can_replace_the_complete_module_selection_and_audit_changes(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $selection = [
-            GabineteModule::Relationship->value,
-            GabineteModule::Schedule->value,
+            OfficeModule::Relationship->value,
+            OfficeModule::Schedule->value,
         ];
 
         $this->actingAs($admin)
             ->patch(route('admin.offices.modules.update', $office), ['modules' => $selection])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame($selection, app(GabineteModuleManager::class)->activeFor($office));
+        $this->assertSame($selection, app(OfficeModuleManager::class)->activeFor($office));
         // Um evento por módulo desativado.
-        $disabledCount = count(app(GabineteModuleManager::class)->allEnabled()) - count($selection);
+        $disabledCount = count(app(OfficeModuleManager::class)->allEnabled()) - count($selection);
         $this->assertDatabaseCount('gabinete_modulo_eventos', $disabledCount);
         $this->assertDatabaseHas('gabinete_modulo_eventos', [
             'gabinete_id' => $office->id,
-            'modulo' => GabineteModule::Demands->value,
+            'modulo' => OfficeModule::Demands->value,
             'acao' => 'DESATIVADO',
             'administrador_id' => $admin->id,
         ]);
@@ -130,36 +130,36 @@ class OfficeModulesTest extends TestCase
 
         $this->patch(route('admin.offices.modules.update', $office), ['modules' => []])
             ->assertSessionHasNoErrors();
-        $this->assertSame([], app(GabineteModuleManager::class)->activeFor($office));
-        $this->assertDatabaseCount('gabinete_modulo_eventos', count(app(GabineteModuleManager::class)->allEnabled()));
+        $this->assertSame([], app(OfficeModuleManager::class)->activeFor($office));
+        $this->assertDatabaseCount('gabinete_modulo_eventos', count(app(OfficeModuleManager::class)->allEnabled()));
     }
 
     public function test_invalid_dependencies_are_rejected_without_changing_the_office(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
 
         $this->actingAs($admin)
             ->from(route('admin.offices.index'))
             ->patch(route('admin.offices.modules.update', $office), [
-                'modules' => [GabineteModule::Reports->value],
+                'modules' => [OfficeModule::Reports->value],
             ])
             ->assertSessionHasErrors('modules');
 
         $this->assertCount(
-            count(app(GabineteModuleManager::class)->allEnabled()),
-            app(GabineteModuleManager::class)->activeFor($office),
+            count(app(OfficeModuleManager::class)->allEnabled()),
+            app(OfficeModuleManager::class)->activeFor($office),
         );
         $this->assertDatabaseCount('gabinete_modulo_eventos', 0);
 
         $this->patch(route('admin.offices.modules.update', $office), [
-            'modules' => [GabineteModule::WhatsApp->value],
+            'modules' => [OfficeModule::WhatsApp->value],
         ])->assertSessionHasErrors('modules');
     }
 
     public function test_only_platform_admin_can_manage_modules(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $tenantUser = User::factory()->administrator()->forGabinete($office)->create();
 
         $this->actingAs($tenantUser)
@@ -167,38 +167,38 @@ class OfficeModulesTest extends TestCase
             ->assertForbidden();
 
         $this->assertCount(
-            count(app(GabineteModuleManager::class)->allEnabled()),
-            app(GabineteModuleManager::class)->activeFor($office),
+            count(app(OfficeModuleManager::class)->allEnabled()),
+            app(OfficeModuleManager::class)->activeFor($office),
         );
     }
 
     public function test_disabled_module_returns_a_specific_403_without_affecting_other_offices(): void
     {
         $admin = User::factory()->root()->create();
-        $restrictedOffice = Gabinete::factory()->create();
-        $activeOffice = Gabinete::factory()->create();
+        $restrictedOffice = Office::factory()->create();
+        $activeOffice = Office::factory()->create();
         $restrictedUser = User::factory()->operator()->forGabinete($restrictedOffice)->create();
         $activeUser = User::factory()->operator()->forGabinete($activeOffice)->create();
         $selection = array_values(array_filter(
-            app(GabineteModuleManager::class)->allEnabled(),
+            app(OfficeModuleManager::class)->allEnabled(),
             fn (string $module): bool => ! in_array($module, [
-                GabineteModule::Demands->value,
-                GabineteModule::Reports->value,
+                OfficeModule::Demands->value,
+                OfficeModule::Reports->value,
             ], true),
         ));
 
-        app(GabineteModuleManager::class)->sync($restrictedOffice, $selection, $admin);
+        app(OfficeModuleManager::class)->sync($restrictedOffice, $selection, $admin);
 
         $this->actingAs($restrictedUser)
             ->get(route('demands.index'))
             ->assertForbidden()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('errors/module-disabled')
-                ->where('module.code', GabineteModule::Demands->value));
+                ->where('module.code', OfficeModule::Demands->value));
 
         $this->getJson(route('demands.index'))
             ->assertForbidden()
-            ->assertJsonPath('module', GabineteModule::Demands->value);
+            ->assertJsonPath('module', OfficeModule::Demands->value);
 
         $this->actingAs($activeUser)
             ->get(route('demands.index'))
@@ -208,14 +208,14 @@ class OfficeModulesTest extends TestCase
     public function test_dashboard_remains_useful_when_demands_are_disabled(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $citizen = Cidadao::factory()->forGabinete($office)->create();
-        Demanda::factory()->forGabinete($office, $citizen, creator: $user)->create();
+        $citizen = Citizen::factory()->forGabinete($office)->create();
+        Demand::factory()->forGabinete($office, $citizen, creator: $user)->create();
 
-        app(GabineteModuleManager::class)->sync(
+        app(OfficeModuleManager::class)->sync(
             $office,
-            [GabineteModule::Relationship->value],
+            [OfficeModule::Relationship->value],
             $admin,
         );
 
@@ -234,19 +234,19 @@ class OfficeModulesTest extends TestCase
     public function test_cross_module_fields_are_rejected_and_events_are_hidden_from_agenda(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
+        $office = Office::factory()->create(['timezone' => 'America/Sao_Paulo']);
         $user = User::factory()->administrator()->forGabinete($office)->create();
-        $citizen = Cidadao::factory()->forGabinete($office)->create();
-        $demand = Demanda::factory()->forGabinete($office, $citizen, creator: $user)->create();
-        Evento::factory()->forGabinete($office, $user, $user)->create([
+        $citizen = Citizen::factory()->forGabinete($office)->create();
+        $demand = Demand::factory()->forGabinete($office, $citizen, creator: $user)->create();
+        Event::factory()->forGabinete($office, $user, $user)->create([
             'inicio_em' => now()->addDay(),
             'fim_em' => now()->addDay()->addHour(),
         ]);
 
-        app(GabineteModuleManager::class)->sync($office, [
-            GabineteModule::Relationship->value,
-            GabineteModule::Attendances->value,
-            GabineteModule::Schedule->value,
+        app(OfficeModuleManager::class)->sync($office, [
+            OfficeModule::Relationship->value,
+            OfficeModule::Attendances->value,
+            OfficeModule::Schedule->value,
         ], $admin);
 
         $this->actingAs($user)
@@ -287,9 +287,9 @@ class OfficeModulesTest extends TestCase
     public function test_module_audit_events_cannot_be_changed_or_deleted_through_the_model(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
-        app(GabineteModuleManager::class)->sync($office, [], $admin);
-        $event = GabineteModuloEvento::query()->firstOrFail();
+        $office = Office::factory()->create();
+        app(OfficeModuleManager::class)->sync($office, [], $admin);
+        $event = OfficeModuleEvent::query()->firstOrFail();
 
         $this->expectException(LogicException::class);
         $event->update(['acao' => 'ALTERADO']);

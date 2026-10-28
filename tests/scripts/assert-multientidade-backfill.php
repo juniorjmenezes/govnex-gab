@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\EntidadeModule;
-use App\Enums\GabineteType;
+use App\Enums\EntityModule;
+use App\Enums\OfficeType;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 
@@ -38,7 +38,7 @@ foreach ($offices as $office) {
         $fail("Office {$office->id} was not linked to an entidade by the backfill.");
     }
 
-    if ($office->tipo_gabinete !== GabineteType::IndependentOffice->value) {
+    if ($office->tipo_gabinete !== OfficeType::IndependentOffice->value) {
         $fail("Office {$office->id} did not receive the independent-office gabinete type.");
     }
 }
@@ -116,7 +116,7 @@ $moduleCodes = DB::table('entidade_modulos')
     ->sort()
     ->values()
     ->all();
-$expectedModuleCodes = array_column(EntidadeModule::cases(), 'value');
+$expectedModuleCodes = array_column(EntityModule::cases(), 'value');
 sort($expectedModuleCodes);
 
 if ($moduleCodes !== $expectedModuleCodes) {
@@ -130,7 +130,7 @@ foreach ($offices as $office) {
         ->first();
 
     if (! $license) {
-        $fail("Entidade {$office->entidade_id} has no active license after the backfill.");
+        $fail("Entity {$office->entidade_id} has no active license after the backfill.");
     }
 
     $activeModuleCount = DB::table('entidade_modulos')
@@ -140,7 +140,7 @@ foreach ($offices as $office) {
         ->count();
 
     if ($activeModuleCount !== count($expectedModuleCodes)) {
-        $fail("Entidade {$office->entidade_id} does not have every institutional module active.");
+        $fail("Entity {$office->entidade_id} does not have every institutional module active.");
     }
 }
 
@@ -166,7 +166,7 @@ $neighborhoods = DB::table('bairros')->get(['id', 'gabinete_id', 'entidade_bairr
 
 foreach ($neighborhoods as $neighborhood) {
     if ($neighborhood->entidade_bairro_id === null) {
-        $fail("Bairro {$neighborhood->id} was not linked to an entidade_bairros reference.");
+        $fail("Neighborhood {$neighborhood->id} was not linked to an entidade_bairros reference.");
     }
 }
 

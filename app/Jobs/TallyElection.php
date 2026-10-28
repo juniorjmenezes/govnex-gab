@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Models\Eleicao;
+use App\Models\Election;
 use App\Services\Politics\ElectionLifecycleService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -30,9 +30,9 @@ class TallyElection implements ShouldQueue
 
     public function handle(ElectionLifecycleService $lifecycle): void
     {
-        $election = Eleicao::query()->find($this->electionId);
+        $election = Election::query()->find($this->electionId);
 
-        if ($election instanceof Eleicao) {
+        if ($election instanceof Election) {
             $lifecycle->tally($election);
         }
     }

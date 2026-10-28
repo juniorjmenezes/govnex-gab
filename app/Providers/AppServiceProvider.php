@@ -3,12 +3,12 @@
 namespace App\Providers;
 
 use App\Models\User;
-use App\Observers\UserEntidadeMembershipObserver;
+use App\Observers\UserEntityMembershipObserver;
 use App\Services\Hub\HubSocialiteProvider;
-use App\Services\Modules\EntidadeModuleManager;
-use App\Services\Modules\GabineteModuleManager;
-use App\Tenancy\EntidadeContext;
-use App\Tenancy\GabineteContext;
+use App\Services\Modules\EntityModuleManager;
+use App\Services\Modules\OfficeModuleManager;
+use App\Tenancy\EntityContext;
+use App\Tenancy\OfficeContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -25,17 +25,17 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->scoped(GabineteContext::class, fn (): GabineteContext => new GabineteContext);
-        $this->app->scoped(EntidadeContext::class, fn (): EntidadeContext => new EntidadeContext);
-        $this->app->scoped(GabineteModuleManager::class);
-        $this->app->scoped(EntidadeModuleManager::class);
+        $this->app->scoped(OfficeContext::class, fn (): OfficeContext => new OfficeContext);
+        $this->app->scoped(EntityContext::class, fn (): EntityContext => new EntityContext);
+        $this->app->scoped(OfficeModuleManager::class);
+        $this->app->scoped(EntityModuleManager::class);
     }
 
     public function boot(): void
     {
         $this->configureDefaults();
         $this->configureHubSocialite();
-        User::observe(UserEntidadeMembershipObserver::class);
+        User::observe(UserEntityMembershipObserver::class);
 
         Event::listen(Login::class, function (Login $event): void {
             if ($event->user instanceof User) {

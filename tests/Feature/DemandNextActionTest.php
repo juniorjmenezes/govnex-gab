@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\Demanda;
-use App\Models\Gabinete;
+use App\Models\Demand;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -176,12 +176,12 @@ class DemandNextActionTest extends TestCase
                 ->where('demands.data.0.id', $demandOverdue->id));
     }
 
-    /** @return array{User, Demanda} */
-    private function demandContext(?Gabinete $office = null): array
+    /** @return array{User, Demand} */
+    private function demandContext(?Office $office = null): array
     {
-        $office ??= Gabinete::factory()->create();
+        $office ??= Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $demand = Demanda::factory()->forGabinete($office, creator: $user)->create();
+        $demand = Demand::factory()->forGabinete($office, creator: $user)->create();
 
         return [$user, $demand];
     }

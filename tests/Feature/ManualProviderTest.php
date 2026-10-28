@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\Eleicao;
-use App\Models\PesquisaEleitoral;
-use App\Models\PesquisaFonte;
+use App\Models\Election;
+use App\Models\ElectoralPoll;
+use App\Models\PollSource;
 use App\Services\Politics\Polls\ManualProvider;
 use App\Services\Politics\Polls\ResultResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,7 +28,7 @@ class ManualProviderTest extends TestCase
     public function test_it_reads_a_previously_registered_manual_entry(): void
     {
         $pesquisa = $this->pesquisa();
-        PesquisaFonte::query()->create([
+        PollSource::query()->create([
             'pesquisa_eleitoral_id' => $pesquisa->id,
             'tipo' => 'manual',
             'provider' => 'manual',
@@ -57,7 +57,7 @@ class ManualProviderTest extends TestCase
     public function test_it_ignores_manual_entries_that_are_not_marked_as_coletado(): void
     {
         $pesquisa = $this->pesquisa();
-        PesquisaFonte::query()->create([
+        PollSource::query()->create([
             'pesquisa_eleitoral_id' => $pesquisa->id,
             'tipo' => 'manual',
             'provider' => 'manual',
@@ -72,7 +72,7 @@ class ManualProviderTest extends TestCase
     public function test_it_is_usable_through_the_result_resolver(): void
     {
         $pesquisa = $this->pesquisa();
-        PesquisaFonte::query()->create([
+        PollSource::query()->create([
             'pesquisa_eleitoral_id' => $pesquisa->id,
             'tipo' => 'manual',
             'provider' => 'manual',
@@ -102,11 +102,11 @@ class ManualProviderTest extends TestCase
         ]);
     }
 
-    private function pesquisa(): PesquisaEleitoral
+    private function pesquisa(): ElectoralPoll
     {
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
 
-        return PesquisaEleitoral::query()->create([
+        return ElectoralPoll::query()->create([
             'eleicao_id' => $election->id,
             'external_id' => (string) Str::uuid(),
             'external_election_id' => (string) Str::uuid(),

@@ -2,10 +2,10 @@
 
 namespace App\Jobs;
 
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use App\Enums\ReportExportStatus;
 use App\Models\ReportExport;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\Reports\ReportExportGenerator;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -23,10 +23,10 @@ class GenerateReportExport implements ShouldQueue
 
     public function __construct(public readonly string $exportId) {}
 
-    public function handle(ReportExportGenerator $generator, GabineteModuleManager $modules): void
+    public function handle(ReportExportGenerator $generator, OfficeModuleManager $modules): void
     {
         $export = ReportExport::withoutGlobalScopes()->findOrFail($this->exportId);
-        if (! $modules->isActive($export->gabinete_id, GabineteModule::Reports)) {
+        if (! $modules->isActive($export->gabinete_id, OfficeModule::Reports)) {
             $export->forceFill([
                 'status' => ReportExportStatus::Cancelled,
                 'erro' => 'O módulo Relatórios foi desativado antes do processamento.',

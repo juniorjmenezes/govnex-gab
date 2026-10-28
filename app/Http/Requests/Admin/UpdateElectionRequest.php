@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Enums\ElectionType;
-use App\Models\Eleicao;
+use App\Models\Election;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -19,7 +19,7 @@ class UpdateElectionRequest extends FormRequest
     public function rules(): array
     {
         $election = $this->route('eleicao');
-        $electionId = $election instanceof Eleicao ? $election->id : null;
+        $electionId = $election instanceof Election ? $election->id : null;
 
         return [
             'ano' => ['required', 'integer', 'min:1990', 'max:2100'],
@@ -53,9 +53,9 @@ class UpdateElectionRequest extends FormRequest
             }
 
             $election = $this->route('eleicao');
-            $electionId = $election instanceof Eleicao ? $election->id : null;
+            $electionId = $election instanceof Election ? $election->id : null;
 
-            $duplicate = Eleicao::query()
+            $duplicate = Election::query()
                 ->where('ano', $ano)
                 ->where('tipo', $tipo)
                 ->when($electionId !== null, fn ($query) => $query->whereKeyNot($electionId))

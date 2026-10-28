@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -33,7 +33,7 @@ test('platform administrator reaches only the platform journey', function () {
 });
 
 test('tenant profiles reach the common operational journey', function (string $profile) {
-    $office = Gabinete::factory()->create();
+    $office = Office::factory()->create();
     $user = User::factory()->{$profile}()->forGabinete($office)->create();
     $this->actingAs($user)->withSession(['auth.password_confirmed_at' => time()]);
 
@@ -74,7 +74,7 @@ test('tenant profiles reach the common operational journey', function (string $p
 ]);
 
 test('auditor reaches the read-only journey but not the creation forms', function () {
-    $office = Gabinete::factory()->create();
+    $office = Office::factory()->create();
     $auditor = User::factory()->auditor()->forGabinete($office)->create();
     $this->actingAs($auditor);
 
@@ -100,7 +100,7 @@ test('auditor reaches the read-only journey but not the creation forms', functio
 });
 
 test('management journeys respect each tenant profile', function () {
-    $office = Gabinete::factory()->create();
+    $office = Office::factory()->create();
     $administrator = User::factory()->administrator()->forGabinete($office)->create();
     $operator = User::factory()->operator()->forGabinete($office)->create();
     $auditor = User::factory()->auditor()->forGabinete($office)->create();

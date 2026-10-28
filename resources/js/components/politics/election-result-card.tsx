@@ -6,7 +6,8 @@ import {
 } from '@/components/common/scrollable-dialog';
 import { EmptyState } from '@/components/feedback/empty-state';
 import {
-    CheckCircleIcon,
+    CheckCircleBoldIcon,
+    CheckOutlineIcon,
     ClockCircleIcon,
     MagnifierIcon,
 } from '@/components/icons';
@@ -28,7 +29,12 @@ function ElectionBadge({ candidate }: { candidate: ElectionResultCandidate }) {
         return null;
     }
 
-    return <Badge variant="success">Eleito</Badge>;
+    return (
+        <CheckCircleBoldIcon
+            className="size-4 shrink-0 text-success"
+            aria-label="Eleito"
+        />
+    );
 }
 
 function CandidateRows({
@@ -162,7 +168,7 @@ export function ElectionResultCard({
                                         className="w-full"
                                         onClick={() => setShowAll(true)}
                                     >
-                                        <CheckCircleIcon aria-hidden="true" />
+                                        <CheckOutlineIcon aria-hidden="true" />
                                         Ver todos os resultados (
                                         {result.total_candidates})
                                     </Button>

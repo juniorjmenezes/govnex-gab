@@ -1,9 +1,9 @@
 <?php
 
-use App\Enums\EntidadeStatus;
-use App\Enums\GabineteStatus;
-use App\Models\Entidade;
-use App\Models\Gabinete;
+use App\Enums\EntityStatus;
+use App\Enums\OfficeStatus;
+use App\Models\Entity;
+use App\Models\Office;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
@@ -32,18 +32,18 @@ function fingirEstruturaDoHub(): void
 
 it('preenche as colunas de ponte casando por slug', function () {
     fingirEstruturaDoHub();
-    $entidade = Entidade::factory()->create(['slug' => 'camara-x']);
-    $gabinete = Gabinete::factory()->create(['entidade_id' => $entidade->id, 'slug' => 'gab-a']);
+    $entidade = Entity::factory()->create(['slug' => 'camara-x']);
+    $gabinete = Office::factory()->create(['entidade_id' => $entidade->id, 'slug' => 'gab-a']);
 
     $this->artisan('hub:espelhar-estrutura')->assertSuccessful();
 
     expect($entidade->fresh()->hub_entidade_id)->toBe('7')
-        ->and(Gabinete::withoutGlobalScopes()->find($gabinete->id)->hub_unidade_id)->toBe('71');
+        ->and(Office::withoutGlobalScopes()->find($gabinete->id)->hub_unidade_id)->toBe('71');
 });
 
 it('não grava em dry-run', function () {
     fingirEstruturaDoHub();
-    $entidade = Entidade::factory()->create(['slug' => 'camara-x']);
+    $entidade = Entity::factory()->create(['slug' => 'camara-x']);
 
     $this->artisan('hub:espelhar-estrutura --dry-run')->assertSuccessful();
 
@@ -52,7 +52,7 @@ it('não grava em dry-run', function () {
 
 it('é idempotente e reporta conflito sem sobrescrever', function () {
     fingirEstruturaDoHub();
-    $entidade = Entidade::factory()->create(['slug' => 'camara-x', 'hub_entidade_id' => '99']);
+    $entidade = Entity::factory()->create(['slug' => 'camara-x', 'hub_entidade_id' => '99']);
 
     $this->artisan('hub:espelhar-estrutura')->assertFailed();
 
@@ -61,7 +61,7 @@ it('é idempotente e reporta conflito sem sobrescrever', function () {
 
 it('roda de novo sem alterar o que já está preenchido', function () {
     fingirEstruturaDoHub();
-    $entidade = Entidade::factory()->create(['slug' => 'camara-x']);
+    $entidade = Entity::factory()->create(['slug' => 'camara-x']);
 
     $this->artisan('hub:espelhar-estrutura')->assertSuccessful();
     $this->artisan('hub:espelhar-estrutura')->assertSuccessful();
@@ -86,37 +86,37 @@ function fingirEstruturaDoHubParaAtualizar(): void
 
 it('com --atualizar aplica nome e situação do Hub aos itens ligados, preservando o slug', function () {
     fingirEstruturaDoHubParaAtualizar();
-    $entidade = Entidade::factory()->create(['slug' => 'camara-x', 'nome' => 'Câmara X', 'hub_entidade_id' => '7']);
-    $gabinete = Gabinete::factory()->create(['entidade_id' => $entidade->id, 'slug' => 'gab-a', 'nome' => 'Gab A', 'hub_unidade_id' => '71']);
+    $entidade = Entity::factory()->create(['slug' => 'camara-x', 'nome' => 'Câmara X', 'hub_entidade_id' => '7']);
+    $gabinete = Office::factory()->create(['entidade_id' => $entidade->id, 'slug' => 'gab-a', 'nome' => 'Gab A', 'hub_unidade_id' => '71']);
 
     $this->artisan('hub:espelhar-estrutura --atualizar')->assertSuccessful();
 
     $entidade->refresh();
-    $gabinete = Gabinete::withoutGlobalScopes()->find($gabinete->id);
+    $gabinete = Office::withoutGlobalScopes()->find($gabinete->id);
 
     expect($entidade->nome)->toBe('Câmara Renomeada')
         ->and($entidade->slug)->toBe('camara-x')
-        ->and($entidade->status)->toBe(EntidadeStatus::Suspended)
+        ->and($entidade->status)->toBe(EntityStatus::Suspended)
         ->and($gabinete->nome)->toBe('Gabinete Novo')
         ->and($gabinete->slug)->toBe('gab-a')
-        ->and($gabinete->status)->toBe(GabineteStatus::Suspended);
+        ->and($gabinete->status)->toBe(OfficeStatus::Suspended);
 });
 
 it('com --atualizar --dry-run só lista as divergências', function () {
     fingirEstruturaDoHubParaAtualizar();
-    $entidade = Entidade::factory()->create(['slug' => 'camara-x', 'nome' => 'Câmara X', 'hub_entidade_id' => '7']);
+    $entidade = Entity::factory()->create(['slug' => 'camara-x', 'nome' => 'Câmara X', 'hub_entidade_id' => '7']);
 
     $this->artisan('hub:espelhar-estrutura --atualizar --dry-run')
         ->expectsOutputToContain('Câmara Renomeada')
         ->assertSuccessful();
 
     expect($entidade->fresh()->nome)->toBe('Câmara X')
-        ->and($entidade->fresh()->status)->toBe(EntidadeStatus::Active);
+        ->and($entidade->fresh()->status)->toBe(EntityStatus::Active);
 });
 
 it('sem --atualizar não mexe em nome nem situação', function () {
     fingirEstruturaDoHub();
-    $entidade = Entidade::factory()->create(['slug' => 'camara-x', 'nome' => 'Câmara X', 'hub_entidade_id' => '7']);
+    $entidade = Entity::factory()->create(['slug' => 'camara-x', 'nome' => 'Câmara X', 'hub_entidade_id' => '7']);
 
     $this->artisan('hub:espelhar-estrutura')->assertSuccessful();
 
@@ -154,8 +154,8 @@ it('com --criar --dry-run só lista o que nasceria', function () {
         ->expectsOutputToContain("Gabinete 'camara-nova/gab-vereador'")
         ->assertSuccessful();
 
-    expect(Entidade::query()->count())->toBe(0)
-        ->and(Gabinete::withoutGlobalScopes()->count())->toBe(0);
+    expect(Entity::query()->count())->toBe(0)
+        ->and(Office::withoutGlobalScopes()->count())->toBe(0);
 });
 
 it('com --criar cria a entidade habilitada e os gabinetes raiz com equivalente', function () {
@@ -163,8 +163,8 @@ it('com --criar cria a entidade habilitada e os gabinetes raiz com equivalente',
 
     $this->artisan('hub:espelhar-estrutura --criar')->assertSuccessful();
 
-    $entidade = Entidade::query()->where('hub_entidade_id', '9')->firstOrFail();
-    $gabinetes = Gabinete::withoutGlobalScopes()->where('entidade_id', $entidade->id)->get();
+    $entidade = Entity::query()->where('hub_entidade_id', '9')->firstOrFail();
+    $gabinetes = Office::withoutGlobalScopes()->where('entidade_id', $entidade->id)->get();
 
     expect($entidade->nome)->toBe('Câmara Nova')
         ->and($gabinetes)->toHaveCount(1)
@@ -173,8 +173,8 @@ it('com --criar cria a entidade habilitada e os gabinetes raiz com equivalente',
     // Idempotente: rodar de novo não cria nada.
     $this->artisan('hub:espelhar-estrutura --criar')->assertSuccessful();
 
-    expect(Entidade::query()->count())->toBe(1)
-        ->and(Gabinete::withoutGlobalScopes()->count())->toBe(1);
+    expect(Entity::query()->count())->toBe(1)
+        ->and(Office::withoutGlobalScopes()->count())->toBe(1);
 });
 
 it('com --criar não cria entidade em que o GAB não está habilitado', function () {
@@ -184,5 +184,5 @@ it('com --criar não cria entidade em que o GAB não está habilitado', function
         ->expectsOutputToContain('gab_nao_habilitado')
         ->assertSuccessful();
 
-    expect(Entidade::query()->count())->toBe(0);
+    expect(Entity::query()->count())->toBe(0);
 });

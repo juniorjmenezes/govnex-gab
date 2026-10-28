@@ -3,7 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\UserRole;
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -17,7 +17,7 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'gabinete_id' => Gabinete::factory(),
+            'gabinete_id' => Office::factory(),
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'role' => UserRole::Operator,
@@ -32,7 +32,7 @@ class UserFactory extends Factory
         ];
     }
 
-    public function forGabinete(Gabinete $gabinete): static
+    public function forGabinete(Office $gabinete): static
     {
         return $this->state(fn (): array => ['gabinete_id' => $gabinete->getKey()]);
     }

@@ -1,12 +1,12 @@
 <?php
 
 use App\Enums\AccessRole;
-use App\Enums\EntidadeType;
+use App\Enums\EntityType;
 use App\Enums\UserRole;
-use App\Models\Entidade;
-use App\Models\EntidadeMembro;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Models\Entity;
+use App\Models\EntityMember;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use App\Services\Hub\HubVinculoSyncService;
 use Illuminate\Support\Facades\Http;
@@ -19,8 +19,8 @@ function hubSync(): HubVinculoSyncService
 /** Uma entidade e um gabinete já espelhados do Hub. */
 function hubEstrutura(string $entidadeId = '3', string $unidadeId = '12'): array
 {
-    $entidade = Entidade::factory()->create(['hub_entidade_id' => $entidadeId]);
-    $gabinete = Gabinete::factory()->create([
+    $entidade = Entity::factory()->create(['hub_entidade_id' => $entidadeId]);
+    $gabinete = Office::factory()->create([
         'entidade_id' => $entidade->id,
         'hub_unidade_id' => $unidadeId,
     ]);
@@ -47,7 +47,7 @@ it('cria vínculo de entidade e gabinete a partir do retrato do Hub', function (
 
 it('mapeia administrador de gabinete independente para administrador da entidade', function () {
     [$entidade, $gabinete] = hubEstrutura();
-    $entidade->forceFill(['tipo' => EntidadeType::IndependentOffice])->save();
+    $entidade->forceFill(['tipo' => EntityType::IndependentOffice])->save();
     $user = User::factory()->create(['gabinete_id' => null]);
 
     hubSync()->aplicar($user, [[
@@ -68,7 +68,7 @@ it('desativa, sem apagar, o vínculo que não veio mais no retrato', function ()
     ]]);
     hubSync()->aplicar($user, []);
 
-    $vinculo = GabineteMembro::query()
+    $vinculo = OfficeMember::query()
         ->where('gabinete_id', $gabinete->id)
         ->where('usuario_id', $user->id)
         ->first();
@@ -76,7 +76,7 @@ it('desativa, sem apagar, o vínculo que não veio mais no retrato', function ()
     expect($vinculo)->not->toBeNull()
         ->and($vinculo->ativo)->toBeFalse()
         ->and($vinculo->desativado_em)->not->toBeNull()
-        ->and(EntidadeMembro::query()->where('entidade_id', $entidade->id)->where('usuario_id', $user->id)->value('ativo'))->toBeFalsy()
+        ->and(EntityMember::query()->where('entidade_id', $entidade->id)->where('usuario_id', $user->id)->value('ativo'))->toBeFalsy()
         ->and($user->fresh()->gabinete_id)->toBeNull();
 });
 
@@ -86,12 +86,12 @@ it('preserva o ingressou_em original ao reativar um vínculo', function () {
     $vinculo = ['entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'operador', 'ativo' => true];
 
     hubSync()->aplicar($user, [$vinculo]);
-    $entrada = GabineteMembro::query()->where('usuario_id', $user->id)->value('ingressou_em');
+    $entrada = OfficeMember::query()->where('usuario_id', $user->id)->value('ingressou_em');
 
     hubSync()->aplicar($user, []);
     hubSync()->aplicar($user, [$vinculo]);
 
-    $reativado = GabineteMembro::query()->where('usuario_id', $user->id)->first();
+    $reativado = OfficeMember::query()->where('usuario_id', $user->id)->first();
 
     expect($reativado->ativo)->toBeTrue()
         ->and($reativado->desativado_em)->toBeNull()
@@ -100,8 +100,8 @@ it('preserva o ingressou_em original ao reativar um vínculo', function () {
 
 it('elege como principal o vínculo de gabinete ativo mais antigo', function () {
     [$entidade] = hubEstrutura('3', '12');
-    $primeiro = Gabinete::query()->where('hub_unidade_id', '12')->first();
-    $segundo = Gabinete::factory()->create([
+    $primeiro = Office::query()->where('hub_unidade_id', '12')->first();
+    $segundo = Office::factory()->create([
         'entidade_id' => $entidade->id,
         'hub_unidade_id' => '13',
     ]);
@@ -125,12 +125,12 @@ it('ignora vínculo cuja entidade ainda não foi espelhada no GAB', function () 
         'entidade_id' => '999', 'unidade_id' => null, 'papel' => 'administrador', 'ativo' => true,
     ]]);
 
-    expect(EntidadeMembro::query()->where('usuario_id', $user->id)->count())->toBe(0);
+    expect(EntityMember::query()->where('usuario_id', $user->id)->count())->toBe(0);
 });
 
 it('aplicarVinculo não mexe nos demais vínculos da pessoa', function () {
     [$entidade] = hubEstrutura('3', '12');
-    Gabinete::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '13']);
+    Office::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '13']);
     $user = User::factory()->create(['gabinete_id' => null]);
 
     hubSync()->aplicar($user, [
@@ -142,7 +142,7 @@ it('aplicarVinculo não mexe nos demais vínculos da pessoa', function () {
         'entidade_id' => '3', 'unidade_id' => '13', 'papel' => 'operador', 'ativo' => false,
     ]);
 
-    expect(GabineteMembro::query()->where('usuario_id', $user->id)->where('ativo', true)->count())->toBe(1);
+    expect(OfficeMember::query()->where('usuario_id', $user->id)->where('ativo', true)->count())->toBe(1);
 });
 
 it('não reprojeta contexto legado em conta root', function () {
@@ -169,8 +169,8 @@ it('não derruba os vínculos locais quando o Hub devolve só vínculo não mape
         'entidade_id' => '999', 'unidade_id' => '888', 'papel' => 'operador', 'ativo' => true,
     ]]);
 
-    expect(GabineteMembro::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->value('ativo'))->toBeTruthy()
-        ->and(EntidadeMembro::query()->where('entidade_id', $entidade->id)->where('usuario_id', $user->id)->value('ativo'))->toBeTruthy()
+    expect(OfficeMember::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->value('ativo'))->toBeTruthy()
+        ->and(EntityMember::query()->where('entidade_id', $entidade->id)->where('usuario_id', $user->id)->value('ativo'))->toBeTruthy()
         ->and($user->fresh()->gabinete_id)->toBe($gabinete->id);
 });
 
@@ -188,13 +188,13 @@ it('aplica o vínculo mapeável e preserva o resto quando há vínculo não mape
         ['entidade_id' => '999', 'unidade_id' => '888', 'papel' => 'operador', 'ativo' => true],
     ]);
 
-    expect(GabineteMembro::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->value('ativo'))->toBeTruthy()
-        ->and(GabineteMembro::query()->where('gabinete_id', $outro->id)->where('usuario_id', $user->id)->value('ativo'))->toBeTruthy();
+    expect(OfficeMember::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->value('ativo'))->toBeTruthy()
+        ->and(OfficeMember::query()->where('gabinete_id', $outro->id)->where('usuario_id', $user->id)->value('ativo'))->toBeTruthy();
 });
 
 it('em Câmara, administrador do gabinete é operador da entidade', function () {
     [$entidade, $gabinete] = hubEstrutura();
-    $entidade->forceFill(['tipo' => EntidadeType::CityCouncil])->save();
+    $entidade->forceFill(['tipo' => EntityType::CityCouncil])->save();
     $user = User::factory()->create(['gabinete_id' => null]);
 
     hubSync()->aplicar($user, [[
@@ -244,20 +244,20 @@ it('ignora vínculo com papel root sem travar a desativação dos ausentes', fun
         'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'root', 'ativo' => true,
     ]]);
 
-    expect(GabineteMembro::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->exists())->toBeFalse()
-        ->and(GabineteMembro::query()->where('gabinete_id', $outro->id)->where('usuario_id', $user->id)->value('ativo'))->toBeFalsy()
+    expect(OfficeMember::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->exists())->toBeFalse()
+        ->and(OfficeMember::query()->where('gabinete_id', $outro->id)->where('usuario_id', $user->id)->value('ativo'))->toBeFalsy()
         ->and($user->fresh()->role)->not->toBe(UserRole::Root);
 
     hubSync()->aplicarVinculo($user, [
         'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'root', 'ativo' => true,
     ]);
 
-    expect(GabineteMembro::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->exists())->toBeFalse();
+    expect(OfficeMember::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->exists())->toBeFalse();
 });
 
 it('preserva o administrador ao receber depois um vínculo de operador em outra unidade', function () {
     [$entidade, $gabinete] = hubEstrutura('3', '12');
-    $segundo = Gabinete::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '13']);
+    $segundo = Office::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '13']);
     $user = User::factory()->create(['gabinete_id' => null]);
 
     hubSync()->aplicar($user, [[
@@ -311,10 +311,10 @@ it('cria sob demanda a entidade e o gabinete do vínculo ainda não espelhados',
         'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'administrador', 'ativo' => true,
     ]]);
 
-    $entidade = Entidade::query()->where('hub_entidade_id', '3')->firstOrFail();
-    $gabinete = Gabinete::withoutGlobalScopes()->where('hub_unidade_id', '12')->firstOrFail();
+    $entidade = Entity::query()->where('hub_entidade_id', '3')->firstOrFail();
+    $gabinete = Office::withoutGlobalScopes()->where('hub_unidade_id', '12')->firstOrFail();
 
-    expect($entidade->tipo)->toBe(EntidadeType::CityCouncil)
+    expect($entidade->tipo)->toBe(EntityType::CityCouncil)
         ->and($gabinete->entidade_id)->toBe($entidade->id)
         ->and($user->fresh()->gabineteRole($gabinete->id))->toBe(AccessRole::Administrator)
         ->and($user->fresh()->entidadeRole($entidade->id))->toBe(AccessRole::Operator)
@@ -329,10 +329,10 @@ it('cria sob demanda só a entidade quando o vínculo é de entidade', function 
         'entidade_id' => '3', 'unidade_id' => null, 'papel' => 'operador', 'ativo' => true,
     ]);
 
-    $entidade = Entidade::query()->where('hub_entidade_id', '3')->firstOrFail();
+    $entidade = Entity::query()->where('hub_entidade_id', '3')->firstOrFail();
 
     expect($user->fresh()->entidadeRole($entidade->id))->toBe(AccessRole::Operator)
-        ->and(Gabinete::withoutGlobalScopes()->count())->toBe(0);
+        ->and(Office::withoutGlobalScopes()->count())->toBe(0);
 });
 
 it('descarta o vínculo quando o Hub diz que o GAB não está habilitado na entidade', function () {
@@ -343,7 +343,7 @@ it('descarta o vínculo quando o Hub diz que o GAB não está habilitado na enti
         'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'administrador', 'ativo' => true,
     ]]);
 
-    expect(Entidade::query()->count())->toBe(0)
-        ->and(Gabinete::withoutGlobalScopes()->count())->toBe(0)
-        ->and(EntidadeMembro::query()->where('usuario_id', $user->id)->count())->toBe(0);
+    expect(Entity::query()->count())->toBe(0)
+        ->and(Office::withoutGlobalScopes()->count())->toBe(0)
+        ->and(EntityMember::query()->where('usuario_id', $user->id)->count())->toBe(0);
 });

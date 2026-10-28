@@ -7,9 +7,9 @@ use App\Enums\AppointmentStatus;
 use App\Enums\ReminderChannel;
 use App\Enums\ReminderStatus;
 use App\Models\Appointment;
-use App\Models\Cidadao;
-use App\Models\Demanda;
-use App\Models\Gabinete;
+use App\Models\Citizen;
+use App\Models\Demand;
+use App\Models\Office;
 use App\Models\User;
 use App\Notifications\DemandActivityNotification;
 use Illuminate\Database\Seeder;
@@ -32,19 +32,19 @@ class AppointmentSeeder extends Seeder
 
     private function seed(): void
     {
-        Gabinete::withoutGlobalScopes()->where('status', 'ativo')->each(function (Gabinete $office): void {
+        Office::withoutGlobalScopes()->where('status', 'ativo')->each(function (Office $office): void {
             $members = User::query()
                 ->where('gabinete_id', $office->id)
                 ->where('is_active', true)
                 ->orderBy('id')
                 ->get();
             $creator = $members->first();
-            $citizen = Cidadao::withoutGlobalScopes()
+            $citizen = Citizen::withoutGlobalScopes()
                 ->where('gabinete_id', $office->id)
                 ->where('consentimento_contato', true)
                 ->whereNotNull('whatsapp')
                 ->first();
-            $demand = Demanda::withoutGlobalScopes()
+            $demand = Demand::withoutGlobalScopes()
                 ->where('gabinete_id', $office->id)
                 ->first();
 

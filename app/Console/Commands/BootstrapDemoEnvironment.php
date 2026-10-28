@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Console\Command;
@@ -29,7 +29,7 @@ class BootstrapDemoEnvironment extends Command
             return self::FAILURE;
         }
 
-        if (User::withTrashed()->exists() || Gabinete::withoutGlobalScopes()->exists()) {
+        if (User::withTrashed()->exists() || Office::withoutGlobalScopes()->exists()) {
             $this->components->error('O bootstrap exige um banco sem usuários e gabinetes.');
 
             return self::FAILURE;

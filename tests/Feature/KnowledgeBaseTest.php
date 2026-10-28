@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Enums\GabineteModule;
-use App\Models\ConhecimentoDocumento;
-use App\Models\ConhecimentoLeitura;
-use App\Models\Gabinete;
+use App\Enums\OfficeModule;
+use App\Models\KnowledgeDocument;
+use App\Models\KnowledgeReading;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -28,7 +28,7 @@ class KnowledgeBaseTest extends TestCase
 
     public function test_office_member_uploads_a_pdf_to_the_office_library(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($advisor)
@@ -40,7 +40,7 @@ class KnowledgeBaseTest extends TestCase
             ->assertSessionHasNoErrors()
             ->assertRedirect();
 
-        $document = ConhecimentoDocumento::query()->sole();
+        $document = KnowledgeDocument::query()->sole();
         $this->assertSame($office->id, $document->gabinete_id);
         $this->assertSame($office->entidade_id, $document->entidade_id);
         $this->assertTrue($document->isGabinete());
@@ -52,7 +52,7 @@ class KnowledgeBaseTest extends TestCase
 
     public function test_upload_rejects_files_that_are_not_pdfs(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($advisor)
@@ -74,8 +74,8 @@ class KnowledgeBaseTest extends TestCase
 
     public function test_library_lists_platform_and_own_documents_only(): void
     {
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
         $platform = $this->document(null, 'Manual da plataforma');
         $own = $this->document($office, 'Documento do gabinete');
@@ -96,8 +96,8 @@ class KnowledgeBaseTest extends TestCase
 
     public function test_file_is_served_inline_only_to_who_can_see_it(): void
     {
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
         $own = $this->document($office);
         $platform = $this->document(null);
@@ -120,11 +120,11 @@ class KnowledgeBaseTest extends TestCase
 
     public function test_module_must_be_active_for_the_office(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
         DB::table('gabinete_modulos')
             ->where('gabinete_id', $office->id)
-            ->where('modulo', GabineteModule::KnowledgeBase->value)
+            ->where('modulo', OfficeModule::KnowledgeBase->value)
             ->update(['ativo' => false]);
 
         $this->actingAs($advisor)->get('/conhecimento')->assertForbidden();
@@ -132,7 +132,7 @@ class KnowledgeBaseTest extends TestCase
 
     public function test_reading_completes_once_per_person_and_counts_globally(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
         $chief = User::factory()->administrator()->forGabinete($office)->create();
         $document = $this->document(null);
@@ -141,7 +141,7 @@ class KnowledgeBaseTest extends TestCase
             $this->read($advisor, $document, $page, 3)->assertSessionHasNoErrors();
         }
 
-        $reading = ConhecimentoLeitura::query()->where('usuario_id', $advisor->id)->sole();
+        $reading = KnowledgeReading::query()->where('usuario_id', $advisor->id)->sole();
         $this->assertSame([1, 2], $reading->paginas_lidas);
         $this->assertNull($reading->concluida_em);
         $this->assertSame(3, $document->fresh()->total_paginas);
@@ -170,7 +170,7 @@ class KnowledgeBaseTest extends TestCase
 
     public function test_page_beyond_the_known_total_is_rejected(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
         $document = $this->document($office);
         $document->forceFill(['total_paginas' => 2])->save();
@@ -181,7 +181,7 @@ class KnowledgeBaseTest extends TestCase
 
     public function test_office_documents_are_removed_by_the_uploader_or_a_manager(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $author = User::factory()->operator()->forGabinete($office)->create();
         $colleague = User::factory()->operator()->forGabinete($office)->create();
         $chief = User::factory()->administrator()->forGabinete($office)->create();
@@ -203,7 +203,7 @@ class KnowledgeBaseTest extends TestCase
     public function test_platform_admin_manages_the_platform_library(): void
     {
         $root = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($advisor)->get('/admin/conhecimento')->assertForbidden();
@@ -216,7 +216,7 @@ class KnowledgeBaseTest extends TestCase
             ->assertSessionHasNoErrors()
             ->assertRedirect(route('admin.knowledge.index'));
 
-        $document = ConhecimentoDocumento::query()->sole();
+        $document = KnowledgeDocument::query()->sole();
         $this->assertNull($document->gabinete_id);
         $this->assertStringStartsWith('conhecimento/plataforma/', $document->caminho);
 
@@ -245,11 +245,11 @@ class KnowledgeBaseTest extends TestCase
         );
     }
 
-    private function document(?Gabinete $office, string $title = 'Documento', ?User $uploader = null): ConhecimentoDocumento
+    private function document(?Office $office, string $title = 'Documento', ?User $uploader = null): KnowledgeDocument
     {
         $path = ($office ? "gabinetes/{$office->id}" : 'conhecimento/plataforma').'/'.uniqid().'.pdf';
         Storage::disk('local')->put($path, "%PDF-1.4\n%%EOF\n");
-        $document = new ConhecimentoDocumento;
+        $document = new KnowledgeDocument;
         $document->forceFill([
             'gabinete_id' => $office?->id,
             'titulo' => $title,
@@ -258,13 +258,13 @@ class KnowledgeBaseTest extends TestCase
             'nome_original' => 'documento.pdf',
             'tamanho' => 16,
             'enviado_por_id' => $uploader?->id,
-            'created_at' => now()->addSeconds(ConhecimentoDocumento::query()->count()),
+            'created_at' => now()->addSeconds(KnowledgeDocument::query()->count()),
         ])->save();
 
         return $document;
     }
 
-    private function read(User $user, ConhecimentoDocumento $document, int $page, int $total): TestResponse
+    private function read(User $user, KnowledgeDocument $document, int $page, int $total): TestResponse
     {
         return $this->actingAs($user)
             ->from("/conhecimento/{$document->id}")

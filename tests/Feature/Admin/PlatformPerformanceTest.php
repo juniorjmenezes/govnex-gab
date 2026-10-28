@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +16,7 @@ class PlatformPerformanceTest extends TestCase
     {
         $admin = User::factory()->root()->create();
 
-        Gabinete::factory()->count(15)->create()->each(function (Gabinete $office): void {
+        Office::factory()->count(15)->create()->each(function (Office $office): void {
             User::factory()->forGabinete($office)->administrator()->create();
         });
 

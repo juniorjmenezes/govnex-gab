@@ -2,9 +2,10 @@
 
 namespace App\Http\Requests\Attendances;
 
-use App\Enums\GabineteModule;
-use App\Models\Atendimento;
-use App\Services\Modules\GabineteModuleManager;
+use App\Enums\OfficeModule;
+use App\Models\Attendance;
+use App\Services\Modules\OfficeModuleManager;
+use App\Tenancy\OfficeContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,18 +15,18 @@ class AttendanceRequest extends FormRequest
     {
         $attendance = $this->route('atendimento');
 
-        return $attendance instanceof Atendimento
+        return $attendance instanceof Attendance
             ? $this->user()->can('update', $attendance)
-            : $this->user()->can('create', Atendimento::class);
+            : $this->user()->can('create', Attendance::class);
     }
 
     /** @return array<string, array<int, mixed>> */
     public function rules(): array
     {
-        $officeId = $this->user()->gabinete_id;
+        $officeId = app(OfficeContext::class)->officeIdFor($this->user());
         $citizenId = $this->integer('cidadao_id');
-        $demandsEnabled = app(GabineteModuleManager::class)
-            ->isActive($officeId, GabineteModule::Demands);
+        $demandsEnabled = app(OfficeModuleManager::class)
+            ->isActive($officeId, OfficeModule::Demands);
 
         return [
             'cidadao_id' => [

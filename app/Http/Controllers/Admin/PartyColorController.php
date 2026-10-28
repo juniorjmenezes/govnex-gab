@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StorePartyColorRequest;
 use App\Http\Requests\Admin\UpdatePartyColorRequest;
-use App\Models\PartidoCor;
+use App\Models\PartyColor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,7 +18,7 @@ class PartyColorController extends Controller
         abort_unless($request->user()->isRoot(), 403);
 
         return Inertia::render('admin/parties/index', [
-            'parties' => PartidoCor::query()
+            'parties' => PartyColor::query()
                 ->orderBy('sigla')
                 ->get(['id', 'sigla', 'cor']),
         ]);
@@ -26,14 +26,14 @@ class PartyColorController extends Controller
 
     public function store(StorePartyColorRequest $request): RedirectResponse
     {
-        PartidoCor::query()->create($request->validated());
+        PartyColor::query()->create($request->validated());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Cor do partido cadastrada.']);
 
         return to_route('admin.party-colors.index');
     }
 
-    public function update(UpdatePartyColorRequest $request, PartidoCor $partidoCor): RedirectResponse
+    public function update(UpdatePartyColorRequest $request, PartyColor $partidoCor): RedirectResponse
     {
         $partidoCor->update($request->validated());
 
@@ -42,7 +42,7 @@ class PartyColorController extends Controller
         return to_route('admin.party-colors.index');
     }
 
-    public function destroy(Request $request, PartidoCor $partidoCor): RedirectResponse
+    public function destroy(Request $request, PartyColor $partidoCor): RedirectResponse
     {
         abort_unless($request->user()->isRoot(), 403);
 

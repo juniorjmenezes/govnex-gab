@@ -1,9 +1,9 @@
 import { router } from '@inertiajs/react';
 import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
+import { EmptyState } from '@/components/feedback/empty-state';
 import { DangerTriangleIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/feedback/empty-state';
 
 type Props = { children: ReactNode };
 type State = { error: Error | null };

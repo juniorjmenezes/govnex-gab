@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Exceptions\GabineteModuleDisabledException;
+use App\Exceptions\OfficeModuleDisabledException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CancelOfficePoliticalDataSyncRequest;
 use App\Http\Requests\Admin\RestartOfficePoliticalDataSyncRequest;
 use App\Http\Requests\Admin\SyncOfficePoliticalDataRequest;
-use App\Models\Gabinete;
-use App\Models\SincronizacaoTse;
+use App\Models\Office;
+use App\Models\TseSync;
 use App\Services\Politics\OfficePoliticalDataSyncDispatcher;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -22,7 +22,7 @@ class OfficePoliticalDataSyncController extends Controller
 {
     public function store(
         SyncOfficePoliticalDataRequest $request,
-        Gabinete $office,
+        Office $office,
         OfficePoliticalDataSyncDispatcher $dispatcher,
     ): RedirectResponse {
         $result = $dispatcher->queue(
@@ -56,8 +56,8 @@ class OfficePoliticalDataSyncController extends Controller
 
     public function restart(
         RestartOfficePoliticalDataSyncRequest $request,
-        Gabinete $office,
-        SincronizacaoTse $sync,
+        Office $office,
+        TseSync $sync,
         OfficePoliticalDataSyncDispatcher $dispatcher,
     ): RedirectResponse {
         try {
@@ -67,7 +67,7 @@ class OfficePoliticalDataSyncController extends Controller
                 'type' => 'success',
                 'message' => 'Sincronização reiniciada. Uma nova execução foi adicionada à fila.',
             ]);
-        } catch (GabineteModuleDisabledException $exception) {
+        } catch (OfficeModuleDisabledException $exception) {
             throw $exception;
         } catch (RuntimeException $exception) {
             Inertia::flash('toast', [
@@ -81,8 +81,8 @@ class OfficePoliticalDataSyncController extends Controller
 
     public function cancel(
         CancelOfficePoliticalDataSyncRequest $request,
-        Gabinete $office,
-        SincronizacaoTse $sync,
+        Office $office,
+        TseSync $sync,
         OfficePoliticalDataSyncDispatcher $dispatcher,
     ): RedirectResponse {
         try {

@@ -3,22 +3,22 @@
 namespace App\Services\WhatsApp;
 
 use App\Enums\DemandStatus;
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use App\Enums\WhatsAppMode;
 use App\Enums\WhatsAppPurpose;
-use App\Models\Demanda;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Models\Demand;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use App\Models\WhatsAppConfiguration;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use Carbon\CarbonImmutable;
 
 final class WhatsAppDeadlineDigestService
 {
     public function __construct(
         private readonly WhatsAppEventNotificationService $notifications,
-        private readonly GabineteModuleManager $modules,
+        private readonly OfficeModuleManager $modules,
     ) {}
 
     public function dispatchDue(): int
@@ -31,12 +31,12 @@ final class WhatsAppDeadlineDigestService
             if (! in_array(WhatsAppPurpose::DemandDeadlineDigest->value, (array) $configuration->finalidades_habilitadas, true)) {
                 continue;
             }
-            $office = Gabinete::withoutGlobalScopes()->find($configuration->gabinete_id);
+            $office = Office::withoutGlobalScopes()->find($configuration->gabinete_id);
             if (! $office) {
                 continue;
             }
-            if (! $this->modules->isActive($office, GabineteModule::WhatsApp)
-                || ! $this->modules->isActive($office, GabineteModule::Demands)) {
+            if (! $this->modules->isActive($office, OfficeModule::WhatsApp)
+                || ! $this->modules->isActive($office, OfficeModule::Demands)) {
                 continue;
             }
             $now = CarbonImmutable::now($office->timezone ?: 'America/Fortaleza');
@@ -44,7 +44,7 @@ final class WhatsAppDeadlineDigestService
                 continue;
             }
             $query = User::query();
-            GabineteMembro::constrainActiveUsers($query, $office->id);
+            OfficeMember::constrainActiveUsers($query, $office->id);
             $users = $query->whereHas('whatsappContact')->get();
             foreach ($users as $user) {
                 [$overdue, $soon, $referrals] = $this->counts($user, $now->utc());
@@ -67,14 +67,14 @@ final class WhatsAppDeadlineDigestService
     /** @return array{int,int,int} */
     public function counts(User $user, CarbonImmutable $now): array
     {
-        $base = Demanda::withoutGlobalScopes()
+        $base = Demand::withoutGlobalScopes()
             ->where('gabinete_id', $user->gabinete_id)
             ->where('responsavel_id', $user->id)
             ->whereIn('status', DemandStatus::openValues())
             ->whereNotNull('prazo');
         $overdue = (clone $base)->where('prazo', '<', $now)->count();
         $soon = (clone $base)->whereBetween('prazo', [$now, $now->addDay()])->count();
-        $nextActions = Demanda::withoutGlobalScopes()
+        $nextActions = Demand::withoutGlobalScopes()
             ->where('gabinete_id', $user->gabinete_id)
             ->whereNull('proxima_acao_concluida_em')
             ->whereNotNull('proxima_acao_data')

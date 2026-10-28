@@ -3,17 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ElectionType;
-use App\Models\CandidatoFavorito;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\Gabinete;
-use App\Models\PartidoCor;
+use App\Models\Candidate;
+use App\Models\Election;
+use App\Models\FavoriteCandidate;
+use App\Models\Office;
+use App\Models\PartyColor;
 use App\Models\User;
 use App\Services\Politics\ElectionLifecycleService;
 use App\Services\Politics\ElectionResultRecorder;
 use App\Services\Politics\MunicipalVoteTally;
 use App\Services\Politics\SecondRoundClassifier;
 use App\Services\Politics\Tse\TseResultsClient;
+use App\Tenancy\OfficeContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -91,7 +92,7 @@ class ElectionTallyController extends Controller
     ];
 
     /**
-     * `CandidatoPolitico::cargo` guarda o `DS_CARGO` do TSE como veio na
+     * `Candidate::cargo` guarda o `DS_CARGO` do TSE como veio na
      * importação (ex.: "Presidente", mas também já visto em minúsculas em
      * dados antigos) — normaliza em maiúsculas para casar com o cargo da
      * apuração, sem depender de uma grafia exata.
@@ -118,9 +119,9 @@ class ElectionTallyController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->gabinete_id !== null, 403);
+        abort_unless($user instanceof User && app(OfficeContext::class)->officeIdFor($user) !== null, 403);
 
-        $office = Gabinete::query()->findOrFail($user->gabinete_id);
+        $office = Office::query()->findOrFail(app(OfficeContext::class)->officeIdFor($user));
         $timezone = $office->timezone ?? 'America/Sao_Paulo';
         $today = CarbonImmutable::now($timezone)->toDateString();
 
@@ -157,14 +158,14 @@ class ElectionTallyController extends Controller
                 'type' => $selected['type'],
             ];
 
-            $election = Eleicao::query()->find($selected['election_id']);
+            $election = Election::query()->find($selected['election_id']);
 
             // Eleição municipal: prefeito e vereador, só do município do
             // gabinete e da votação nominal já sincronizada — o feed ao vivo
             // do TSE não publica esses cargos, e os cargos gerais não existem
             // nesse pleito. "Meu município" é a própria disputa; não há
             // seção geral.
-            if ($election instanceof Eleicao && $election->tipo === ElectionType::Municipal) {
+            if ($election instanceof Election && $election->tipo === ElectionType::Municipal) {
                 $raw = $this->fetchMunicipalResults($office, $election, $selected['round']);
                 $municipal = $raw === null ? null : [
                     'name' => $office->municipio,
@@ -187,7 +188,7 @@ class ElectionTallyController extends Controller
             // do gabinete — resultado de todos os cargos e, no 1º turno, quem
             // foi ao 2º — sem outra leitura do TSE. O comando agendado
             // politics:tally-elections cobre quem não abrir esta tela.
-            if ($election instanceof Eleicao) {
+            if ($election instanceof Election) {
                 $this->lifecycle->recordLiveTally($election, $office->estado, $selected['round'], $raw);
             }
 
@@ -207,7 +208,7 @@ class ElectionTallyController extends Controller
      * @param  array<string, mixed>|null  $municipal
      * @param  array<int, array<string, mixed>>|null  $favorites
      */
-    private function render(Gabinete $office, Collection $rounds, ?array $round, ?array $results, ?array $municipal, ?array $favorites): Response
+    private function render(Office $office, Collection $rounds, ?array $round, ?array $results, ?array $municipal, ?array $favorites): Response
     {
         return Inertia::render('politics/apuracao', [
             'round' => $round,
@@ -263,7 +264,7 @@ class ElectionTallyController extends Controller
      *
      * @return array<string, array<string, mixed>|null>|null
      */
-    private function fetchMunicipalResults(Gabinete $office, Eleicao $election, int $round): ?array
+    private function fetchMunicipalResults(Office $office, Election $election, int $round): ?array
     {
         $municipalityId = $office->municipio_eleitoral_id;
 
@@ -330,7 +331,7 @@ class ElectionTallyController extends Controller
      * @param  array<int, array<string, mixed>>  $nationalResults
      * @return array{name: string, section_percent: float|null, results: array<int, array<string, mixed>>}|null
      */
-    private function municipal(Gabinete $office, array $selected, array $nationalResults): ?array
+    private function municipal(Office $office, array $selected, array $nationalResults): ?array
     {
         $code = $office->municipioEleitoral?->codigo_tse;
 
@@ -339,12 +340,16 @@ class ElectionTallyController extends Controller
         }
 
         $electedByCargo = collect($nationalResults)->mapWithKeys(
-            fn (array $result): array => [
-                $result['cargo'] => collect($result['all_candidates'])
-                    ->where('elected', true)
-                    ->pluck('number')
-                    ->all(),
-            ],
+            function (array $result): array {
+                $candidates = $result['all_candidates'] ?? [];
+
+                return [
+                    $result['cargo'] => collect(is_array($candidates) ? $candidates : [])
+                        ->where('elected', true)
+                        ->pluck('number')
+                        ->all(),
+                ];
+            },
         )->all();
 
         $raw = $this->fetchResults($selected['pleito_date'], $selected['round'], $office->estado, $code);
@@ -430,7 +435,7 @@ class ElectionTallyController extends Controller
      */
     private function seatsByParty(array $elected): array
     {
-        $colors = PartidoCor::colorMap();
+        $colors = PartyColor::colorMap();
 
         return collect($elected)
             ->groupBy('party')
@@ -438,7 +443,7 @@ class ElectionTallyController extends Controller
                 'party' => $party,
                 'seats' => $items->count(),
                 // Mesma cor cadastrada pelo root em /admin/cores-partidos.
-                'color' => $colors[PartidoCor::normalizeSigla($party)] ?? null,
+                'color' => $colors[PartyColor::normalizeSigla($party)] ?? null,
             ])
             ->sortByDesc('seats')
             ->values()
@@ -479,7 +484,7 @@ class ElectionTallyController extends Controller
         $cacheKey = "tse.nationwide-seats.{$cargo}.{$pleitoDate}.{$round}.{$homeUf}";
 
         return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($cargo, $pleitoDate, $round, $homeUf): array {
-            $colors = PartidoCor::colorMap();
+            $colors = PartyColor::colorMap();
             $byParty = [];
 
             foreach (self::BRAZIL_UFS as $uf) {
@@ -505,7 +510,7 @@ class ElectionTallyController extends Controller
                     'party' => $party,
                     'seats' => $data['seats'],
                     'home_seats' => $data['home_seats'],
-                    'color' => $colors[PartidoCor::normalizeSigla($party)] ?? null,
+                    'color' => $colors[PartyColor::normalizeSigla($party)] ?? null,
                 ])
                 ->sortByDesc('seats')
                 ->values()
@@ -521,15 +526,15 @@ class ElectionTallyController extends Controller
      * @param  array<string, array<string, mixed>|null>  $raw
      * @return array<int, array{candidato_politico_id: int, name: string, party: string, number: string|null, cargo_label: string, found: bool, votes: int|null, vote_percent: float|null, elected: bool, section_percent: float|null}>
      */
-    private function favorites(array $raw, Gabinete $office, int $electionId): array
+    private function favorites(array $raw, Office $office, int $electionId): array
     {
-        return CandidatoFavorito::query()
+        return FavoriteCandidate::query()
             ->where('gabinete_id', $office->id)
             ->with('candidato')
             ->get()
-            ->map(fn (CandidatoFavorito $favorite): ?CandidatoPolitico => $favorite->candidato)
-            ->filter(fn (?CandidatoPolitico $candidate): bool => $candidate !== null && $candidate->eleicao_id === $electionId)
-            ->map(function (CandidatoPolitico $candidate) use ($raw): ?array {
+            ->map(fn (FavoriteCandidate $favorite): ?Candidate => $favorite->candidato)
+            ->filter(fn (?Candidate $candidate): bool => $candidate !== null && $candidate->eleicao_id === $electionId)
+            ->map(function (Candidate $candidate) use ($raw): ?array {
                 $cargo = self::CARGO_BY_OFFICE_LABEL[Str::upper(trim($candidate->cargo))] ?? null;
 
                 // Só cargos que este turno apura: vereador não tem 2º turno,
@@ -539,7 +544,8 @@ class ElectionTallyController extends Controller
                 }
 
                 $result = $raw[$cargo] ?? null;
-                $match = collect($result['candidates'] ?? [])
+                $candidates = $result['candidates'] ?? [];
+                $match = collect(is_array($candidates) ? $candidates : [])
                     ->first(fn (array $tse): bool => $tse['number'] === $candidate->numero);
 
                 return [
@@ -569,11 +575,11 @@ class ElectionTallyController extends Controller
      */
     private function rounds(): Collection
     {
-        return Eleicao::query()
+        return Election::query()
             ->orderByDesc('ano')
             ->get()
             ->toBase()
-            ->flatMap(function (Eleicao $election): array {
+            ->flatMap(function (Election $election): array {
                 // `pleito_date` é a data do 1º turno: o TSE indexa o pleito
                 // por ela, e o 2º turno é o mesmo pleito com outro código.
                 $pleitoDate = $election->primeiro_turno_em->toDateString();

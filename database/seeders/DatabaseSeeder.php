@@ -6,27 +6,27 @@ use App\Enums\DemandEventType;
 use App\Enums\DemandOrigin;
 use App\Enums\DemandPriority;
 use App\Enums\DemandStatus;
-use App\Enums\EntidadeModule;
-use App\Enums\EntidadeStatus;
-use App\Enums\EntidadeType;
-use App\Enums\GabineteStatus;
-use App\Enums\GabineteType;
+use App\Enums\EntityModule;
+use App\Enums\EntityStatus;
+use App\Enums\EntityType;
+use App\Enums\OfficeStatus;
+use App\Enums\OfficeType;
 use App\Enums\UserRole;
-use App\Models\Bairro;
-use App\Models\Categoria;
-use App\Models\Cidadao;
-use App\Models\Configuracao;
-use App\Models\Demanda;
-use App\Models\DemandaEvento;
-use App\Models\Entidade;
-use App\Models\EntidadeBairro;
-use App\Models\Gabinete;
+use App\Models\Category;
+use App\Models\Citizen;
+use App\Models\Demand;
+use App\Models\DemandEvent;
+use App\Models\Entity;
+use App\Models\EntityNeighborhood;
+use App\Models\Neighborhood;
+use App\Models\Office;
+use App\Models\Setting;
 use App\Models\TenantModel;
 use App\Models\User;
-use App\Services\Entidades\EntidadeEntitlementService;
-use App\Services\Entidades\EntidadeMembershipService;
-use App\Services\Modules\EntidadeModuleManager;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Entidades\EntityEntitlementService;
+use App\Services\Entidades\EntityMembershipService;
+use App\Services\Modules\EntityModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -65,7 +65,7 @@ class DatabaseSeeder extends Seeder
     {
         $avulso = $this->upsertIndependentOffice('gabinete-modelo-fortaleza', [
             'nome' => 'Gabinete Santos',
-            'status' => GabineteStatus::Active,
+            'status' => OfficeStatus::Active,
             'vereador_nome' => 'Marina Oliveira',
             'municipio' => 'Fortaleza',
             'estado' => 'CE',
@@ -77,7 +77,7 @@ class DatabaseSeeder extends Seeder
             'cabecalho_relatorios' => 'Gabinete da Vereadora Marina Oliveira',
         ]);
 
-        $entitlements = app(EntidadeEntitlementService::class);
+        $entitlements = app(EntityEntitlementService::class);
         $entitlements->provisionLegacyCompatible($avulso->entidade()->firstOrFail());
 
         $this->upsertUser($accounts['admin'], UserRole::Root, null);
@@ -86,13 +86,13 @@ class DatabaseSeeder extends Seeder
         $this->upsertUser($accounts['advisor'], UserRole::Operator, $avulso);
 
         $administrator = User::query()->where('email', $accounts['admin']['email'])->firstOrFail();
-        $memberships = app(EntidadeMembershipService::class);
+        $memberships = app(EntityMembershipService::class);
         User::query()
             ->where('gabinete_id', $avulso->id)
             ->get()
             ->each(fn (User $user) => $memberships->syncLegacyUser($user, $administrator));
 
-        $moduleManager = app(GabineteModuleManager::class);
+        $moduleManager = app(OfficeModuleManager::class);
         $moduleManager->sync(
             $avulso,
             $moduleManager->allEnabled(),
@@ -115,14 +115,14 @@ class DatabaseSeeder extends Seeder
     /**
      * @param  array<string, mixed>  $attributes
      */
-    private function upsertIndependentOffice(string $slug, array $attributes): Gabinete
+    private function upsertIndependentOffice(string $slug, array $attributes): Office
     {
-        $entidade = Entidade::withoutGlobalScopes()->updateOrCreate(['slug' => $slug], [
-            'tipo' => EntidadeType::IndependentOffice,
+        $entidade = Entity::withoutGlobalScopes()->updateOrCreate(['slug' => $slug], [
+            'tipo' => EntityType::IndependentOffice,
             'nome' => $attributes['nome'],
-            'status' => $attributes['status'] === GabineteStatus::Active
-                ? EntidadeStatus::Active
-                : EntidadeStatus::Suspended,
+            'status' => $attributes['status'] === OfficeStatus::Active
+                ? EntityStatus::Active
+                : EntityStatus::Suspended,
             'municipio' => $attributes['municipio'],
             'estado' => $attributes['estado'],
             'timezone' => $attributes['timezone'] ?? 'America/Sao_Paulo',
@@ -132,10 +132,10 @@ class DatabaseSeeder extends Seeder
             'suspensa_em' => $attributes['suspended_at'] ?? null,
         ]);
 
-        $office = Gabinete::withoutGlobalScopes()->updateOrCreate(['slug' => $slug], [
+        $office = Office::withoutGlobalScopes()->updateOrCreate(['slug' => $slug], [
             ...$attributes,
             'entidade_id' => $entidade->id,
-            'tipo_gabinete' => GabineteType::IndependentOffice,
+            'tipo_gabinete' => OfficeType::IndependentOffice,
         ]);
 
         $entidade->forceFill(['gabinete_origem_id' => $office->id])->saveQuietly();
@@ -155,17 +155,17 @@ class DatabaseSeeder extends Seeder
      */
     private function seedCityCouncil(User $administrator): void
     {
-        $entitlements = app(EntidadeEntitlementService::class);
-        $memberships = app(EntidadeMembershipService::class);
-        $moduleManager = app(GabineteModuleManager::class);
-        $entidadeModules = app(EntidadeModuleManager::class);
+        $entitlements = app(EntityEntitlementService::class);
+        $memberships = app(EntityMembershipService::class);
+        $moduleManager = app(OfficeModuleManager::class);
+        $entidadeModules = app(EntityModuleManager::class);
 
-        $cityCouncil = Entidade::withoutGlobalScopes()->updateOrCreate(
+        $cityCouncil = Entity::withoutGlobalScopes()->updateOrCreate(
             ['slug' => 'camara-municipal-barra-nova'],
             [
-                'tipo' => EntidadeType::CityCouncil,
+                'tipo' => EntityType::CityCouncil,
                 'nome' => 'Câmara Municipal de Barra Nova',
-                'status' => EntidadeStatus::Active,
+                'status' => EntityStatus::Active,
                 'municipio' => 'Barra Nova',
                 'estado' => 'CE',
                 'timezone' => 'America/Fortaleza',
@@ -178,7 +178,7 @@ class DatabaseSeeder extends Seeder
         // aqui a Câmara "decide ligar", como faria pela tela de módulos.
         $entidadeModules->syncActivation(
             $cityCouncil,
-            array_map(fn (EntidadeModule $module): string => $module->value, EntidadeModule::cases()),
+            array_map(fn (EntityModule $module): string => $module->value, EntityModule::cases()),
             $administrator,
         );
 
@@ -192,16 +192,16 @@ class DatabaseSeeder extends Seeder
 
         $councilorOffices = [];
         foreach ($vereadores as [$slug, $nome, $vereador, $bairros]) {
-            $office = Gabinete::withoutGlobalScopes()->updateOrCreate(
+            $office = Office::withoutGlobalScopes()->updateOrCreate(
                 ['slug' => $slug],
                 [
                     'nome' => $nome,
-                    'status' => GabineteStatus::Active,
+                    'status' => OfficeStatus::Active,
                     'vereador_nome' => $vereador,
                     'municipio' => $cityCouncil->municipio,
                     'estado' => $cityCouncil->estado,
                     'entidade_id' => $cityCouncil->id,
-                    'tipo_gabinete' => GabineteType::CouncilorOffice,
+                    'tipo_gabinete' => OfficeType::CouncilorOffice,
                 ],
             );
             $this->upsertUser([
@@ -213,15 +213,15 @@ class DatabaseSeeder extends Seeder
             $councilorOffices[$office->id] = [$office, $bairros];
         }
 
-        $secretariat = Gabinete::withoutGlobalScopes()->updateOrCreate(
+        $secretariat = Office::withoutGlobalScopes()->updateOrCreate(
             ['slug' => 'secretaria-legislativa-barra-nova'],
             [
                 'nome' => 'Secretaria Legislativa',
-                'status' => GabineteStatus::Active,
+                'status' => OfficeStatus::Active,
                 'municipio' => $cityCouncil->municipio,
                 'estado' => $cityCouncil->estado,
                 'entidade_id' => $cityCouncil->id,
-                'tipo_gabinete' => GabineteType::LegislativeSecretariat,
+                'tipo_gabinete' => OfficeType::LegislativeSecretariat,
             ],
         );
         $this->upsertUser([
@@ -231,7 +231,7 @@ class DatabaseSeeder extends Seeder
         ], UserRole::Administrator, $secretariat);
         $moduleManager->sync(
             $secretariat,
-            $moduleManager->allEnabled(GabineteType::LegislativeSecretariat),
+            $moduleManager->allEnabled(OfficeType::LegislativeSecretariat),
             $administrator,
             ['source' => 'database-seeder'],
         );
@@ -247,10 +247,10 @@ class DatabaseSeeder extends Seeder
     }
 
     /** @param list<string> $neighborhoodNames */
-    private function seedOffice(Gabinete $gabinete, array $neighborhoodNames): void
+    private function seedOffice(Office $gabinete, array $neighborhoodNames): void
     {
         $categoryData = [
-            ['Saúde', 'Atendimento, exames, medicamentos e gabinetes de saúde', 'heart-pulse', 'critica'],
+            ['Saúde', 'Attendance, exames, medicamentos e gabinetes de saúde', 'heart-pulse', 'critica'],
             ['Educação', 'Escolas, creches, matrículas e transporte escolar', 'graduation-cap', 'informativa'],
             ['Infraestrutura', 'Pavimentação, drenagem e equipamentos urbanos', 'hard-hat', 'atencao'],
             ['Iluminação pública', 'Manutenção e expansão da rede de iluminação', 'lamp-desk', 'atencao'],
@@ -266,7 +266,7 @@ class DatabaseSeeder extends Seeder
 
         $categories = [];
         foreach ($categoryData as [$nome, $descricao, $icone, $cor]) {
-            $categories[] = $this->upsertTenant(Categoria::class, $gabinete->id, ['nome' => $nome], [
+            $categories[] = $this->upsertTenant(Category::class, $gabinete->id, ['nome' => $nome], [
                 'descricao' => $descricao,
                 'icone' => $icone,
                 'cor_semantica' => $cor,
@@ -276,12 +276,12 @@ class DatabaseSeeder extends Seeder
 
         $neighborhoods = [];
         foreach ($neighborhoodNames as $nome) {
-            $neighborhood = $this->upsertTenant(Bairro::class, $gabinete->id, ['nome' => $nome], [
+            $neighborhood = $this->upsertTenant(Neighborhood::class, $gabinete->id, ['nome' => $nome], [
                 'municipio' => $gabinete->municipio,
                 'estado' => $gabinete->estado,
                 'ativo' => true,
             ]);
-            $reference = EntidadeBairro::query()->updateOrCreate(
+            $reference = EntityNeighborhood::query()->updateOrCreate(
                 [
                     'entidade_id' => $gabinete->entidade_id,
                     'nome' => $nome,
@@ -294,7 +294,7 @@ class DatabaseSeeder extends Seeder
             $neighborhoods[] = $neighborhood;
         }
 
-        $this->upsertTenant(Configuracao::class, $gabinete->id, [], [
+        $this->upsertTenant(Setting::class, $gabinete->id, [], [
             'partido' => $gabinete->id % 2 === 0 ? 'PSB' : 'PSD',
             'legislatura' => '2025–2028',
         ]);
@@ -302,7 +302,7 @@ class DatabaseSeeder extends Seeder
         $citizens = [];
         $names = ['Ana Souza', 'Bruno Lima', 'Carla Mendes', 'Daniel Rocha', 'Eliane Alves', 'Francisco Nunes', 'Gabriela Costa', 'Henrique Silva'];
         foreach ($names as $index => $nome) {
-            $citizens[] = $this->upsertTenant(Cidadao::class, $gabinete->id, ['nome' => $nome], [
+            $citizens[] = $this->upsertTenant(Citizen::class, $gabinete->id, ['nome' => $nome], [
                 'bairro_id' => $neighborhoods[$index % count($neighborhoods)]->id,
                 'telefone' => '85'.str_pad((string) (990000000 + ($gabinete->id * 100) + $index), 9, '0', STR_PAD_LEFT),
                 'whatsapp' => '85'.str_pad((string) (980000000 + ($gabinete->id * 100) + $index), 9, '0', STR_PAD_LEFT),
@@ -320,7 +320,7 @@ class DatabaseSeeder extends Seeder
      * @param  list<TenantModel>  $categories
      * @param  list<TenantModel>  $neighborhoods
      */
-    private function seedDemands(Gabinete $gabinete, array $citizens, array $categories, array $neighborhoods): void
+    private function seedDemands(Office $gabinete, array $citizens, array $categories, array $neighborhoods): void
     {
         $creator = User::query()->where('gabinete_id', $gabinete->id)->orderByRaw("CASE role WHEN 'operador' THEN 1 WHEN 'administrador' THEN 2 ELSE 3 END")->firstOrFail();
         $members = User::query()->where('gabinete_id', $gabinete->id)->where('is_active', true)->get();
@@ -346,7 +346,7 @@ class DatabaseSeeder extends Seeder
             $deadline = $index % 3 === 0 ? now()->subDays(2) : now()->addDays($index + 2);
             $protocol = now()->year.'-'.str_pad((string) ($index + 1), 6, '0', STR_PAD_LEFT);
             $responsible = $index % 4 === 0 ? null : $members[$index % count($members)];
-            $demand = $this->upsertTenant(Demanda::class, $gabinete->id, ['protocolo' => $protocol], [
+            $demand = $this->upsertTenant(Demand::class, $gabinete->id, ['protocolo' => $protocol], [
                 'cidadao_id' => $citizens[$index % count($citizens)]->id,
                 'categoria_id' => $categories[$index % count($categories)]->id,
                 'bairro_id' => $neighborhoods[$index % count($neighborhoods)]->id,
@@ -370,7 +370,7 @@ class DatabaseSeeder extends Seeder
                 'proxima_acao_responsavel_id' => $index % 5 === 0 ? ($responsible !== null ? $responsible->id : $creator->id) : null,
             ]);
 
-            $this->upsertTenant(DemandaEvento::class, $gabinete->id, [
+            $this->upsertTenant(DemandEvent::class, $gabinete->id, [
                 'demanda_id' => $demand->id,
                 'tipo' => DemandEventType::Criada->value,
             ], [
@@ -380,7 +380,7 @@ class DatabaseSeeder extends Seeder
             ]);
 
             if ($index % 2 === 0) {
-                $this->upsertTenant(DemandaEvento::class, $gabinete->id, [
+                $this->upsertTenant(DemandEvent::class, $gabinete->id, [
                     'demanda_id' => $demand->id,
                     'tipo' => DemandEventType::Atualizacao->value,
                 ], [
@@ -392,7 +392,7 @@ class DatabaseSeeder extends Seeder
 
             if ($index % 3 === 0) {
                 $sentAt = $opened->copy()->addDays(2);
-                $this->upsertTenant(DemandaEvento::class, $gabinete->id, [
+                $this->upsertTenant(DemandEvent::class, $gabinete->id, [
                     'demanda_id' => $demand->id,
                     'tipo' => DemandEventType::Encaminhamento->value,
                 ], [
@@ -433,7 +433,7 @@ class DatabaseSeeder extends Seeder
     /**
      * @param  array{name: string, email: string, password: string}  $account
      */
-    private function upsertUser(array $account, UserRole $role, ?Gabinete $gabinete): void
+    private function upsertUser(array $account, UserRole $role, ?Office $gabinete): void
     {
         $user = User::query()->firstOrNew(['email' => $account['email']]);
         $user->forceFill([

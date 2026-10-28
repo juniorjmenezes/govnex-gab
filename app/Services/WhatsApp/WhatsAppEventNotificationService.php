@@ -4,14 +4,14 @@ namespace App\Services\WhatsApp;
 
 use App\Enums\WhatsAppPurpose;
 use App\Models\Appointment;
-use App\Models\Cidadao;
-use App\Models\Demanda;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
-use App\Models\PesquisaEleitoral;
+use App\Models\Citizen;
+use App\Models\Demand;
+use App\Models\ElectoralPoll;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use App\Models\WhatsAppContact;
-use App\Tenancy\GabineteContext;
+use App\Tenancy\OfficeContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
@@ -21,10 +21,10 @@ final class WhatsAppEventNotificationService
 {
     public function __construct(
         private readonly WhatsAppOutboxService $outbox,
-        private readonly GabineteContext $context,
+        private readonly OfficeContext $context,
     ) {}
 
-    public function demandAssigned(Demanda $demand, User $recipient): void
+    public function demandAssigned(Demand $demand, User $recipient): void
     {
         $this->enqueueForUser(
             $recipient,
@@ -39,7 +39,7 @@ final class WhatsAppEventNotificationService
         );
     }
 
-    public function demandStatusChanged(Demanda $demand): void
+    public function demandStatusChanged(Demand $demand): void
     {
         $eventKey = "demand:{$demand->id}:status:{$demand->status->value}:{$demand->updated_at?->timestamp}";
         if ($demand->responsavel_id) {
@@ -62,7 +62,7 @@ final class WhatsAppEventNotificationService
         }
     }
 
-    public function demandUpdateAdded(Demanda $demand, User $author): void
+    public function demandUpdateAdded(Demand $demand, User $author): void
     {
         if (! $demand->responsavel_id || $demand->responsavel_id === $author->id) {
             return;
@@ -89,7 +89,7 @@ final class WhatsAppEventNotificationService
         $this->appointmentEvent($appointment, WhatsAppPurpose::AppointmentCancelled, $eventKey);
     }
 
-    public function politicalPollPublished(PesquisaEleitoral $poll, User $recipient): void
+    public function politicalPollPublished(ElectoralPoll $poll, User $recipient): void
     {
         $title = trim(implode(' ', array_filter([
             $poll->instituto,
@@ -117,7 +117,7 @@ final class WhatsAppEventNotificationService
         // `is_active` sozinho não reflete um membro pausado no próprio
         // gabinete (toggle do Time): esse estado só existe em
         // `gabinete_membros`, nunca em `users`.
-        if (! $user->gabinete_id || ! GabineteMembro::isActiveMember($user, (int) $user->gabinete_id)) {
+        if (! $user->gabinete_id || ! OfficeMember::isActiveMember($user, (int) $user->gabinete_id)) {
             return;
         }
         $contact = WhatsAppContact::withoutGlobalScopes()
@@ -129,7 +129,7 @@ final class WhatsAppEventNotificationService
 
     /** @param list<string> $parameters */
     public function enqueueForCitizen(
-        Cidadao $citizen,
+        Citizen $citizen,
         WhatsAppPurpose $purpose,
         string $eventKey,
         array $parameters,
@@ -180,10 +180,10 @@ final class WhatsAppEventNotificationService
         }
         // O contato pode ser de um gabinete diferente do contexto atual da
         // requisição (ex.: aviso de pesquisa eleitoral para favoritos de
-        // várias câmaras). Sem isto, `BelongsToGabinete::creating` grava a
+        // várias câmaras). Sem isto, `BelongsToOffice::creating` grava a
         // notificação com o `gabinete_id` do contexto, não o do contato —
         // vazando o registro para o gabinete errado.
-        $office = Gabinete::query()->withoutGlobalScopes()->find($contact->gabinete_id);
+        $office = Office::query()->withoutGlobalScopes()->find($contact->gabinete_id);
         if (! $office) {
             Log::warning('Falha ao registrar notificação WhatsApp: gabinete do contato não encontrado.', [
                 'purpose' => $purpose->value,

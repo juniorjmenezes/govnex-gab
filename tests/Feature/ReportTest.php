@@ -5,15 +5,15 @@ namespace Tests\Feature;
 use App\Enums\DemandOrigin;
 use App\Enums\DemandPriority;
 use App\Enums\DemandStatus;
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use App\Enums\ReportExportFormat;
 use App\Enums\ReportExportStatus;
 use App\Jobs\GenerateReportExport;
-use App\Models\Demanda;
-use App\Models\Gabinete;
+use App\Models\Demand;
+use App\Models\Office;
 use App\Models\ReportExport;
 use App\Models\User;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\Reports\ReportExportGenerator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -39,7 +39,7 @@ class ReportTest extends TestCase
 
     public function test_reports_are_available_to_office_managers_but_not_advisors(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
 
@@ -56,11 +56,11 @@ class ReportTest extends TestCase
     public function test_report_metrics_filters_and_rows_are_isolated_by_office(): void
     {
         Carbon::setTestNow('2026-07-24 12:00:00');
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $user = User::factory()->administrator()->forGabinete($office)->create();
 
-        Demanda::factory()->forGabinete($office)->create([
+        Demand::factory()->forGabinete($office)->create([
             'titulo' => 'Resolvida no período',
             'status' => DemandStatus::Resolved,
             'prioridade' => DemandPriority::High,
@@ -68,7 +68,7 @@ class ReportTest extends TestCase
             'aberta_em' => now()->subDays(5),
             'concluida_em' => now()->subDays(3),
         ]);
-        Demanda::factory()->forGabinete($office)->create([
+        Demand::factory()->forGabinete($office)->create([
             'titulo' => 'Atrasada no período',
             'status' => DemandStatus::InProgress,
             'prioridade' => DemandPriority::Urgent,
@@ -76,12 +76,12 @@ class ReportTest extends TestCase
             'aberta_em' => now()->subDays(4),
             'prazo' => now()->subDay(),
         ]);
-        Demanda::factory()->forGabinete($office)->create([
+        Demand::factory()->forGabinete($office)->create([
             'titulo' => 'Fora do período',
             'status' => DemandStatus::New,
             'aberta_em' => now()->subDays(120),
         ]);
-        Demanda::factory()->forGabinete($otherOffice)->create([
+        Demand::factory()->forGabinete($otherOffice)->create([
             'titulo' => 'Outro gabinete',
             'status' => DemandStatus::InProgress,
             'aberta_em' => now()->subDays(2),
@@ -119,7 +119,7 @@ class ReportTest extends TestCase
     public function test_export_request_is_queued_with_normalized_filters(): void
     {
         Queue::fake();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->administrator()->forGabinete($office)->create();
 
         $this->actingAs($user)
@@ -148,13 +148,13 @@ class ReportTest extends TestCase
         Storage::fake('local');
         Storage::fake('public');
         $logoPath = UploadedFile::fake()->image('logo.png', 240, 120)->store('gabinetes/teste', 'public');
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'cabecalho_relatorios' => 'Gabinete de Teste',
             'cor_principal' => '#0F766E',
             'logo_path' => $logoPath,
         ]);
         $user = User::factory()->administrator()->forGabinete($office)->create();
-        Demanda::factory()->forGabinete($office)->status(DemandStatus::Resolved)->create([
+        Demand::factory()->forGabinete($office)->status(DemandStatus::Resolved)->create([
             'titulo' => 'Solicitação para exportação',
             'aberta_em' => now()->subDays(2),
             'concluida_em' => now(),
@@ -182,7 +182,7 @@ class ReportTest extends TestCase
 
             (new GenerateReportExport($export->id))->handle(
                 app(ReportExportGenerator::class),
-                app(GabineteModuleManager::class),
+                app(OfficeModuleManager::class),
             );
             $export->refresh();
 
@@ -230,8 +230,8 @@ class ReportTest extends TestCase
     public function test_export_download_is_private_and_office_scoped(): void
     {
         Storage::fake('local');
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $owner = User::factory()->administrator()->forGabinete($office)->create();
         $outsider = User::factory()->administrator()->forGabinete($otherOffice)->create();
         Storage::disk('local')->put('reports/1/report.pdf', '%PDF-test');
@@ -264,10 +264,10 @@ class ReportTest extends TestCase
     public function test_pending_export_is_cancelled_when_reports_are_disabled(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->administrator()->forGabinete($office)->create();
-        $modules = app(GabineteModuleManager::class);
-        $modules->sync($office, [GabineteModule::Relationship->value], $admin);
+        $modules = app(OfficeModuleManager::class);
+        $modules->sync($office, [OfficeModule::Relationship->value], $admin);
         $export = ReportExport::forceCreate([
             'gabinete_id' => $office->id,
             'solicitado_por_id' => $user->id,
@@ -287,8 +287,8 @@ class ReportTest extends TestCase
 
     public function test_report_rejects_filters_from_another_office(): void
     {
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $user = User::factory()->administrator()->forGabinete($office)->create();
         $foreignMember = User::factory()->forGabinete($otherOffice)->create();
 

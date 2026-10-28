@@ -2,7 +2,7 @@
 
 namespace App\Services\Politics\Tse;
 
-use App\Models\IntegracaoGovnexApi;
+use App\Models\GovnexApiIntegration;
 use Throwable;
 
 /**
@@ -16,7 +16,7 @@ use Throwable;
  */
 class GovnexApiSettings
 {
-    private ?IntegracaoGovnexApi $cached = null;
+    private ?GovnexApiIntegration $cached = null;
 
     private bool $loaded = false;
 
@@ -43,7 +43,7 @@ class GovnexApiSettings
         return filled($fallback) ? (string) $fallback : null;
     }
 
-    public function record(): ?IntegracaoGovnexApi
+    public function record(): ?GovnexApiIntegration
     {
         if ($this->loaded) {
             return $this->cached;
@@ -52,7 +52,7 @@ class GovnexApiSettings
         $this->loaded = true;
 
         try {
-            $this->cached = IntegracaoGovnexApi::query()->latest('id')->first();
+            $this->cached = GovnexApiIntegration::query()->latest('id')->first();
         } catch (Throwable) {
             // A tabela pode não existir ainda — durante `migrate` ou num
             // ambiente que roda antes desta migration. Cair no `.env` é

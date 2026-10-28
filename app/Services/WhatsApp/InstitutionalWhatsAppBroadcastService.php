@@ -4,12 +4,12 @@ namespace App\Services\WhatsApp;
 
 use App\Enums\WhatsAppPurpose;
 use App\Models\CompromissoInstitucional;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use App\Models\WhatsAppContact;
 use App\Models\WhatsAppNotification;
-use App\Tenancy\GabineteContext;
+use App\Tenancy\OfficeContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -43,7 +43,7 @@ final class InstitutionalWhatsAppBroadcastService
 {
     public function __construct(
         private readonly WhatsAppOutboxService $outbox,
-        private readonly GabineteContext $context,
+        private readonly OfficeContext $context,
     ) {}
 
     /**
@@ -55,7 +55,7 @@ final class InstitutionalWhatsAppBroadcastService
     public function broadcast(CompromissoInstitucional $compromisso, User $actor): array
     {
         $offices = $compromisso->audienceOffices()->keyBy('id');
-        $officeIds = array_values($offices->map(fn (Gabinete $office): int => $office->id)->all());
+        $officeIds = array_values($offices->map(fn (Office $office): int => $office->id)->all());
         $summary = ['offices' => count($officeIds), 'reached_offices' => 0, 'contacts' => 0, 'queued' => 0, 'already_sent' => 0, 'skipped' => 0];
         $reached = [];
 
@@ -71,13 +71,13 @@ final class InstitutionalWhatsAppBroadcastService
             ->orderBy('gabinete_id')
             ->orderBy('id')
             ->get();
-        $inactiveOverrides = GabineteMembro::inactiveOverrides($officeIds);
+        $inactiveOverrides = OfficeMember::inactiveOverrides($officeIds);
         $start = CarbonImmutable::instance($compromisso->inicio_em);
 
         foreach ($contacts as $contact) {
             $user = $contact->user;
             $office = $offices->get($contact->gabinete_id);
-            if (! $office instanceof Gabinete || ! $user instanceof User || $user->trashed() || ! $user->is_active
+            if (! $office instanceof Office || ! $user instanceof User || $user->trashed() || ! $user->is_active
                 || ! $this->belongsTo($user, $office->id, $inactiveOverrides)) {
                 continue;
             }
@@ -105,7 +105,7 @@ final class InstitutionalWhatsAppBroadcastService
         CompromissoInstitucional $compromisso,
         WhatsAppContact $contact,
         User $user,
-        Gabinete $office,
+        Office $office,
         CarbonImmutable $start,
     ): string {
         $local = $start->setTimezone($office->timezone ?? 'America/Sao_Paulo');

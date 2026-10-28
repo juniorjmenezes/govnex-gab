@@ -5,16 +5,17 @@ namespace App\Http\Controllers;
 use App\Enums\CommitteeRole;
 use App\Enums\CommitteeStatus;
 use App\Enums\CommitteeType;
-use App\Enums\GabineteStatus;
-use App\Enums\GabineteType;
+use App\Enums\OfficeStatus;
+use App\Enums\OfficeType;
 use App\Http\Requests\Committees\CommitteeRequest;
 use App\Models\ComissaoLegislativa;
 use App\Models\ComissaoMembro;
-use App\Models\ConhecimentoDocumento;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Models\KnowledgeDocument;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use App\Services\Committees\CommitteeMembershipService;
+use App\Tenancy\OfficeContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -118,7 +119,7 @@ class CommitteeController extends Controller
         $documents = $comissao->documentos()
             ->orderByPivot('created_at', 'desc')
             ->get(['conhecimento_documentos.id', 'titulo', 'descricao', 'nome_original', 'tamanho', 'total_paginas'])
-            ->map(function (ConhecimentoDocumento $documento): array {
+            ->map(function (KnowledgeDocument $documento): array {
                 /** @var object{tipo_vinculo: string|null, created_at: mixed} $pivot */
                 $pivot = $documento->getRelation('pivot');
                 $type = $pivot->tipo_vinculo;
@@ -226,21 +227,21 @@ class CommitteeController extends Controller
      * Opções da gestão: gabinetes de vereador ativos da Câmara que ainda não
      * estão na comissão (com as pessoas de cada um) e documentos
      * compartilhados com a Câmara ainda não vinculados. Fora do escopo global
-     * de `Gabinete`, que no contexto da Secretaria só enxerga ela mesma.
+     * de `Office`, que no contexto da Secretaria só enxerga ela mesma.
      *
      * @return array<string, mixed>
      */
     private function managementOptions(ComissaoLegislativa $comissao): array
     {
         $memberOffices = $comissao->membros()->pluck('gabinete_id')->map(fn ($id): int => (int) $id)->all();
-        $allOffices = Gabinete::withoutGlobalScopes()
+        $allOffices = Office::withoutGlobalScopes()
             ->whereNull('deleted_at')
             ->where('entidade_id', $comissao->entidade_id)
-            ->where('tipo_gabinete', GabineteType::CouncilorOffice)
-            ->where('status', GabineteStatus::Active)
+            ->where('tipo_gabinete', OfficeType::CouncilorOffice)
+            ->where('status', OfficeStatus::Active)
             ->orderBy('nome')
             ->get(['id', 'nome', 'vereador_nome']);
-        $people = GabineteMembro::query()
+        $people = OfficeMember::query()
             ->whereIn('gabinete_id', $allOffices->pluck('id'))
             ->where('ativo', true)
             ->whereHas('usuario')
@@ -250,13 +251,13 @@ class CommitteeController extends Controller
 
         return [
             'offices' => $allOffices
-                ->map(fn (Gabinete $office): array => [
+                ->map(fn (Office $office): array => [
                     'id' => $office->id,
                     'name' => $office->nome,
                     'leader' => $office->vereador_nome,
                     'is_member' => in_array($office->id, $memberOffices, true),
                     'people' => $people->get($office->id, collect())
-                        ->map(fn (GabineteMembro $vinculo): array => [
+                        ->map(fn (OfficeMember $vinculo): array => [
                             'id' => $vinculo->usuario->id,
                             'name' => $vinculo->usuario->name,
                         ])
@@ -267,13 +268,13 @@ class CommitteeController extends Controller
                 ->values()
                 ->all(),
             'roles' => $this->options(CommitteeRole::cases()),
-            'documents' => ConhecimentoDocumento::query()
+            'documents' => KnowledgeDocument::query()
                 ->sharedWithEntidade($comissao->entidade_id)
                 ->whereNotIn('id', $comissao->documentos()->pluck('conhecimento_documentos.id'))
                 ->latest()
                 ->limit(500)
                 ->get(['id', 'titulo'])
-                ->map(fn (ConhecimentoDocumento $documento): array => [
+                ->map(fn (KnowledgeDocument $documento): array => [
                     'value' => (string) $documento->id,
                     'label' => $documento->titulo,
                 ])
@@ -298,7 +299,7 @@ class CommitteeController extends Controller
         ], $cases);
     }
 
-    private function officeLabel(Gabinete $gabinete): string
+    private function officeLabel(Office $gabinete): string
     {
         return $gabinete->vereador_nome !== null && $gabinete->vereador_nome !== ''
             ? $gabinete->vereador_nome
@@ -308,7 +309,7 @@ class CommitteeController extends Controller
     private function user(Request $request): User
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->gabinete_id !== null, 403);
+        abort_unless($user instanceof User && app(OfficeContext::class)->officeIdFor($user) !== null, 403);
 
         return $user;
     }
@@ -316,7 +317,7 @@ class CommitteeController extends Controller
     /** A entidade vem do gabinete em contexto, nunca da requisição. */
     private function entidadeId(User $user): int
     {
-        $entidadeId = Gabinete::withoutGlobalScopes()->whereKey($user->gabinete_id)->value('entidade_id');
+        $entidadeId = Office::withoutGlobalScopes()->whereKey(app(OfficeContext::class)->officeIdFor($user))->value('entidade_id');
         abort_if($entidadeId === null, 403);
 
         return (int) $entidadeId;

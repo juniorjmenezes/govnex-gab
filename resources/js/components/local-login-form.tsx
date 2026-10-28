@@ -1,3 +1,4 @@
+import { AuthField, AuthRememberToggle } from '@govnex/ui';
 import { Form, Link } from '@inertiajs/react';
 import { useRef } from 'react';
 import PasskeyVerify from '@/components/passkey-verify';
@@ -7,7 +8,6 @@ import { checkRequiredFormFields } from '@/lib/required-fields';
 import type { InertiaFormRef } from '@/lib/required-fields';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
-import { AuthField, AuthRememberToggle } from '@govnex/ui';
 
 /**
  * Passkey + formulário de e-mail/senha do acesso local (restrito a root, ver

@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Models\Gabinete;
-use App\Models\PartidoCor;
+use App\Models\Office;
+use App\Models\PartyColor;
 use App\Models\User;
 use Database\Seeders\PartidoCorSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -38,7 +38,7 @@ class PartyColorManagementTest extends TestCase
             ])
             ->assertRedirect();
 
-        $partidoCor = PartidoCor::query()->where('sigla', 'PSL')->firstOrFail();
+        $partidoCor = PartyColor::query()->where('sigla', 'PSL')->firstOrFail();
         $this->assertSame('#123ABC', $partidoCor->cor);
 
         $this->actingAs($root)
@@ -52,13 +52,13 @@ class PartyColorManagementTest extends TestCase
         $this->actingAs($root)
             ->delete(route('admin.party-colors.destroy', $partidoCor))
             ->assertRedirect();
-        $this->assertNull(PartidoCor::query()->find($partidoCor->id));
+        $this->assertNull(PartyColor::query()->find($partidoCor->id));
     }
 
     public function test_party_color_rejects_duplicate_sigla_and_invalid_hex(): void
     {
         $root = User::factory()->root()->create();
-        PartidoCor::query()->create(['sigla' => 'PT', 'cor' => '#FF0000']);
+        PartyColor::query()->create(['sigla' => 'PT', 'cor' => '#FF0000']);
 
         $this->actingAs($root)
             ->post(route('admin.party-colors.store'), [
@@ -78,7 +78,7 @@ class PartyColorManagementTest extends TestCase
     public function test_party_color_rejects_duplicate_sigla_ignoring_accents(): void
     {
         $root = User::factory()->root()->create();
-        $missao = PartidoCor::query()->create(['sigla' => 'MISSÃO', 'cor' => '#FFD600']);
+        $missao = PartyColor::query()->create(['sigla' => 'MISSÃO', 'cor' => '#FFD600']);
 
         $this->actingAs($root)
             ->post(route('admin.party-colors.store'), [
@@ -87,7 +87,7 @@ class PartyColorManagementTest extends TestCase
             ])
             ->assertSessionHasErrors('sigla');
 
-        $outro = PartidoCor::query()->create(['sigla' => 'PT', 'cor' => '#E30613']);
+        $outro = PartyColor::query()->create(['sigla' => 'PT', 'cor' => '#E30613']);
         $this->actingAs($root)
             ->patch(route('admin.party-colors.update', $outro), [
                 'sigla' => 'MISSAO',
@@ -106,9 +106,9 @@ class PartyColorManagementTest extends TestCase
 
     public function test_non_root_users_cannot_access_party_color_management(): void
     {
-        $gabinete = Gabinete::factory()->create();
+        $gabinete = Office::factory()->create();
         $councilor = User::factory()->administrator()->forGabinete($gabinete)->create();
-        $partidoCor = PartidoCor::query()->create(['sigla' => 'PT', 'cor' => '#FF0000']);
+        $partidoCor = PartyColor::query()->create(['sigla' => 'PT', 'cor' => '#FF0000']);
 
         $this->actingAs($councilor)->get(route('admin.party-colors.index'))->assertForbidden();
         $this->actingAs($councilor)->post(route('admin.party-colors.store'), [
@@ -128,11 +128,11 @@ class PartyColorManagementTest extends TestCase
 
     public function test_reapplying_the_party_seeder_preserves_an_administrator_color(): void
     {
-        PartidoCor::query()->create(['sigla' => 'PT', 'cor' => '#123456']);
+        PartyColor::query()->create(['sigla' => 'PT', 'cor' => '#123456']);
 
         $this->seed(PartidoCorSeeder::class);
 
-        $this->assertSame('#123456', PartidoCor::query()->where('sigla', 'PT')->value('cor'));
+        $this->assertSame('#123456', PartyColor::query()->where('sigla', 'PT')->value('cor'));
         $this->assertDatabaseHas('partido_cores', ['sigla' => 'PL']);
     }
 }

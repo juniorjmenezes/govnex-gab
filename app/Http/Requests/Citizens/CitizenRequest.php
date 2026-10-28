@@ -2,8 +2,9 @@
 
 namespace App\Http\Requests\Citizens;
 
-use App\Models\Cidadao;
+use App\Models\Citizen;
 use App\Rules\ValidCpf;
+use App\Tenancy\OfficeContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -14,16 +15,16 @@ abstract class CitizenRequest extends FormRequest
     {
         $cidadao = $this->route('cidadao');
 
-        return $cidadao instanceof Cidadao
+        return $cidadao instanceof Citizen
             ? $this->user()->can('update', $cidadao)
-            : $this->user()->can('create', Cidadao::class);
+            : $this->user()->can('create', Citizen::class);
     }
 
     /** @return array<string, array<int, mixed>> */
     public function rules(): array
     {
         $cidadao = $this->route('cidadao');
-        $gabineteId = $this->user()->gabinete_id;
+        $gabineteId = app(OfficeContext::class)->officeIdFor($this->user());
 
         return [
             'nome' => ['required', 'string', 'max:255'],

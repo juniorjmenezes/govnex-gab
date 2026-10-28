@@ -10,14 +10,14 @@ use App\Enums\WhatsAppPurpose;
 use App\Exceptions\WhatsAppGatewayException;
 use App\Jobs\SendWhatsAppNotification;
 use App\Jobs\SyncWhatsAppSuppression;
-use App\Models\Cidadao;
-use App\Models\Gabinete;
+use App\Models\Citizen;
+use App\Models\Office;
 use App\Models\User;
 use App\Models\WhatsAppCallbackEvent;
 use App\Models\WhatsAppContact;
 use App\Models\WhatsAppNotification;
 use App\Models\WhatsAppTemplatePurpose;
-use App\Services\Entidades\EntidadeQuotaService;
+use App\Services\Entidades\EntityQuotaService;
 use App\Services\WhatsApp\WhatsAppConfigurationService;
 use App\Services\WhatsApp\WhatsAppContactService;
 use App\Services\WhatsApp\WhatsAppEligibilityService;
@@ -71,8 +71,8 @@ class WhatsAppGatewayIntegrationTest extends TestCase
 
     public function test_legacy_contact_permission_does_not_become_whatsapp_consent(): void
     {
-        $office = Gabinete::factory()->create();
-        Cidadao::factory()->forGabinete($office)->create(['consentimento_contato' => true]);
+        $office = Office::factory()->create();
+        Citizen::factory()->forGabinete($office)->create(['consentimento_contato' => true]);
 
         $this->assertDatabaseCount('whatsapp_contatos', 0);
         $this->assertDatabaseCount('whatsapp_consentimentos', 0);
@@ -80,7 +80,7 @@ class WhatsAppGatewayIntegrationTest extends TestCase
 
     public function test_declared_contact_is_encrypted_and_consent_is_immutable_history(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->forGabinete($office)->create();
 
         $contact = app(WhatsAppContactService::class)
@@ -117,7 +117,7 @@ class WhatsAppGatewayIntegrationTest extends TestCase
         $contact->forceFill(['piloto' => true])->save();
         $this->assertTrue(app(WhatsAppEligibilityService::class)->evaluate($contact, $purpose)['eligible']);
 
-        $otherOffice = Gabinete::factory()->create();
+        $otherOffice = Office::factory()->create();
         $otherUser = User::factory()->forGabinete($otherOffice)->create();
         $otherContact = app(WhatsAppContactService::class)
             ->declareForUser($otherUser, '(85) 99999-8765', $otherUser);
@@ -243,9 +243,9 @@ class WhatsAppGatewayIntegrationTest extends TestCase
 
     public function test_system_revocation_is_global_by_phone_and_release_waits_for_all_consents(): void
     {
-        $firstOffice = Gabinete::factory()->create();
+        $firstOffice = Office::factory()->create();
         $firstUser = User::factory()->forGabinete($firstOffice)->create();
-        $secondOffice = Gabinete::factory()->create();
+        $secondOffice = Office::factory()->create();
         $secondUser = User::factory()->forGabinete($secondOffice)->create();
         $contacts = app(WhatsAppContactService::class);
         $first = $contacts->declareForUser($firstUser, '(88) 99999-1234', $firstUser);
@@ -412,14 +412,14 @@ class WhatsAppGatewayIntegrationTest extends TestCase
         (new SendWhatsAppNotification($notification->id))->handle(
             app(WhatsAppGatewayClient::class),
             app(WhatsAppEligibilityService::class),
-            app(EntidadeQuotaService::class),
+            app(EntityQuotaService::class),
         );
         $this->assertSame(WhatsAppNotificationStatus::Reconciling, $notification->fresh()->status);
 
         (new SendWhatsAppNotification($notification->id))->handle(
             app(WhatsAppGatewayClient::class),
             app(WhatsAppEligibilityService::class),
-            app(EntidadeQuotaService::class),
+            app(EntityQuotaService::class),
         );
 
         $this->assertSame(WhatsAppNotificationStatus::Submitted, $notification->fresh()->status);
@@ -455,7 +455,7 @@ class WhatsAppGatewayIntegrationTest extends TestCase
     public function test_admin_page_is_restricted_to_platform_administrators(): void
     {
         $this->withoutVite();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->forGabinete($office)->create();
         $admin = User::factory()->root()->create();
 
@@ -466,7 +466,7 @@ class WhatsAppGatewayIntegrationTest extends TestCase
     public function test_readiness_requires_exactly_one_team_member_and_one_citizen_in_pilot(): void
     {
         [$office, $user, $userContact] = $this->contactContext();
-        $citizen = Cidadao::factory()->forGabinete($office)->create();
+        $citizen = Citizen::factory()->forGabinete($office)->create();
         $citizenContact = app(WhatsAppContactService::class)
             ->declareForCitizen($citizen, '(88) 98888-4321', $user);
         $userContact->forceFill(['piloto' => true])->save();
@@ -492,10 +492,10 @@ class WhatsAppGatewayIntegrationTest extends TestCase
         $this->artisan('govnexgab:whatsapp-audit --strict')->assertFailed();
     }
 
-    /** @return array{Gabinete,User,WhatsAppContact} */
+    /** @return array{Office,User,WhatsAppContact} */
     private function contactContext(): array
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->forGabinete($office)->create();
         $contact = app(WhatsAppContactService::class)
             ->declareForUser($user, '(88) 99999-1234', $user);
@@ -503,7 +503,7 @@ class WhatsAppGatewayIntegrationTest extends TestCase
         return [$office, $user, $contact];
     }
 
-    /** @return array{Gabinete,User,WhatsAppContact} */
+    /** @return array{Office,User,WhatsAppContact} */
     private function eligibleContext(WhatsAppPurpose $purpose): array
     {
         [$office, $user, $contact] = $this->contactContext();

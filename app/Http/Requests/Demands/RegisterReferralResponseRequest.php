@@ -2,7 +2,8 @@
 
 namespace App\Http\Requests\Demands;
 
-use App\Models\Demanda;
+use App\Models\Demand;
+use App\Tenancy\OfficeContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -12,14 +13,14 @@ class RegisterReferralResponseRequest extends FormRequest
     {
         $demand = $this->route('demanda');
 
-        return $demand instanceof Demanda && $this->user()->can('update', $demand);
+        return $demand instanceof Demand && $this->user()->can('update', $demand);
     }
 
     /** @return array<string, array<int, mixed>> */
     public function rules(): array
     {
         $demand = $this->route('demanda');
-        $officeId = $this->user()->gabinete_id;
+        $officeId = app(OfficeContext::class)->officeIdFor($this->user());
 
         return [
             'descricao' => ['required', 'string', 'max:10000'],
@@ -28,7 +29,7 @@ class RegisterReferralResponseRequest extends FormRequest
                 'integer',
                 Rule::exists('demanda_eventos', 'id')->where(fn ($query) => $query
                     ->where('gabinete_id', $officeId)
-                    ->where('demanda_id', $demand instanceof Demanda ? $demand->id : 0)
+                    ->where('demanda_id', $demand instanceof Demand ? $demand->id : 0)
                     ->where('tipo', 'encaminhamento')),
             ],
             'arquivos' => ['nullable', 'array', 'max:5'],

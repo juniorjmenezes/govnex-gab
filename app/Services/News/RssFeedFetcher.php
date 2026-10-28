@@ -2,8 +2,8 @@
 
 namespace App\Services\News;
 
-use App\Models\FonteRss;
-use App\Models\NoticiaRss;
+use App\Models\RssNews;
+use App\Models\RssSource;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -22,7 +22,7 @@ class RssFeedFetcher
     /**
      * @return int Quantidade de itens novos gravados.
      */
-    public function fetch(FonteRss $fonte): int
+    public function fetch(RssSource $fonte): int
     {
         $headers = ['User-Agent' => 'GOVNEX GAB (leitor de RSS)'];
 
@@ -133,14 +133,14 @@ class RssFeedFetcher
     /**
      * @param  list<array{guid: string, titulo: string, resumo: string|null, url: string, imagem_url: string|null, publicado_em: Carbon|null}>  $items
      */
-    private function store(FonteRss $fonte, array $items): int
+    private function store(RssSource $fonte, array $items): int
     {
         $created = 0;
 
         foreach ($items as $item) {
             $hash = hash('sha256', $item['guid']);
 
-            $noticia = NoticiaRss::query()->firstOrNew([
+            $noticia = RssNews::query()->firstOrNew([
                 'fonte_rss_id' => $fonte->id,
                 'guid_hash' => $hash,
             ]);
@@ -165,7 +165,7 @@ class RssFeedFetcher
         return $created;
     }
 
-    private function registerFailure(FonteRss $fonte, string $message): void
+    private function registerFailure(RssSource $fonte, string $message): void
     {
         $fonte->forceFill([
             'ultima_coleta_em' => now(),

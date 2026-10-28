@@ -2,14 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\Gabinete;
-use App\Models\LocalVotacaoEleitoral;
-use App\Models\MunicipioEleitoral;
-use App\Models\SecaoEleitoral;
+use App\Models\Candidate;
+use App\Models\CandidateSectionVote;
+use App\Models\Election;
+use App\Models\ElectoralMunicipality;
+use App\Models\ElectoralPollingLocation;
+use App\Models\ElectoralSection;
+use App\Models\Office;
 use App\Models\User;
-use App\Models\VotoSecaoCandidato;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -20,7 +20,7 @@ class ElectoralHeatmapTest extends TestCase
 
     public function test_shows_empty_state_when_electoral_number_is_missing(): void
     {
-        $office = Gabinete::factory()->create(['numero_eleitoral' => null]);
+        $office = Office::factory()->create(['numero_eleitoral' => null]);
         $user = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($user)
@@ -35,7 +35,7 @@ class ElectoralHeatmapTest extends TestCase
 
     public function test_shows_unmatched_state_when_electoral_number_has_no_tse_candidate(): void
     {
-        $office = Gabinete::factory()->create(['numero_eleitoral' => '99999']);
+        $office = Office::factory()->create(['numero_eleitoral' => '99999']);
         $user = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($user)
@@ -50,17 +50,17 @@ class ElectoralHeatmapTest extends TestCase
 
     public function test_aggregates_votes_by_polling_location_isolated_per_office(): void
     {
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '15890',
             'codigo_ibge' => '2304251',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        $election = Eleicao::query()
+        $election = Election::query()
             ->where('ano', 2024)
             ->where('tipo', 'municipal')
             ->firstOrFail();
-        $titular = CandidatoPolitico::query()->create([
+        $titular = Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => '60001945113',
             'abrangencia' => 'municipal',
@@ -72,7 +72,7 @@ class ElectoralHeatmapTest extends TestCase
             'numero' => '11555',
             'partido_sigla' => 'PP',
         ]);
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'municipio' => 'Cruz',
             'estado' => 'CE',
             'municipio_eleitoral_id' => $municipality->id,
@@ -81,7 +81,7 @@ class ElectoralHeatmapTest extends TestCase
         ]);
         $user = User::factory()->operator()->forGabinete($office)->create();
 
-        $location = LocalVotacaoEleitoral::query()->create([
+        $location = ElectoralPollingLocation::query()->create([
             'eleicao_id' => $election->id,
             'municipio_eleitoral_id' => $municipality->id,
             'nr_zona' => '30',
@@ -93,7 +93,7 @@ class ElectoralHeatmapTest extends TestCase
             'latitude_fonte' => 'tse',
             'fonte_url' => 'https://cdn.tse.jus.br/eleitorado_local_votacao_2024.zip',
         ]);
-        $pendingLocation = LocalVotacaoEleitoral::query()->create([
+        $pendingLocation = ElectoralPollingLocation::query()->create([
             'eleicao_id' => $election->id,
             'municipio_eleitoral_id' => $municipality->id,
             'nr_zona' => '31',
@@ -102,21 +102,21 @@ class ElectoralHeatmapTest extends TestCase
             'fonte_url' => 'https://cdn.tse.jus.br/eleitorado_local_votacao_2024.zip',
         ]);
 
-        $sectionOne = SecaoEleitoral::query()->create([
+        $sectionOne = ElectoralSection::query()->create([
             'eleicao_id' => $election->id,
             'municipio_eleitoral_id' => $municipality->id,
             'local_votacao_eleitoral_id' => $location->id,
             'nr_zona' => '30',
             'nr_secao' => '0011',
         ]);
-        $sectionTwo = SecaoEleitoral::query()->create([
+        $sectionTwo = ElectoralSection::query()->create([
             'eleicao_id' => $election->id,
             'municipio_eleitoral_id' => $municipality->id,
             'local_votacao_eleitoral_id' => $location->id,
             'nr_zona' => '30',
             'nr_secao' => '0012',
         ]);
-        $pendingSection = SecaoEleitoral::query()->create([
+        $pendingSection = ElectoralSection::query()->create([
             'eleicao_id' => $election->id,
             'municipio_eleitoral_id' => $municipality->id,
             'local_votacao_eleitoral_id' => $pendingLocation->id,
@@ -124,19 +124,19 @@ class ElectoralHeatmapTest extends TestCase
             'nr_secao' => '0020',
         ]);
 
-        VotoSecaoCandidato::query()->create([
+        CandidateSectionVote::query()->create([
             'secao_eleitoral_id' => $sectionOne->id,
             'candidato_politico_id' => $titular->id,
             'votos' => 500,
             'fonte_url' => 'https://cdn.tse.jus.br/votacao_secao_2024_CE.zip',
         ]);
-        VotoSecaoCandidato::query()->create([
+        CandidateSectionVote::query()->create([
             'secao_eleitoral_id' => $sectionTwo->id,
             'candidato_politico_id' => $titular->id,
             'votos' => 276,
             'fonte_url' => 'https://cdn.tse.jus.br/votacao_secao_2024_CE.zip',
         ]);
-        VotoSecaoCandidato::query()->create([
+        CandidateSectionVote::query()->create([
             'secao_eleitoral_id' => $pendingSection->id,
             'candidato_politico_id' => $titular->id,
             'votos' => 100,

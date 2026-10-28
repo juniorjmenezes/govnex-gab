@@ -3,7 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\UserRole;
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -61,7 +61,7 @@ class RootUserManagementTest extends TestCase
 
     public function test_non_root_users_cannot_access_root_user_management(): void
     {
-        $gabinete = Gabinete::factory()->create();
+        $gabinete = Office::factory()->create();
         $councilor = User::factory()->administrator()->forGabinete($gabinete)->create();
         $target = User::factory()->root()->create();
 

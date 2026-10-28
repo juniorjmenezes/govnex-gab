@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Enums\ElectionType;
-use App\Models\Eleicao;
+use App\Models\Election;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -49,7 +49,7 @@ class StoreElectionRequest extends FormRequest
                 return;
             }
 
-            $duplicate = Eleicao::query()
+            $duplicate = Election::query()
                 ->where('ano', $ano)
                 ->where('tipo', $tipo)
                 ->exists();

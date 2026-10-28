@@ -3,9 +3,9 @@
 namespace App\Models;
 
 use App\Enums\AppointmentStatus;
-use App\Enums\GabineteStatus;
-use App\Enums\GabineteType;
-use App\Models\Scopes\GabineteVisibilityScope;
+use App\Enums\OfficeStatus;
+use App\Enums\OfficeType;
+use App\Models\Scopes\OfficeVisibilityScope;
 use Database\Factories\CompromissoInstitucionalFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,7 +24,7 @@ use Illuminate\Support\Carbon;
  * convocações).
  *
  * Pertence à entidade, não a um gabinete: por isso fica fora de
- * `BelongsToGabinete`/`TenantModel` (o escopo global exige `gabinete_id` igual
+ * `BelongsToOffice`/`TenantModel` (o escopo global exige `gabinete_id` igual
  * ao do contexto) e toda leitura passa por `visibleTo()`. Também não usa
  * `HasTieredVisibility`: aquele trait decide por `gabinete_id`/`entidade_id`,
  * e aqui não existe nível "privado de um gabinete" nem "plataforma" — o
@@ -53,10 +53,10 @@ use Illuminate\Support\Carbon;
  * @property AppointmentStatus $status
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Gabinete $criadoPorGabinete
+ * @property-read Office $criadoPorGabinete
  * @property-read User $criadoPor
  * @property-read ComissaoLegislativa|null $comissao
- * @property-read Collection<int, Gabinete> $gabinetesAlvo
+ * @property-read Collection<int, Office> $gabinetesAlvo
  */
 #[Fillable(['titulo', 'descricao', 'inicio_em', 'fim_em', 'dia_inteiro', 'local', 'tipo', 'status'])]
 class CompromissoInstitucional extends Model
@@ -76,7 +76,7 @@ class CompromissoInstitucional extends Model
      * @param  Builder<self>  $query
      * @return Builder<self>
      */
-    public function scopeVisibleTo(Builder $query, Gabinete $gabinete): Builder
+    public function scopeVisibleTo(Builder $query, Office $gabinete): Builder
     {
         $targets = self::TARGETS_TABLE;
         $key = $query->qualifyColumn('id');
@@ -91,7 +91,7 @@ class CompromissoInstitucional extends Model
                         ->whereColumn("{$targets}.compromisso_institucional_id", $key)
                         ->where("{$targets}.gabinete_id", $gabinete->id))
                     ->when(
-                        $gabinete->tipo_gabinete === GabineteType::CouncilorOffice,
+                        $gabinete->tipo_gabinete === OfficeType::CouncilorOffice,
                         fn (Builder $everyone) => $everyone->orWhereNotExists(fn (QueryBuilder $target) => $target
                             ->selectRaw('1')
                             ->from($targets)
@@ -109,47 +109,47 @@ class CompromissoInstitucional extends Model
      * suspenso depois não receber nada). A Secretaria que publicou não entra:
      * ela enxerga o compromisso, mas não é público dele.
      *
-     * Fora do escopo de visibilidade de `Gabinete` de propósito (o de exclusão
+     * Fora do escopo de visibilidade de `Office` de propósito (o de exclusão
      * lógica continua valendo): no contexto da Secretaria, aquele escopo só
      * enxerga ela mesma, e o recorte aqui é a entidade do próprio compromisso.
      *
-     * @return Collection<int, Gabinete>
+     * @return Collection<int, Office>
      */
     public function audienceOffices(): Collection
     {
         $targets = $this->gabinetesAlvo()->pluck('gabinetes.id')->map(fn ($id): int => (int) $id)->all();
 
-        return Gabinete::withoutGlobalScope(GabineteVisibilityScope::class)
+        return Office::withoutGlobalScope(OfficeVisibilityScope::class)
             ->where('entidade_id', $this->entidade_id)
-            ->where('tipo_gabinete', GabineteType::CouncilorOffice)
-            ->where('status', GabineteStatus::Active)
+            ->where('tipo_gabinete', OfficeType::CouncilorOffice)
+            ->where('status', OfficeStatus::Active)
             ->when($targets !== [], fn (Builder $query) => $query->whereKey($targets))
             ->orderBy('id')
             ->get();
     }
 
-    public function isPublishedBy(Gabinete|int|null $gabinete): bool
+    public function isPublishedBy(Office|int|null $gabinete): bool
     {
-        $id = $gabinete instanceof Gabinete ? $gabinete->id : $gabinete;
+        $id = $gabinete instanceof Office ? $gabinete->id : $gabinete;
 
         return $id !== null && $this->criado_por_gabinete_id === $id;
     }
 
-    /** @return BelongsTo<Entidade, $this> */
+    /** @return BelongsTo<Entity, $this> */
     public function entidade(): BelongsTo
     {
-        return $this->belongsTo(Entidade::class, 'entidade_id');
+        return $this->belongsTo(Entity::class, 'entidade_id');
     }
 
     /**
      * Sem o escopo global: no contexto de um gabinete de vereador, o
-     * `Gabinete` só enxerga o próprio, e quem publicou é a Secretaria.
+     * `Office` só enxerga o próprio, e quem publicou é a Secretaria.
      *
-     * @return BelongsTo<Gabinete, $this>
+     * @return BelongsTo<Office, $this>
      */
     public function criadoPorGabinete(): BelongsTo
     {
-        return $this->belongsTo(Gabinete::class, 'criado_por_gabinete_id')->withoutGlobalScopes();
+        return $this->belongsTo(Office::class, 'criado_por_gabinete_id')->withoutGlobalScopes();
     }
 
     /** @return BelongsTo<User, $this> */
@@ -170,15 +170,15 @@ class CompromissoInstitucional extends Model
     }
 
     /**
-     * Gabinetes-alvo. Sem o escopo global de `Gabinete`, pelo mesmo motivo
+     * Gabinetes-alvo. Sem o escopo global de `Office`, pelo mesmo motivo
      * de `criadoPorGabinete()`: a lista é de gabinetes de outros contextos.
      *
-     * @return BelongsToMany<Gabinete, $this>
+     * @return BelongsToMany<Office, $this>
      */
     public function gabinetesAlvo(): BelongsToMany
     {
         return $this->belongsToMany(
-            Gabinete::class,
+            Office::class,
             self::TARGETS_TABLE,
             'compromisso_institucional_id',
             'gabinete_id',

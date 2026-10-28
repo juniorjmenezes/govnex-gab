@@ -14,11 +14,11 @@ use Illuminate\Database\Eloquent\Builder;
  *   Câmara);
  * - ambos nulos: biblioteca da plataforma, visível a todos os gabinetes.
  *
- * Quem usa este trait fica deliberadamente fora de `BelongsToGabinete` /
+ * Quem usa este trait fica deliberadamente fora de `BelongsToOffice` /
  * `TenantModel`: o escopo global de tenant exige `gabinete_id` igual ao do
  * gabinete corrente, e aqui a visibilidade depende de duas chaves, não de
  * correspondência exata — a mesma decisão já documentada em
- * `ConhecimentoDocumento`. Sem escopo global, toda consulta de leitura precisa
+ * `KnowledgeDocument`. Sem escopo global, toda consulta de leitura precisa
  * passar por `visibleTo()`.
  *
  * O trait não resolve contexto: quem consulta passa `$gabineteId` e

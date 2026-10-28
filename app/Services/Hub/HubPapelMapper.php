@@ -4,7 +4,7 @@ namespace App\Services\Hub;
 
 use App\Enums\AccessRole;
 use App\Enums\UserRole;
-use App\Models\Entidade;
+use App\Models\Entity;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -52,7 +52,7 @@ class HubPapelMapper
      * gabinete, exceto o administrador de gabinete em Câmara ou Prefeitura,
      * que é operador da entidade (ver `AccessRole::forEntidadeOfUnit`).
      */
-    public function entidadeRoleDeUnidade(AccessRole $papel, ?Entidade $entidade): AccessRole
+    public function entidadeRoleDeUnidade(AccessRole $papel, ?Entity $entidade): AccessRole
     {
         return $papel->forEntidadeOfUnit($entidade?->tipo);
     }

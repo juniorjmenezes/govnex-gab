@@ -3,9 +3,9 @@
 namespace App\Services\Demands;
 
 use App\Enums\DemandEventType;
-use App\Models\Demanda;
-use App\Models\DemandaAnexo;
-use App\Models\DemandaEvento;
+use App\Models\Demand;
+use App\Models\DemandAttachment;
+use App\Models\DemandEvent;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -20,9 +20,9 @@ class DemandAttachmentService
 
     /**
      * @param  list<UploadedFile>  $files
-     * @return Collection<int, DemandaAnexo>
+     * @return Collection<int, DemandAttachment>
      */
-    public function store(Demanda $demand, array $files, User $user, ?DemandaEvento $event = null): Collection
+    public function store(Demand $demand, array $files, User $user, ?DemandEvent $event = null): Collection
     {
         $storedPaths = [];
 
@@ -41,7 +41,7 @@ class DemandAttachmentService
                     }
 
                     $storedPaths[] = $path;
-                    $attachment = new DemandaAnexo;
+                    $attachment = new DemandAttachment;
                     $attachment->forceFill([
                         'gabinete_id' => $demand->gabinete_id,
                         'demanda_id' => $demand->id,
@@ -80,7 +80,7 @@ class DemandAttachmentService
         }
     }
 
-    public function delete(DemandaAnexo $attachment, User $user): void
+    public function delete(DemandAttachment $attachment, User $user): void
     {
         DB::transaction(function () use ($attachment, $user): void {
             $demand = $attachment->demanda()->firstOrFail();

@@ -16,7 +16,7 @@ return new class extends Migration
      * o `ativo => true` do backfill dos demais módulos). Prefeituras e
      * gabinetes independentes não recebem a linha. Em bancos recriados do zero
      * não há entidades ainda e o insert não faz nada; as novas nascem pelo
-     * `EntidadeEntitlementService`, com a mesma regra.
+     * `EntityEntitlementService`, com a mesma regra.
      *
      * Nenhum gabinete recebe o módulo aqui: só o gabinete do tipo Secretaria
      * legislativa pode ativá-lo, e nenhum existe antes desta versão.

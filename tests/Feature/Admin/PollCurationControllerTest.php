@@ -2,11 +2,11 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\PesquisaEleitoral;
-use App\Models\PesquisaFonte;
-use App\Models\ResultadoPesquisaEleitoral;
+use App\Models\Candidate;
+use App\Models\Election;
+use App\Models\ElectoralPoll;
+use App\Models\ElectoralPollResult;
+use App\Models\PollSource;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -35,7 +35,7 @@ class PollCurationControllerTest extends TestCase
     public function test_platform_admin_can_register_a_manual_poll_with_results(): void
     {
         $admin = User::factory()->root()->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
 
         $response = $this->actingAs($admin)->post('/admin/pesquisas-eleitorais', [
             'eleicao_id' => $election->id,
@@ -57,7 +57,7 @@ class PollCurationControllerTest extends TestCase
 
         $response->assertRedirect('/admin/pesquisas-eleitorais');
 
-        $pesquisa = PesquisaEleitoral::query()->where('instituto', 'AtlasIntel')->firstOrFail();
+        $pesquisa = ElectoralPoll::query()->where('instituto', 'AtlasIntel')->firstOrFail();
         $this->assertSame(90, $pesquisa->confianca);
         $this->assertSame('AtlasIntel — PDF oficial', $pesquisa->origem_provider);
         $this->assertSame(2, $pesquisa->resultados()->count());
@@ -77,7 +77,7 @@ class PollCurationControllerTest extends TestCase
     public function test_non_platform_admin_cannot_register_a_manual_poll(): void
     {
         $tenantUser = User::factory()->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
 
         $this->actingAs($tenantUser)->post('/admin/pesquisas-eleitorais', [
             'eleicao_id' => $election->id,
@@ -101,7 +101,7 @@ class PollCurationControllerTest extends TestCase
     public function test_store_requires_at_least_one_candidate(): void
     {
         $admin = User::factory()->root()->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
 
         $this->actingAs($admin)->post('/admin/pesquisas-eleitorais', [
             'eleicao_id' => $election->id,
@@ -138,7 +138,7 @@ class PollCurationControllerTest extends TestCase
     public function test_edit_page_carries_the_saved_manual_source(): void
     {
         $admin = User::factory()->root()->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
 
         $this->actingAs($admin)->post('/admin/pesquisas-eleitorais', [
             'eleicao_id' => $election->id,
@@ -157,7 +157,7 @@ class PollCurationControllerTest extends TestCase
             ],
         ])->assertRedirect('/admin/pesquisas-eleitorais');
 
-        $pesquisa = PesquisaEleitoral::query()->where('instituto', 'AtlasIntel')->firstOrFail();
+        $pesquisa = ElectoralPoll::query()->where('instituto', 'AtlasIntel')->firstOrFail();
 
         // A edição preenche a proveniência com esta fonte manual.
         $this->actingAs($admin)
@@ -241,9 +241,9 @@ class PollCurationControllerTest extends TestCase
     public function test_platform_admin_can_delete_a_purely_manual_pesquisa(): void
     {
         $admin = User::factory()->root()->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
-        $pesquisa = PesquisaEleitoral::query()->create($this->pesquisaAttributes($election));
-        PesquisaFonte::query()->create([
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
+        $pesquisa = ElectoralPoll::query()->create($this->pesquisaAttributes($election));
+        PollSource::query()->create([
             'pesquisa_eleitoral_id' => $pesquisa->id,
             'tipo' => 'manual',
             'provider' => 'manual',
@@ -274,8 +274,8 @@ class PollCurationControllerTest extends TestCase
     public function test_candidates_endpoint_scopes_by_election_and_cargo(): void
     {
         $admin = User::factory()->root()->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
-        $governor = CandidatoPolitico::query()->create([
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
+        $governor = Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => '111',
             'abrangencia' => 'estadual',
@@ -286,7 +286,7 @@ class PollCurationControllerTest extends TestCase
             'numero' => '11',
             'partido_sigla' => 'ABC',
         ]);
-        CandidatoPolitico::query()->create([
+        Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => '222',
             'abrangencia' => 'estadual',
@@ -307,22 +307,22 @@ class PollCurationControllerTest extends TestCase
         $response->assertJsonFragment(['id' => $governor->id, 'name' => 'Fulano']);
     }
 
-    private function existingElectioLabPesquisa(): PesquisaEleitoral
+    private function existingElectioLabPesquisa(): ElectoralPoll
     {
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
-        $pesquisa = PesquisaEleitoral::query()->create([
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
+        $pesquisa = ElectoralPoll::query()->create([
             ...$this->pesquisaAttributes($election),
             'confianca' => 60,
             'origem_provider' => 'electiolab',
         ]);
-        ResultadoPesquisaEleitoral::query()->create([
+        ElectoralPollResult::query()->create([
             'pesquisa_eleitoral_id' => $pesquisa->id,
             'external_candidate_id' => (string) Str::uuid(),
             'candidato_nome' => 'Original ElectioLab',
             'partido_sigla' => 'ABC',
             'percentual' => 45.0,
         ]);
-        PesquisaFonte::query()->create([
+        PollSource::query()->create([
             'pesquisa_eleitoral_id' => $pesquisa->id,
             'tipo' => 'electiolab',
             'provider' => 'electiolab',
@@ -335,7 +335,7 @@ class PollCurationControllerTest extends TestCase
     }
 
     /** @return array<string, mixed> */
-    private function pesquisaAttributes(Eleicao $election): array
+    private function pesquisaAttributes(Election $election): array
     {
         return [
             'eleicao_id' => $election->id,

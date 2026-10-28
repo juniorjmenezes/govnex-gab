@@ -5,15 +5,15 @@ namespace Tests\Feature;
 use App\Enums\CommitteeRole;
 use App\Enums\CommitteeStatus;
 use App\Enums\CommitteeType;
-use App\Enums\EntidadeModule;
-use App\Enums\EntidadeType;
-use App\Enums\GabineteType;
+use App\Enums\EntityModule;
+use App\Enums\EntityType;
+use App\Enums\OfficeType;
 use App\Models\Appointment;
 use App\Models\ComissaoLegislativa;
 use App\Models\CompromissoInstitucional;
-use App\Models\Entidade;
-use App\Models\EntidadeModulo;
-use App\Models\Gabinete;
+use App\Models\Entity;
+use App\Models\EntityModuleSubscription;
+use App\Models\Office;
 use App\Models\User;
 use App\Services\Committees\CommitteeMembershipService;
 use Carbon\CarbonImmutable;
@@ -43,8 +43,8 @@ class DashboardLegislativeSecretariatTest extends TestCase
     public function test_dashboard_counts_todays_own_and_institutional_appointments(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $admin = $this->usuario($secretaria);
 
         // Compromisso privado da própria Secretaria, hoje: conta.
@@ -85,7 +85,7 @@ class DashboardLegislativeSecretariatTest extends TestCase
         // Institucional de outra Câmara (outra entidade), também hoje: nunca
         // pode ser somado ao total desta Secretaria.
         $outraCamara = $this->camara();
-        $outraSecretaria = $this->gabinete($outraCamara, GabineteType::LegislativeSecretariat);
+        $outraSecretaria = $this->gabinete($outraCamara, OfficeType::LegislativeSecretariat);
         CompromissoInstitucional::factory()
             ->publishedBy($outraSecretaria)
             ->create([
@@ -107,10 +107,10 @@ class DashboardLegislativeSecretariatTest extends TestCase
     public function test_dashboard_committee_metrics_count_only_the_offices_entidade(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $membroA = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $membroB = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $exMembro = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $membroA = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $membroB = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $exMembro = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $admin = $this->usuario($secretaria);
 
         $comissaoAtiva = $this->comissao($camara, [$membroA, $membroB, $exMembro], 'Comissão de Finanças');
@@ -122,7 +122,7 @@ class DashboardLegislativeSecretariatTest extends TestCase
 
         // Comissão de outra Câmara: isolamento entre entidades.
         $outraCamara = $this->camara();
-        $outroMembro = $this->gabinete($outraCamara, GabineteType::CouncilorOffice);
+        $outroMembro = $this->gabinete($outraCamara, OfficeType::CouncilorOffice);
         $this->comissao($outraCamara, [$outroMembro], 'Comissão de outra Câmara');
 
         $this->actingAs($admin)
@@ -133,36 +133,36 @@ class DashboardLegislativeSecretariatTest extends TestCase
                 ->where('legislativeSecretariat.committee_members', 2));
     }
 
-    private function camara(): Entidade
+    private function camara(): Entity
     {
-        $camara = Entidade::factory()->create([
-            'tipo' => EntidadeType::CityCouncil,
+        $camara = Entity::factory()->create([
+            'tipo' => EntityType::CityCouncil,
             'interface_simplificada' => false,
         ]);
-        EntidadeModulo::query()
+        EntityModuleSubscription::query()
             ->where('entidade_id', $camara->id)
-            ->where('modulo', EntidadeModule::LegislativeSecretariat->value)
+            ->where('modulo', EntityModule::LegislativeSecretariat->value)
             ->update(['ativo' => true, 'ativado_em' => now()]);
 
         return $camara;
     }
 
-    private function gabinete(Entidade $entidade, GabineteType $tipo): Gabinete
+    private function gabinete(Entity $entidade, OfficeType $tipo): Office
     {
-        return Gabinete::factory()->create([
+        return Office::factory()->create([
             'entidade_id' => $entidade->id,
             'tipo_gabinete' => $tipo,
             'timezone' => self::TIMEZONE,
         ]);
     }
 
-    private function usuario(Gabinete $gabinete): User
+    private function usuario(Office $gabinete): User
     {
         return User::factory()->administrator()->forGabinete($gabinete)->create();
     }
 
-    /** @param  list<Gabinete>  $membros */
-    private function comissao(Entidade $entidade, array $membros, string $nome): ComissaoLegislativa
+    /** @param  list<Office>  $membros */
+    private function comissao(Entity $entidade, array $membros, string $nome): ComissaoLegislativa
     {
         $comissao = new ComissaoLegislativa;
         $comissao->forceFill([

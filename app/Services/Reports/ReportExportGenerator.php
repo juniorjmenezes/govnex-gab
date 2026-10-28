@@ -3,7 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Enums\ReportExportFormat;
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\ReportExport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
@@ -24,7 +24,7 @@ class ReportExportGenerator
     /** @return array{disk: string, path: string, name: string, mime: string, size: int} */
     public function generate(ReportExport $export): array
     {
-        $office = Gabinete::withoutGlobalScopes()->findOrFail($export->gabinete_id);
+        $office = Office::withoutGlobalScopes()->findOrFail($export->gabinete_id);
         $data = $this->reports->export($export->gabinete_id, $export->filtros);
         $extension = $export->formato->value;
         $name = "relatorio-demandas-{$export->created_at?->format('Ymd-His')}-".substr($export->id, 0, 8).".{$extension}";
@@ -55,7 +55,7 @@ class ReportExportGenerator
      * @param  array<string, mixed>  $filters
      * @param  array<string, mixed>  $data
      */
-    private function generatePdf(string $path, Gabinete $office, array $filters, array $data): void
+    private function generatePdf(string $path, Office $office, array $filters, array $data): void
     {
         Pdf::loadView('reports.demands', [
             'office' => $office,
@@ -78,7 +78,7 @@ class ReportExportGenerator
      * @param  array<string, mixed>  $filters
      * @param  array<string, mixed>  $data
      */
-    private function generateXlsx(string $path, Gabinete $office, array $filters, array $data): void
+    private function generateXlsx(string $path, Office $office, array $filters, array $data): void
     {
         $defaultStyle = new Style(fontSize: 10, fontName: 'Arial');
         $options = new Options(FALLBACK_STYLE: $defaultStyle);
@@ -151,8 +151,8 @@ class ReportExportGenerator
             $demandsSheet->setColumnWidthForRange(20, 3, 10);
             $demandsSheet->setColumnWidth(14, 11, 12, 13);
             $demandHeaders = [
-                'Protocolo', 'Título', 'Cidadão', 'Status', 'Prioridade', 'Categoria',
-                'Bairro', 'Responsável', 'Origem', 'Atrasada', 'Abertura', 'Prazo', 'Conclusão',
+                'Protocolo', 'Título', 'Cidadão', 'Status', 'Prioridade', 'Category',
+                'Neighborhood', 'Responsável', 'Origem', 'Atrasada', 'Abertura', 'Prazo', 'Conclusão',
             ];
             $writer->addRow(Row::fromValuesWithStyle($demandHeaders, $headerStyle, 26));
             foreach ($data['demands'] as $demand) {
@@ -204,7 +204,7 @@ class ReportExportGenerator
             $referralsSheet->setColumnWidth(22, 4);
             $referralsSheet->setColumnWidth(16, 5, 6);
             $writer->addRow(Row::fromValuesWithStyle(
-                ['Protocolo', 'Demanda', 'Destino', 'Prazo', 'Atrasado'],
+                ['Protocolo', 'Demand', 'Destino', 'Prazo', 'Atrasado'],
                 $headerStyle,
                 26,
             ));
@@ -253,7 +253,7 @@ class ReportExportGenerator
     }
 
     /** @return non-empty-string */
-    private function primaryColor(Gabinete $office): string
+    private function primaryColor(Office $office): string
     {
         $color = ltrim((string) $office->cor_principal, '#');
 
@@ -278,7 +278,7 @@ class ReportExportGenerator
 
     // referralStatusLabel() removed: encaminhamentos deixaram de ter status próprio.
 
-    private function logoPath(Gabinete $office): ?string
+    private function logoPath(Office $office): ?string
     {
         if (! $office->logo_path || ! Storage::disk('public')->exists($office->logo_path)) {
             return null;
@@ -287,7 +287,7 @@ class ReportExportGenerator
         return Storage::disk('public')->path($office->logo_path);
     }
 
-    private function logoDataUri(Gabinete $office): ?string
+    private function logoDataUri(Office $office): ?string
     {
         $path = $this->logoPath($office);
 

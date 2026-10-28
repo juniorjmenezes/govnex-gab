@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Appointment;
-use App\Models\Atendimento;
-use App\Models\Cidadao;
-use App\Models\Demanda;
-use App\Models\Gabinete;
+use App\Models\Attendance;
+use App\Models\Citizen;
+use App\Models\Demand;
+use App\Models\Office;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,11 +19,11 @@ class AttendanceTest extends TestCase
 
     public function test_attendance_list_is_strictly_isolated_by_office(): void
     {
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $ownAttendance = Atendimento::factory()->forGabinete($office)->create();
-        $foreignAttendance = Atendimento::factory()->forGabinete($otherOffice)->create();
+        $ownAttendance = Attendance::factory()->forGabinete($office)->create();
+        $foreignAttendance = Attendance::factory()->forGabinete($otherOffice)->create();
 
         $this->actingAs($user)
             ->get(route('attendances.index'))
@@ -40,14 +40,14 @@ class AttendanceTest extends TestCase
     public function test_user_can_register_an_in_person_attendance(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-10 15:00:00', 'UTC'));
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'timezone' => 'America/Sao_Paulo',
         ]);
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $citizen = Cidadao::factory()->forGabinete($office)->create([
+        $citizen = Citizen::factory()->forGabinete($office)->create([
             'eleitor' => true,
         ]);
-        $demand = Demanda::factory()
+        $demand = Demand::factory()
             ->forGabinete($office, $citizen, creator: $user)
             ->create();
 
@@ -69,7 +69,7 @@ class AttendanceTest extends TestCase
             ->assertSessionHasNoErrors()
             ->assertRedirect();
 
-        $attendance = Atendimento::withoutGlobalScopes()->sole();
+        $attendance = Attendance::withoutGlobalScopes()->sole();
         $this->assertSame($office->id, $attendance->gabinete_id);
         $this->assertSame($citizen->id, $attendance->cidadao_id);
         $this->assertSame($user->id, $attendance->atendente_id);
@@ -82,9 +82,9 @@ class AttendanceTest extends TestCase
 
     public function test_visit_can_be_registered_from_an_originating_appointment(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $citizen = Cidadao::factory()->forGabinete($office)->create();
+        $citizen = Citizen::factory()->forGabinete($office)->create();
         $appointment = Appointment::factory()
             ->forGabinete($office)
             ->create([
@@ -102,21 +102,21 @@ class AttendanceTest extends TestCase
             ->assertSessionHasNoErrors()
             ->assertRedirect();
 
-        $attendance = Atendimento::withoutGlobalScopes()->sole();
+        $attendance = Attendance::withoutGlobalScopes()->sole();
         $this->assertTrue($attendance->visita_domiciliar);
         $this->assertSame($appointment->id, $attendance->compromisso_id);
     }
 
     public function test_foreign_relations_and_demand_from_another_citizen_are_rejected(): void
     {
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $citizen = Cidadao::factory()->forGabinete($office)->create();
-        $otherCitizen = Cidadao::factory()->forGabinete($office)->create();
-        $foreignCitizen = Cidadao::factory()->forGabinete($otherOffice)->create();
+        $citizen = Citizen::factory()->forGabinete($office)->create();
+        $otherCitizen = Citizen::factory()->forGabinete($office)->create();
+        $foreignCitizen = Citizen::factory()->forGabinete($otherOffice)->create();
         $foreignUser = User::factory()->operator()->forGabinete($otherOffice)->create();
-        $unrelatedDemand = Demanda::factory()
+        $unrelatedDemand = Demand::factory()
             ->forGabinete($office, $otherCitizen)
             ->create();
 
@@ -138,10 +138,10 @@ class AttendanceTest extends TestCase
 
     public function test_only_office_managers_can_delete_attendances(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
         $manager = User::factory()->administrator()->forGabinete($office)->create();
-        $attendance = Atendimento::factory()
+        $attendance = Attendance::factory()
             ->forGabinete($office, attendant: $advisor)
             ->create();
 
@@ -158,10 +158,10 @@ class AttendanceTest extends TestCase
 
     public function test_citizen_profile_contains_recent_attendances(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $citizen = Cidadao::factory()->forGabinete($office)->create();
-        $attendance = Atendimento::factory()
+        $citizen = Citizen::factory()->forGabinete($office)->create();
+        $attendance = Attendance::factory()
             ->forGabinete($office, $citizen, $user)
             ->create([
                 'assunto' => 'Atendimento mais recente',

@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
@@ -21,8 +21,8 @@ class UserPolicyTest extends TestCase
 
     public function test_chief_cannot_manage_advisor_locally_anymore(): void
     {
-        $gabinete = Gabinete::factory()->create();
-        $otherGabinete = Gabinete::factory()->create();
+        $gabinete = Office::factory()->create();
+        $otherGabinete = Office::factory()->create();
         $chief = User::factory()->administrator()->forGabinete($gabinete)->create();
         $ownAdvisor = User::factory()->operator()->forGabinete($gabinete)->create();
         $otherAdvisor = User::factory()->operator()->forGabinete($otherGabinete)->create();
@@ -33,7 +33,7 @@ class UserPolicyTest extends TestCase
 
     public function test_advisor_cannot_manage_team(): void
     {
-        $gabinete = Gabinete::factory()->create();
+        $gabinete = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($gabinete)->create();
         $teammate = User::factory()->operator()->forGabinete($gabinete)->create();
 

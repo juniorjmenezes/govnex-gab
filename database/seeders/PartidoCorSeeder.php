@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\PartidoCor;
+use App\Models\PartyColor;
 use Illuminate\Database\Seeder;
 
 /**
@@ -18,7 +18,7 @@ class PartidoCorSeeder extends Seeder
     public function run(): void
     {
         foreach ($this->colors() as $sigla => $cor) {
-            PartidoCor::query()->firstOrCreate(['sigla' => $sigla], ['cor' => $cor]);
+            PartyColor::query()->firstOrCreate(['sigla' => $sigla], ['cor' => $cor]);
         }
     }
 

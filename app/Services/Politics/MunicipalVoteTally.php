@@ -3,9 +3,9 @@
 namespace App\Services\Politics;
 
 use App\Enums\CandidateScope;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\VotacaoCandidatoMunicipio;
+use App\Models\Candidate;
+use App\Models\CandidateMunicipalityVote;
+use App\Models\Election;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -42,22 +42,22 @@ class MunicipalVoteTally
     /**
      * @return array<string, array{section_percent: null, total_sections: null, finished: bool, goes_to_second_round: bool, candidates: array<int, array<string, mixed>>}|null>
      */
-    public function results(Eleicao $election, int $municipalityId, int $round): array
+    public function results(Election $election, int $municipalityId, int $round): array
     {
-        $candidates = CandidatoPolitico::query()
+        $candidates = Candidate::query()
             ->where('eleicao_id', $election->id)
             ->where('abrangencia', CandidateScope::Municipal)
             ->where('municipio_eleitoral_id', $municipalityId)
             ->whereRaw('UPPER(cargo) IN (?, ?)', array_values(self::OFFICES))
             ->get(['id', 'cargo', 'nome', 'nome_urna', 'numero', 'partido_sigla', 'avancou_segundo_turno']);
 
-        $votes = VotacaoCandidatoMunicipio::query()
+        $votes = CandidateMunicipalityVote::query()
             ->where('eleicao_id', $election->id)
             ->where('municipio_eleitoral_id', $municipalityId)
             ->whereIn('candidato_politico_id', $candidates->modelKeys())
             ->get(['candidato_politico_id', 'turno', 'votos_nominais', 'votos_nominais_validos', 'situacao_totalizacao', 'eleito']);
 
-        $candidates = $candidates->groupBy(fn (CandidatoPolitico $candidate): string => Str::upper(trim($candidate->cargo)));
+        $candidates = $candidates->groupBy(fn (Candidate $candidate): string => Str::upper(trim($candidate->cargo)));
         $results = [];
 
         foreach (self::OFFICES as $office => $tseOffice) {
@@ -76,8 +76,8 @@ class MunicipalVoteTally
     }
 
     /**
-     * @param  Collection<int, CandidatoPolitico>  $race
-     * @param  Collection<int, VotacaoCandidatoMunicipio>  $votes
+     * @param  Collection<int, Candidate>  $race
+     * @param  Collection<int, CandidateMunicipalityVote>  $votes
      * @return array{section_percent: null, total_sections: null, finished: bool, goes_to_second_round: bool, candidates: array<int, array<string, mixed>>}
      */
     private function race(string $office, Collection $race, Collection $votes, int $round, bool $electionHasSecondRound): array
@@ -107,7 +107,7 @@ class MunicipalVoteTally
                 'goes_to_second_round' => false,
                 'candidates' => $roster
                     ->sortBy('nome_urna')
-                    ->map(fn (CandidatoPolitico $candidate): array => $this->candidate($candidate, 0, 0.0, false))
+                    ->map(fn (Candidate $candidate): array => $this->candidate($candidate, 0, 0.0, false))
                     ->values()
                     ->all(),
             ];
@@ -118,14 +118,14 @@ class MunicipalVoteTally
         return [
             'section_percent' => null,
             'total_sections' => null,
-            'finished' => $roundVotes->every(fn (VotacaoCandidatoMunicipio $vote): bool => $vote->situacao_totalizacao !== null),
+            'finished' => $roundVotes->every(fn (CandidateMunicipalityVote $vote): bool => $vote->situacao_totalizacao !== null),
             'goes_to_second_round' => $office === 'prefeito'
                 && $electionHasSecondRound
                 && $round === 1
                 && $advanced->isNotEmpty(),
             'candidates' => $roundVotes
                 ->sortByDesc('votos_nominais')
-                ->map(fn (VotacaoCandidatoMunicipio $vote): array => $this->candidate(
+                ->map(fn (CandidateMunicipalityVote $vote): array => $this->candidate(
                     $byId->get($vote->candidato_politico_id),
                     $vote->votos_nominais,
                     $validTotal > 0 ? round($vote->votos_nominais_validos / $validTotal * 100, 2) : 0.0,
@@ -137,7 +137,7 @@ class MunicipalVoteTally
     }
 
     /** @return array<string, mixed> */
-    private function candidate(CandidatoPolitico $candidate, int $votes, float $percent, bool $elected): array
+    private function candidate(Candidate $candidate, int $votes, float $percent, bool $elected): array
     {
         return [
             'number' => (string) $candidate->numero,

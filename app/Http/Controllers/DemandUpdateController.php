@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Demands\CreateDemandUpdate;
 use App\Http\Requests\Demands\StoreDemandUpdateRequest;
-use App\Models\Demanda;
+use App\Models\Demand;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
@@ -12,7 +12,7 @@ class DemandUpdateController extends Controller
 {
     public function store(
         StoreDemandUpdateRequest $request,
-        Demanda $demanda,
+        Demand $demanda,
         CreateDemandUpdate $action,
     ): RedirectResponse {
         $files = array_values($request->file('arquivos', []));

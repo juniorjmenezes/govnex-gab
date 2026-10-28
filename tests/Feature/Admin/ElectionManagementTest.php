@@ -4,11 +4,11 @@ namespace Tests\Feature\Admin;
 
 use App\Enums\CandidateScope;
 use App\Jobs\TallyElection;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\Gabinete;
-use App\Models\ResultadoCandidatoEleicao;
-use App\Models\SincronizacaoTse;
+use App\Models\Candidate;
+use App\Models\CandidateElectionResult;
+use App\Models\Election;
+use App\Models\Office;
+use App\Models\TseSync;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -80,7 +80,7 @@ class ElectionManagementTest extends TestCase
     public function test_election_rejects_duplicate_year_and_type(): void
     {
         $root = User::factory()->root()->create();
-        Eleicao::query()->create([
+        Election::query()->create([
             'ano' => 2030,
             'tipo' => 'geral',
             'nome' => 'Eleições Gerais 2030',
@@ -118,7 +118,7 @@ class ElectionManagementTest extends TestCase
     public function test_root_can_update_an_existing_election(): void
     {
         $root = User::factory()->root()->create();
-        $eleicao = Eleicao::query()->create([
+        $eleicao = Election::query()->create([
             'ano' => 2030,
             'tipo' => 'geral',
             'nome' => 'Eleições Gerais 2030',
@@ -149,7 +149,7 @@ class ElectionManagementTest extends TestCase
         Queue::fake();
 
         $root = User::factory()->root()->create();
-        $eleicao = Eleicao::query()->create([
+        $eleicao = Election::query()->create([
             'ano' => 2022,
             'tipo' => 'geral',
             'nome' => 'Eleições Gerais 2022',
@@ -173,7 +173,7 @@ class ElectionManagementTest extends TestCase
         Queue::fake();
 
         $root = User::factory()->root()->create();
-        $eleicao = Eleicao::query()->create([
+        $eleicao = Election::query()->create([
             'ano' => 2030,
             'tipo' => 'geral',
             'nome' => 'Eleições Gerais 2030',
@@ -192,9 +192,9 @@ class ElectionManagementTest extends TestCase
     {
         Queue::fake();
 
-        $gabinete = Gabinete::factory()->create();
+        $gabinete = Office::factory()->create();
         $councilor = User::factory()->administrator()->forGabinete($gabinete)->create();
-        $eleicao = Eleicao::query()->create([
+        $eleicao = Election::query()->create([
             'ano' => 2022,
             'tipo' => 'geral',
             'nome' => 'Eleições Gerais 2022',
@@ -221,15 +221,15 @@ class ElectionManagementTest extends TestCase
             'situacao' => 'programada',
         ]);
 
-        $response->assertRedirect(route('admin.elections.show', Eleicao::query()->where('ano', 2030)->firstOrFail()));
+        $response->assertRedirect(route('admin.elections.show', Election::query()->where('ano', 2030)->firstOrFail()));
     }
 
     /** Eleição geral: sem votação nominal, locais nem seções; com registro de pesquisas. */
     public function test_the_general_election_page_lists_only_the_general_datasets(): void
     {
         $root = User::factory()->root()->create();
-        Gabinete::factory()->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        Office::factory()->create();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
 
         $this->actingAs($root)
             ->get(route('admin.elections.show', $election))
@@ -251,7 +251,7 @@ class ElectionManagementTest extends TestCase
     public function test_the_municipal_election_page_lists_only_the_municipal_datasets(): void
     {
         $root = User::factory()->root()->create();
-        $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
+        $election = Election::query()->where('ano', 2024)->firstOrFail();
 
         $this->actingAs($root)
             ->get(route('admin.elections.show', $election))
@@ -268,8 +268,8 @@ class ElectionManagementTest extends TestCase
     public function test_the_election_page_shows_the_latest_run_of_each_dataset_for_its_year(): void
     {
         $root = User::factory()->root()->create();
-        $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
-        $sync = fn (string $dataset, int $year, string $status) => SincronizacaoTse::query()->create([
+        $election = Election::query()->where('ano', 2024)->firstOrFail();
+        $sync = fn (string $dataset, int $year, string $status) => TseSync::query()->create([
             'gabinete_id' => null,
             'dataset' => $dataset,
             'ano' => $year,
@@ -300,8 +300,8 @@ class ElectionManagementTest extends TestCase
     public function test_the_election_page_summarizes_the_tally_by_office(): void
     {
         $root = User::factory()->root()->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
-        $candidate = fn (string $number, string $office) => CandidatoPolitico::query()->create([
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
+        $candidate = fn (string $number, string $office) => Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => "9{$number}",
             'abrangencia' => CandidateScope::State,
@@ -316,13 +316,13 @@ class ElectionManagementTest extends TestCase
         $elected = $candidate('451', 'Senador');
         $candidate('452', 'Senador');
         $candidate('1111', 'Deputado Federal');
-        ResultadoCandidatoEleicao::query()->create([
+        CandidateElectionResult::query()->create([
             'candidato_politico_id' => $elected->id,
             'eleicao_id' => $election->id,
             'turno' => 1,
             'votos' => 100,
             'percentual_validos' => 60,
-            'situacao_totalizacao' => ResultadoCandidatoEleicao::ELECTED,
+            'situacao_totalizacao' => CandidateElectionResult::ELECTED,
             'eleito' => true,
         ]);
 
@@ -343,9 +343,9 @@ class ElectionManagementTest extends TestCase
 
     public function test_non_root_users_cannot_access_election_management(): void
     {
-        $gabinete = Gabinete::factory()->create();
+        $gabinete = Office::factory()->create();
         $councilor = User::factory()->administrator()->forGabinete($gabinete)->create();
-        $eleicao = Eleicao::query()->create([
+        $eleicao = Election::query()->create([
             'ano' => 2030,
             'tipo' => 'geral',
             'nome' => 'Eleições Gerais 2030',

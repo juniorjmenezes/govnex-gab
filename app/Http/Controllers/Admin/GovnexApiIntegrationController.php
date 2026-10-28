@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateGovnexApiIntegrationRequest;
-use App\Models\IntegracaoGovnexApi;
+use App\Models\GovnexApiIntegration;
 use App\Services\Politics\Tse\GovnexApiSettings;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -48,7 +48,7 @@ class GovnexApiIntegrationController extends Controller
         UpdateGovnexApiIntegrationRequest $request,
         GovnexApiSettings $settings,
     ): RedirectResponse {
-        $record = $settings->record() ?? new IntegracaoGovnexApi;
+        $record = $settings->record() ?? new GovnexApiIntegration;
         $chave = $request->validated('chave');
 
         $record->fill([

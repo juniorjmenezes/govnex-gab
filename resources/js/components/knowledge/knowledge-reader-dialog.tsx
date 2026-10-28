@@ -28,7 +28,8 @@ export function KnowledgeReaderDialog({
     progressUrl: string | null;
     onClose: () => void;
 }) {
-    const open = knowledgeDocument !== null && fileUrl !== null && progressUrl !== null;
+    const open =
+        knowledgeDocument !== null && fileUrl !== null && progressUrl !== null;
 
     return (
         <Dialog open={open} onOpenChange={(next) => !next && onClose()}>

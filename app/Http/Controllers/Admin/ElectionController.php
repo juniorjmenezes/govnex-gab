@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use App\Exceptions\ElectionLifecycleException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreElectionRequest;
 use App\Http\Requests\Admin\SyncElectionDatasetRequest;
 use App\Http\Requests\Admin\UpdateElectionRequest;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\SincronizacaoTse;
-use App\Services\Modules\GabineteModuleManager;
+use App\Models\Candidate;
+use App\Models\Election;
+use App\Models\TseSync;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\Politics\ElectionLifecycleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,12 +48,12 @@ class ElectionController extends Controller
         abort_unless($request->user()->isRoot(), 403);
 
         return Inertia::render('admin/elections/index', [
-            'elections' => Eleicao::query()
+            'elections' => Election::query()
                 ->withCount('candidatos')
                 ->orderByDesc('ano')
                 ->orderBy('tipo')
                 ->get()
-                ->map(fn (Eleicao $election): array => [
+                ->map(fn (Election $election): array => [
                     ...$this->summary($election),
                     'candidates_count' => (int) $election->getAttribute('candidatos_count'),
                 ])
@@ -61,13 +61,13 @@ class ElectionController extends Controller
         ]);
     }
 
-    public function show(Request $request, Eleicao $eleicao, GabineteModuleManager $modules): Response
+    public function show(Request $request, Election $eleicao, OfficeModuleManager $modules): Response
     {
         abort_unless($request->user()->isRoot(), 403);
 
         return Inertia::render('admin/elections/show', [
             'election' => $this->summary($eleicao),
-            'politicsAvailable' => $modules->anyActiveOffice(GabineteModule::Politics),
+            'politicsAvailable' => $modules->anyActiveOffice(OfficeModule::Politics),
             'datasets' => $this->lifecycle->datasets($eleicao),
             'tally' => [
                 'available' => $this->lifecycle->canTally($eleicao),
@@ -78,7 +78,7 @@ class ElectionController extends Controller
 
     public function store(StoreElectionRequest $request): RedirectResponse
     {
-        $election = Eleicao::query()->create($request->validated());
+        $election = Election::query()->create($request->validated());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Eleição cadastrada.']);
 
@@ -86,7 +86,7 @@ class ElectionController extends Controller
         return to_route('admin.elections.show', $election);
     }
 
-    public function update(UpdateElectionRequest $request, Eleicao $eleicao): RedirectResponse
+    public function update(UpdateElectionRequest $request, Election $eleicao): RedirectResponse
     {
         $eleicao->update($request->validated());
 
@@ -95,14 +95,14 @@ class ElectionController extends Controller
         return to_route('admin.elections.show', $eleicao);
     }
 
-    public function destroy(Request $request, Eleicao $eleicao): RedirectResponse
+    public function destroy(Request $request, Election $eleicao): RedirectResponse
     {
         abort_unless($request->user()->isRoot(), 403);
 
         // Uma eleição com candidatos já sincronizados alimenta todo o
         // histórico do painel político — excluí-la apagaria esses dados em
         // cascata (ver constraint em candidatos_politicos.eleicao_id).
-        if (CandidatoPolitico::query()->where('eleicao_id', $eleicao->id)->exists()) {
+        if (Candidate::query()->where('eleicao_id', $eleicao->id)->exists()) {
             Inertia::flash('toast', [
                 'type' => 'error',
                 'message' => 'Esta eleição já tem candidatos sincronizados e não pode ser removida.',
@@ -119,7 +119,7 @@ class ElectionController extends Controller
     }
 
     /** Põe na fila um dataset do TSE para o ano da eleição. */
-    public function syncDataset(SyncElectionDatasetRequest $request, Eleicao $eleicao): RedirectResponse
+    public function syncDataset(SyncElectionDatasetRequest $request, Election $eleicao): RedirectResponse
     {
         $dataset = (string) $request->validated('dataset');
 
@@ -138,7 +138,7 @@ class ElectionController extends Controller
     }
 
     /** Cancela uma execução travada de um dataset da eleição. */
-    public function cancelSync(Request $request, Eleicao $eleicao, SincronizacaoTse $sync): RedirectResponse
+    public function cancelSync(Request $request, Election $eleicao, TseSync $sync): RedirectResponse
     {
         abort_unless($request->user()->isRoot(), 403);
         abort_unless($this->lifecycle->belongsTo($eleicao, $sync), 404);
@@ -162,7 +162,7 @@ class ElectionController extends Controller
      * hora em hora (`politics:tally-elections`) e como efeito colateral da
      * tela de apuração, só que disparável a qualquer momento pelo admin.
      */
-    public function apurar(Request $request, Eleicao $eleicao): RedirectResponse
+    public function apurar(Request $request, Election $eleicao): RedirectResponse
     {
         abort_unless($request->user()->isRoot(), 403);
 
@@ -181,7 +181,7 @@ class ElectionController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function summary(Eleicao $election): array
+    private function summary(Election $election): array
     {
         return [
             'id' => $election->id,

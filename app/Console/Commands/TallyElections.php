@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Eleicao;
+use App\Models\Election;
 use App\Services\Politics\ElectionLifecycleService;
 use Illuminate\Console\Command;
 
@@ -21,7 +21,7 @@ class TallyElections extends Command
         // cadeiras proporcionais, que fecha depois da majoritária.
         $cutoff = today()->subDays(3)->toDateString();
 
-        $elections = Eleicao::query()
+        $elections = Election::query()
             ->when(
                 $electionId !== null,
                 fn ($query) => $query->whereKey((int) $electionId),

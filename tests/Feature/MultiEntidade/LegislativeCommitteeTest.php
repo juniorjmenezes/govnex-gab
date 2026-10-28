@@ -5,15 +5,15 @@ namespace Tests\Feature\MultiEntidade;
 use App\Enums\CommitteeRole;
 use App\Enums\CommitteeStatus;
 use App\Enums\CommitteeType;
-use App\Enums\EntidadeModule;
-use App\Enums\EntidadeType;
-use App\Enums\GabineteType;
+use App\Enums\EntityModule;
+use App\Enums\EntityType;
+use App\Enums\OfficeType;
 use App\Models\ComissaoLegislativa;
 use App\Models\ComissaoMembro;
-use App\Models\ConhecimentoDocumento;
-use App\Models\Entidade;
-use App\Models\EntidadeModulo;
-use App\Models\Gabinete;
+use App\Models\Entity;
+use App\Models\EntityModuleSubscription;
+use App\Models\KnowledgeDocument;
+use App\Models\Office;
 use App\Models\User;
 use App\Services\Committees\CommitteeMembershipService;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -31,8 +31,8 @@ class LegislativeCommitteeTest extends TestCase
     public function test_only_the_secretariat_creates_committees(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $admin = $this->usuario($secretaria);
 
         // Vereador não tem o módulo de gestão; auditor da Secretaria só lê.
@@ -78,9 +78,9 @@ class LegislativeCommitteeTest extends TestCase
     public function test_every_office_of_the_same_city_council_reads_committees(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $setor = $this->gabinete($camara, GabineteType::AdministrativeDepartment);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $setor = $this->gabinete($camara, OfficeType::AdministrativeDepartment);
         $comissao = $this->comissao($camara, ['nome' => 'Comissão de Justiça']);
         $membro = app(CommitteeMembershipService::class)
             ->add($comissao, $vereador->id, null, CommitteeRole::President);
@@ -143,14 +143,14 @@ class LegislativeCommitteeTest extends TestCase
     public function test_offices_of_another_city_council_get_forbidden_for_reading_and_writing(): void
     {
         $camara = $this->camara();
-        $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $comissao = $this->comissao($camara);
         $membro = app(CommitteeMembershipService::class)
             ->add($comissao, $vereador->id, null, CommitteeRole::Member);
         $outraCamara = $this->camara();
-        $outraSecretaria = $this->gabinete($outraCamara, GabineteType::LegislativeSecretariat);
-        $vereadorDeFora = $this->gabinete($outraCamara, GabineteType::CouncilorOffice);
+        $outraSecretaria = $this->gabinete($outraCamara, OfficeType::LegislativeSecretariat);
+        $vereadorDeFora = $this->gabinete($outraCamara, OfficeType::CouncilorOffice);
         $documentoDeFora = $this->documento($outraCamara);
 
         foreach ([$vereadorDeFora, $outraSecretaria] as $gabinete) {
@@ -194,9 +194,9 @@ class LegislativeCommitteeTest extends TestCase
     public function test_secretariat_manages_members_with_domain_rules(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereadorA = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $vereadorB = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereadorA = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $vereadorB = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $pessoaA = $this->usuario($vereadorA);
         $outraPessoaA = $this->usuario($vereadorA);
         $pessoaB = $this->usuario($vereadorB);
@@ -282,11 +282,11 @@ class LegislativeCommitteeTest extends TestCase
     public function test_substitute_role_is_assignable_without_touching_the_single_president_rule(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereadorA = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $vereadorB = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $vereadorC = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $vereadorD = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereadorA = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $vereadorB = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $vereadorC = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $vereadorD = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $admin = $this->usuario($secretaria);
         $comissao = $this->comissao($camara);
 
@@ -355,13 +355,13 @@ class LegislativeCommitteeTest extends TestCase
     public function test_only_active_councilor_offices_of_the_same_city_council_become_members(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $setor = $this->gabinete($camara, GabineteType::AdministrativeDepartment);
-        $suspenso = Gabinete::factory()->suspended()->create([
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $setor = $this->gabinete($camara, OfficeType::AdministrativeDepartment);
+        $suspenso = Office::factory()->suspended()->create([
             'entidade_id' => $camara->id,
-            'tipo_gabinete' => GabineteType::CouncilorOffice,
+            'tipo_gabinete' => OfficeType::CouncilorOffice,
         ]);
-        $deFora = $this->gabinete($this->camara(), GabineteType::CouncilorOffice);
+        $deFora = $this->gabinete($this->camara(), OfficeType::CouncilorOffice);
         $comissao = $this->comissao($camara);
 
         foreach ([$setor, $suspenso, $deFora, $secretaria] as $gabinete) {
@@ -382,9 +382,9 @@ class LegislativeCommitteeTest extends TestCase
     public function test_extinct_committee_closes_memberships_and_rejects_new_members(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereadorA = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $vereadorB = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereadorA = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $vereadorB = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $admin = $this->usuario($secretaria);
         $comissao = $this->comissao($camara, ['nome' => 'CPI do transporte', 'tipo' => CommitteeType::Temporary]);
         $membro = app(CommitteeMembershipService::class)
@@ -428,8 +428,8 @@ class LegislativeCommitteeTest extends TestCase
     public function test_secretariat_links_and_unlinks_existing_city_council_documents(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $admin = $this->usuario($secretaria);
         $comissao = $this->comissao($camara);
         $daCamara = $this->documento($camara, null, 'Pauta da reunião');
@@ -496,7 +496,7 @@ class LegislativeCommitteeTest extends TestCase
     public function test_database_unique_indexes_block_duplicate_members_and_links(): void
     {
         $camara = $this->camara();
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $comissao = $this->comissao($camara);
         $documento = $this->documento($camara);
         $now = now();
@@ -529,13 +529,13 @@ class LegislativeCommitteeTest extends TestCase
     public function test_disabled_entidade_module_hides_committees(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $comissao = $this->comissao($camara);
 
-        EntidadeModulo::query()
+        EntityModuleSubscription::query()
             ->where('entidade_id', $camara->id)
-            ->where('modulo', EntidadeModule::LegislativeSecretariat->value)
+            ->where('modulo', EntityModule::LegislativeSecretariat->value)
             ->update(['ativo' => false]);
 
         foreach ([$vereador, $secretaria] as $gabinete) {
@@ -547,8 +547,8 @@ class LegislativeCommitteeTest extends TestCase
             ->post(route('committees.store'), $this->payload())
             ->assertForbidden();
 
-        // Gabinete independente (sem o módulo na entidade) também não vê.
-        $independente = Gabinete::factory()->create();
+        // Office independente (sem o módulo na entidade) também não vê.
+        $independente = Office::factory()->create();
         $this->actingAs($this->usuario($independente))
             ->get(route('committees.index'))
             ->assertForbidden();
@@ -557,8 +557,8 @@ class LegislativeCommitteeTest extends TestCase
     public function test_secretariat_does_not_gain_access_to_councilor_private_documents_through_committees(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $comissao = $this->comissao($camara);
         $privado = $this->documento($camara, $vereador, 'Minuta interna do vereador');
 
@@ -568,35 +568,35 @@ class LegislativeCommitteeTest extends TestCase
         $this->assertFalse($this->usuario($secretaria)->can('view', $privado));
     }
 
-    private function camara(): Entidade
+    private function camara(): Entity
     {
-        $camara = Entidade::factory()->create([
-            'tipo' => EntidadeType::CityCouncil,
+        $camara = Entity::factory()->create([
+            'tipo' => EntityType::CityCouncil,
             'interface_simplificada' => false,
         ]);
-        EntidadeModulo::query()
+        EntityModuleSubscription::query()
             ->where('entidade_id', $camara->id)
-            ->where('modulo', EntidadeModule::LegislativeSecretariat->value)
+            ->where('modulo', EntityModule::LegislativeSecretariat->value)
             ->update(['ativo' => true, 'ativado_em' => now()]);
 
         return $camara;
     }
 
-    private function gabinete(Entidade $entidade, GabineteType $tipo): Gabinete
+    private function gabinete(Entity $entidade, OfficeType $tipo): Office
     {
-        return Gabinete::factory()->create([
+        return Office::factory()->create([
             'entidade_id' => $entidade->id,
             'tipo_gabinete' => $tipo,
         ]);
     }
 
-    private function usuario(Gabinete $gabinete): User
+    private function usuario(Office $gabinete): User
     {
         return User::factory()->administrator()->forGabinete($gabinete)->create();
     }
 
     /** @param  array<string, mixed>  $attributes */
-    private function comissao(Entidade $entidade, array $attributes = []): ComissaoLegislativa
+    private function comissao(Entity $entidade, array $attributes = []): ComissaoLegislativa
     {
         $comissao = new ComissaoLegislativa;
         $comissao->forceFill([
@@ -611,9 +611,9 @@ class LegislativeCommitteeTest extends TestCase
         return $comissao;
     }
 
-    private function documento(?Entidade $entidade, ?Gabinete $gabinete = null, string $titulo = 'Documento'): ConhecimentoDocumento
+    private function documento(?Entity $entidade, ?Office $gabinete = null, string $titulo = 'Documento'): KnowledgeDocument
     {
-        $documento = new ConhecimentoDocumento;
+        $documento = new KnowledgeDocument;
         $documento->forceFill([
             'gabinete_id' => $gabinete?->id,
             'entidade_id' => $entidade?->id,

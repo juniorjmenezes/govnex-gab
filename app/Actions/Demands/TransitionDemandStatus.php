@@ -5,7 +5,7 @@ namespace App\Actions\Demands;
 use App\Enums\DemandEventType;
 use App\Enums\DemandResultado;
 use App\Enums\DemandStatus;
-use App\Models\Demanda;
+use App\Models\Demand;
 use App\Models\User;
 use App\Services\Demands\DemandNotificationService;
 use App\Services\Demands\DemandTimelineRecorder;
@@ -27,16 +27,16 @@ class TransitionDemandStatus
 
     /** @param array<string, mixed> $dados */
     public function handle(
-        Demanda $demand,
+        Demand $demand,
         DemandStatus $status,
         User $user,
         DemandEventType $eventType = DemandEventType::StatusAlterado,
         ?string $descricao = null,
         array $dados = [],
         ?DemandResultado $resultado = null,
-    ): Demanda {
-        return DB::transaction(function () use ($demand, $status, $user, $eventType, $descricao, $dados, $resultado): Demanda {
-            $locked = Demanda::query()->lockForUpdate()->findOrFail($demand->id);
+    ): Demand {
+        return DB::transaction(function () use ($demand, $status, $user, $eventType, $descricao, $dados, $resultado): Demand {
+            $locked = Demand::query()->lockForUpdate()->findOrFail($demand->id);
             $previous = $locked->status;
 
             if ($previous === $status) {

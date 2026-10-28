@@ -4,7 +4,7 @@ namespace App\Services\WhatsApp;
 
 use App\Enums\WhatsAppPurpose;
 use App\Exceptions\WhatsAppGatewayException;
-use App\Models\EntidadeWhatsAppConexao;
+use App\Models\EntityWhatsAppConnection;
 use App\Models\WhatsAppTemplatePurpose;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +18,7 @@ final class WhatsAppTemplateService
     ) {}
 
     /** @return array<int, WhatsAppTemplatePurpose> */
-    public function catalog(?EntidadeWhatsAppConexao $connection = null): array
+    public function catalog(?EntityWhatsAppConnection $connection = null): array
     {
         foreach (WhatsAppPurpose::cases() as $purpose) {
             $definition = $this->catalog->definition($purpose);
@@ -44,7 +44,7 @@ final class WhatsAppTemplateService
         WhatsAppPurpose $purpose,
         ?string $body,
         int $adminUserId,
-        ?EntidadeWhatsAppConexao $connection = null,
+        ?EntityWhatsAppConnection $connection = null,
     ): WhatsAppTemplatePurpose {
         $this->assertOperationalUtility($purpose);
         $local = $this->scope(WhatsAppTemplatePurpose::query(), $connection)
@@ -157,7 +157,7 @@ final class WhatsAppTemplateService
     }
 
     /** @return array<int, WhatsAppTemplatePurpose> */
-    public function sync(?EntidadeWhatsAppConexao $connection = null): array
+    public function sync(?EntityWhatsAppConnection $connection = null): array
     {
         $accountId = $this->requireConfiguredAccountId($connection);
         $remoteTemplates = $this->gateway->syncTemplates();
@@ -239,7 +239,7 @@ final class WhatsAppTemplateService
         WhatsAppPurpose $purpose,
         array $definition,
         array $remote,
-        ?EntidadeWhatsAppConexao $connection = null,
+        ?EntityWhatsAppConnection $connection = null,
     ): WhatsAppTemplatePurpose {
         if ((int) ($remote['id'] ?? 0) < 1) {
             throw new RuntimeException('O gateway não retornou uma versão de template válida.');
@@ -276,7 +276,7 @@ final class WhatsAppTemplateService
         }, 3);
     }
 
-    private function requireConfiguredAccountId(?EntidadeWhatsAppConexao $connection = null): int
+    private function requireConfiguredAccountId(?EntityWhatsAppConnection $connection = null): int
     {
         if ($connection !== null && ! $connection->isReady()) {
             throw new RuntimeException('A conexao WhatsApp da entidade nao esta ativa.');
@@ -292,7 +292,7 @@ final class WhatsAppTemplateService
     }
 
     /** @return array{entidade_id:int|null,entidade_whatsapp_conexao_id:int|null,finalidade:string} */
-    private function identity(WhatsAppPurpose $purpose, ?EntidadeWhatsAppConexao $connection): array
+    private function identity(WhatsAppPurpose $purpose, ?EntityWhatsAppConnection $connection): array
     {
         return [
             'entidade_id' => $connection?->entidade_id,
@@ -304,7 +304,7 @@ final class WhatsAppTemplateService
     /** @param Builder<WhatsAppTemplatePurpose> $query
      * @return Builder<WhatsAppTemplatePurpose>
      */
-    private function scope(Builder $query, ?EntidadeWhatsAppConexao $connection): Builder
+    private function scope(Builder $query, ?EntityWhatsAppConnection $connection): Builder
     {
         return $connection === null
             ? $query->whereNull('entidade_id')->whereNull('entidade_whatsapp_conexao_id')

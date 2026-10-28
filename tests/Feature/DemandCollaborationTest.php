@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\Demanda;
-use App\Models\DemandaAnexo;
-use App\Models\Gabinete;
+use App\Models\Demand;
+use App\Models\DemandAttachment;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -39,8 +39,8 @@ class DemandCollaborationTest extends TestCase
     public function test_update_cannot_be_added_to_another_office_demand(): void
     {
         [$user] = $this->demandContext();
-        $foreignOffice = Gabinete::factory()->create();
-        $foreignDemand = Demanda::factory()->forGabinete($foreignOffice)->create();
+        $foreignOffice = Office::factory()->create();
+        $foreignDemand = Demand::factory()->forGabinete($foreignOffice)->create();
 
         $this->actingAs($user)
             ->post(route('demands.updates.store', $foreignDemand), [
@@ -63,7 +63,7 @@ class DemandCollaborationTest extends TestCase
             ])
             ->assertRedirect(route('demands.show', $demand));
 
-        $attachments = DemandaAnexo::query()->orderBy('id')->get();
+        $attachments = DemandAttachment::query()->orderBy('id')->get();
         $this->assertCount(2, $attachments);
 
         foreach ($attachments as $attachment) {
@@ -113,13 +113,13 @@ class DemandCollaborationTest extends TestCase
         $this->actingAs($owner)->post(route('demands.attachments.store', $demand), [
             'arquivos' => [UploadedFile::fake()->create('relatorio.pdf', 20, 'application/pdf')],
         ]);
-        $attachment = DemandaAnexo::query()->firstOrFail();
+        $attachment = DemandAttachment::query()->firstOrFail();
 
         $this->get(route('demands.attachments.download', [$demand, $attachment]))
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf');
 
-        $otherOffice = Gabinete::factory()->create();
+        $otherOffice = Office::factory()->create();
         $otherUser = User::factory()->operator()->forGabinete($otherOffice)->create();
 
         $this->actingAs($otherUser)
@@ -135,7 +135,7 @@ class DemandCollaborationTest extends TestCase
         $this->actingAs($user)->post(route('demands.attachments.store', $demand), [
             'arquivos' => [UploadedFile::fake()->image('antes.jpg')],
         ]);
-        $attachment = DemandaAnexo::query()->firstOrFail();
+        $attachment = DemandAttachment::query()->firstOrFail();
         $path = $attachment->caminho;
 
         $this->delete(route('demands.attachments.destroy', [$demand, $attachment]))
@@ -194,12 +194,12 @@ class DemandCollaborationTest extends TestCase
         }
     }
 
-    /** @return array{User, Demanda} */
+    /** @return array{User, Demand} */
     private function demandContext(): array
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $demand = Demanda::factory()->forGabinete($office, creator: $user)->create();
+        $demand = Demand::factory()->forGabinete($office, creator: $user)->create();
 
         return [$user, $demand];
     }

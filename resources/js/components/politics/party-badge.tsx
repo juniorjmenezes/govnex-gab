@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 
 /**
  * Badge de partido colorido com a cor definida pelo root em
- * /admin/cores-partidos (ver PartidoCor). Sem cor cadastrada, cai de volta
+ * /admin/cores-partidos (ver PartyColor). Sem cor cadastrada, cai de volta
  * pro outline neutro — não há mais o que fazer sem uma cor pra aplicar.
  */
 export function PartyBadge({

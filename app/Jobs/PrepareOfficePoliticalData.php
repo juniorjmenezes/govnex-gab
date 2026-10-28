@@ -2,9 +2,9 @@
 
 namespace App\Jobs;
 
-use App\Enums\GabineteModule;
-use App\Models\SincronizacaoTse;
-use App\Services\Modules\GabineteModuleManager;
+use App\Enums\OfficeModule;
+use App\Models\TseSync;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\Politics\Polls\PollingDataService;
 use App\Services\Politics\Polls\ResultResolver;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -41,10 +41,10 @@ class PrepareOfficePoliticalData implements ShouldBeUnique, ShouldQueue
     public function handle(
         PollingDataService $pollingDataService,
         ResultResolver $resultResolver,
-        GabineteModuleManager $modules,
+        OfficeModuleManager $modules,
     ): void {
         foreach ($this->runIds as $runId) {
-            $run = SincronizacaoTse::query()->find($runId);
+            $run = TseSync::query()->find($runId);
 
             if (! $run || in_array($run->situacao, ['concluida', 'cancelada'], true)) {
                 continue;
@@ -60,7 +60,7 @@ class PrepareOfficePoliticalData implements ShouldBeUnique, ShouldQueue
                 continue;
             }
 
-            $politicsAvailable = $modules->isActive($run->gabinete_id, GabineteModule::Politics);
+            $politicsAvailable = $modules->isActive($run->gabinete_id, OfficeModule::Politics);
 
             if (! $politicsAvailable) {
                 $run->forceFill([
@@ -86,7 +86,7 @@ class PrepareOfficePoliticalData implements ShouldBeUnique, ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        SincronizacaoTse::query()
+        TseSync::query()
             ->whereIn('id', $this->runIds)
             ->whereIn('situacao', ['pendente', 'processando'])
             ->update([

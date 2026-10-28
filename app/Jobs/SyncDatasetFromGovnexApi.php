@@ -2,9 +2,9 @@
 
 namespace App\Jobs;
 
-use App\Enums\GabineteModule;
-use App\Models\SincronizacaoTse;
-use App\Services\Modules\GabineteModuleManager;
+use App\Enums\OfficeModule;
+use App\Models\TseSync;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\Politics\TsePoliticalDataSyncService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -14,7 +14,7 @@ use Throwable;
 
 /**
  * Sincroniza um dataset do TSE pela GOVNEX API. Qual dataset roda vem da
- * própria `SincronizacaoTse` (ver TsePoliticalDataSyncService::DATASETS).
+ * própria `TseSync` (ver TsePoliticalDataSyncService::DATASETS).
  */
 class SyncDatasetFromGovnexApi implements ShouldQueue
 {
@@ -33,7 +33,7 @@ class SyncDatasetFromGovnexApi implements ShouldQueue
 
     public function handle(
         TsePoliticalDataSyncService $service,
-        ?GabineteModuleManager $modules = null,
+        ?OfficeModuleManager $modules = null,
     ): void {
         // -d memory_limit= na invocação de `queue:listen` não chega até
         // aqui: o listener só repassa a memória pro PRÓPRIO processo, não
@@ -42,15 +42,15 @@ class SyncDatasetFromGovnexApi implements ShouldQueue
         // importa como o worker foi iniciado.
         ini_set('memory_limit', (string) config('services.tse.worker_memory_limit', '2048M'));
 
-        $run = SincronizacaoTse::query()->find($this->runId);
+        $run = TseSync::query()->find($this->runId);
 
         if (! $run || in_array($run->situacao, ['concluida', 'cancelada'], true)) {
             return;
         }
 
-        $modules ??= app(GabineteModuleManager::class);
+        $modules ??= app(OfficeModuleManager::class);
 
-        if (! $modules->anyActiveOffice(GabineteModule::Politics)) {
+        if (! $modules->anyActiveOffice(OfficeModule::Politics)) {
             $run->update([
                 'situacao' => 'cancelada',
                 'erro' => 'O módulo Inteligência política foi desativado antes do processamento.',
@@ -65,7 +65,7 @@ class SyncDatasetFromGovnexApi implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        SincronizacaoTse::query()
+        TseSync::query()
             ->whereKey($this->runId)
             ->whereIn('situacao', ['pendente', 'processando'])
             ->update([

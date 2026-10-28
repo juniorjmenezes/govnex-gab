@@ -3,10 +3,10 @@
 namespace App\Services\Politics\Polls;
 
 use App\Enums\CandidateScope;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\PesquisaEleitoral;
-use App\Models\SincronizacaoTse;
+use App\Models\Candidate;
+use App\Models\Election;
+use App\Models\ElectoralPoll;
+use App\Models\TseSync;
 use App\Services\Politics\SecondRoundClassifier;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
@@ -80,12 +80,12 @@ class PollingDataService implements PesquisaResultProvider
         return (string) config('services.pollingdata.url');
     }
 
-    public function supports(PesquisaEleitoral $pesquisa): bool
+    public function supports(ElectoralPoll $pesquisa): bool
     {
         return in_array($pesquisa->cargo, ['presidente', 'governador', 'senador'], true);
     }
 
-    public function buscar(PesquisaEleitoral $pesquisa): ?ResultadoColeta
+    public function buscar(ElectoralPoll $pesquisa): ?ResultadoColeta
     {
         if (! $this->supports($pesquisa)) {
             return null;
@@ -133,8 +133,8 @@ class PollingDataService implements PesquisaResultProvider
             return null;
         }
 
-        $eleicao = Eleicao::query()->find($pesquisa->eleicao_id);
-        $candidateMap = $eleicao instanceof Eleicao ? $this->candidateMap($eleicao, $context) : null;
+        $eleicao = Election::query()->find($pesquisa->eleicao_id);
+        $candidateMap = $eleicao instanceof Election ? $this->candidateMap($eleicao, $context) : null;
 
         return $this->buildResultadoColeta($context, $group, $candidateMap);
     }
@@ -181,9 +181,9 @@ class PollingDataService implements PesquisaResultProvider
      */
     public function runoffContexts(int $year): array
     {
-        $election = Eleicao::query()->where('ano', $year)->first();
+        $election = Election::query()->where('ano', $year)->first();
 
-        if (! $election instanceof Eleicao) {
+        if (! $election instanceof Election) {
             return [];
         }
 
@@ -221,7 +221,7 @@ class PollingDataService implements PesquisaResultProvider
      * correspondência exata e inequívoca, devolve null (melhor não
      * sincronizar do que sincronizar o confronto errado).
      */
-    private function runoffContext(Eleicao $election, string $office, string $uf): ?ElectionContext
+    private function runoffContext(Election $election, string $office, string $uf): ?ElectionContext
     {
         $advanced = $this->secondRound->raceQuery($election, $office, $uf, null)
             ->where('avancou_segundo_turno', true)
@@ -232,7 +232,7 @@ class PollingDataService implements PesquisaResultProvider
         }
 
         $names = $advanced
-            ->map(fn (CandidatoPolitico $candidate): string => $this->normalize($candidate->nome_urna ?: $candidate->nome))
+            ->map(fn (Candidate $candidate): string => $this->normalize($candidate->nome_urna ?: $candidate->nome))
             ->sort()
             ->values();
 
@@ -240,7 +240,8 @@ class PollingDataService implements PesquisaResultProvider
         $matches = [];
 
         foreach ($scenarios as $scenario) {
-            $scenarioNames = collect($scenario['candidates'] ?? [])
+            $scenarioCandidates = $scenario['candidates'] ?? [];
+            $scenarioNames = collect(is_array($scenarioCandidates) ? $scenarioCandidates : [])
                 ->map(fn (array $candidate): string => $this->normalize((string) ($candidate['name'] ?? '')))
                 ->sort()
                 ->values();
@@ -314,7 +315,25 @@ class PollingDataService implements PesquisaResultProvider
         $payload = $response->json();
         $scenarios = is_array($payload) ? ($payload['scenarios'] ?? []) : [];
 
-        return is_array($scenarios) ? $scenarios : [];
+        if (! is_array($scenarios)) {
+            return [];
+        }
+
+        // `list<array<string, mixed>>` declarado no retorno: filtra fora
+        // qualquer item que não seja, de fato, um array de objeto JSON (com
+        // chaves string) — a API não garante isso por contrato. Loop manual
+        // em vez de `->filter()`: o PHPStan só estreita o tipo do item da
+        // Collection a partir de um `is_array` isolado no callback, não de
+        // uma checagem composta como esta.
+        $validScenarios = [];
+
+        foreach ($scenarios as $scenario) {
+            if (is_array($scenario) && array_all(array_keys($scenario), fn (mixed $key): bool => is_string($key))) {
+                $validScenarios[] = $scenario;
+            }
+        }
+
+        return $validScenarios;
     }
 
     /** @return list<ElectionContext> */
@@ -365,9 +384,9 @@ class PollingDataService implements PesquisaResultProvider
             return 0;
         }
 
-        $eleicao = Eleicao::query()->where('ano', $context->year)->first();
+        $eleicao = Election::query()->where('ano', $context->year)->first();
 
-        if (! $eleicao instanceof Eleicao) {
+        if (! $eleicao instanceof Election) {
             Log::warning('PollingData: eleição não cadastrada para o ano do contexto — sincronização ignorada.', [
                 'context' => $context->label(),
             ]);
@@ -383,7 +402,7 @@ class PollingDataService implements PesquisaResultProvider
             $externalId = $this->externalId($context, $group);
             $keptExternalIds[] = $externalId;
 
-            $pesquisa = PesquisaEleitoral::query()->updateOrCreate(
+            $pesquisa = ElectoralPoll::query()->updateOrCreate(
                 ['external_id' => $externalId],
                 [
                     'eleicao_id' => $eleicao->id,
@@ -428,7 +447,7 @@ class PollingDataService implements PesquisaResultProvider
         // PollingData mesmo é dono; nunca toca em pesquisas do ElectioLab,
         // de curadoria manual, ou de outro contexto (ex.: sincronizar
         // Governador/CE nunca apaga Governador/SP).
-        PesquisaEleitoral::query()
+        ElectoralPoll::query()
             ->where('origem_provider', 'pollingdata')
             ->where('cargo', $context->office)
             ->where('uf', $context->uf)
@@ -452,7 +471,7 @@ class PollingDataService implements PesquisaResultProvider
      * @param  list<ElectionContext>  $contexts
      * @return array<string, int|null> Contagem de registros processados por contexto (label), null quando o contexto falhou.
      */
-    public function syncMany(array $contexts, ResultResolver $resultResolver, ?SincronizacaoTse $run = null): array
+    public function syncMany(array $contexts, ResultResolver $resultResolver, ?TseSync $run = null): array
     {
         $results = [];
         $intervalMs = max(0, (int) config('services.pollingdata.interval_ms', 300));
@@ -493,7 +512,7 @@ class PollingDataService implements PesquisaResultProvider
 
     public function syncQueuedRun(int $runId, ResultResolver $resultResolver): int
     {
-        $run = SincronizacaoTse::query()->findOrFail($runId);
+        $run = TseSync::query()->findOrFail($runId);
         $run->forceFill([
             'situacao' => 'processando',
             'erro' => null,
@@ -716,7 +735,7 @@ class PollingDataService implements PesquisaResultProvider
 
     /**
      * @param  array<string, mixed>  $group
-     * @param  ?Collection<string, CandidatoPolitico>  $candidateMap
+     * @param  ?Collection<string, Candidate>  $candidateMap
      */
     private function buildResultadoColeta(ElectionContext $context, array $group, ?Collection $candidateMap = null): ResultadoColeta
     {
@@ -898,10 +917,10 @@ class PollingDataService implements PesquisaResultProvider
         return trim($candidato);
     }
 
-    /** @return Collection<string, CandidatoPolitico> */
-    private function candidateMap(Eleicao $eleicao, ElectionContext $context): Collection
+    /** @return Collection<string, Candidate> */
+    private function candidateMap(Election $eleicao, ElectionContext $context): Collection
     {
-        $query = CandidatoPolitico::query()->where('eleicao_id', $eleicao->id);
+        $query = Candidate::query()->where('eleicao_id', $eleicao->id);
 
         match ($context->office) {
             'presidente' => $query->where('abrangencia', CandidateScope::National)->where('cargo', 'Presidente'),
@@ -935,8 +954,8 @@ class PollingDataService implements PesquisaResultProvider
         return $map;
     }
 
-    /** @param Collection<string, CandidatoPolitico> $candidateMap */
-    private function matchCandidate(Collection $candidateMap, string $nome, ?string $partido): ?CandidatoPolitico
+    /** @param Collection<string, Candidate> $candidateMap */
+    private function matchCandidate(Collection $candidateMap, string $nome, ?string $partido): ?Candidate
     {
         $normalizedName = $this->normalize($nome);
         $normalizedParty = $this->normalize($partido ?? '');

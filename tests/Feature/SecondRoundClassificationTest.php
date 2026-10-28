@@ -3,16 +3,16 @@
 namespace Tests\Feature;
 
 use App\Enums\CandidateScope;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\Gabinete;
-use App\Models\MediaPesquisaEleitoral;
-use App\Models\MunicipioEleitoral;
-use App\Models\PesquisaEleitoral;
-use App\Models\ResultadoCandidatoEleicao;
-use App\Models\ResultadoPesquisaEleitoral;
+use App\Models\Candidate;
+use App\Models\CandidateElectionResult;
+use App\Models\CandidateMunicipalityVote;
+use App\Models\Election;
+use App\Models\ElectoralMunicipality;
+use App\Models\ElectoralPoll;
+use App\Models\ElectoralPollAverage;
+use App\Models\ElectoralPollResult;
+use App\Models\Office;
 use App\Models\User;
-use App\Models\VotacaoCandidatoMunicipio;
 use App\Services\Politics\ElectionResultRecorder;
 use App\Services\Politics\SecondRoundClassifier;
 use Carbon\CarbonImmutable;
@@ -45,7 +45,7 @@ class SecondRoundClassificationTest extends TestCase
         );
 
         $this->assertFalse($classified);
-        $this->assertSame(0, CandidatoPolitico::query()->whereNotNull('avancou_segundo_turno')->count());
+        $this->assertSame(0, Candidate::query()->whereNotNull('avancou_segundo_turno')->count());
 
         // Vitória decidida já no 1º turno não grava `avancou_segundo_turno`
         // (não houve 2º turno a classificar) — então, passado o dia do 1º
@@ -258,8 +258,8 @@ class SecondRoundClassificationTest extends TestCase
         $this->assertTrue($governors['22']->refresh()->avancou_segundo_turno);
         $this->assertFalse($governors['33']->refresh()->avancou_segundo_turno);
         // A mesma leitura do TSE grava o resultado do 1º turno.
-        $this->assertResult($governors['11'], 1, ResultadoCandidatoEleicao::SECOND_ROUND, 450, 45.0, false);
-        $this->assertResult($governors['33'], 1, ResultadoCandidatoEleicao::NOT_ELECTED, 200, 20.0, false);
+        $this->assertResult($governors['11'], 1, CandidateElectionResult::SECOND_ROUND, 450, 45.0, false);
+        $this->assertResult($governors['33'], 1, CandidateElectionResult::NOT_ELECTED, 200, 20.0, false);
     }
 
     // ---- Resultado gravado (presidente/governador) ----------------------
@@ -278,16 +278,16 @@ class SecondRoundClassificationTest extends TestCase
             $this->tseResult(100, [['11', 55.0, true], ['22', 30.0, false], ['33', 15.0, false]]),
         );
 
-        $this->assertResult($governors['11'], 1, ResultadoCandidatoEleicao::ELECTED, 550, 55.0, true);
-        $this->assertResult($governors['22'], 1, ResultadoCandidatoEleicao::NOT_ELECTED, 300, 30.0, false);
-        $this->assertResult($governors['33'], 1, ResultadoCandidatoEleicao::NOT_ELECTED, 150, 15.0, false);
+        $this->assertResult($governors['11'], 1, CandidateElectionResult::ELECTED, 550, 55.0, true);
+        $this->assertResult($governors['22'], 1, CandidateElectionResult::NOT_ELECTED, 300, 30.0, false);
+        $this->assertResult($governors['33'], 1, CandidateElectionResult::NOT_ELECTED, 150, 15.0, false);
         $this->assertNull($governors['11']->refresh()->avancou_segundo_turno);
 
         // Sem classificados, não há 2º turno a gravar — nem leitura do TSE.
         Http::preventStrayRequests();
         $this->travelTo(CarbonImmutable::parse('2026-10-26 10:00:00'));
         $this->assertFalse($recorder->record($election, 'governador', 'CE', 2));
-        $this->assertSame(0, ResultadoCandidatoEleicao::query()->where('turno', 2)->count());
+        $this->assertSame(0, CandidateElectionResult::query()->where('turno', 2)->count());
 
         // Já gravado: o 1º turno não volta ao TSE.
         $this->assertFalse($recorder->record($election, 'governador', 'CE', 1));
@@ -324,9 +324,9 @@ class SecondRoundClassificationTest extends TestCase
             $this->tseResult(100, [['11', 45.0, true], ['22', 35.0, true], ['33', 20.0, false]]),
         );
 
-        $this->assertResult($governors['11'], 1, ResultadoCandidatoEleicao::SECOND_ROUND, 450, 45.0, false);
-        $this->assertResult($governors['22'], 1, ResultadoCandidatoEleicao::SECOND_ROUND, 350, 35.0, false);
-        $this->assertResult($governors['33'], 1, ResultadoCandidatoEleicao::NOT_ELECTED, 200, 20.0, false);
+        $this->assertResult($governors['11'], 1, CandidateElectionResult::SECOND_ROUND, 450, 45.0, false);
+        $this->assertResult($governors['22'], 1, CandidateElectionResult::SECOND_ROUND, 350, 35.0, false);
+        $this->assertResult($governors['33'], 1, CandidateElectionResult::NOT_ELECTED, 200, 20.0, false);
         $this->assertTrue($governors['11']->refresh()->avancou_segundo_turno);
 
         // Antes do dia do 2º turno, nada a gravar.
@@ -357,10 +357,10 @@ class SecondRoundClassificationTest extends TestCase
             $this->tseResult(100, [['22', 52.0, true], ['11', 48.0, false]]),
         ));
 
-        $this->assertResult($governors['22'], 2, ResultadoCandidatoEleicao::ELECTED, 520, 52.0, true);
-        $this->assertResult($governors['11'], 2, ResultadoCandidatoEleicao::NOT_ELECTED, 480, 48.0, false);
+        $this->assertResult($governors['22'], 2, CandidateElectionResult::ELECTED, 520, 52.0, true);
+        $this->assertResult($governors['11'], 2, CandidateElectionResult::NOT_ELECTED, 480, 48.0, false);
         // O 1º turno continua gravado como estava.
-        $this->assertResult($governors['22'], 1, ResultadoCandidatoEleicao::SECOND_ROUND, 350, 35.0, false);
+        $this->assertResult($governors['22'], 1, CandidateElectionResult::SECOND_ROUND, 350, 35.0, false);
 
         // O painel mostra o turno mais recente de cada um.
         $this->actingAs($user)
@@ -391,7 +391,7 @@ class SecondRoundClassificationTest extends TestCase
             $this->tseResult(80, [['11', 55.0, false], ['22', 30.0, false], ['33', 15.0, false]]),
         );
 
-        $this->assertSame(0, ResultadoCandidatoEleicao::query()->count());
+        $this->assertSame(0, CandidateElectionResult::query()->count());
     }
 
     public function test_municipal_result_also_feeds_the_situation_column(): void
@@ -433,7 +433,7 @@ class SecondRoundClassificationTest extends TestCase
                 // Apurada e sem 2º turno: a pesquisa perde a função.
                 ->where('polls', null));
 
-        $this->assertSame(0, CandidatoPolitico::query()->whereNotNull('avancou_segundo_turno')->count());
+        $this->assertSame(0, Candidate::query()->whereNotNull('avancou_segundo_turno')->count());
     }
 
     public function test_municipal_race_classified_for_the_runoff_shows_only_finalists_and_runoff_polls(): void
@@ -502,14 +502,14 @@ class SecondRoundClassificationTest extends TestCase
                 ->has('candidates.data', 0)
                 ->where('polls', null));
 
-        $this->assertSame(0, CandidatoPolitico::query()->whereNotNull('avancou_segundo_turno')->count());
+        $this->assertSame(0, Candidate::query()->whereNotNull('avancou_segundo_turno')->count());
     }
 
     public function test_candidates_remain_visible_before_the_first_round_date(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-09-01 10:00:00'));
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->administrator()->forGabinete($office)->create();
 
         foreach (['11', '22', '33'] as $number) {
@@ -535,13 +535,13 @@ class SecondRoundClassificationTest extends TestCase
      * Governador do CE com três candidatos, um senador, e pesquisas de
      * governador de 1º e 2º turno, com uma média do ElectioLab.
      *
-     * @return array{0: Eleicao, 1: User, 2: array<string, CandidatoPolitico>, 3: CandidatoPolitico}
+     * @return array{0: Election, 1: User, 2: array<string, Candidate>, 3: Candidate}
      */
     private function generalScenario(): array
     {
         $this->travelTo(CarbonImmutable::parse('2026-10-13 10:00:00'));
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->administrator()->forGabinete($office)->create();
         $governors = [];
 
@@ -557,7 +557,7 @@ class SecondRoundClassificationTest extends TestCase
 
         $this->poll($election, 'governador', 1, 'Instituto 1º turno', null, $governors['11']);
         $this->poll($election, 'governador', 2, 'Instituto 2º turno', null, $governors['11']);
-        MediaPesquisaEleitoral::query()->create([
+        ElectoralPollAverage::query()->create([
             'eleicao_id' => $election->id,
             'external_id' => 'average-1',
             'external_election_id' => 'election-1',
@@ -581,18 +581,18 @@ class SecondRoundClassificationTest extends TestCase
      * Cruz/CE em 2024, entre o 1º e o 2º turno: três candidatos a prefeito,
      * um a vereador e pesquisas de prefeito de 1º e 2º turno.
      *
-     * @return array{0: Eleicao, 1: User, 2: array<string, CandidatoPolitico>, 3: CandidatoPolitico}
+     * @return array{0: Election, 1: User, 2: array<string, Candidate>, 3: Candidate}
      */
     private function municipalScenario(): array
     {
         $this->travelTo(CarbonImmutable::parse('2024-10-15 10:00:00'));
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '15890',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
-        $office = Gabinete::factory()->create([
+        $election = Election::query()->where('ano', 2024)->firstOrFail();
+        $office = Office::factory()->create([
             'estado' => 'CE',
             'municipio' => 'Cruz',
             'municipio_eleitoral_id' => $municipality->id,
@@ -613,13 +613,13 @@ class SecondRoundClassificationTest extends TestCase
     }
 
     private function candidate(
-        Eleicao $election,
+        Election $election,
         string $number,
         CandidateScope $scope,
         ?int $municipalityId,
         string $office,
-    ): CandidatoPolitico {
-        return CandidatoPolitico::query()->create([
+    ): Candidate {
+        return Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => "9{$number}",
             'abrangencia' => $scope,
@@ -635,14 +635,14 @@ class SecondRoundClassificationTest extends TestCase
     }
 
     private function poll(
-        Eleicao $election,
+        Election $election,
         string $office,
         int $round,
         string $institute,
         ?string $city,
-        CandidatoPolitico $candidate,
+        Candidate $candidate,
     ): void {
-        $poll = PesquisaEleitoral::query()->create([
+        $poll = ElectoralPoll::query()->create([
             'eleicao_id' => $election->id,
             'external_id' => "poll-{$office}-{$round}",
             'external_election_id' => 'election-1',
@@ -656,7 +656,7 @@ class SecondRoundClassificationTest extends TestCase
             'tamanho_amostra' => 1000,
             'fonte_url' => 'https://electiolab.test/api/v1/polls',
         ]);
-        ResultadoPesquisaEleitoral::query()->create([
+        ElectoralPollResult::query()->create([
             'pesquisa_eleitoral_id' => $poll->id,
             'external_candidate_id' => "candidate-{$candidate->numero}",
             'candidato_politico_id' => $candidate->id,
@@ -666,9 +666,9 @@ class SecondRoundClassificationTest extends TestCase
         ]);
     }
 
-    private function vote(Eleicao $election, CandidatoPolitico $candidate, int $round, string $status, int $votes): void
+    private function vote(Election $election, Candidate $candidate, int $round, string $status, int $votes): void
     {
-        VotacaoCandidatoMunicipio::query()->create([
+        CandidateMunicipalityVote::query()->create([
             'candidato_politico_id' => $candidate->id,
             'municipio_eleitoral_id' => $candidate->municipio_eleitoral_id,
             'eleicao_id' => $election->id,
@@ -685,14 +685,14 @@ class SecondRoundClassificationTest extends TestCase
     }
 
     private function assertResult(
-        CandidatoPolitico $candidate,
+        Candidate $candidate,
         int $round,
         string $status,
         int $votes,
         float $percent,
         bool $elected,
     ): void {
-        $result = ResultadoCandidatoEleicao::query()
+        $result = CandidateElectionResult::query()
             ->where('candidato_politico_id', $candidate->id)
             ->where('turno', $round)
             ->first();

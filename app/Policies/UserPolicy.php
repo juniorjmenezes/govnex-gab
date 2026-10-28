@@ -3,17 +3,24 @@
 namespace App\Policies;
 
 use App\Models\User;
+use App\Tenancy\OfficeContext;
 
 class UserPolicy
 {
+    public function __construct(private readonly OfficeContext $context) {}
+
     public function viewAny(User $user): bool
     {
-        return $user->isRoot() || $user->role->canManageTeam();
+        return $user->isRoot() || $this->context->roleFor($user)->canManageTeam();
     }
 
     public function view(User $user, User $target): bool
     {
-        return $user->isRoot() || $user->belongsToSameGabineteAs($target);
+        $officeId = $this->context->officeIdFor($user);
+
+        return $user->isRoot()
+            || ($officeId !== null && $officeId === $target->gabinete_id)
+            || $user->belongsToSameGabineteAs($target);
     }
 
     /**

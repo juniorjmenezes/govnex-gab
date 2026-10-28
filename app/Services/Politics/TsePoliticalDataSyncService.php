@@ -4,22 +4,22 @@ namespace App\Services\Politics;
 
 use App\Enums\CandidateScope;
 use App\Enums\ElectionType;
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use App\Exceptions\TseSyncCancelledException;
-use App\Models\CandidatoPolitico;
-use App\Models\ComparecimentoEleitoralMunicipio;
-use App\Models\Eleicao;
-use App\Models\EleitoradoMunicipioSnapshot;
-use App\Models\Gabinete;
-use App\Models\LocalVotacaoEleitoral;
-use App\Models\MunicipioEleitoral;
-use App\Models\PesquisaEleitoral;
-use App\Models\SecaoEleitoral;
-use App\Models\SincronizacaoTse;
-use App\Models\VotacaoCandidatoMunicipio;
-use App\Models\VotoSecaoCandidato;
+use App\Models\Candidate;
+use App\Models\CandidateMunicipalityVote;
+use App\Models\CandidateSectionVote;
+use App\Models\Election;
+use App\Models\ElectoralMunicipality;
+use App\Models\ElectoralPoll;
+use App\Models\ElectoralPollingLocation;
+use App\Models\ElectoralSection;
+use App\Models\ElectorateSnapshot;
+use App\Models\MunicipalElectionTurnout;
+use App\Models\Office;
+use App\Models\TseSync;
 use App\Services\Geocoding\GeocodingService;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\Politics\Tse\GovnexApiClient;
 use App\Services\Politics\Tse\GovnexApiDatasetCatalog;
 use App\Services\Politics\Tse\GovnexApiSettings;
@@ -106,9 +106,9 @@ class TsePoliticalDataSyncService
         $requiredElectionType = self::requiredElectionType($dataset);
 
         if (in_array($dataset, ['candidates', 'turnout'], true)) {
-            $electionExists = Eleicao::query()->where('ano', $year)->exists();
+            $electionExists = Election::query()->where('ano', $year)->exists();
         } elseif ($requiredElectionType instanceof ElectionType) {
-            $electionExists = Eleicao::query()
+            $electionExists = Election::query()
                 ->where('ano', $year)
                 ->where('tipo', $requiredElectionType)
                 ->exists();
@@ -132,7 +132,7 @@ class TsePoliticalDataSyncService
     public function __construct(
         private readonly OfficeHolderCandidateResolver $holderResolver,
         private readonly GeocodingService $geocoding,
-        private readonly GabineteModuleManager $modules,
+        private readonly OfficeModuleManager $modules,
         private readonly GovnexApiClient $govnexApi,
     ) {}
 
@@ -141,7 +141,7 @@ class TsePoliticalDataSyncService
      * pré-requisito de todo o resto — vincula cada gabinete ao seu
      * município eleitoral e é a referência de plausibilidade do eleitorado.
      */
-    public function importMunicipalities(?SincronizacaoTse $run = null): int
+    public function importMunicipalities(?TseSync $run = null): int
     {
         $located = $this->locateDataset('municipalities');
         $rows = [];
@@ -200,29 +200,29 @@ class TsePoliticalDataSyncService
      */
     private function storeMunicipalities(array $rows): int
     {
-        MunicipioEleitoral::query()->upsert(
+        ElectoralMunicipality::query()->upsert(
             $rows,
             ['codigo_tse'],
             ['codigo_ibge', 'nome', 'uf', 'updated_at'],
         );
 
-        $municipalities = MunicipioEleitoral::query()
+        $municipalities = ElectoralMunicipality::query()
             ->get(['id', 'nome', 'uf'])
-            ->keyBy(fn (MunicipioEleitoral $municipality): string => $this->municipalityKey(
+            ->keyBy(fn (ElectoralMunicipality $municipality): string => $this->municipalityKey(
                 $municipality->uf,
                 $municipality->nome,
             ));
 
-        Gabinete::withoutGlobalScopes()
+        Office::withoutGlobalScopes()
             ->whereNull('municipio_eleitoral_id')
             ->get(['id', 'municipio', 'estado'])
-            ->each(function (Gabinete $office) use ($municipalities): void {
+            ->each(function (Office $office) use ($municipalities): void {
                 $municipality = $municipalities->get($this->municipalityKey(
                     $office->estado,
                     $office->municipio,
                 ));
 
-                if ($municipality instanceof MunicipioEleitoral) {
+                if ($municipality instanceof ElectoralMunicipality) {
                     $office->forceFill([
                         'municipio_eleitoral_id' => $municipality->id,
                     ])->save();
@@ -249,7 +249,7 @@ class TsePoliticalDataSyncService
      */
     public function importElectorate(
         int $year,
-        ?SincronizacaoTse $run = null,
+        ?TseSync $run = null,
     ): int {
         $datasetsByUf = $this->govnexApi->locateByUf('electorate', $year);
 
@@ -266,7 +266,7 @@ class TsePoliticalDataSyncService
         // validando. Uma UF sem essa base local (0) fica sem checagem: não
         // dá pra distinguir "eleitorado incompleto" de "base de municípios
         // ainda não importada" sem uma referência de verdade.
-        $expectedMunicipalitiesByUf = MunicipioEleitoral::query()
+        $expectedMunicipalitiesByUf = ElectoralMunicipality::query()
             ->whereIn('uf', array_keys($datasetsByUf))
             ->selectRaw('uf, count(*) as total')
             ->groupBy('uf')
@@ -386,7 +386,7 @@ class TsePoliticalDataSyncService
         $now = now();
 
         $this->batchUpsert(
-            MunicipioEleitoral::class,
+            ElectoralMunicipality::class,
             collect($totals)->map(fn (array $total): array => [
                 'codigo_tse' => $total['code'],
                 'nome' => $total['name'],
@@ -398,7 +398,7 @@ class TsePoliticalDataSyncService
             ['nome', 'uf', 'updated_at'],
         );
 
-        $municipalityIdsByCode = MunicipioEleitoral::query()
+        $municipalityIdsByCode = ElectoralMunicipality::query()
             ->whereIn('codigo_tse', array_keys($totals))
             ->pluck('id', 'codigo_tse');
 
@@ -429,7 +429,7 @@ class TsePoliticalDataSyncService
         }
 
         $this->batchUpsert(
-            EleitoradoMunicipioSnapshot::class,
+            ElectorateSnapshot::class,
             $snapshotRows,
             ['municipio_eleitoral_id', 'data_referencia'],
             ['ano_referencia', 'eleitores_aptos', 'fonte_url', 'fonte_gerada_em', 'updated_at'],
@@ -446,11 +446,11 @@ class TsePoliticalDataSyncService
      * dataset é o consulta_cand nacional, que inclui as candidaturas sem UF
      * própria (Presidente).
      */
-    public function importCandidates(int $year, ?SincronizacaoTse $run = null): int
+    public function importCandidates(int $year, ?TseSync $run = null): int
     {
-        $election = Eleicao::query()->where('ano', $year)->firstOrFail();
+        $election = Election::query()->where('ano', $year)->firstOrFail();
         $located = $this->locateDataset('candidates', $year);
-        $municipalityIdsByCode = MunicipioEleitoral::query()->pluck('id', 'codigo_tse');
+        $municipalityIdsByCode = ElectoralMunicipality::query()->pluck('id', 'codigo_tse');
         $rows = [];
         $processedIds = [];
 
@@ -485,7 +485,7 @@ class TsePoliticalDataSyncService
      */
     private function collectCandidateRow(
         array $row,
-        Eleicao $election,
+        Election $election,
         Collection $municipalityIdsByCode,
         array &$rows,
         array &$processedIds,
@@ -557,10 +557,10 @@ class TsePoliticalDataSyncService
      *
      * @param  array<string, true>  $processedIds
      */
-    private function finishCandidatesImport(Eleicao $election, array $processedIds): int
+    private function finishCandidatesImport(Election $election, array $processedIds): int
     {
         if ($election->tipo === ElectionType::General) {
-            CandidatoPolitico::query()
+            Candidate::query()
                 ->where('eleicao_id', $election->id)
                 ->whereNotIn('cargo', $this->generalElectionOffices())
                 ->delete();
@@ -580,11 +580,11 @@ class TsePoliticalDataSyncService
      * municípios com gabinete já cadastrado (mesmo racional de
      * importElectorate).
      */
-    public function importTurnout(int $year, ?SincronizacaoTse $run = null): int
+    public function importTurnout(int $year, ?TseSync $run = null): int
     {
         $located = $this->locateDataset('turnout', $year);
         $sourceUrl = $this->datasetUrl($located);
-        $municipalitiesByCode = MunicipioEleitoral::query()
+        $municipalitiesByCode = ElectoralMunicipality::query()
             ->get(['id', 'codigo_tse'])
             ->keyBy('codigo_tse');
         $aggregates = [];
@@ -663,7 +663,7 @@ class TsePoliticalDataSyncService
             return 0;
         }
 
-        $election = Eleicao::query()->where('ano', $year)->first();
+        $election = Election::query()->where('ano', $year)->first();
         $now = now();
 
         // Municípios que aparecem no dataset mas ainda não existem na
@@ -676,7 +676,7 @@ class TsePoliticalDataSyncService
 
         if ($missingMunicipalities->isNotEmpty()) {
             $this->batchUpsert(
-                MunicipioEleitoral::class,
+                ElectoralMunicipality::class,
                 $missingMunicipalities->map(fn (array $aggregate): array => [
                     'codigo_tse' => $aggregate['municipality_code'],
                     'nome' => $aggregate['municipality_name'],
@@ -688,10 +688,10 @@ class TsePoliticalDataSyncService
                 ['nome', 'uf', 'updated_at'],
             );
 
-            MunicipioEleitoral::query()
+            ElectoralMunicipality::query()
                 ->whereIn('codigo_tse', $missingMunicipalities->pluck('municipality_code'))
                 ->get(['id', 'codigo_tse'])
-                ->each(fn (MunicipioEleitoral $municipality) => $municipalitiesByCode->put($municipality->codigo_tse, $municipality));
+                ->each(fn (ElectoralMunicipality $municipality) => $municipalitiesByCode->put($municipality->codigo_tse, $municipality));
         }
 
         $turnoutRows = [];
@@ -699,7 +699,7 @@ class TsePoliticalDataSyncService
         foreach ($aggregates as $aggregate) {
             $municipality = $municipalitiesByCode->get($aggregate['municipality_code']);
 
-            if (! $municipality instanceof MunicipioEleitoral) {
+            if (! $municipality instanceof ElectoralMunicipality) {
                 continue;
             }
 
@@ -721,7 +721,7 @@ class TsePoliticalDataSyncService
         }
 
         $this->batchUpsert(
-            ComparecimentoEleitoralMunicipio::class,
+            MunicipalElectionTurnout::class,
             $turnoutRows,
             ['municipio_eleitoral_id', 'codigo_eleicao_tse', 'turno'],
             [
@@ -750,14 +750,14 @@ class TsePoliticalDataSyncService
      * ordem gravaria a soma de uma UF partida em duas gravações. Por isso o
      * dataset precisa declarar SG_UF como filtrável na GOVNEX API.
      */
-    public function importCandidateVotes(int $year, ?SincronizacaoTse $run = null): int
+    public function importCandidateVotes(int $year, ?TseSync $run = null): int
     {
-        $election = Eleicao::query()
+        $election = Election::query()
             ->where('ano', $year)
             ->where('tipo', ElectionType::Municipal)
             ->first();
 
-        if (! $election instanceof Eleicao) {
+        if (! $election instanceof Election) {
             throw new RuntimeException("Eleição municipal de {$year} não cadastrada.");
         }
 
@@ -771,12 +771,12 @@ class TsePoliticalDataSyncService
         }
 
         $sourceUrl = $this->datasetUrl($located);
-        $municipalitiesByCode = MunicipioEleitoral::query()
+        $municipalitiesByCode = ElectoralMunicipality::query()
             ->get(['id', 'codigo_tse'])
             ->keyBy('codigo_tse');
         // As UFs saem da base de municípios já importada — é a lista de
         // estados que a própria plataforma reconhece.
-        $states = MunicipioEleitoral::query()
+        $states = ElectoralMunicipality::query()
             ->distinct()
             ->orderBy('uf')
             ->pluck('uf')
@@ -930,16 +930,16 @@ class TsePoliticalDataSyncService
      *     source_generated_at: CarbonImmutable|null,
      *     zones: array<string, array{votes: int, valid_votes: int}>,
      * }>  $aggregates
-     * @param  Collection<string, MunicipioEleitoral>  $municipalitiesByCode
+     * @param  Collection<string, ElectoralMunicipality>  $municipalitiesByCode
      */
     private function flushCandidateVoteAggregates(
         array $aggregates,
-        Eleicao $election,
+        Election $election,
         Collection $municipalitiesByCode,
         string $sourceUrl,
         int $year,
         CarbonImmutable $now,
-        ?SincronizacaoTse $run,
+        ?TseSync $run,
     ): int {
         // Municípios que aparecem no dataset mas ainda não existem na
         // tabela (caso raro) entram num lote único.
@@ -950,7 +950,7 @@ class TsePoliticalDataSyncService
 
         if ($missingMunicipalities->isNotEmpty()) {
             $this->batchUpsert(
-                MunicipioEleitoral::class,
+                ElectoralMunicipality::class,
                 $missingMunicipalities->map(fn (array $aggregate): array => [
                     'codigo_tse' => $aggregate['municipality_code'],
                     'nome' => $aggregate['municipality_name'],
@@ -962,10 +962,10 @@ class TsePoliticalDataSyncService
                 ['nome', 'uf', 'updated_at'],
             );
 
-            MunicipioEleitoral::query()
+            ElectoralMunicipality::query()
                 ->whereIn('codigo_tse', $missingMunicipalities->pluck('municipality_code'))
                 ->get(['id', 'codigo_tse'])
-                ->each(fn (MunicipioEleitoral $municipality) => $municipalitiesByCode->put($municipality->codigo_tse, $municipality));
+                ->each(fn (ElectoralMunicipality $municipality) => $municipalitiesByCode->put($municipality->codigo_tse, $municipality));
         }
 
         // sq_candidato é único por eleição, não por (município, turno) — um
@@ -1003,7 +1003,7 @@ class TsePoliticalDataSyncService
         }
 
         $this->batchUpsert(
-            CandidatoPolitico::class,
+            Candidate::class,
             array_values($candidateRowsBySequence),
             ['eleicao_id', 'sq_candidato'],
             [
@@ -1025,7 +1025,7 @@ class TsePoliticalDataSyncService
             ->chunk(1000)
             ->reduce(
                 fn (Collection $carry, Collection $chunk): Collection => $carry->union(
-                    CandidatoPolitico::query()
+                    Candidate::query()
                         ->where('eleicao_id', $election->id)
                         ->whereIn('sq_candidato', $chunk)
                         ->pluck('id', 'sq_candidato'),
@@ -1039,7 +1039,7 @@ class TsePoliticalDataSyncService
             $municipality = $municipalitiesByCode->get($aggregate['municipality_code']);
             $candidateId = $candidateIdsBySequence->get($aggregate['candidate_sequence']);
 
-            if (! $municipality instanceof MunicipioEleitoral || $candidateId === null) {
+            if (! $municipality instanceof ElectoralMunicipality || $candidateId === null) {
                 continue;
             }
 
@@ -1069,7 +1069,7 @@ class TsePoliticalDataSyncService
         }
 
         $this->batchUpsert(
-            VotacaoCandidatoMunicipio::class,
+            CandidateMunicipalityVote::class,
             $voteRows,
             ['candidato_politico_id', 'municipio_eleitoral_id', 'codigo_eleicao_tse', 'turno'],
             [
@@ -1091,20 +1091,20 @@ class TsePoliticalDataSyncService
      * completo, então um lote nunca fica com seção apontando para local de
      * um lote anterior.
      */
-    public function importPollingLocations(int $year, ?SincronizacaoTse $run = null): int
+    public function importPollingLocations(int $year, ?TseSync $run = null): int
     {
-        $election = Eleicao::query()
+        $election = Election::query()
             ->where('ano', $year)
             ->where('tipo', ElectionType::Municipal)
             ->first();
 
-        if (! $election instanceof Eleicao) {
+        if (! $election instanceof Election) {
             throw new RuntimeException("Eleição municipal de {$year} não cadastrada.");
         }
 
         $located = $this->locateDataset('polling_locations', $year);
         $sourceUrl = $this->datasetUrl($located);
-        $municipalitiesByCode = MunicipioEleitoral::query()
+        $municipalitiesByCode = ElectoralMunicipality::query()
             ->get(['id', 'codigo_tse'])
             ->keyBy('codigo_tse');
         $now = now();
@@ -1149,7 +1149,7 @@ class TsePoliticalDataSyncService
                 );
                 $municipality = $municipalitiesByCode->get($municipalityCode);
 
-                if (! $municipality instanceof MunicipioEleitoral) {
+                if (! $municipality instanceof ElectoralMunicipality) {
                     return;
                 }
 
@@ -1248,10 +1248,10 @@ class TsePoliticalDataSyncService
     private function flushPollingLocations(
         array $locations,
         array $sections,
-        Eleicao $election,
+        Election $election,
         string $sourceUrl,
         CarbonImmutable $now,
-        ?SincronizacaoTse $run,
+        ?TseSync $run,
     ): int {
         $locationRows = collect($locations)->map(fn (array $attributes): array => [
             'eleicao_id' => $election->id,
@@ -1280,7 +1280,7 @@ class TsePoliticalDataSyncService
         // Quando o TSE não informa coordenadas, preservamos o fallback já
         // existente em vez de apagá-lo com NULL numa nova sincronização.
         $this->batchUpsert(
-            LocalVotacaoEleitoral::class,
+            ElectoralPollingLocation::class,
             $withOfficialCoordinates->map(fn (array $attributes): array => [
                 ...$attributes,
                 'geocodificado_em' => null,
@@ -1292,7 +1292,7 @@ class TsePoliticalDataSyncService
             ],
         );
         $this->batchUpsert(
-            LocalVotacaoEleitoral::class,
+            ElectoralPollingLocation::class,
             $withoutOfficialCoordinates->all(),
             ['eleicao_id', 'municipio_eleitoral_id', 'nr_zona', 'nr_local_votacao'],
             ['nome', 'tipo_local', 'endereco', 'bairro', 'cep', 'fonte_url', 'fonte_gerada_em', 'updated_at'],
@@ -1307,11 +1307,11 @@ class TsePoliticalDataSyncService
         // array_unique() nativo, não Collection::unique() — $locations pode
         // ter dezenas de milhares de itens no maior estado (SP), e
         // Collection::unique() é O(n²) (mesmo bug de flushCandidateVoteAggregates).
-        $locationIdsByKey = LocalVotacaoEleitoral::query()
+        $locationIdsByKey = ElectoralPollingLocation::query()
             ->where('eleicao_id', $election->id)
             ->whereIn('municipio_eleitoral_id', array_unique(array_column($locations, 'municipio_eleitoral_id')))
             ->get(['id', 'municipio_eleitoral_id', 'nr_zona', 'nr_local_votacao'])
-            ->keyBy(fn (LocalVotacaoEleitoral $location): string => "{$location->municipio_eleitoral_id}:{$location->nr_zona}:{$location->nr_local_votacao}");
+            ->keyBy(fn (ElectoralPollingLocation $location): string => "{$location->municipio_eleitoral_id}:{$location->nr_zona}:{$location->nr_local_votacao}");
 
         $sectionRows = [];
 
@@ -1325,7 +1325,7 @@ class TsePoliticalDataSyncService
             $locationKey = "{$locationAttributes['municipio_eleitoral_id']}:{$locationAttributes['nr_zona']}:{$locationAttributes['nr_local_votacao']}";
             $location = $locationIdsByKey->get($locationKey);
 
-            if (! $location instanceof LocalVotacaoEleitoral) {
+            if (! $location instanceof ElectoralPollingLocation) {
                 continue;
             }
 
@@ -1344,7 +1344,7 @@ class TsePoliticalDataSyncService
         }
 
         $this->batchUpsert(
-            SecaoEleitoral::class,
+            ElectoralSection::class,
             $sectionRows,
             ['eleicao_id', 'municipio_eleitoral_id', 'nr_zona', 'nr_secao'],
             ['local_votacao_eleitoral_id', 'eleitores_secao', 'updated_at'],
@@ -1360,9 +1360,9 @@ class TsePoliticalDataSyncService
      * endereço. Executado explicitamente pelo comando de console
      * `tse:geocode-locais-votacao` depois da importação dos locais.
      */
-    public function geocodePendingLocations(?SincronizacaoTse $run = null, int $limit = 100): int
+    public function geocodePendingLocations(?TseSync $run = null, int $limit = 100): int
     {
-        $locations = LocalVotacaoEleitoral::query()
+        $locations = ElectoralPollingLocation::query()
             ->whereNull('latitude')
             ->whereNotNull('endereco')
             ->with('municipioEleitoral:id,nome,uf')
@@ -1412,20 +1412,20 @@ class TsePoliticalDataSyncService
     public function importSectionVotes(
         int $year,
         ?int $officeId = null,
-        ?SincronizacaoTse $run = null,
+        ?TseSync $run = null,
     ): int {
-        $election = Eleicao::query()
+        $election = Election::query()
             ->where('ano', $year)
             ->where('tipo', ElectionType::Municipal)
             ->first();
 
-        if (! $election instanceof Eleicao) {
+        if (! $election instanceof Election) {
             throw new RuntimeException("Eleição municipal de {$year} não cadastrada.");
         }
 
-        $offices = Gabinete::withoutGlobalScopes()
+        $offices = Office::withoutGlobalScopes()
             ->select(['id', 'municipio_eleitoral_id', 'candidato_titular_id'])
-            ->whereIn('id', $this->modules->activeOfficeIds(GabineteModule::Politics))
+            ->whereIn('id', $this->modules->activeOfficeIds(OfficeModule::Politics))
             ->whereNotNull('municipio_eleitoral_id')
             ->whereNotNull('candidato_titular_id')
             ->when($officeId !== null, fn ($query) => $query->whereKey($officeId))
@@ -1435,11 +1435,11 @@ class TsePoliticalDataSyncService
             return 0;
         }
 
-        $municipalities = MunicipioEleitoral::query()
+        $municipalities = ElectoralMunicipality::query()
             ->whereIn('id', $offices->pluck('municipio_eleitoral_id')->unique())
             ->get(['id', 'codigo_tse', 'uf'])
             ->keyBy('id');
-        $titularsByCandidateId = CandidatoPolitico::query()
+        $titularsByCandidateId = Candidate::query()
             ->whereIn('id', $offices->pluck('candidato_titular_id')->unique())
             ->get(['id', 'sq_candidato']);
         $sqCandidatoByMunicipalityCode = [];
@@ -1449,7 +1449,7 @@ class TsePoliticalDataSyncService
             $municipality = $municipalities->get($office->municipio_eleitoral_id);
             $titular = $titularsByCandidateId->firstWhere('id', $office->candidato_titular_id);
 
-            if (! $municipality instanceof MunicipioEleitoral || ! $titular instanceof CandidatoPolitico) {
+            if (! $municipality instanceof ElectoralMunicipality || ! $titular instanceof Candidate) {
                 continue;
             }
 
@@ -1518,9 +1518,9 @@ class TsePoliticalDataSyncService
     private function importSectionVotesDataset(
         array $located,
         int $year,
-        Eleicao $election,
+        Election $election,
         array $sqCandidatoByMunicipalityCode,
-        ?SincronizacaoTse $run,
+        ?TseSync $run,
         int $progressOffset,
         int $progressTotal,
     ): array {
@@ -1620,11 +1620,11 @@ class TsePoliticalDataSyncService
             return ['processed' => 0, 'read' => $read];
         }
 
-        $municipalitiesByCode = MunicipioEleitoral::query()
+        $municipalitiesByCode = ElectoralMunicipality::query()
             ->whereIn('codigo_tse', collect($votes)->pluck('municipality_code')->unique())
             ->get(['id', 'codigo_tse'])
             ->keyBy('codigo_tse');
-        $candidatesBySequence = CandidatoPolitico::query()
+        $candidatesBySequence = Candidate::query()
             ->where('eleicao_id', $election->id)
             ->whereIn('sq_candidato', collect($votes)->pluck('candidate_sequence')->unique())
             ->get(['id', 'sq_candidato'])
@@ -1635,23 +1635,23 @@ class TsePoliticalDataSyncService
             $municipality = $municipalitiesByCode->get($attributes['municipality_code']);
             $candidate = $candidatesBySequence->get($attributes['candidate_sequence']);
 
-            if (! $municipality instanceof MunicipioEleitoral || ! $candidate instanceof CandidatoPolitico) {
+            if (! $municipality instanceof ElectoralMunicipality || ! $candidate instanceof Candidate) {
                 continue;
             }
 
-            $section = SecaoEleitoral::query()->where([
+            $section = ElectoralSection::query()->where([
                 'eleicao_id' => $election->id,
                 'municipio_eleitoral_id' => $municipality->id,
                 'nr_zona' => $attributes['nr_zona'],
                 'nr_secao' => $attributes['nr_secao'],
             ])->first();
 
-            if (! $section instanceof SecaoEleitoral) {
+            if (! $section instanceof ElectoralSection) {
                 if ($attributes['nr_local_votacao'] === '') {
                     continue;
                 }
 
-                $location = LocalVotacaoEleitoral::query()->firstOrCreate(
+                $location = ElectoralPollingLocation::query()->firstOrCreate(
                     [
                         'eleicao_id' => $election->id,
                         'municipio_eleitoral_id' => $municipality->id,
@@ -1665,7 +1665,7 @@ class TsePoliticalDataSyncService
                         'fonte_gerada_em' => $attributes['source_generated_at'],
                     ],
                 );
-                $section = SecaoEleitoral::query()->create([
+                $section = ElectoralSection::query()->create([
                     'eleicao_id' => $election->id,
                     'municipio_eleitoral_id' => $municipality->id,
                     'local_votacao_eleitoral_id' => $location->id,
@@ -1674,7 +1674,7 @@ class TsePoliticalDataSyncService
                 ]);
             }
 
-            VotoSecaoCandidato::query()->updateOrCreate(
+            CandidateSectionVote::query()->updateOrCreate(
                 [
                     'secao_eleitoral_id' => $section->id,
                     'candidato_politico_id' => $candidate->id,
@@ -1707,18 +1707,18 @@ class TsePoliticalDataSyncService
     public function importElectionSurveyRegistry(
         int $year,
         ?int $officeId = null,
-        ?SincronizacaoTse $run = null,
+        ?TseSync $run = null,
     ): int {
-        $election = Eleicao::query()
+        $election = Election::query()
             ->where('ano', $year)
             ->where('tipo', ElectionType::General)
             ->first();
 
-        if (! $election instanceof Eleicao) {
+        if (! $election instanceof Election) {
             return 0;
         }
 
-        $states = Gabinete::withoutGlobalScopes()
+        $states = Office::withoutGlobalScopes()
             ->select(['estado'])
             ->when($officeId !== null, fn ($query) => $query->whereKey($officeId))
             ->get()
@@ -1730,7 +1730,7 @@ class TsePoliticalDataSyncService
             return 0;
         }
 
-        $pending = PesquisaEleitoral::query()
+        $pending = ElectoralPoll::query()
             ->where('eleicao_id', $election->id)
             ->whereNull('registro_tse')
             ->where(fn ($query) => $query
@@ -1742,9 +1742,9 @@ class TsePoliticalDataSyncService
             return 0;
         }
 
-        /** @var Collection<string, Collection<int, PesquisaEleitoral>> $grouped */
+        /** @var Collection<string, Collection<int, ElectoralPoll>> $grouped */
         $grouped = $pending->groupBy(
-            fn (PesquisaEleitoral $pesquisa): string => $this->pollRegistryMatchKey(
+            fn (ElectoralPoll $pesquisa): string => $this->pollRegistryMatchKey(
                 $pesquisa->uf,
                 $pesquisa->cargo,
                 $pesquisa->publicada_em->toDateString(),
@@ -1780,7 +1780,7 @@ class TsePoliticalDataSyncService
                     }
 
                     $matchingInstitutes = $candidates->filter(
-                        fn (PesquisaEleitoral $pesquisa): bool => $this->instituteNamesMatch(
+                        fn (ElectoralPoll $pesquisa): bool => $this->instituteNamesMatch(
                             (string) $pesquisa->instituto,
                             $institute,
                         ),
@@ -1789,7 +1789,7 @@ class TsePoliticalDataSyncService
                         ? $matchingInstitutes->first()
                         : null;
 
-                    if (! $match instanceof PesquisaEleitoral || $match->registro_tse !== null) {
+                    if (! $match instanceof ElectoralPoll || $match->registro_tse !== null) {
                         continue;
                     }
 
@@ -1808,7 +1808,7 @@ class TsePoliticalDataSyncService
      * linha (ex.: "Governador, Senador") quando o questionário cobre mais de
      * uma corrida. Devolve os cargos rastreados pelo GOVNEX GAB encontrados na
      * lista, em minúsculas, na mesma convenção usada por
-     * {@see PesquisaEleitoral::$cargo} — cargos fora do escopo atual (ex.:
+     * {@see ElectoralPoll::$cargo} — cargos fora do escopo atual (ex.:
      * Deputado Federal) são ignorados.
      *
      * @param  array<string, string>  $row
@@ -1888,10 +1888,10 @@ class TsePoliticalDataSyncService
 
     /**
      * Executa a sincronização de um dataset, registrando início, conclusão e
-     * falha na própria `SincronizacaoTse` — é o que a tela de sincronização
+     * falha na própria `TseSync` — é o que a tela de sincronização
      * política acompanha.
      */
-    public function syncFromGovnexApi(SincronizacaoTse $run): int
+    public function syncFromGovnexApi(TseSync $run): int
     {
         $run->update([
             'fonte_url' => $this->datasetPatternUrl($run->dataset, $run->ano),
@@ -2000,7 +2000,7 @@ class TsePoliticalDataSyncService
     private function eachGovnexRecord(
         array $located,
         callable $callback,
-        ?SincronizacaoTse $run = null,
+        ?TseSync $run = null,
         int $progressOffset = 0,
         ?int $progressTotal = null,
         array $filters = [],
@@ -2057,17 +2057,17 @@ class TsePoliticalDataSyncService
      *
      * @return array<string, int> registros processados por dataset
      */
-    public function syncOfficeSectionVotes(Gabinete $office): array
+    public function syncOfficeSectionVotes(Office $office): array
     {
         if (
             ! $office->isActive()
-            || ! $this->modules->isActive($office, GabineteModule::Politics)
+            || ! $this->modules->isActive($office, OfficeModule::Politics)
             || $office->candidato_titular_id === null
         ) {
             return [];
         }
 
-        $year = SincronizacaoTse::query()
+        $year = TseSync::query()
             ->whereNull('gabinete_id')
             ->where('dataset', 'section_votes')
             ->where('situacao', 'concluida')
@@ -2122,7 +2122,7 @@ class TsePoliticalDataSyncService
      * acontecendo. Mesma lógica de update direto via DB::table(), sem
      * disparar eventos do Eloquent a cada linha.
      */
-    private function touchProcessedCount(?SincronizacaoTse $run, int $count): void
+    private function touchProcessedCount(?TseSync $run, int $count): void
     {
         if ($run === null) {
             return;
@@ -2135,7 +2135,7 @@ class TsePoliticalDataSyncService
             ->update(['registros_processados' => $count]);
     }
 
-    private function touchProgress(?SincronizacaoTse $run, string $stage, int $percent): void
+    private function touchProgress(?TseSync $run, string $stage, int $percent): void
     {
         if ($run === null) {
             return;
@@ -2180,7 +2180,7 @@ class TsePoliticalDataSyncService
         array $rows,
         array $uniqueBy,
         array $updateColumns,
-        ?SincronizacaoTse $run = null,
+        ?TseSync $run = null,
         string $progressStage = 'gravando_registros',
     ): void {
         if ($rows === []) {
@@ -2204,7 +2204,7 @@ class TsePoliticalDataSyncService
         });
     }
 
-    private function ensureRunIsActive(?SincronizacaoTse $run): void
+    private function ensureRunIsActive(?TseSync $run): void
     {
         if ($run === null) {
             return;
@@ -2220,7 +2220,7 @@ class TsePoliticalDataSyncService
     /** @param list<array<string, mixed>> $rows */
     private function upsertCandidates(array $rows): void
     {
-        CandidatoPolitico::query()->upsert(
+        Candidate::query()->upsert(
             $rows,
             ['eleicao_id', 'sq_candidato'],
             [
@@ -2261,8 +2261,8 @@ class TsePoliticalDataSyncService
     /** @return list<string> UFs prontas para processar votação por seção. */
     public function registeredUfs(): array
     {
-        return array_values(Gabinete::withoutGlobalScopes()
-            ->whereIn('id', $this->modules->activeOfficeIds(GabineteModule::Politics))
+        return array_values(Office::withoutGlobalScopes()
+            ->whereIn('id', $this->modules->activeOfficeIds(OfficeModule::Politics))
             ->whereNotNull('municipio_eleitoral_id')
             ->whereNotNull('candidato_titular_id')
             ->pluck('estado')
@@ -2298,14 +2298,14 @@ class TsePoliticalDataSyncService
      * gabinete já vinculado (a edição por si só não atualiza o vínculo,
      * essa correspondência só acontece na importação).
      */
-    public function resolveMunicipality(string $estado, string $municipio): ?MunicipioEleitoral
+    public function resolveMunicipality(string $estado, string $municipio): ?ElectoralMunicipality
     {
         $key = $this->municipalityKey($estado, $municipio);
 
-        return MunicipioEleitoral::query()
+        return ElectoralMunicipality::query()
             ->where('uf', mb_strtoupper($estado))
             ->get()
-            ->first(fn (MunicipioEleitoral $candidate): bool => $this->municipalityKey($candidate->uf, $candidate->nome) === $key);
+            ->first(fn (ElectoralMunicipality $candidate): bool => $this->municipalityKey($candidate->uf, $candidate->nome) === $key);
     }
 
     /** @param array<string, string> $row */

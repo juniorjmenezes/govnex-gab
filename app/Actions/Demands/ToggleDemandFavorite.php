@@ -2,11 +2,11 @@
 
 namespace App\Actions\Demands;
 
-use App\Models\Demanda;
+use App\Models\Demand;
 use App\Models\User;
 
 /**
- * Favoritar é um destaque do time inteiro (como em `CandidatoFavorito`), não
+ * Favoritar é um destaque do time inteiro (como em `FavoriteCandidate`), não
  * uma preferência pessoal — por isso vive como duas colunas simples na
  * própria demanda, sem tabela própria. Não gera evento de timeline: é
  * metadado de organização da caixa de entrada, não um acontecimento da
@@ -14,7 +14,7 @@ use App\Models\User;
  */
 class ToggleDemandFavorite
 {
-    public function handle(Demanda $demand, User $user): Demanda
+    public function handle(Demand $demand, User $user): Demand
     {
         $demand->forceFill(
             $demand->isFavoritada()

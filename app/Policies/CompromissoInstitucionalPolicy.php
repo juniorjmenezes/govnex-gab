@@ -2,13 +2,16 @@
 
 namespace App\Policies;
 
-use App\Enums\GabineteType;
+use App\Enums\OfficeType;
 use App\Models\CompromissoInstitucional;
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\User;
+use App\Tenancy\OfficeContext;
 
 class CompromissoInstitucionalPolicy
 {
+    public function __construct(private readonly OfficeContext $context) {}
+
     /**
      * Mesma regra da agenda (`CompromissoInstitucional::visibleTo()`): mesma
      * entidade e, havendo alvos, o gabinete na lista — ou quem publicou.
@@ -27,8 +30,8 @@ class CompromissoInstitucionalPolicy
     /** Só a Secretaria legislativa publica, e o auditor só lê. */
     public function create(User $user): bool
     {
-        return $this->gabinete($user)?->tipo_gabinete === GabineteType::LegislativeSecretariat
-            && $user->role->canWrite();
+        return $this->gabinete($user)?->tipo_gabinete === OfficeType::LegislativeSecretariat
+            && $this->context->roleFor($user)->canWrite();
     }
 
     /**
@@ -38,7 +41,7 @@ class CompromissoInstitucionalPolicy
     public function update(User $user, CompromissoInstitucional $compromisso): bool
     {
         return $this->create($user)
-            && $compromisso->isPublishedBy($user->gabinete_id)
+            && $compromisso->isPublishedBy($this->context->officeIdFor($user))
             && $compromisso->entidade_id === $this->gabinete($user)?->entidade_id;
     }
 
@@ -59,20 +62,22 @@ class CompromissoInstitucionalPolicy
     }
 
     /**
-     * O gabinete em contexto (`users.gabinete_id`). Lido sem o escopo global
-     * para a regra não depender de haver contexto resolvido (ex.: checagem
-     * fora de uma requisição) — o id já é o do próprio usuário.
+     * O gabinete em que a pessoa atua (`OfficeContext::officeFor()`). Lido sem
+     * o escopo global para a regra não depender de haver contexto resolvido
+     * (ex.: checagem fora de uma requisição, que cai no gabinete da conta).
      */
-    private function gabinete(User $user): ?Gabinete
+    private function gabinete(User $user): ?Office
     {
-        if ($user->gabinete_id === null) {
+        $officeId = $this->context->officeIdFor($user);
+
+        if ($officeId === null) {
             return null;
         }
 
-        $gabinete = $user->gabinete;
+        $gabinete = $this->context->officeFor($user);
 
-        return $gabinete?->id === $user->gabinete_id
+        return $gabinete?->id === $officeId
             ? $gabinete
-            : Gabinete::withoutGlobalScopes()->find($user->gabinete_id);
+            : Office::withoutGlobalScopes()->find($officeId);
     }
 }

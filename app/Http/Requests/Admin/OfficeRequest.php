@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Rules\DefinidoNoHub;
 use App\Rules\MunicipalityInState;
 use Illuminate\Foundation\Http\FormRequest;
@@ -22,13 +22,13 @@ class OfficeRequest extends FormRequest
     {
         $office = $this->route('office');
 
-        return $office instanceof Gabinete && $this->user()->can('update', $office);
+        return $office instanceof Office && $this->user()->can('update', $office);
     }
 
     /** @return array<string, array<int, mixed>> */
     public function rules(): array
     {
-        /** @var Gabinete $office */
+        /** @var Office $office */
         $office = $this->route('office');
 
         return [

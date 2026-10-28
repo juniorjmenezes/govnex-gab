@@ -2,13 +2,13 @@
 
 namespace Tests\Feature\MultiEntidade;
 
-use App\Enums\EntidadeModule;
-use App\Enums\EntidadeType;
-use App\Enums\GabineteType;
-use App\Models\ConhecimentoDocumento;
-use App\Models\Entidade;
-use App\Models\EntidadeModulo;
-use App\Models\Gabinete;
+use App\Enums\EntityModule;
+use App\Enums\EntityType;
+use App\Enums\OfficeType;
+use App\Models\Entity;
+use App\Models\EntityModuleSubscription;
+use App\Models\KnowledgeDocument;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -35,7 +35,7 @@ class KnowledgeBaseEntidadeSharingTest extends TestCase
     public function test_secretariat_shares_a_document_with_the_whole_city_council(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
         $servidor = User::factory()->operator()->forGabinete($secretaria)->create();
 
         $this->actingAs($servidor)
@@ -51,7 +51,7 @@ class KnowledgeBaseEntidadeSharingTest extends TestCase
             ->assertSessionHasNoErrors()
             ->assertRedirect();
 
-        $document = ConhecimentoDocumento::query()->sole();
+        $document = KnowledgeDocument::query()->sole();
         $this->assertNull($document->gabinete_id);
         $this->assertSame($camara->id, $document->entidade_id);
         $this->assertTrue($document->isEntidadeWide());
@@ -62,7 +62,7 @@ class KnowledgeBaseEntidadeSharingTest extends TestCase
     public function test_without_the_flag_the_secretariat_document_stays_private(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
 
         $this->actingAs($this->usuario($secretaria))
             ->post('/conhecimento', [
@@ -71,7 +71,7 @@ class KnowledgeBaseEntidadeSharingTest extends TestCase
             ])
             ->assertSessionHasNoErrors();
 
-        $document = ConhecimentoDocumento::query()->sole();
+        $document = KnowledgeDocument::query()->sole();
         $this->assertSame($secretaria->id, $document->gabinete_id);
         // A entidade fica registrada só para consistência; não amplia a visibilidade.
         $this->assertSame($camara->id, $document->entidade_id);
@@ -81,8 +81,8 @@ class KnowledgeBaseEntidadeSharingTest extends TestCase
     public function test_only_the_secretariat_with_its_module_can_share_with_the_entidade(): void
     {
         $camara = $this->camara();
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
         $auditor = User::factory()->auditor()->forGabinete($secretaria)->create();
 
         $this->actingAs($this->usuario($vereador))
@@ -96,9 +96,9 @@ class KnowledgeBaseEntidadeSharingTest extends TestCase
             ->assertForbidden();
 
         // Com a Secretaria legislativa desligada na Câmara, nem ela compartilha.
-        EntidadeModulo::query()
+        EntityModuleSubscription::query()
             ->where('entidade_id', $camara->id)
-            ->where('modulo', EntidadeModule::LegislativeSecretariat->value)
+            ->where('modulo', EntityModule::LegislativeSecretariat->value)
             ->update(['ativo' => false]);
         app()->forgetScopedInstances();
 
@@ -113,10 +113,10 @@ class KnowledgeBaseEntidadeSharingTest extends TestCase
     {
         $camara = $this->camara();
         $outraCamara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereadorA = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $vereadorB = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $vereadorDeFora = $this->gabinete($outraCamara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereadorA = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $vereadorB = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $vereadorDeFora = $this->gabinete($outraCamara, OfficeType::CouncilorOffice);
         $platform = $this->document(title: 'Manual da plataforma');
         $shared = $this->document(entidade: $camara, title: 'Regimento interno');
         $privateA = $this->document(office: $vereadorA, title: 'Nota do gabinete A');
@@ -133,7 +133,7 @@ class KnowledgeBaseEntidadeSharingTest extends TestCase
                 ->where('documents.data.0.origin_label', null)
                 ->where('documents.data.1.id', $shared->id)
                 ->where('documents.data.1.origin', 'entidade')
-                ->where('documents.data.1.origin_label', GabineteType::LegislativeSecretariat->label())
+                ->where('documents.data.1.origin_label', OfficeType::LegislativeSecretariat->label())
                 ->where('documents.data.2.id', $platform->id)
                 ->where('documents.data.2.origin', 'plataforma'));
 
@@ -159,12 +159,12 @@ class KnowledgeBaseEntidadeSharingTest extends TestCase
     public function test_entidade_documents_leave_the_library_while_the_module_is_off_in_the_entidade(): void
     {
         $camara = $this->camara();
-        $vereador = $this->usuario($this->gabinete($camara, GabineteType::CouncilorOffice));
+        $vereador = $this->usuario($this->gabinete($camara, OfficeType::CouncilorOffice));
         $platform = $this->document();
         $shared = $this->document(entidade: $camara);
-        EntidadeModulo::query()
+        EntityModuleSubscription::query()
             ->where('entidade_id', $camara->id)
-            ->where('modulo', EntidadeModule::LegislativeSecretariat->value)
+            ->where('modulo', EntityModule::LegislativeSecretariat->value)
             ->update(['ativo' => false]);
         app()->forgetScopedInstances();
 
@@ -180,9 +180,9 @@ class KnowledgeBaseEntidadeSharingTest extends TestCase
     {
         $camara = $this->camara();
         $outraCamara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $outraSecretaria = $this->gabinete($outraCamara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $outraSecretaria = $this->gabinete($outraCamara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $autor = User::factory()->operator()->forGabinete($secretaria)->create();
         $colega = User::factory()->operator()->forGabinete($secretaria)->create();
         $chefe = $this->usuario($secretaria);
@@ -226,8 +226,8 @@ class KnowledgeBaseEntidadeSharingTest extends TestCase
     public function test_backfill_fills_the_owner_entidade_without_widening_visibility(): void
     {
         $camara = $this->camara();
-        $vereadorA = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $vereadorB = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $vereadorA = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $vereadorB = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $legacy = $this->document(office: $vereadorA);
         $platform = $this->document();
         DB::table('conhecimento_documentos')->where('id', $legacy->id)->update(['entidade_id' => null]);
@@ -245,37 +245,37 @@ class KnowledgeBaseEntidadeSharingTest extends TestCase
 
         $this->assertSame(
             [$legacy->id, $platform->id],
-            ConhecimentoDocumento::query()->visibleTo($vereadorA->id, $camara->id)->orderBy('id')->pluck('id')->all(),
+            KnowledgeDocument::query()->visibleTo($vereadorA->id, $camara->id)->orderBy('id')->pluck('id')->all(),
         );
         $this->assertSame(
             [$platform->id],
-            ConhecimentoDocumento::query()->visibleTo($vereadorB->id, $camara->id)->pluck('id')->all(),
+            KnowledgeDocument::query()->visibleTo($vereadorB->id, $camara->id)->pluck('id')->all(),
         );
     }
 
-    private function camara(): Entidade
+    private function camara(): Entity
     {
-        $camara = Entidade::factory()->create([
-            'tipo' => EntidadeType::CityCouncil,
+        $camara = Entity::factory()->create([
+            'tipo' => EntityType::CityCouncil,
             'interface_simplificada' => false,
         ]);
-        EntidadeModulo::query()
+        EntityModuleSubscription::query()
             ->where('entidade_id', $camara->id)
-            ->where('modulo', EntidadeModule::LegislativeSecretariat->value)
+            ->where('modulo', EntityModule::LegislativeSecretariat->value)
             ->update(['ativo' => true, 'ativado_em' => now()]);
 
         return $camara;
     }
 
-    private function gabinete(Entidade $entidade, GabineteType $tipo): Gabinete
+    private function gabinete(Entity $entidade, OfficeType $tipo): Office
     {
-        return Gabinete::factory()->create([
+        return Office::factory()->create([
             'entidade_id' => $entidade->id,
             'tipo_gabinete' => $tipo,
         ]);
     }
 
-    private function usuario(Gabinete $gabinete): User
+    private function usuario(Office $gabinete): User
     {
         return User::factory()->administrator()->forGabinete($gabinete)->create();
     }
@@ -299,14 +299,14 @@ class KnowledgeBaseEntidadeSharingTest extends TestCase
     }
 
     private function document(
-        ?Gabinete $office = null,
-        ?Entidade $entidade = null,
+        ?Office $office = null,
+        ?Entity $entidade = null,
         string $title = 'Documento',
         ?User $uploader = null,
-    ): ConhecimentoDocumento {
+    ): KnowledgeDocument {
         $path = 'conhecimento/'.uniqid().'.pdf';
         Storage::disk('local')->put($path, "%PDF-1.4\n%%EOF\n");
-        $document = new ConhecimentoDocumento;
+        $document = new KnowledgeDocument;
         $document->forceFill([
             'gabinete_id' => $office?->id,
             'entidade_id' => $office->entidade_id ?? $entidade?->id,
@@ -316,7 +316,7 @@ class KnowledgeBaseEntidadeSharingTest extends TestCase
             'nome_original' => 'documento.pdf',
             'tamanho' => 16,
             'enviado_por_id' => $uploader?->id,
-            'created_at' => now()->addSeconds(ConhecimentoDocumento::query()->count()),
+            'created_at' => now()->addSeconds(KnowledgeDocument::query()->count()),
         ])->save();
 
         return $document;

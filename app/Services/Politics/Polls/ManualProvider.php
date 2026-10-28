@@ -2,7 +2,7 @@
 
 namespace App\Services\Politics\Polls;
 
-use App\Models\PesquisaEleitoral;
+use App\Models\ElectoralPoll;
 
 /**
  * Último recurso da cadeia de prioridade: lê uma entrada previamente
@@ -22,12 +22,12 @@ use App\Models\PesquisaEleitoral;
  */
 class ManualProvider implements PesquisaResultProvider
 {
-    public function supports(PesquisaEleitoral $pesquisa): bool
+    public function supports(ElectoralPoll $pesquisa): bool
     {
         return true;
     }
 
-    public function buscar(PesquisaEleitoral $pesquisa): ?ResultadoColeta
+    public function buscar(ElectoralPoll $pesquisa): ?ResultadoColeta
     {
         $fonte = $pesquisa->fontes()
             ->where('tipo', 'manual')

@@ -4,24 +4,25 @@ namespace App\Http\Controllers;
 
 use App\Enums\CandidateScope;
 use App\Enums\ElectionType;
-use App\Models\CandidatoFavorito;
-use App\Models\CandidatoPolitico;
-use App\Models\Cidadao;
-use App\Models\ComparecimentoEleitoralMunicipio;
-use App\Models\Eleicao;
-use App\Models\EleitoradoMunicipioSnapshot;
-use App\Models\Gabinete;
-use App\Models\MediaPesquisaEleitoral;
-use App\Models\NoticiaCandidato;
-use App\Models\PartidoCor;
-use App\Models\PesquisaEleitoral;
-use App\Models\ResultadoCandidatoEleicao;
-use App\Models\SincronizacaoTse;
+use App\Models\Candidate;
+use App\Models\CandidateElectionResult;
+use App\Models\CandidateMunicipalityVote;
+use App\Models\CandidateNews;
+use App\Models\Citizen;
+use App\Models\Election;
+use App\Models\ElectoralPoll;
+use App\Models\ElectoralPollAverage;
+use App\Models\ElectorateSnapshot;
+use App\Models\FavoriteCandidate;
+use App\Models\MunicipalElectionTurnout;
+use App\Models\Office;
+use App\Models\PartyColor;
+use App\Models\TseSync;
 use App\Models\User;
-use App\Models\VotacaoCandidatoMunicipio;
 use App\Services\Politics\Polls\MediaCalculator;
 use App\Services\Politics\SecondRoundClassifier;
 use App\Support\PerPage;
+use App\Tenancy\OfficeContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -42,11 +43,11 @@ class PoliticalPanelController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->gabinete_id !== null, 403);
-        $office = Gabinete::query()
+        abort_unless($user instanceof User && app(OfficeContext::class)->officeIdFor($user) !== null, 403);
+        $office = Office::query()
             ->with(['municipioEleitoral', 'candidatoTitular'])
-            ->findOrFail($user->gabinete_id);
-        $elections = Eleicao::query()
+            ->findOrFail(app(OfficeContext::class)->officeIdFor($user));
+        $elections = Election::query()
             ->orderByDesc('ano')
             ->get();
         $selectedElection = $this->selectedElection($request, $elections->all());
@@ -63,14 +64,14 @@ class PoliticalPanelController extends Controller
         // a fonte é a votação nominal já sincronizada no banco, então custa
         // uma consulta e não sai para a rede (presidente e governador
         // dependem do TSE ao vivo — ver ElectionLifecycleService::tally()).
-        if ($selectedElection instanceof Eleicao
+        if ($selectedElection instanceof Election
             && $selectedElection->tipo === ElectionType::Municipal
             && $office->municipio_eleitoral_id !== null
             && $selectedElection->primeiro_turno_em->lte(today())) {
             $this->secondRound->classify($selectedElection, 'prefeito', null, $office->municipio_eleitoral_id);
         }
 
-        $candidateBase = CandidatoPolitico::query();
+        $candidateBase = Candidate::query();
         $this->visibleCandidates(
             $candidateBase,
             $office,
@@ -82,7 +83,7 @@ class PoliticalPanelController extends Controller
         // existe alguma disputa já decidida para o 2º turno (clássica ou
         // decidida já no 1º) dentro do território do gabinete — sem isso,
         // ligar o toggle devolveria exatamente a mesma lista.
-        $runoffQuery = CandidatoPolitico::query();
+        $runoffQuery = Candidate::query();
         $this->visibleCandidates($runoffQuery, $office, $selectedElection, showFullFirstRound: true);
         $hasSecondRoundDecided = $runoffQuery
             ->whereNotNull('avancou_segundo_turno')
@@ -120,24 +121,24 @@ class PoliticalPanelController extends Controller
             ->orderBy('nome_urna')
             ->paginate(PerPage::resolve($request, 18))
             ->withQueryString();
-        $partyColors = PartidoCor::colorMap();
+        $partyColors = PartyColor::colorMap();
         $electionResults = $this->electionResults($candidates->getCollection());
-        $candidates->getCollection()->each(function (CandidatoPolitico $candidate) use ($partyColors, $office, $electionResults): void {
+        $candidates->getCollection()->each(function (Candidate $candidate) use ($partyColors, $office, $electionResults): void {
             $candidate->party_color = $candidate->partido_sigla !== null
-                ? ($partyColors[PartidoCor::normalizeSigla($candidate->partido_sigla)] ?? null)
+                ? ($partyColors[PartyColor::normalizeSigla($candidate->partido_sigla)] ?? null)
                 : null;
             $candidate->is_holder = $candidate->id === $office->candidato_titular_id;
             $candidate->resultado = $electionResults[$candidate->id] ?? null;
         });
 
         $latestElectorate = $office->municipio_eleitoral_id
-            ? EleitoradoMunicipioSnapshot::query()
+            ? ElectorateSnapshot::query()
                 ->where('municipio_eleitoral_id', $office->municipio_eleitoral_id)
                 ->latest('data_referencia')
                 ->first()
             : null;
         $lastTurnout = $office->municipio_eleitoral_id
-            ? ComparecimentoEleitoralMunicipio::query()
+            ? MunicipalElectionTurnout::query()
                 ->with('eleicao:id,nome')
                 ->where('municipio_eleitoral_id', $office->municipio_eleitoral_id)
                 ->orderByDesc('data_eleicao')
@@ -145,7 +146,7 @@ class PoliticalPanelController extends Controller
                 ->first()
             : null;
         $holderVote = $office->candidato_titular_id && $office->municipio_eleitoral_id
-            ? VotacaoCandidatoMunicipio::query()
+            ? CandidateMunicipalityVote::query()
                 ->with('eleicao:id,nome')
                 ->where('candidato_politico_id', $office->candidato_titular_id)
                 ->where('municipio_eleitoral_id', $office->municipio_eleitoral_id)
@@ -153,14 +154,14 @@ class PoliticalPanelController extends Controller
                 ->orderByDesc('turno')
                 ->first()
             : null;
-        $internalVoters = Cidadao::query()->where('eleitor', true)->count();
+        $internalVoters = Citizen::query()->where('eleitor', true)->count();
         $officialEligible = $latestElectorate?->eleitores_aptos;
         $nextRound = $this->nextRound();
 
         // Eleição municipal já realizada muda o que o painel oferece: entra a
         // apuração e sai a pesquisa de intenção de voto, que perdeu a função
         // com o resultado publicado.
-        $concludedMunicipal = $selectedElection instanceof Eleicao
+        $concludedMunicipal = $selectedElection instanceof Election
             && $selectedElection->tipo === ElectionType::Municipal
             && $selectedElection->primeiro_turno_em->lte(today());
         // A exceção é o prefeito ir a 2º turno: até a votação dele, a
@@ -170,7 +171,7 @@ class PoliticalPanelController extends Controller
             && $this->secondRound->activeRound($selectedElection, 'prefeito', null, $office->municipio_eleitoral_id) === 2;
 
         return Inertia::render('politics/index', [
-            'elections' => $elections->map(fn (Eleicao $election): array => [
+            'elections' => $elections->map(fn (Election $election): array => [
                 'id' => $election->id,
                 'name' => $election->nome,
                 'year' => $election->ano,
@@ -221,7 +222,7 @@ class PoliticalPanelController extends Controller
                     ? round(($internalVoters / $officialEligible) * 100, 2)
                     : null,
                 'favorites' => $selectedElection
-                    ? CandidatoFavorito::query()
+                    ? FavoriteCandidate::query()
                         ->whereHas('candidato', fn (Builder $query) => $query
                             ->where('eleicao_id', $selectedElection->id))
                         ->count()
@@ -246,7 +247,9 @@ class PoliticalPanelController extends Controller
                 'date' => $nextRound['date'],
             ] : null,
             'serverNow' => now()->toIso8601String(),
-            'canFavorite' => $user->gabinete_id !== null,
+            // Sempre true aqui: o abort_unless() no topo do método já
+            // garante gabinete_id não nulo pra chegar até este ponto.
+            'canFavorite' => true,
             'polls' => $concludedMunicipal && ! $pendingMayoralRunoff
                 ? null
                 : $this->polls($office, $selectedElection),
@@ -277,7 +280,7 @@ class PoliticalPanelController extends Controller
      * (apuração do TSE, ver ElectionResultRecorder), prefeito e vereador em
      * `votacoes_candidatos_municipio`. Vale o turno mais recente.
      *
-     * @param  Collection<int, CandidatoPolitico>  $candidates
+     * @param  Collection<int, Candidate>  $candidates
      * @return array<int, array{situacao: string, turno: int, votos: int, percentual: float|null, eleito: bool}>
      */
     private function electionResults(Collection $candidates): array
@@ -291,7 +294,7 @@ class PoliticalPanelController extends Controller
         // Em ordem de turno: o mais recente sobrescreve o anterior.
         $results = [];
 
-        $majority = ResultadoCandidatoEleicao::query()
+        $majority = CandidateElectionResult::query()
             ->whereIn('candidato_politico_id', $ids)
             ->orderBy('turno')
             ->get();
@@ -306,7 +309,7 @@ class PoliticalPanelController extends Controller
             ];
         }
 
-        $municipal = VotacaoCandidatoMunicipio::query()
+        $municipal = CandidateMunicipalityVote::query()
             ->whereIn('candidato_politico_id', $ids)
             ->whereNotNull('situacao_totalizacao')
             ->orderBy('turno')
@@ -345,13 +348,13 @@ class PoliticalPanelController extends Controller
      *     parties: list<array{party: string, seats: int, votes: int, color: string|null}>,
      * }|null
      */
-    private function municipalElectionResult(Gabinete $office, Eleicao $election): ?array
+    private function municipalElectionResult(Office $office, Election $election): ?array
     {
         if ($office->municipio_eleitoral_id === null) {
             return null;
         }
 
-        $votes = VotacaoCandidatoMunicipio::query()
+        $votes = CandidateMunicipalityVote::query()
             ->with('candidato:id,nome,nome_urna,numero,partido_sigla,cargo')
             ->where('municipio_eleitoral_id', $office->municipio_eleitoral_id)
             ->where('eleicao_id', $election->id)
@@ -367,12 +370,12 @@ class PoliticalPanelController extends Controller
         // e quem decide é o último turno), vereador é proporcional (a cadeira
         // não sai só do número de votos de cada candidato).
         $mayorVotes = $votes
-            ->filter(fn (VotacaoCandidatoMunicipio $vote): bool => $this->isMayoralRace($vote))
+            ->filter(fn (CandidateMunicipalityVote $vote): bool => $this->isMayoralRace($vote))
             ->values();
         $decisiveRound = $mayorVotes->max('turno') ?? 1;
         $mayorVotes = $mayorVotes->where('turno', $decisiveRound)->values();
         $councilVotes = $votes
-            ->reject(fn (VotacaoCandidatoMunicipio $vote): bool => $this->isMayoralRace($vote))
+            ->reject(fn (CandidateMunicipalityVote $vote): bool => $this->isMayoralRace($vote))
             ->where('turno', 1)
             ->values();
 
@@ -391,17 +394,17 @@ class PoliticalPanelController extends Controller
         $holderVote = $office->candidato_titular_id !== null
             ? $councilVotes->firstWhere('candidato_politico_id', $office->candidato_titular_id)
             : null;
-        $turnout = ComparecimentoEleitoralMunicipio::query()
+        $turnout = MunicipalElectionTurnout::query()
             ->where('municipio_eleitoral_id', $office->municipio_eleitoral_id)
             ->where('eleicao_id', $election->id)
             ->orderBy('turno')
             ->first();
 
-        // Mesma cor que o partido tem no resto do painel (ver PartidoCor e
+        // Mesma cor que o partido tem no resto do painel (ver PartyColor e
         // /admin/cores-partidos); sem cor cadastrada fica o badge neutro.
-        $partyColors = PartidoCor::colorMap();
+        $partyColors = PartyColor::colorMap();
         $colorFor = fn (?string $sigla): ?string => $sigla !== null
-            ? ($partyColors[PartidoCor::normalizeSigla($sigla)] ?? null)
+            ? ($partyColors[PartyColor::normalizeSigla($sigla)] ?? null)
             : null;
         $parties = [];
 
@@ -430,7 +433,7 @@ class PoliticalPanelController extends Controller
                 'year' => $election->ano,
                 'date' => $election->primeiro_turno_em->toDateString(),
             ],
-            'turnout' => $turnout instanceof ComparecimentoEleitoralMunicipio ? [
+            'turnout' => $turnout instanceof MunicipalElectionTurnout ? [
                 'eligible' => $turnout->eleitores_aptos,
                 'voted' => $turnout->comparecimento,
                 'abstentions' => $turnout->abstencoes,
@@ -443,7 +446,7 @@ class PoliticalPanelController extends Controller
             'mayor' => $mayorVotes->isEmpty() ? null : [
                 'round' => $decisiveRound,
                 'candidates' => array_values($mayorVotes
-                    ->map(fn (VotacaoCandidatoMunicipio $vote, int $index): array => [
+                    ->map(fn (CandidateMunicipalityVote $vote, int $index): array => [
                         'position' => $index + 1,
                         'name' => $vote->candidato->nome_urna,
                         'party' => $vote->candidato->partido_sigla,
@@ -454,7 +457,7 @@ class PoliticalPanelController extends Controller
                     ])
                     ->all()),
             ],
-            'holder' => $holderVote instanceof VotacaoCandidatoMunicipio ? [
+            'holder' => $holderVote instanceof CandidateMunicipalityVote ? [
                 'name' => $holderVote->candidato->nome_urna,
                 'party' => $holderVote->candidato->partido_sigla,
                 'number' => $holderVote->candidato->numero,
@@ -464,7 +467,7 @@ class PoliticalPanelController extends Controller
                 'result_status' => $holderVote->situacao_totalizacao,
             ] : null,
             'elected' => array_values($elected
-                ->map(fn (VotacaoCandidatoMunicipio $vote): array => [
+                ->map(fn (CandidateMunicipalityVote $vote): array => [
                     'position' => $positions[$vote->candidato_politico_id],
                     'name' => $vote->candidato->nome_urna,
                     'party' => $vote->candidato->partido_sigla,
@@ -475,7 +478,7 @@ class PoliticalPanelController extends Controller
                 ])
                 ->all()),
             'runners_up' => array_values($runnersUp
-                ->map(fn (VotacaoCandidatoMunicipio $vote): array => [
+                ->map(fn (CandidateMunicipalityVote $vote): array => [
                     'position' => $positions[$vote->candidato_politico_id],
                     'name' => $vote->candidato->nome_urna,
                     'party' => $vote->candidato->partido_sigla,
@@ -490,23 +493,23 @@ class PoliticalPanelController extends Controller
     }
 
     /** Prefeito e vereador dividem a mesma tabela de votação nominal. */
-    private function isMayoralRace(VotacaoCandidatoMunicipio $vote): bool
+    private function isMayoralRace(CandidateMunicipalityVote $vote): bool
     {
         return Str::ascii(mb_strtoupper($vote->candidato->cargo)) === 'PREFEITO';
     }
 
-    public function favorite(Request $request, CandidatoPolitico $candidate): RedirectResponse
+    public function favorite(Request $request, Candidate $candidate): RedirectResponse
     {
         $user = $request->user();
         abort_unless(
             $user instanceof User
-            && $user->gabinete_id !== null,
+            && app(OfficeContext::class)->officeIdFor($user) !== null,
             403,
         );
-        $office = Gabinete::query()->findOrFail($user->gabinete_id);
+        $office = Office::query()->findOrFail(app(OfficeContext::class)->officeIdFor($user));
         $this->ensureCandidateIsVisible($candidate, $office);
 
-        CandidatoFavorito::query()->firstOrCreate(
+        FavoriteCandidate::query()->firstOrCreate(
             ['candidato_politico_id' => $candidate->id],
             ['escolhido_por_id' => $user->id],
         );
@@ -519,15 +522,15 @@ class PoliticalPanelController extends Controller
         return back();
     }
 
-    public function unfavorite(Request $request, CandidatoPolitico $candidate): RedirectResponse
+    public function unfavorite(Request $request, Candidate $candidate): RedirectResponse
     {
         $user = $request->user();
         abort_unless(
             $user instanceof User
-            && $user->gabinete_id !== null,
+            && app(OfficeContext::class)->officeIdFor($user) !== null,
             403,
         );
-        $office = Gabinete::query()->findOrFail($user->gabinete_id);
+        $office = Office::query()->findOrFail(app(OfficeContext::class)->officeIdFor($user));
         $this->ensureCandidateIsVisible($candidate, $office);
 
         // O titular é favorito por definição do vínculo do gabinete, não por
@@ -542,7 +545,7 @@ class PoliticalPanelController extends Controller
             return back();
         }
 
-        CandidatoFavorito::query()
+        FavoriteCandidate::query()
             ->where('candidato_politico_id', $candidate->id)
             ->delete();
 
@@ -556,17 +559,17 @@ class PoliticalPanelController extends Controller
 
     /**
      * Notícias de um candidato, para o modal do painel. Paginadas de 6 em 6;
-     * o escopo de tenant do NoticiaCandidato garante que um gabinete não
+     * o escopo de tenant do CandidateNews garante que um gabinete não
      * enxergue o casamento feito para outro.
      */
-    public function news(Request $request, CandidatoPolitico $candidate): JsonResponse
+    public function news(Request $request, Candidate $candidate): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->gabinete_id !== null, 403);
-        $office = Gabinete::query()->findOrFail($user->gabinete_id);
+        abort_unless($user instanceof User && app(OfficeContext::class)->officeIdFor($user) !== null, 403);
+        $office = Office::query()->findOrFail(app(OfficeContext::class)->officeIdFor($user));
         $this->ensureCandidateIsVisible($candidate, $office);
 
-        $news = NoticiaCandidato::query()
+        $news = CandidateNews::query()
             ->where('candidato_politico_id', $candidate->id)
             ->whereHas('noticia')
             ->with([
@@ -581,7 +584,7 @@ class PoliticalPanelController extends Controller
 
         return response()->json([
             'data' => collect($news->items())
-                ->map(fn (NoticiaCandidato $match): array => [
+                ->map(fn (CandidateNews $match): array => [
                     'id' => $match->id,
                     'title' => $match->noticia->titulo,
                     'summary' => $match->noticia->resumo,
@@ -597,8 +600,8 @@ class PoliticalPanelController extends Controller
         ]);
     }
 
-    /** @param array<int, Eleicao> $elections */
-    private function selectedElection(Request $request, array $elections): ?Eleicao
+    /** @param array<int, Election> $elections */
+    private function selectedElection(Request $request, array $elections): ?Election
     {
         $requestedId = $request->integer('eleicao_id');
 
@@ -619,22 +622,22 @@ class PoliticalPanelController extends Controller
         return $elections[0] ?? null;
     }
 
-    /** @param Builder<CandidatoPolitico> $query */
+    /** @param Builder<Candidate> $query */
     /**
      * Próximo turno ainda não realizado entre todas as eleições cadastradas
      * (1º e 2º turnos). Antes só olhava o 1º turno, então depois do dia da
      * votação o card de contagem sumia sem nunca mostrar o 2º turno.
      *
-     * @return array{election: Eleicao, round: int, date: string}|null
+     * @return array{election: Election, round: int, date: string}|null
      */
     private function nextRound(): ?array
     {
         $today = today()->toDateString();
 
-        return Eleicao::query()
+        return Election::query()
             ->get()
-            ->flatMap(fn (Eleicao $election): array => array_filter([
-                $election->primeiro_turno_em?->toDateString() >= $today
+            ->flatMap(fn (Election $election): array => array_filter([
+                $election->primeiro_turno_em->toDateString() >= $today
                     ? ['election' => $election, 'round' => 1, 'date' => $election->primeiro_turno_em->toDateString()]
                     : null,
                 $election->segundo_turno_em !== null && $election->segundo_turno_em->toDateString() >= $today
@@ -643,6 +646,12 @@ class PoliticalPanelController extends Controller
             ]))
             ->sortBy('date')
             ->first();
+    }
+
+    private function isPastFirstRound(?Election $election): bool
+    {
+        return $election instanceof Election
+            && $election->primeiro_turno_em->lte(today());
     }
 
     /**
@@ -668,18 +677,12 @@ class PoliticalPanelController extends Controller
      * continuar podendo ser desfavoritado, ter notícias lidas etc., mesmo
      * depois de sair da lista geral.
      *
-     * @param  Builder<CandidatoPolitico>  $query
+     * @param  Builder<Candidate>  $query
      */
-    private function isPastFirstRound(?Eleicao $election): bool
-    {
-        return $election instanceof Eleicao
-            && $election->primeiro_turno_em->lte(today());
-    }
-
     private function visibleCandidates(
         Builder $query,
-        Gabinete $office,
-        ?Eleicao $election,
+        Office $office,
+        ?Election $election,
         bool $showFullFirstRound = false,
         bool $enforceRoundVisibility = true,
     ): void {
@@ -712,10 +715,10 @@ class PoliticalPanelController extends Controller
     }
 
     private function ensureCandidateIsVisible(
-        CandidatoPolitico $candidate,
-        Gabinete $office,
+        Candidate $candidate,
+        Office $office,
     ): void {
-        $query = CandidatoPolitico::query()->whereKey($candidate->id);
+        $query = Candidate::query()->whereKey($candidate->id);
         $this->visibleCandidates(
             $query,
             $office,
@@ -727,7 +730,7 @@ class PoliticalPanelController extends Controller
     }
 
     /** @return array{source: string, source_url: string, state: string, municipality: string, election_type: string|null, available: bool, offices: array<int, array<string, mixed>>} */
-    private function polls(Gabinete $office, ?Eleicao $election): array
+    private function polls(Office $office, ?Election $election): array
     {
         $empty = [
             'source' => 'PollingData',
@@ -743,16 +746,16 @@ class PoliticalPanelController extends Controller
             return $empty;
         }
 
-        $favoriteIds = CandidatoFavorito::query()
+        $favoriteIds = FavoriteCandidate::query()
             ->where('gabinete_id', $office->id)
             ->whereHas('candidato', fn (Builder $query) => $query
                 ->where('eleicao_id', $election->id))
             ->pluck('candidato_politico_id')
             ->map(fn (int $id): int => $id)
             ->all();
-        $partyColors = PartidoCor::colorMap();
+        $partyColors = PartyColor::colorMap();
         $colorForParty = fn (?string $sigla): ?string => $sigla !== null
-            ? ($partyColors[PartidoCor::normalizeSigla($sigla)] ?? null)
+            ? ($partyColors[PartyColor::normalizeSigla($sigla)] ?? null)
             : null;
         $offices = [];
         $available = false;
@@ -860,7 +863,7 @@ class PoliticalPanelController extends Controller
                 $hasAggregate = false;
                 $serializedAverages = [];
             } else {
-                $officeAverages = MediaPesquisaEleitoral::query()
+                $officeAverages = ElectoralPollAverage::query()
                     ->where('eleicao_id', $election->id)
                     ->where('uf', $dataState)
                     ->when(
@@ -883,7 +886,7 @@ class PoliticalPanelController extends Controller
                     ->orderByDesc('media_ponderada')
                     ->get();
                 $hasAggregate = (int) $officeAverages->max('pesquisas_incluidas') > 1;
-                $serializedAverages = $officeAverages->map(fn (MediaPesquisaEleitoral $average): array => [
+                $serializedAverages = $officeAverages->map(fn (ElectoralPollAverage $average): array => [
                     'candidate_id' => $average->candidato_politico_id,
                     'external_candidate_id' => $average->external_candidate_id,
                     'name' => $average->candidato_nome,
@@ -968,10 +971,10 @@ class PoliticalPanelController extends Controller
         ];
     }
 
-    /** @return Collection<int, PesquisaEleitoral> */
-    private function officePolls(Eleicao $election, string $officeType, int $round, string $uf, ?string $municipio): Collection
+    /** @return Collection<int, ElectoralPoll> */
+    private function officePolls(Election $election, string $officeType, int $round, string $uf, ?string $municipio): Collection
     {
-        return PesquisaEleitoral::query()
+        return ElectoralPoll::query()
             ->with(['resultados' => fn ($query) => $query->orderByDesc('percentual')])
             ->where('eleicao_id', $election->id)
             ->where('turno', $round)
@@ -1009,7 +1012,7 @@ class PoliticalPanelController extends Controller
      */
     private function latestSync(string $dataset, ?int $officeId): ?array
     {
-        $sync = SincronizacaoTse::query()
+        $sync = TseSync::query()
             ->where('dataset', $dataset)
             ->when(
                 $officeId !== null,

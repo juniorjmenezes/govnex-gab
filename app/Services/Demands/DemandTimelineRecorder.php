@@ -3,8 +3,8 @@
 namespace App\Services\Demands;
 
 use App\Enums\DemandEventType;
-use App\Models\Demanda;
-use App\Models\DemandaEvento;
+use App\Models\Demand;
+use App\Models\DemandEvent;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 
@@ -24,14 +24,14 @@ class DemandTimelineRecorder
      *                                       retorno_de_evento_id, retorno_recebido_em).
      */
     public function record(
-        Demanda $demand,
+        Demand $demand,
         ?User $user,
         DemandEventType $tipo,
         ?string $descricao = null,
         ?array $dados = null,
         array $extra = [],
-    ): DemandaEvento {
-        $event = new DemandaEvento;
+    ): DemandEvent {
+        $event = new DemandEvent;
         $event->forceFill([
             'gabinete_id' => $demand->gabinete_id,
             'demanda_id' => $demand->id,

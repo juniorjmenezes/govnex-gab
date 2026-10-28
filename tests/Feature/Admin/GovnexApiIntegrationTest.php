@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Models\IntegracaoGovnexApi;
+use App\Models\GovnexApiIntegration;
 use App\Models\User;
 use App\Services\Politics\Tse\GovnexApiSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,7 +54,7 @@ class GovnexApiIntegrationTest extends TestCase
             ])
             ->assertRedirect();
 
-        $record = IntegracaoGovnexApi::query()->firstOrFail();
+        $record = GovnexApiIntegration::query()->firstOrFail();
 
         // A barra final é normalizada para não duplicar ao concatenar rotas.
         $this->assertSame('https://api.exemplo.test/api/v1', $record->url);
@@ -68,7 +68,7 @@ class GovnexApiIntegrationTest extends TestCase
     public function test_the_key_is_never_sent_back_to_the_browser(): void
     {
         $admin = User::factory()->root()->create();
-        IntegracaoGovnexApi::create([
+        GovnexApiIntegration::create([
             'url' => 'https://api.exemplo.test/api/v1',
             'chave' => 'gnx_chave_de_teste_com_tamanho',
         ]);
@@ -87,7 +87,7 @@ class GovnexApiIntegrationTest extends TestCase
     public function test_an_empty_key_field_keeps_the_stored_key(): void
     {
         $admin = User::factory()->root()->create();
-        IntegracaoGovnexApi::create([
+        GovnexApiIntegration::create([
             'url' => 'https://antiga.test/api/v1',
             'chave' => 'gnx_chave_de_teste_com_tamanho',
         ]);
@@ -99,7 +99,7 @@ class GovnexApiIntegrationTest extends TestCase
             ])
             ->assertRedirect();
 
-        $record = IntegracaoGovnexApi::query()->firstOrFail();
+        $record = GovnexApiIntegration::query()->firstOrFail();
         $this->assertSame('https://nova.test/api/v1', $record->url);
         $this->assertSame('gnx_chave_de_teste_com_tamanho', $record->chave);
     }
@@ -107,7 +107,7 @@ class GovnexApiIntegrationTest extends TestCase
     public function test_the_key_can_be_removed_explicitly(): void
     {
         $admin = User::factory()->root()->create();
-        IntegracaoGovnexApi::create([
+        GovnexApiIntegration::create([
             'url' => 'https://api.exemplo.test/api/v1',
             'chave' => 'gnx_chave_de_teste_com_tamanho',
         ]);
@@ -120,12 +120,12 @@ class GovnexApiIntegrationTest extends TestCase
             ])
             ->assertRedirect();
 
-        $this->assertNull(IntegracaoGovnexApi::query()->firstOrFail()->chave);
+        $this->assertNull(GovnexApiIntegration::query()->firstOrFail()->chave);
     }
 
     public function test_the_saved_configuration_overrides_the_env_for_the_api_client(): void
     {
-        IntegracaoGovnexApi::create([
+        GovnexApiIntegration::create([
             'url' => 'https://salvo.test/api/v1',
             'chave' => 'gnx_chave_de_teste_com_tamanho',
         ]);
@@ -139,7 +139,7 @@ class GovnexApiIntegrationTest extends TestCase
     public function test_testing_the_connection_records_a_rejected_key(): void
     {
         $admin = User::factory()->root()->create();
-        IntegracaoGovnexApi::create([
+        GovnexApiIntegration::create([
             'url' => 'https://api.exemplo.test/api/v1',
             'chave' => 'gnx_chave_de_teste_com_tamanho',
         ]);
@@ -152,7 +152,7 @@ class GovnexApiIntegrationTest extends TestCase
             ->post('/admin/integracoes/govnex-api/testar')
             ->assertRedirect();
 
-        $record = IntegracaoGovnexApi::query()->firstOrFail();
+        $record = GovnexApiIntegration::query()->firstOrFail();
         $this->assertSame('chave_invalida', $record->verificado_resultado);
         $this->assertNotNull($record->verificada_em);
     }
@@ -160,7 +160,7 @@ class GovnexApiIntegrationTest extends TestCase
     public function test_testing_the_connection_records_success_with_the_source_count(): void
     {
         $admin = User::factory()->root()->create();
-        IntegracaoGovnexApi::create([
+        GovnexApiIntegration::create([
             'url' => 'https://api.exemplo.test/api/v1',
             'chave' => 'gnx_chave_de_teste_com_tamanho',
         ]);
@@ -175,7 +175,7 @@ class GovnexApiIntegrationTest extends TestCase
             ->post('/admin/integracoes/govnex-api/testar')
             ->assertRedirect();
 
-        $record = IntegracaoGovnexApi::query()->firstOrFail();
+        $record = GovnexApiIntegration::query()->firstOrFail();
         $this->assertSame('ok', $record->verificado_resultado);
         $this->assertStringContainsString('2 fonte(s)', (string) $record->verificado_detalhe);
     }

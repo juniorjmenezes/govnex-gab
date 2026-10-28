@@ -6,27 +6,28 @@ use App\Actions\Appointments\SaveAppointment;
 use App\Actions\Demands\CompleteNextAction;
 use App\Enums\AppointmentRecurrence;
 use App\Enums\AppointmentStatus;
-use App\Enums\EntidadeModule;
+use App\Enums\EntityModule;
 use App\Enums\EventDuration;
 use App\Enums\EventStatus;
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use App\Enums\ReminderChannel;
 use App\Enums\UserRole;
 use App\Enums\WhatsAppPurpose;
 use App\Http\Requests\Appointments\AppointmentRequest;
 use App\Models\Appointment;
 use App\Models\AppointmentReminder;
-use App\Models\Cidadao;
+use App\Models\Citizen;
 use App\Models\CompromissoInstitucional;
-use App\Models\Demanda;
-use App\Models\Evento;
+use App\Models\Demand;
+use App\Models\Event;
 use App\Models\NotificationAttempt;
 use App\Models\User;
 use App\Services\Appointments\AppointmentReminderScheduler;
-use App\Services\Modules\EntidadeModuleManager;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\EntityModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\WhatsApp\WhatsAppEligibilityService;
 use App\Services\WhatsApp\WhatsAppEventNotificationService;
+use App\Tenancy\OfficeContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -40,22 +41,22 @@ class AppointmentController extends Controller
 {
     public function index(
         Request $request,
-        GabineteModuleManager $modules,
-        EntidadeModuleManager $entidadeModules,
+        OfficeModuleManager $modules,
+        EntityModuleManager $entidadeModules,
     ): Response {
         $this->authorize('viewAny', Appointment::class);
         $user = $request->user();
-        abort_unless($user instanceof User && $user->gabinete_id !== null, 403);
+        abort_unless($user instanceof User && app(OfficeContext::class)->officeIdFor($user) !== null, 403);
 
         $view = in_array($request->string('view')->toString(), ['mes', 'semana', 'dia', 'lista'], true)
             ? $request->string('view')->toString()
             : 'mes';
         $date = $this->date($request->string('date')->toString());
-        $timezone = $user->gabinete->timezone ?? 'America/Sao_Paulo';
-        $eventsEnabled = $modules->isActive($user->gabinete_id, GabineteModule::Events);
-        $demandsEnabled = $modules->isActive($user->gabinete_id, GabineteModule::Demands);
-        $whatsAppEnabled = $modules->isActive($user->gabinete_id, GabineteModule::WhatsApp);
-        $attendancesEnabled = $modules->isActive($user->gabinete_id, GabineteModule::Attendances);
+        $timezone = app(OfficeContext::class)->officeFor($user)->timezone ?? 'America/Sao_Paulo';
+        $eventsEnabled = $modules->isActive(app(OfficeContext::class)->officeIdFor($user), OfficeModule::Events);
+        $demandsEnabled = $modules->isActive(app(OfficeContext::class)->officeIdFor($user), OfficeModule::Demands);
+        $whatsAppEnabled = $modules->isActive(app(OfficeContext::class)->officeIdFor($user), OfficeModule::WhatsApp);
+        $attendancesEnabled = $modules->isActive(app(OfficeContext::class)->officeIdFor($user), OfficeModule::Attendances);
         [$start, $end] = $this->range($view, $date, $timezone);
         $filters = [
             'view' => $view,
@@ -97,7 +98,7 @@ class AppointmentController extends Controller
             ->take(500)
             ->values();
 
-        $events = $eventsEnabled ? Evento::query()
+        $events = $eventsEnabled ? Event::query()
             ->where('inicio_em', '<', $end)
             ->where('fim_em', '>', $start)
             ->when($filters['responsavel_id'], fn (Builder $query) => $query->where('responsavel_id', $filters['responsavel_id']))
@@ -116,7 +117,7 @@ class AppointmentController extends Controller
             ->orderBy('inicio_em')
             ->limit(500)
             ->get()
-            ->flatMap(fn (Evento $event): array => $this->eventOccurrences(
+            ->flatMap(fn (Event $event): array => $this->eventOccurrences(
                 $event,
                 $start,
                 $end,
@@ -127,12 +128,12 @@ class AppointmentController extends Controller
         // módulo ligado na entidade (o módulo Agenda do gabinete já é exigido
         // pela rota). Não tem responsável neste gabinete, por isso sai quando
         // a agenda é filtrada por integrante.
-        $gabinete = $user->gabinete;
+        $gabinete = app(OfficeContext::class)->officeFor($user);
         $institutionalEnabled = $gabinete !== null
-            && $entidadeModules->isActive($gabinete->entidade_id, EntidadeModule::LegislativeSecretariat);
+            && $entidadeModules->isActive($gabinete->entidade_id, EntityModule::LegislativeSecretariat);
         $canManageInstitutional = $institutionalEnabled
             && $user->can('create', CompromissoInstitucional::class)
-            && $modules->isActive($user->gabinete_id, GabineteModule::LegislativeSecretariat);
+            && $modules->isActive(app(OfficeContext::class)->officeIdFor($user), OfficeModule::LegislativeSecretariat);
         $institutional = $institutionalEnabled && $filters['responsavel_id'] === null
             ? CompromissoInstitucional::query()
                 ->visibleTo($gabinete)
@@ -150,7 +151,7 @@ class AppointmentController extends Controller
                 ->map(fn (CompromissoInstitucional $compromisso): array => $this->serializeInstitutional(
                     $compromisso,
                     $timezone,
-                    $canManageInstitutional && $compromisso->isPublishedBy($user->gabinete_id),
+                    $canManageInstitutional && $compromisso->isPublishedBy(app(OfficeContext::class)->officeIdFor($user)),
                 ))
             : collect();
 
@@ -163,7 +164,7 @@ class AppointmentController extends Controller
 
         return Inertia::render('appointments/index', [
             'appointments' => $agendaItems,
-            'canDelete' => $user->role->isAdministrator(),
+            'canDelete' => app(OfficeContext::class)->roleFor($user)->isAdministrator(),
             'filters' => $filters,
             'range' => [
                 'start' => $start->toIso8601String(),
@@ -191,17 +192,17 @@ class AppointmentController extends Controller
      * Novo compromisso em página própria (/agenda/novo): o formulário tem
      * participantes, recorrência e lembretes — campos demais para um modal.
      */
-    public function create(Request $request, GabineteModuleManager $modules): Response
+    public function create(Request $request, OfficeModuleManager $modules): Response
     {
         $this->authorize('create', Appointment::class);
         $user = $request->user();
-        abort_unless($user instanceof User && $user->gabinete_id !== null, 403);
+        abort_unless($user instanceof User && app(OfficeContext::class)->officeIdFor($user) !== null, 403);
 
-        $timezone = $user->gabinete->timezone ?? 'America/Sao_Paulo';
+        $timezone = app(OfficeContext::class)->officeFor($user)->timezone ?? 'America/Sao_Paulo';
         $today = CarbonImmutable::now($timezone)->toDateString();
         $date = $this->date($request->string('data')->toString())->toDateString();
-        $demandsEnabled = $modules->isActive($user->gabinete_id, GabineteModule::Demands);
-        $whatsAppEnabled = $modules->isActive($user->gabinete_id, GabineteModule::WhatsApp);
+        $demandsEnabled = $modules->isActive(app(OfficeContext::class)->officeIdFor($user), OfficeModule::Demands);
+        $whatsAppEnabled = $modules->isActive(app(OfficeContext::class)->officeIdFor($user), OfficeModule::WhatsApp);
 
         return Inertia::render('appointments/create', [
             'today' => $today,
@@ -212,10 +213,10 @@ class AppointmentController extends Controller
                 && (bool) config('whatsapp.real_enabled')
                 && $whatsAppEnabled,
             'capabilities' => [
-                'events' => $modules->isActive($user->gabinete_id, GabineteModule::Events),
+                'events' => $modules->isActive(app(OfficeContext::class)->officeIdFor($user), OfficeModule::Events),
                 'demands' => $demandsEnabled,
                 'whatsapp' => $whatsAppEnabled,
-                'attendances' => $modules->isActive($user->gabinete_id, GabineteModule::Attendances),
+                'attendances' => $modules->isActive(app(OfficeContext::class)->officeIdFor($user), OfficeModule::Attendances),
             ],
             'options' => $this->formOptions($user, $demandsEnabled),
         ]);
@@ -229,7 +230,7 @@ class AppointmentController extends Controller
             'recurrences' => $this->enumOptions(AppointmentRecurrence::cases()),
             'channels' => $this->enumOptions(ReminderChannel::cases()),
             'members' => User::query()
-                ->where('gabinete_id', $user->gabinete_id)
+                ->where('gabinete_id', app(OfficeContext::class)->officeIdFor($user))
                 ->where('role', '!=', UserRole::Root)
                 ->where('is_active', true)
                 ->select(['id', 'name'])
@@ -246,13 +247,13 @@ class AppointmentController extends Controller
 
                     return ['id' => $member->id, 'name' => $member->name, 'whatsapp_ready' => $evaluation['eligible']];
                 }),
-            'citizens' => Cidadao::query()
+            'citizens' => Citizen::query()
                 ->select(['id', 'nome', 'whatsapp', 'consentimento_contato'])
                 ->with('whatsappContact')
                 ->orderBy('nome')
                 ->limit(300)
                 ->get()
-                ->map(function (Cidadao $citizen): array {
+                ->map(function (Citizen $citizen): array {
                     $evaluation = $citizen->whatsappContact
                         ? app(WhatsAppEligibilityService::class)->evaluate(
                             $citizen->whatsappContact,
@@ -269,7 +270,7 @@ class AppointmentController extends Controller
                     ];
                 }),
             'demands' => $demandsEnabled
-                ? Demanda::query()
+                ? Demand::query()
                     ->select(['id', 'protocolo', 'titulo'])
                     ->latest('aberta_em')
                     ->limit(300)
@@ -452,7 +453,7 @@ class AppointmentController extends Controller
      */
     private function normalizeDates(array $data, AppointmentRequest $request): array
     {
-        $timezone = $request->user()->gabinete->timezone ?? 'America/Sao_Paulo';
+        $timezone = app(OfficeContext::class)->officeFor($request->user())->timezone ?? 'America/Sao_Paulo';
         $data['inicio_em'] = CarbonImmutable::parse((string) $data['inicio_em'], $timezone)->utc();
         $data['fim_em'] = CarbonImmutable::parse((string) $data['fim_em'], $timezone)->utc();
 
@@ -461,7 +462,7 @@ class AppointmentController extends Controller
 
     private function isPastDay(Appointment $appointment, Request $request): bool
     {
-        $timezone = $request->user()->gabinete->timezone ?? 'America/Sao_Paulo';
+        $timezone = app(OfficeContext::class)->officeFor($request->user())->timezone ?? 'America/Sao_Paulo';
 
         return CarbonImmutable::instance($appointment->inicio_em)
             ->setTimezone($timezone)
@@ -598,7 +599,7 @@ class AppointmentController extends Controller
 
     /** @return array<int, array<string, mixed>> */
     private function eventOccurrences(
-        Evento $event,
+        Event $event,
         CarbonImmutable $rangeStart,
         CarbonImmutable $rangeEnd,
         string $timezone,
@@ -650,7 +651,7 @@ class AppointmentController extends Controller
 
     /** @return array<string, mixed> */
     private function serializeEvent(
-        Evento $event,
+        Event $event,
         CarbonImmutable $occurrenceStart,
         CarbonImmutable $occurrenceEnd,
         string $timezone,

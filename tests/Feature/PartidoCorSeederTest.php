@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\PartidoCor;
+use App\Models\PartyColor;
 use Database\Seeders\PartidoCorSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -15,10 +15,10 @@ class PartidoCorSeederTest extends TestCase
     {
         (new PartidoCorSeeder)->run();
 
-        $this->assertSame(30, PartidoCor::query()->count());
-        $this->assertSame('#E30613', PartidoCor::query()->where('sigla', 'PT')->value('cor'));
-        $this->assertSame('#00A4E8', PartidoCor::query()->where('sigla', 'UNIÃO')->value('cor'));
-        $this->assertSame('#111111', PartidoCor::query()->where('sigla', 'UP')->value('cor'));
+        $this->assertSame(30, PartyColor::query()->count());
+        $this->assertSame('#E30613', PartyColor::query()->where('sigla', 'PT')->value('cor'));
+        $this->assertSame('#00A4E8', PartyColor::query()->where('sigla', 'UNIÃO')->value('cor'));
+        $this->assertSame('#111111', PartyColor::query()->where('sigla', 'UP')->value('cor'));
     }
 
     public function test_seeder_is_idempotent_and_does_not_duplicate_rows(): void
@@ -26,6 +26,6 @@ class PartidoCorSeederTest extends TestCase
         (new PartidoCorSeeder)->run();
         (new PartidoCorSeeder)->run();
 
-        $this->assertSame(30, PartidoCor::query()->count());
+        $this->assertSame(30, PartyColor::query()->count());
     }
 }

@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\EntidadeModule;
+use App\Enums\EntityModule;
 use App\Http\Requests\KnowledgeBase\RecordKnowledgeReadingRequest;
 use App\Http\Requests\KnowledgeBase\StoreKnowledgeDocumentRequest;
-use App\Models\ConhecimentoDocumento;
-use App\Models\ConhecimentoLeitura;
+use App\Models\KnowledgeDocument;
+use App\Models\KnowledgeReading;
 use App\Services\KnowledgeBase\KnowledgeDocumentService;
-use App\Services\Modules\EntidadeModuleManager;
+use App\Services\Modules\EntityModuleManager;
 use App\Support\PerPage;
+use App\Tenancy\OfficeContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -27,7 +28,7 @@ class KnowledgeBaseController extends Controller
 {
     public function __construct(private readonly KnowledgeDocumentService $documents) {}
 
-    public function index(Request $request, EntidadeModuleManager $entidadeModules): Response
+    public function index(Request $request, EntityModuleManager $entidadeModules): Response
     {
         $user = $request->user();
         $search = trim((string) $request->query('q', ''));
@@ -35,13 +36,13 @@ class KnowledgeBaseController extends Controller
         // ligada na entidade (como a agenda institucional); a Base de
         // Conhecimento do gabinete já é exigida pela rota. A entidade vem do
         // gabinete em contexto, nunca da requisição.
-        $gabinete = $user->gabinete;
+        $gabinete = app(OfficeContext::class)->officeFor($user);
         $entidadeId = $gabinete !== null
-            && $entidadeModules->isActive($gabinete->entidade_id, EntidadeModule::LegislativeSecretariat)
+            && $entidadeModules->isActive($gabinete->entidade_id, EntityModule::LegislativeSecretariat)
                 ? $gabinete->entidade_id
                 : null;
-        $page = ConhecimentoDocumento::query()
-            ->visibleTo((int) $user->gabinete_id, $entidadeId)
+        $page = KnowledgeDocument::query()
+            ->visibleTo((int) app(OfficeContext::class)->officeIdFor($user), $entidadeId)
             ->with('enviadoPor:id,name')
             ->when($search !== '', fn (Builder $query) => $query->where(
                 fn (Builder $match) => $match
@@ -51,7 +52,7 @@ class KnowledgeBaseController extends Controller
             ->latest()
             ->paginate(PerPage::resolve($request, 20))
             ->withQueryString();
-        $readings = ConhecimentoLeitura::query()
+        $readings = KnowledgeReading::query()
             ->where('usuario_id', $user->id)
             ->whereIn('documento_id', $page->pluck('id'))
             ->get()
@@ -59,11 +60,11 @@ class KnowledgeBaseController extends Controller
 
         return Inertia::render('knowledge/index', [
             'scope' => 'gabinete',
-            'documents' => $page->through(fn (ConhecimentoDocumento $document): array => $this->documents
+            'documents' => $page->through(fn (KnowledgeDocument $document): array => $this->documents
                 ->summary($document, $user, $readings->get($document->id))),
             'filters' => ['q' => $search],
-            'canUpload' => $user->can('create', ConhecimentoDocumento::class),
-            'canShareWithEntidade' => $user->can('createEntidadeWide', ConhecimentoDocumento::class),
+            'canUpload' => $user->can('create', KnowledgeDocument::class),
+            'canShareWithEntidade' => $user->can('createEntidadeWide', KnowledgeDocument::class),
             'maxUploadMb' => intdiv(StoreKnowledgeDocumentRequest::MAX_KILOBYTES, 1024),
         ]);
     }
@@ -71,14 +72,14 @@ class KnowledgeBaseController extends Controller
     public function store(StoreKnowledgeDocumentRequest $request): RedirectResponse
     {
         $shared = $request->sharesWithEntidade();
-        $this->authorize($shared ? 'createEntidadeWide' : 'create', ConhecimentoDocumento::class);
+        $this->authorize($shared ? 'createEntidadeWide' : 'create', KnowledgeDocument::class);
         $this->documents->store(
             $request->file('arquivo'),
             $request->validated('titulo'),
             $request->validated('descricao'),
-            (int) $request->user()->gabinete_id,
+            (int) app(OfficeContext::class)->officeIdFor($request->user()),
             $request->user(),
-            $shared ? $request->user()->gabinete?->entidade_id : null,
+            $shared ? app(OfficeContext::class)->officeFor($request->user())?->entidade_id : null,
         );
         Inertia::flash('toast', ['type' => 'success', 'message' => $shared
             ? 'Documento compartilhado com a Câmara na Base de Conhecimento.'
@@ -88,7 +89,7 @@ class KnowledgeBaseController extends Controller
     }
 
     /** Dados de um documento para abrir o leitor em modal na listagem. */
-    public function show(Request $request, ConhecimentoDocumento $documento): JsonResponse
+    public function show(Request $request, KnowledgeDocument $documento): JsonResponse
     {
         $this->authorize('view', $documento);
         $reading = $documento->leituras()->where('usuario_id', $request->user()->id)->first();
@@ -98,14 +99,14 @@ class KnowledgeBaseController extends Controller
         ]);
     }
 
-    public function file(ConhecimentoDocumento $documento): StreamedResponse
+    public function file(KnowledgeDocument $documento): StreamedResponse
     {
         $this->authorize('view', $documento);
 
         return $this->documents->stream($documento);
     }
 
-    public function progress(RecordKnowledgeReadingRequest $request, ConhecimentoDocumento $documento): RedirectResponse
+    public function progress(RecordKnowledgeReadingRequest $request, KnowledgeDocument $documento): RedirectResponse
     {
         $this->documents->recordPage(
             $documento,
@@ -117,7 +118,7 @@ class KnowledgeBaseController extends Controller
         return back();
     }
 
-    public function destroy(ConhecimentoDocumento $documento): RedirectResponse
+    public function destroy(KnowledgeDocument $documento): RedirectResponse
     {
         $this->authorize('delete', $documento);
         $this->documents->delete($documento);

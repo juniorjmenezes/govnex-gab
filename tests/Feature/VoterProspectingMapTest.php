@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Models\Atendimento;
-use App\Models\Bairro;
-use App\Models\Cidadao;
-use App\Models\Gabinete;
+use App\Models\Attendance;
+use App\Models\Citizen;
+use App\Models\Neighborhood;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -17,11 +17,11 @@ class VoterProspectingMapTest extends TestCase
 
     public function test_map_contains_only_located_voters_from_current_office(): void
     {
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $neighborhood = Bairro::factory()->forGabinete($office)->create();
-        $locatedVoter = Cidadao::factory()
+        $neighborhood = Neighborhood::factory()->forGabinete($office)->create();
+        $locatedVoter = Citizen::factory()
             ->forGabinete($office, $neighborhood)
             ->create([
                 'nome' => 'Eleitor Localizado',
@@ -31,17 +31,17 @@ class VoterProspectingMapTest extends TestCase
                 'latitude' => -3.731862,
                 'longitude' => -38.526669,
             ]);
-        Cidadao::factory()->forGabinete($office)->create([
+        Citizen::factory()->forGabinete($office)->create([
             'eleitor' => true,
             'latitude' => null,
             'longitude' => null,
         ]);
-        Cidadao::factory()->forGabinete($office)->create([
+        Citizen::factory()->forGabinete($office)->create([
             'eleitor' => false,
             'latitude' => -3.72,
             'longitude' => -38.52,
         ]);
-        Cidadao::factory()->forGabinete($otherOffice)->create([
+        Citizen::factory()->forGabinete($otherOffice)->create([
             'eleitor' => true,
             'latitude' => -3.70,
             'longitude' => -38.50,
@@ -67,24 +67,24 @@ class VoterProspectingMapTest extends TestCase
 
     public function test_visited_voters_are_flagged_on_the_map(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $visitedVoter = Cidadao::factory()->forGabinete($office)->create([
+        $visitedVoter = Citizen::factory()->forGabinete($office)->create([
             'nome' => 'Eleitor Visitado',
             'eleitor' => true,
             'latitude' => -3.731862,
             'longitude' => -38.526669,
         ]);
-        $notVisitedVoter = Cidadao::factory()->forGabinete($office)->create([
+        $notVisitedVoter = Citizen::factory()->forGabinete($office)->create([
             'nome' => 'Eleitor Nao Visitado',
             'eleitor' => true,
             'latitude' => -3.72,
             'longitude' => -38.52,
         ]);
-        Atendimento::factory()
+        Attendance::factory()
             ->forGabinete($office, $visitedVoter, $user)
             ->create(['visita_domiciliar' => true]);
-        Atendimento::factory()
+        Attendance::factory()
             ->forGabinete($office, $notVisitedVoter, $user)
             ->create(['visita_domiciliar' => false]);
 

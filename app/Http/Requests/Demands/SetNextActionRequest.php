@@ -2,8 +2,9 @@
 
 namespace App\Http\Requests\Demands;
 
-use App\Models\Demanda;
-use App\Models\GabineteMembro;
+use App\Models\Demand;
+use App\Models\OfficeMember;
+use App\Tenancy\OfficeContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -13,13 +14,13 @@ class SetNextActionRequest extends FormRequest
     {
         $demand = $this->route('demanda');
 
-        return $demand instanceof Demanda && $this->user()->can('update', $demand);
+        return $demand instanceof Demand && $this->user()->can('update', $demand);
     }
 
     /** @return array<string, array<int, mixed>> */
     public function rules(): array
     {
-        $officeId = $this->user()->gabinete_id;
+        $officeId = app(OfficeContext::class)->officeIdFor($this->user());
 
         return [
             'descricao' => ['required', 'string', 'max:255'],
@@ -27,7 +28,7 @@ class SetNextActionRequest extends FormRequest
             'responsavel_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->where(fn ($query) => GabineteMembro::constrainActiveUsers($query, $officeId)),
+                Rule::exists('users', 'id')->where(fn ($query) => OfficeMember::constrainActiveUsers($query, $officeId)),
             ],
         ];
     }

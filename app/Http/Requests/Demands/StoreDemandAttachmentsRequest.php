@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Demands;
 
-use App\Models\Demanda;
+use App\Models\Demand;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreDemandAttachmentsRequest extends FormRequest
@@ -11,7 +11,7 @@ class StoreDemandAttachmentsRequest extends FormRequest
     {
         $demand = $this->route('demanda');
 
-        return $demand instanceof Demanda && $this->user()->can('update', $demand);
+        return $demand instanceof Demand && $this->user()->can('update', $demand);
     }
 
     /** @return array<string, array<int, mixed>> */

@@ -1,9 +1,9 @@
 <?php
 
-use App\Enums\EntidadeStatus;
-use App\Enums\GabineteStatus;
-use App\Models\Entidade;
-use App\Models\Gabinete;
+use App\Enums\EntityStatus;
+use App\Enums\OfficeStatus;
+use App\Models\Entity;
+use App\Models\Office;
 use App\Models\User;
 use App\Rules\DefinidoNoHub;
 use Illuminate\Support\Facades\Cache;
@@ -21,7 +21,7 @@ beforeEach(function () {
 });
 
 /** @return array<string, mixed> */
-function payloadDoGabineteNoAdmin(Gabinete $office, array $overrides = []): array
+function payloadDoGabineteNoAdmin(Office $office, array $overrides = []): array
 {
     return [
         'nome' => $office->nome,
@@ -39,7 +39,7 @@ function payloadDoGabineteNoAdmin(Gabinete $office, array $overrides = []): arra
 }
 
 /** @return array<string, mixed> */
-function payloadDasConfiguracoesDoGabinete(Gabinete $office, array $overrides = []): array
+function payloadDasConfiguracoesDoGabinete(Office $office, array $overrides = []): array
 {
     return [
         'nome' => $office->nome,
@@ -55,7 +55,7 @@ function payloadDasConfiguracoesDoGabinete(Gabinete $office, array $overrides = 
 }
 
 /** @return array<string, mixed> */
-function payloadDaIdentidadeDaEntidade(Entidade $entidade, array $overrides = []): array
+function payloadDaIdentidadeDaEntidade(Entity $entidade, array $overrides = []): array
 {
     return [
         'name' => $entidade->nome,
@@ -70,7 +70,7 @@ function payloadDaIdentidadeDaEntidade(Entidade $entidade, array $overrides = []
 
 it('recusa renomear no admin um gabinete ligado ao Hub, mas aceita os demais campos', function () {
     $admin = User::factory()->root()->create();
-    $office = Gabinete::factory()->create(['nome' => 'Gabinete Santos', 'hub_unidade_id' => '71']);
+    $office = Office::factory()->create(['nome' => 'Gabinete Santos', 'hub_unidade_id' => '71']);
     User::factory()->forGabinete($office)->administrator()->create();
 
     $this->actingAs($admin)
@@ -88,7 +88,7 @@ it('recusa renomear no admin um gabinete ligado ao Hub, mas aceita os demais cam
 
 it('aceita renomear no admin um gabinete não ligado', function () {
     $admin = User::factory()->root()->create();
-    $office = Gabinete::factory()->create(['nome' => 'Gabinete Antigo']);
+    $office = Office::factory()->create(['nome' => 'Gabinete Antigo']);
     User::factory()->forGabinete($office)->administrator()->create();
 
     $this->actingAs($admin)
@@ -101,8 +101,8 @@ it('aceita renomear no admin um gabinete não ligado', function () {
 
 it('não copia o nome do gabinete para a entidade independente ligada ao Hub', function () {
     $admin = User::factory()->root()->create();
-    $entidade = Entidade::factory()->create(['nome' => 'Entidade do Hub', 'hub_entidade_id' => '7']);
-    $office = Gabinete::factory()->create(['entidade_id' => $entidade->id, 'nome' => 'Gabinete Antigo']);
+    $entidade = Entity::factory()->create(['nome' => 'Entidade do Hub', 'hub_entidade_id' => '7']);
+    $office = Office::factory()->create(['entidade_id' => $entidade->id, 'nome' => 'Gabinete Antigo']);
     User::factory()->forGabinete($office)->administrator()->create();
 
     $this->actingAs($admin)
@@ -115,30 +115,30 @@ it('não copia o nome do gabinete para a entidade independente ligada ao Hub', f
 
 it('recusa suspender no admin um gabinete ligado ao Hub', function () {
     $admin = User::factory()->root()->create();
-    $office = Gabinete::factory()->create(['hub_unidade_id' => '71']);
+    $office = Office::factory()->create(['hub_unidade_id' => '71']);
 
     $this->actingAs($admin)
-        ->patch(route('admin.offices.status', $office), ['status' => GabineteStatus::Suspended->value])
+        ->patch(route('admin.offices.status', $office), ['status' => OfficeStatus::Suspended->value])
         ->assertSessionHasErrors(['status' => DefinidoNoHub::MENSAGEM]);
 
-    expect($office->fresh()->status)->toBe(GabineteStatus::Active);
+    expect($office->fresh()->status)->toBe(OfficeStatus::Active);
 });
 
 it('suspende no admin um gabinete não ligado sem mexer na entidade ligada ao Hub', function () {
     $admin = User::factory()->root()->create();
-    $entidade = Entidade::factory()->create(['hub_entidade_id' => '7']);
-    $office = Gabinete::factory()->create(['entidade_id' => $entidade->id]);
+    $entidade = Entity::factory()->create(['hub_entidade_id' => '7']);
+    $office = Office::factory()->create(['entidade_id' => $entidade->id]);
 
     $this->actingAs($admin)
-        ->patch(route('admin.offices.status', $office), ['status' => GabineteStatus::Suspended->value])
+        ->patch(route('admin.offices.status', $office), ['status' => OfficeStatus::Suspended->value])
         ->assertSessionHasNoErrors();
 
-    expect($office->fresh()->status)->toBe(GabineteStatus::Suspended)
-        ->and($entidade->fresh()->status)->toBe(EntidadeStatus::Active);
+    expect($office->fresh()->status)->toBe(OfficeStatus::Suspended)
+        ->and($entidade->fresh()->status)->toBe(EntityStatus::Active);
 });
 
 it('recusa renomear nas configurações um gabinete ligado ao Hub e aceita os não ligados', function () {
-    $linked = Gabinete::factory()->create(['nome' => 'Gabinete Santos', 'hub_unidade_id' => '71']);
+    $linked = Office::factory()->create(['nome' => 'Gabinete Santos', 'hub_unidade_id' => '71']);
     $councilor = User::factory()->administrator()->forGabinete($linked)->create();
 
     $this->actingAs($councilor)
@@ -152,7 +152,7 @@ it('recusa renomear nas configurações um gabinete ligado ao Hub e aceita os n�
     expect($linked->fresh()->nome)->toBe('Gabinete Santos')
         ->and($linked->fresh()->vereador_nome)->toBe('Vereador Novo');
 
-    $free = Gabinete::factory()->create(['nome' => 'Gabinete Livre']);
+    $free = Office::factory()->create(['nome' => 'Gabinete Livre']);
     $other = User::factory()->administrator()->forGabinete($free)->create();
 
     $this->actingAs($other)
@@ -163,7 +163,7 @@ it('recusa renomear nas configurações um gabinete ligado ao Hub e aceita os n�
 });
 
 it('recusa renomear a entidade ligada ao Hub e aceita a não ligada', function () {
-    $linked = Gabinete::factory()->create();
+    $linked = Office::factory()->create();
     $linked->entidade->forceFill(['nome' => 'Câmara do Hub', 'hub_entidade_id' => '7'])->save();
     $manager = User::factory()->administrator()->forGabinete($linked)->create();
     $entidade = $linked->entidade->fresh();
@@ -181,7 +181,7 @@ it('recusa renomear a entidade ligada ao Hub e aceita a não ligada', function (
     expect($entidade->fresh()->nome)->toBe('Câmara do Hub')
         ->and($entidade->fresh()->cor_principal)->toBe('#176B73');
 
-    $free = Gabinete::factory()->create();
+    $free = Office::factory()->create();
     $otherManager = User::factory()->administrator()->forGabinete($free)->create();
 
     $this->actingAs($otherManager)

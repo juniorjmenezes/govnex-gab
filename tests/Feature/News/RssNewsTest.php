@@ -2,13 +2,13 @@
 
 namespace Tests\Feature\News;
 
-use App\Models\CandidatoFavorito;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\FonteRss;
-use App\Models\Gabinete;
-use App\Models\NoticiaCandidato;
-use App\Models\NoticiaRss;
+use App\Models\Candidate;
+use App\Models\CandidateNews;
+use App\Models\Election;
+use App\Models\FavoriteCandidate;
+use App\Models\Office;
+use App\Models\RssNews;
+use App\Models\RssSource;
 use App\Models\User;
 use App\Services\News\RssFeedFetcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -43,7 +43,7 @@ class RssNewsTest extends TestCase
             'ativo' => true,
         ]);
 
-        $fonte = FonteRss::query()->firstOrFail();
+        $fonte = RssSource::query()->firstOrFail();
 
         $this->actingAs($root)
             ->get(route('admin.rss-sources.index'))
@@ -61,7 +61,7 @@ class RssNewsTest extends TestCase
 
     public function test_non_root_cannot_manage_sources(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->create(['gabinete_id' => $office->id]);
 
         $this->actingAs($user)
@@ -72,7 +72,7 @@ class RssNewsTest extends TestCase
     public function test_duplicated_feed_is_rejected(): void
     {
         $root = User::factory()->root()->create();
-        FonteRss::query()->create([
+        RssSource::query()->create([
             'nome' => 'Portal Exemplo',
             'url' => 'https://exemplo.com.br/rss',
         ]);
@@ -89,7 +89,7 @@ class RssNewsTest extends TestCase
     {
         [$office, $candidate] = $this->favoriteCandidate('Zeca do Bairro');
 
-        $fonte = FonteRss::query()->create([
+        $fonte = RssSource::query()->create([
             'nome' => 'Portal Exemplo',
             'url' => 'https://exemplo.com.br/rss',
         ]);
@@ -120,7 +120,7 @@ class RssNewsTest extends TestCase
     {
         $this->favoriteCandidate('Zeca do Bairro');
 
-        $fonte = FonteRss::query()->create([
+        $fonte = RssSource::query()->create([
             'nome' => 'Portal Exemplo',
             'url' => 'https://exemplo.com.br/rss',
         ]);
@@ -142,11 +142,11 @@ class RssNewsTest extends TestCase
     {
         [, $candidate] = $this->favoriteCandidate('Santos');
 
-        CandidatoFavorito::withoutGlobalScopes()
+        FavoriteCandidate::withoutGlobalScopes()
             ->where('candidato_politico_id', $candidate->id)
             ->update(['termos_exclusao' => json_encode(['santos futebol'])]);
 
-        $fonte = FonteRss::query()->create([
+        $fonte = RssSource::query()->create([
             'nome' => 'Portal Exemplo',
             'url' => 'https://exemplo.com.br/rss',
         ]);
@@ -165,7 +165,7 @@ class RssNewsTest extends TestCase
 
     public function test_http_failure_is_recorded_on_the_source(): void
     {
-        $fonte = FonteRss::query()->create([
+        $fonte = RssSource::query()->create([
             'nome' => 'Portal Exemplo',
             'url' => 'https://exemplo.com.br/rss',
         ]);
@@ -180,7 +180,7 @@ class RssNewsTest extends TestCase
 
     public function test_not_modified_response_keeps_previous_items(): void
     {
-        $fonte = FonteRss::query()->create([
+        $fonte = RssSource::query()->create([
             'nome' => 'Portal Exemplo',
             'url' => 'https://exemplo.com.br/rss',
             'etag' => '"v1"',
@@ -197,20 +197,20 @@ class RssNewsTest extends TestCase
     public function test_panel_only_shows_news_of_the_current_office(): void
     {
         [$office, $candidate] = $this->favoriteCandidate('Zeca do Bairro');
-        $other = Gabinete::factory()->create();
+        $other = Office::factory()->create();
 
-        $fonte = FonteRss::query()->create([
+        $fonte = RssSource::query()->create([
             'nome' => 'Portal Exemplo',
             'url' => 'https://exemplo.com.br/rss',
         ]);
-        $noticia = NoticiaRss::query()->create([
+        $noticia = RssNews::query()->create([
             'fonte_rss_id' => $fonte->id,
             'guid_hash' => hash('sha256', 'x1'),
             'guid' => 'x1',
             'titulo' => 'Notícia de outro gabinete',
             'url' => 'https://exemplo.com.br/x1',
         ]);
-        (new NoticiaCandidato)->forceFill([
+        (new CandidateNews)->forceFill([
             'noticia_rss_id' => $noticia->id,
             'gabinete_id' => $other->id,
             'candidato_politico_id' => $candidate->id,
@@ -234,7 +234,7 @@ class RssNewsTest extends TestCase
     {
         [, $candidate] = $this->favoriteCandidate('Zeca do Bairro');
 
-        $fonte = FonteRss::query()->create([
+        $fonte = RssSource::query()->create([
             'nome' => 'Portal Exemplo',
             'url' => 'https://exemplo.com.br/rss',
         ]);
@@ -249,7 +249,7 @@ class RssNewsTest extends TestCase
 
         $this->assertDatabaseCount('noticias_candidatos', 8);
 
-        $office = CandidatoFavorito::withoutGlobalScopes()
+        $office = FavoriteCandidate::withoutGlobalScopes()
             ->where('candidato_politico_id', $candidate->id)
             ->value('gabinete_id');
         $user = User::factory()->create(['gabinete_id' => $office]);
@@ -274,16 +274,16 @@ class RssNewsTest extends TestCase
             ->assertJsonPath('current_page', 2);
     }
 
-    /** @return array{0: Gabinete, 1: CandidatoPolitico} */
+    /** @return array{0: Office, 1: Candidate} */
     private function favoriteCandidate(string $ballotName): array
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         // A base de teste já pode trazer eleições semeadas: ano + tipo é único.
-        $election = Eleicao::query()->firstOrCreate(
+        $election = Election::query()->firstOrCreate(
             ['ano' => 2024, 'tipo' => 'municipal'],
             ['nome' => 'Eleições 2024', 'primeiro_turno_em' => '2024-10-06'],
         );
-        $candidate = CandidatoPolitico::query()->create([
+        $candidate = Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => '999999',
             'abrangencia' => 'nacional',
@@ -293,7 +293,7 @@ class RssNewsTest extends TestCase
             'partido_sigla' => 'XYZ',
         ]);
 
-        (new CandidatoFavorito)->forceFill([
+        (new FavoriteCandidate)->forceFill([
             'gabinete_id' => $office->id,
             'candidato_politico_id' => $candidate->id,
         ])->save();

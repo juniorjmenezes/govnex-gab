@@ -3,23 +3,28 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useEffect, useState } from 'react';
 import { EmptyState } from '@/components/feedback/empty-state';
-import { AltArrowDownIcon, CalendarMarkIcon } from '@/components/icons';
+import {
+    AltArrowLeftIcon,
+    AltArrowRightIcon,
+    CalendarMarkIcon,
+} from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { ElectionClock } from '@/components/politics/election-clock';
 import { ElectionFavoritesCard } from '@/components/politics/election-favorites-card';
 import { ElectionResultCard } from '@/components/politics/election-result-card';
-import { SeatHemicycle } from '@/components/politics/seat-hemicycle';
-import { AppSelect } from '@/components/ui/app-select';
+import { SeatCompositionDrawer } from '@/components/politics/seat-composition-drawer';
 import { Button } from '@/components/ui/button';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { SectionCard } from '@/components/ui/section-card';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { cn } from '@/lib/utils';
 import type { ElectionResult, ElectionTallyProps } from '@/types/politics';
 
 /** Enquanto algum cargo ainda não fechou (100% das seções no feed do TSE,
@@ -41,6 +46,78 @@ const HALF_WIDTH_CARGOS: ElectionResult['cargo'][] = [
     'prefeito',
     'vereador',
 ];
+
+/**
+ * Navegador de turno: setas anterior/próximo em volta do rótulo (que também
+ * é um `Select` simples, pra pular direto sem clicar várias vezes). Ao
+ * contrário de um combobox com busca, não cresce em complexidade conforme
+ * mais eleições são cadastradas — só mais um passo nas setas.
+ */
+function RoundStepper({
+    rounds,
+    current,
+}: {
+    rounds: { date: string; label: string }[];
+    current: string;
+}) {
+    // O backend manda do mais novo pro mais antigo, agrupado por eleição;
+    // aqui vale a ordem cronológica, pra "anterior"/"próximo" andarem na
+    // direção certa no tempo.
+    const sorted = [...rounds].sort((a, b) => a.date.localeCompare(b.date));
+    const index = sorted.findIndex((item) => item.date === current);
+    const previous = index > 0 ? sorted[index - 1] : null;
+    const next =
+        index >= 0 && index < sorted.length - 1 ? sorted[index + 1] : null;
+
+    const goTo = (date: string) =>
+        router.get(
+            window.location.pathname,
+            { data: date },
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+
+    return (
+        <div className="flex items-center gap-1">
+            <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Turno anterior"
+                disabled={!previous}
+                onClick={() => previous && goTo(previous.date)}
+            >
+                <AltArrowLeftIcon aria-hidden="true" />
+            </Button>
+            <Select value={current} onValueChange={goTo}>
+                <SelectTrigger
+                    className="min-w-48 justify-center"
+                    aria-label="Selecionar turno"
+                >
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="center">
+                    <SelectGroup>
+                        {sorted.map((item) => (
+                            <SelectItem key={item.date} value={item.date}>
+                                {item.label}
+                            </SelectItem>
+                        ))}
+                    </SelectGroup>
+                </SelectContent>
+            </Select>
+            <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Próximo turno"
+                disabled={!next}
+                onClick={() => next && goTo(next.date)}
+            >
+                <AltArrowRightIcon aria-hidden="true" />
+            </Button>
+        </div>
+    );
+}
 
 export default function ElectionTally({
     round,
@@ -84,24 +161,15 @@ export default function ElectionTally({
           ? municipal!.results
           : results;
 
-    // Composição das casas começa recolhida: decide devagar e não é o que se
-    // acompanha primeiro. Sempre a composição real (UF/Brasil ou Câmara
-    // Municipal) — o seletor de escopo não afeta quem tem cadeira.
-    const [compositionOpen, setCompositionOpen] = useState(false);
+    // Composição de cada casa abre sob pedido num drawer, uma por vez — o
+    // seletor de escopo acima não afeta quem tem cadeira, é sempre a
+    // composição real (UF/Brasil ou Câmara Municipal).
+    const [openSeatResult, setOpenSeatResult] = useState<ElectionResult | null>(
+        null,
+    );
     const seatResults = (liveResults ?? []).filter(
         (result) => result.seats !== null,
     );
-    const electedSeats = seatResults.reduce(
-        (total, result) =>
-            total +
-            (result.seats ?? []).reduce((sum, party) => sum + party.seats, 0),
-        0,
-    );
-    const seatParties = new Set(
-        seatResults.flatMap((result) =>
-            (result.seats ?? []).map((party) => party.party),
-        ),
-    ).size;
 
     const shownSectionPercent =
         shownResults?.find((result) => result.section_percent !== null)
@@ -122,25 +190,9 @@ export default function ElectionTally({
                     description={description}
                     actions={
                         rounds.length > 1 && round ? (
-                            <AppSelect
-                                value={round.date}
-                                onValueChange={(value) =>
-                                    router.get(
-                                        window.location.pathname,
-                                        { data: value },
-                                        {
-                                            preserveState: true,
-                                            preserveScroll: true,
-                                            replace: true,
-                                        },
-                                    )
-                                }
-                                options={rounds.map((item) => ({
-                                    value: item.date,
-                                    label: item.label,
-                                }))}
-                                aria-label="Selecionar turno"
-                                className="min-w-60"
+                            <RoundStepper
+                                rounds={rounds}
+                                current={round.date}
                             />
                         ) : undefined
                     }
@@ -247,66 +299,52 @@ export default function ElectionTally({
                 )}
 
                 {seatResults.length > 0 && (
-                    <Collapsible
-                        open={compositionOpen}
-                        onOpenChange={setCompositionOpen}
+                    <SectionCard
+                        title="Composição das casas"
+                        contentClassName="divide-y p-0"
                     >
-                        <CollapsibleTrigger asChild>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full justify-between"
-                            >
-                                <span className="flex min-w-0 items-center gap-2">
-                                    <span>Composição das casas</span>
-                                    <span className="truncate text-muted-foreground">
-                                        · {electedSeats} cadeiras eleitas ·{' '}
-                                        {seatParties} partidos
+                        {seatResults.map((result) => {
+                            const seats = result.seats ?? [];
+                            const houseSeats = seats.reduce(
+                                (sum, party) => sum + party.seats,
+                                0,
+                            );
+
+                            return (
+                                <button
+                                    key={result.cargo}
+                                    type="button"
+                                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-muted/50"
+                                    onClick={() => setOpenSeatResult(result)}
+                                >
+                                    <span className="min-w-0 truncate font-medium">
+                                        {result.label}
                                     </span>
-                                </span>
-                                <AltArrowDownIcon
-                                    aria-hidden="true"
-                                    className={cn(
-                                        'transition-transform',
-                                        compositionOpen && 'rotate-180',
-                                    )}
-                                />
-                            </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="pt-4">
-                            <section
-                                aria-label="Composição das casas"
-                                className="grid gap-4 lg:grid-cols-3"
-                            >
-                                {seatResults.map((result) => (
-                                    <SectionCard
-                                        key={result.cargo}
-                                        title={`Composição · ${result.label}`}
-                                        contentClassName="p-4"
-                                    >
-                                        <SeatHemicycle
-                                            parties={result.seats ?? []}
-                                            chamberTotal={result.chamber_total}
-                                            // A Câmara Municipal é só da
-                                            // cidade: não há cadeiras de outra
-                                            // UF para destacar.
-                                            uf={
-                                                isMunicipalElection
-                                                    ? undefined
-                                                    : uf
-                                            }
-                                            othersLabel={
-                                                result.cargo === 'senador'
-                                                    ? 'Senadores em exercício'
-                                                    : undefined
-                                            }
+                                    <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
+                                        {houseSeats} cadeiras · {seats.length}{' '}
+                                        partidos
+                                        <AltArrowRightIcon
+                                            aria-hidden="true"
+                                            className="size-4"
                                         />
-                                    </SectionCard>
-                                ))}
-                            </section>
-                        </CollapsibleContent>
-                    </Collapsible>
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </SectionCard>
                 )}
+
+                <SeatCompositionDrawer
+                    result={openSeatResult}
+                    open={openSeatResult !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setOpenSeatResult(null);
+                        }
+                    }}
+                    uf={uf}
+                    municipal={isMunicipalElection}
+                />
             </PageContainer>
         </>
     );

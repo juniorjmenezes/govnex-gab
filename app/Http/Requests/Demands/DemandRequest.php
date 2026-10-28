@@ -4,8 +4,9 @@ namespace App\Http\Requests\Demands;
 
 use App\Enums\DemandOrigin;
 use App\Enums\DemandPriority;
-use App\Models\Demanda;
-use App\Models\GabineteMembro;
+use App\Models\Demand;
+use App\Models\OfficeMember;
+use App\Tenancy\OfficeContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,15 +22,15 @@ abstract class DemandRequest extends FormRequest
     {
         $demand = $this->route('demanda');
 
-        return $demand instanceof Demanda
+        return $demand instanceof Demand
             ? $this->user()->can('update', $demand)
-            : $this->user()->can('create', Demanda::class);
+            : $this->user()->can('create', Demand::class);
     }
 
     /** @return array<string, array<int, mixed>> */
     public function rules(): array
     {
-        $officeId = $this->user()->gabinete_id;
+        $officeId = app(OfficeContext::class)->officeIdFor($this->user());
 
         return [
             'cidadao_id' => [
@@ -59,7 +60,7 @@ abstract class DemandRequest extends FormRequest
             'responsavel_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->where(fn ($query) => GabineteMembro::constrainActiveUsers($query, $officeId)),
+                Rule::exists('users', 'id')->where(fn ($query) => OfficeMember::constrainActiveUsers($query, $officeId)),
             ],
             'endereco' => ['nullable', 'string', 'max:255'],
             'numero' => ['nullable', 'string', 'max:20'],

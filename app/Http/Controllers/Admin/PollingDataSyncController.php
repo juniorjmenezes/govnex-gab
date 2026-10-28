@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use App\Http\Controllers\Controller;
-use App\Models\Gabinete;
-use App\Models\SincronizacaoTse;
-use App\Services\Modules\GabineteModuleManager;
+use App\Models\Office;
+use App\Models\TseSync;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\Politics\OfficePoliticalDataSyncDispatcher;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -23,18 +23,18 @@ class PollingDataSyncController extends Controller
 {
     public function index(
         Request $request,
-        GabineteModuleManager $modules,
+        OfficeModuleManager $modules,
         OfficePoliticalDataSyncDispatcher $pollingData,
     ): Response {
-        $this->authorize('viewAny', Gabinete::class);
+        $this->authorize('viewAny', Office::class);
         abort_unless($request->user()->isRoot(), 403);
 
         // O PollingData é sincronizado por gabinete (o job descarta execução
         // sem gabinete_id e o painel político de cada um lê a própria
         // execução), então a tela lista um gabinete por linha.
         $pollingYear = $pollingData->taskDefinitions()['pollingdata_polls']['year'] ?? null;
-        $politicsOfficeIds = $modules->activeOfficeIds(GabineteModule::Politics);
-        $latestPollingSyncs = SincronizacaoTse::query()
+        $politicsOfficeIds = $modules->activeOfficeIds(OfficeModule::Politics);
+        $latestPollingSyncs = TseSync::query()
             ->where('dataset', 'pollingdata_polls')
             ->whereIn('gabinete_id', $politicsOfficeIds)
             ->when($pollingYear !== null, fn ($query) => $query->where('ano', $pollingYear))
@@ -43,12 +43,12 @@ class PollingDataSyncController extends Controller
             ->unique('gabinete_id')
             ->keyBy('gabinete_id');
 
-        $pollingOffices = Gabinete::withoutGlobalScopes()
+        $pollingOffices = Office::withoutGlobalScopes()
             ->whereIn('id', $politicsOfficeIds)
             ->with('entidade:id,nome')
             ->orderBy('nome')
             ->get(['id', 'nome', 'municipio', 'estado', 'entidade_id'])
-            ->map(fn (Gabinete $office): array => [
+            ->map(fn (Office $office): array => [
                 'id' => $office->id,
                 'name' => $office->nome,
                 'entidade' => $office->entidade?->nome,
@@ -60,7 +60,7 @@ class PollingDataSyncController extends Controller
             ->all();
 
         return Inertia::render('admin/political-sync/index', [
-            'politicsAvailable' => $modules->anyActiveOffice(GabineteModule::Politics),
+            'politicsAvailable' => $modules->anyActiveOffice(OfficeModule::Politics),
             'pollingData' => [
                 'year' => $pollingYear,
                 'offices' => $pollingOffices,

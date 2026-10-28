@@ -33,8 +33,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $observacoes
  * @property-read User|null $responsavel
  * @property-read User $criadoPor
- * @property-read Cidadao|null $cidadao
- * @property-read Demanda|null $demanda
+ * @property-read Citizen|null $cidadao
+ * @property-read Demand|null $demanda
  * @property-read Collection<int, User> $participantes
  * @property-read Collection<int, AppointmentReminder> $lembretes
  */
@@ -57,16 +57,16 @@ class Appointment extends TenantModel
         return $this->belongsTo(User::class, 'criado_por_id')->withTrashed();
     }
 
-    /** @return BelongsTo<Cidadao, $this> */
+    /** @return BelongsTo<Citizen, $this> */
     public function cidadao(): BelongsTo
     {
-        return $this->belongsTo(Cidadao::class)->withTrashed();
+        return $this->belongsTo(Citizen::class, 'cidadao_id')->withTrashed();
     }
 
-    /** @return BelongsTo<Demanda, $this> */
+    /** @return BelongsTo<Demand, $this> */
     public function demanda(): BelongsTo
     {
-        return $this->belongsTo(Demanda::class)->withTrashed();
+        return $this->belongsTo(Demand::class, 'demanda_id')->withTrashed();
     }
 
     /** @return BelongsToMany<User, $this> */

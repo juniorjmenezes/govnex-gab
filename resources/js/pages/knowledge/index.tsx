@@ -317,9 +317,7 @@ function DocumentRow({
                 {document.completed_readings}
             </TableCell>
             <TableCell className="whitespace-normal">
-                <EntityCellTitle>
-                    {document.uploaded_by ?? '—'}
-                </EntityCellTitle>
+                <EntityCellTitle>{document.uploaded_by ?? '—'}</EntityCellTitle>
                 <EntityCellSubtitle>
                     {document.created_at
                         ? dateFormatter.format(new Date(document.created_at))

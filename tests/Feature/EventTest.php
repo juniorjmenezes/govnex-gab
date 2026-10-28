@@ -5,9 +5,9 @@ namespace Tests\Feature;
 use App\Enums\EventDuration;
 use App\Enums\EventStatus;
 use App\Enums\EventType;
-use App\Models\Cidadao;
-use App\Models\Evento;
-use App\Models\Gabinete;
+use App\Models\Citizen;
+use App\Models\Event;
+use App\Models\Office;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,11 +20,11 @@ class EventTest extends TestCase
 
     public function test_event_center_is_strictly_isolated_by_office(): void
     {
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $ownEvent = Evento::factory()->forGabinete($office)->create();
-        $foreignEvent = Evento::factory()->forGabinete($otherOffice)->create();
+        $ownEvent = Event::factory()->forGabinete($office)->create();
+        $foreignEvent = Event::factory()->forGabinete($otherOffice)->create();
 
         $this->actingAs($user)
             ->get(route('events.index'))
@@ -40,13 +40,13 @@ class EventTest extends TestCase
 
     public function test_citizen_participant_search_is_incremental_and_isolated_by_office(): void
     {
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $ownCitizen = Cidadao::factory()->forGabinete($office)->create([
+        $ownCitizen = Citizen::factory()->forGabinete($office)->create([
             'nome' => 'Ana Maria da Silva',
         ]);
-        Cidadao::factory()->forGabinete($otherOffice)->create([
+        Citizen::factory()->forGabinete($otherOffice)->create([
             'nome' => 'Ana Maria de outro gabinete',
         ]);
 
@@ -65,12 +65,12 @@ class EventTest extends TestCase
     public function test_user_can_create_an_event_with_local_date_and_time(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-10 15:00:00', 'UTC'));
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'timezone' => 'America/Sao_Paulo',
         ]);
         $user = User::factory()->operator()->forGabinete($office)->create();
         $participant = User::factory()->operator()->forGabinete($office)->create();
-        $citizen = Cidadao::factory()->forGabinete($office)->create();
+        $citizen = Citizen::factory()->forGabinete($office)->create();
 
         $this->actingAs($user)
             ->post(route('events.store'), [
@@ -90,7 +90,7 @@ class EventTest extends TestCase
             ->assertSessionHasNoErrors()
             ->assertRedirect();
 
-        $event = Evento::withoutGlobalScopes()->sole();
+        $event = Event::withoutGlobalScopes()->sole();
         $this->assertSame($office->id, $event->gabinete_id);
         $this->assertSame($user->id, $event->criado_por_id);
         $this->assertSame($user->id, $event->responsavel_id);
@@ -119,11 +119,11 @@ class EventTest extends TestCase
 
     public function test_end_must_be_after_start_and_responsible_from_same_office(): void
     {
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
         $foreignUser = User::factory()->operator()->forGabinete($otherOffice)->create();
-        $foreignCitizen = Cidadao::factory()->forGabinete($otherOffice)->create();
+        $foreignCitizen = Citizen::factory()->forGabinete($otherOffice)->create();
 
         $this->actingAs($user)
             ->post(route('events.store'), $this->payload([
@@ -145,7 +145,7 @@ class EventTest extends TestCase
 
     public function test_single_day_events_reject_another_date_and_multiple_day_events_use_daily_hours(): void
     {
-        $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
+        $office = Office::factory()->create(['timezone' => 'America/Sao_Paulo']);
         $user = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($user)
@@ -173,7 +173,7 @@ class EventTest extends TestCase
             ->assertSessionHasNoErrors()
             ->assertRedirect();
 
-        $event = Evento::withoutGlobalScopes()->sole();
+        $event = Event::withoutGlobalScopes()->sole();
         $this->assertSame(EventDuration::MultipleDays, $event->duracao);
         $this->assertSame('2026-08-15 12:00:00', $event->inicio_em->format('Y-m-d H:i:s'));
         $this->assertSame('2026-08-17 20:00:00', $event->fim_em->format('Y-m-d H:i:s'));
@@ -181,10 +181,10 @@ class EventTest extends TestCase
 
     public function test_only_office_managers_can_delete_events(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
         $manager = User::factory()->administrator()->forGabinete($office)->create();
-        $event = Evento::factory()->forGabinete($office, creator: $advisor)->create();
+        $event = Event::factory()->forGabinete($office, creator: $advisor)->create();
 
         $this->actingAs($advisor)
             ->delete(route('events.destroy', $event))

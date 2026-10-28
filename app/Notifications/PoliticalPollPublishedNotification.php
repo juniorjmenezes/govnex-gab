@@ -2,7 +2,7 @@
 
 namespace App\Notifications;
 
-use App\Models\PesquisaEleitoral;
+use App\Models\ElectoralPoll;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -14,7 +14,7 @@ class PoliticalPollPublishedNotification extends Notification
      * @param  array<int, string>  $favoriteNames
      */
     public function __construct(
-        private readonly PesquisaEleitoral $poll,
+        private readonly ElectoralPoll $poll,
         private readonly array $favoriteNames,
     ) {}
 

@@ -2,12 +2,12 @@
 
 namespace App\Services\Hub;
 
-use App\Enums\EntidadeStatus;
-use App\Enums\EntidadeType;
-use App\Enums\GabineteStatus;
-use App\Enums\GabineteType;
-use App\Models\Entidade;
-use App\Models\Gabinete;
+use App\Enums\EntityStatus;
+use App\Enums\EntityType;
+use App\Enums\OfficeStatus;
+use App\Enums\OfficeType;
+use App\Models\Entity;
+use App\Models\Office;
 use App\Services\Entidades\EstruturaProvisioningService;
 use Carbon\CarbonInterface;
 use Carbon\Exceptions\InvalidFormatException;
@@ -64,7 +64,7 @@ class HubEstruturaSyncService
     public function criarEntidade(array $dados): array
     {
         $hubId = $this->idDoHub($dados, 'entidade');
-        $existente = Entidade::withTrashed()->where('hub_entidade_id', $hubId)->first();
+        $existente = Entity::withTrashed()->where('hub_entidade_id', $hubId)->first();
 
         if ($existente !== null) {
             return $existente->trashed()
@@ -81,11 +81,11 @@ class HubEstruturaSyncService
         // Entidade local ainda não ligada com o mesmo slug do Hub é, pela regra
         // do espelhamento, a mesma entidade (veio do GAB pelo importador).
         // Criar outra seria duplicar; ligar é tarefa do `hub:espelhar-estrutura`.
-        if ($this->casamentoPendente(Entidade::query(), 'hub_entidade_id', $dados)) {
+        if ($this->casamentoPendente(Entity::query(), 'hub_entidade_id', $dados)) {
             return $this->ignorar('entidade', $hubId, 'casamento_pendente', ['slug' => $dados['slug'] ?? null]);
         }
 
-        /** @var EntidadeType $tipo */
+        /** @var EntityType $tipo */
         $tipo = $this->tipos->entidadeType($this->tipoDaEntidadeNoHub($dados));
         $ativa = ($dados['status'] ?? 'ativa') === 'ativa';
 
@@ -95,7 +95,7 @@ class HubEstruturaSyncService
                 'municipio' => $this->municipio($dados),
                 'estado' => $this->estado($dados),
                 'timezone' => $this->timezone($dados['timezone'] ?? null),
-                'status' => $ativa ? EntidadeStatus::Active : EntidadeStatus::Suspended,
+                'status' => $ativa ? EntityStatus::Active : EntityStatus::Suspended,
                 'suspensa_em' => $ativa ? null : now(),
                 'hub_entidade_id' => $hubId,
                 'hub_sincronizado_em' => $this->carimbo($dados['atualizado_em'] ?? null),
@@ -103,7 +103,7 @@ class HubEstruturaSyncService
         } catch (UniqueConstraintViolationException $e) {
             // Outra entrega (o `entidade.criada` e um vínculo sob demanda, por
             // exemplo) criou a mesma entidade no meio do caminho.
-            if (Entidade::query()->where('hub_entidade_id', $hubId)->exists()) {
+            if (Entity::query()->where('hub_entidade_id', $hubId)->exists()) {
                 return $this->aplicarEntidade($dados);
             }
 
@@ -131,7 +131,7 @@ class HubEstruturaSyncService
     public function criarUnidade(array $dados): array
     {
         $hubId = $this->idDoHub($dados, 'unidade');
-        $existente = Gabinete::withoutGlobalScopes()->where('hub_unidade_id', $hubId)->first();
+        $existente = Office::withoutGlobalScopes()->where('hub_unidade_id', $hubId)->first();
 
         if ($existente !== null) {
             return $existente->trashed()
@@ -160,18 +160,18 @@ class HubEstruturaSyncService
             ]);
         }
 
-        if ($this->casamentoPendente(Gabinete::withoutGlobalScopes()->where('entidade_id', $entidade->id), 'hub_unidade_id', $dados)) {
+        if ($this->casamentoPendente(Office::withoutGlobalScopes()->where('entidade_id', $entidade->id), 'hub_unidade_id', $dados)) {
             return $this->ignorar('unidade', $hubId, 'casamento_pendente', ['slug' => $dados['slug'] ?? null]);
         }
 
-        /** @var GabineteType $tipo */
+        /** @var OfficeType $tipo */
         $tipo = $this->tipos->gabineteType($entidade->tipo, $dados['tipo'] ?? null);
         $ativa = $this->booleano($dados['ativa'] ?? true);
 
         try {
             $gabinete = $this->provisionamento->criarGabinete($entidade, $tipo, [
                 'nome' => (string) $this->nome($dados, 255),
-                'status' => $ativa ? GabineteStatus::Active : GabineteStatus::Suspended,
+                'status' => $ativa ? OfficeStatus::Active : OfficeStatus::Suspended,
                 'suspended_at' => $ativa ? null : now(),
                 'hub_unidade_id' => $hubId,
                 'hub_sincronizado_em' => $this->carimbo($dados['atualizado_em'] ?? null),
@@ -181,7 +181,7 @@ class HubEstruturaSyncService
             // simultânea): o GAB não aceita um segundo.
             return $this->ignorar('unidade', $hubId, 'entidade_nao_aceita', ['erro' => $e->getMessage()]);
         } catch (UniqueConstraintViolationException $e) {
-            if (Gabinete::withoutGlobalScopes()->where('hub_unidade_id', $hubId)->exists()) {
+            if (Office::withoutGlobalScopes()->where('hub_unidade_id', $hubId)->exists()) {
                 return $this->aplicarUnidade($dados);
             }
 
@@ -231,7 +231,7 @@ class HubEstruturaSyncService
      *
      * @param  array<string, mixed>  $dados
      */
-    public function motivoParaNaoCriarUnidade(EntidadeType $tipoDaEntidade, array $dados): ?string
+    public function motivoParaNaoCriarUnidade(EntityType $tipoDaEntidade, array $dados): ?string
     {
         if ($this->texto($dados['unidade_pai_id'] ?? null) !== null) {
             return 'unidade_aninhada';
@@ -251,9 +251,9 @@ class HubEstruturaSyncService
      *
      * @throws HubIndisponivelException
      */
-    public function resolverEntidade(string $hubEntidadeId): ?Entidade
+    public function resolverEntidade(string $hubEntidadeId): ?Entity
     {
-        $local = Entidade::query()->where('hub_entidade_id', $hubEntidadeId)->first();
+        $local = Entity::query()->where('hub_entidade_id', $hubEntidadeId)->first();
 
         if ($local !== null) {
             return $local;
@@ -273,7 +273,7 @@ class HubEstruturaSyncService
 
         $this->criarEntidade(['id' => $hubEntidadeId] + $dados);
 
-        return Entidade::query()->where('hub_entidade_id', $hubEntidadeId)->first();
+        return Entity::query()->where('hub_entidade_id', $hubEntidadeId)->first();
     }
 
     /**
@@ -282,9 +282,9 @@ class HubEstruturaSyncService
      *
      * @throws HubIndisponivelException
      */
-    public function resolverUnidade(string $hubEntidadeId, string $hubUnidadeId): ?Gabinete
+    public function resolverUnidade(string $hubEntidadeId, string $hubUnidadeId): ?Office
     {
-        $local = Gabinete::withoutGlobalScopes()->where('hub_unidade_id', $hubUnidadeId)->first();
+        $local = Office::withoutGlobalScopes()->where('hub_unidade_id', $hubUnidadeId)->first();
 
         if ($local !== null) {
             return $local;
@@ -307,7 +307,7 @@ class HubEstruturaSyncService
 
         $this->criarUnidade(['id' => $hubUnidadeId] + $dados);
 
-        return Gabinete::withoutGlobalScopes()->where('hub_unidade_id', $hubUnidadeId)->first();
+        return Office::withoutGlobalScopes()->where('hub_unidade_id', $hubUnidadeId)->first();
     }
 
     /**
@@ -317,7 +317,7 @@ class HubEstruturaSyncService
     public function aplicarEntidade(array $dados, bool $removida = false): array
     {
         $hubId = $this->idDoHub($dados, 'entidade');
-        $entidade = Entidade::query()->where('hub_entidade_id', $hubId)->first();
+        $entidade = Entity::query()->where('hub_entidade_id', $hubId)->first();
 
         if ($entidade === null) {
             Log::info('Entidade do Hub sem correspondência ligada no GAB; aviso ignorado.', ['hub_entidade_id' => $hubId]);
@@ -343,7 +343,7 @@ class HubEstruturaSyncService
     public function aplicarUnidade(array $dados, bool $removida = false): array
     {
         $hubId = $this->idDoHub($dados, 'unidade');
-        $gabinete = Gabinete::withoutGlobalScopes()->where('hub_unidade_id', $hubId)->first();
+        $gabinete = Office::withoutGlobalScopes()->where('hub_unidade_id', $hubId)->first();
 
         if ($gabinete === null) {
             Log::info('Unidade do Hub sem gabinete ligado no GAB; aviso ignorado.', ['hub_unidade_id' => $hubId]);
@@ -369,7 +369,7 @@ class HubEstruturaSyncService
      * @param  array<string, mixed>  $dados
      * @return array<string, mixed>|null
      */
-    public function mudancasDaEntidade(Entidade $entidade, array $dados, bool $removida = false): ?array
+    public function mudancasDaEntidade(Entity $entidade, array $dados, bool $removida = false): ?array
     {
         $carimbo = $this->carimbo($dados['atualizado_em'] ?? null);
 
@@ -389,7 +389,7 @@ class HubEstruturaSyncService
         $ativa = $removida ? false : (array_key_exists('status', $dados) ? $dados['status'] === 'ativa' : null);
 
         if ($ativa !== null) {
-            $status = $ativa ? EntidadeStatus::Active : EntidadeStatus::Suspended;
+            $status = $ativa ? EntityStatus::Active : EntityStatus::Suspended;
 
             if ($entidade->status !== $status) {
                 $mudancas['status'] = $status;
@@ -404,7 +404,7 @@ class HubEstruturaSyncService
      * @param  array<string, mixed>  $dados
      * @return array<string, mixed>|null
      */
-    public function mudancasDaUnidade(Gabinete $gabinete, array $dados, bool $removida = false): ?array
+    public function mudancasDaUnidade(Office $gabinete, array $dados, bool $removida = false): ?array
     {
         $carimbo = $this->carimbo($dados['atualizado_em'] ?? null);
 
@@ -422,7 +422,7 @@ class HubEstruturaSyncService
         $ativa = $removida ? false : (array_key_exists('ativa', $dados) ? (bool) $dados['ativa'] : null);
 
         if ($ativa !== null) {
-            $status = $ativa ? GabineteStatus::Active : GabineteStatus::Suspended;
+            $status = $ativa ? OfficeStatus::Active : OfficeStatus::Suspended;
 
             if ($gabinete->status !== $status) {
                 $mudancas['status'] = $status;
@@ -473,7 +473,7 @@ class HubEstruturaSyncService
     /**
      * Há item local sem ligação com o Hub e com o slug que o Hub informou?
      *
-     * @param  Builder<Entidade>|Builder<Gabinete>  $query
+     * @param  Builder<Entity>|Builder<Office>  $query
      * @param  array<string, mixed>  $dados
      */
     private function casamentoPendente(Builder $query, string $colunaDoHub, array $dados): bool

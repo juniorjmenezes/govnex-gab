@@ -5,8 +5,8 @@ namespace Tests\Feature;
 use App\Enums\AppointmentRecurrence;
 use App\Enums\DemandStatus;
 use App\Models\Appointment;
-use App\Models\Demanda;
-use App\Models\Gabinete;
+use App\Models\Demand;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -42,37 +42,37 @@ class DashboardTest extends TestCase
     public function test_dashboard_presents_operational_metrics_for_the_current_office_only(): void
     {
         Carbon::setTestNow('2026-07-23 12:00:00');
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $user = User::factory()->forGabinete($office)->create();
 
-        Demanda::factory()->forGabinete($office)->create([
+        Demand::factory()->forGabinete($office)->create([
             'titulo' => 'Demanda vencida',
             'status' => DemandStatus::New,
             'aberta_em' => now()->subDays(10),
             'prazo' => now()->subDay(),
         ]);
-        Demanda::factory()->forGabinete($office)->create([
+        Demand::factory()->forGabinete($office)->create([
             'titulo' => 'Demanda próxima do prazo',
             'status' => DemandStatus::InProgress,
             'aberta_em' => now()->subDays(5),
             'prazo' => now()->addDays(3),
         ]);
-        Demanda::factory()->forGabinete($office)->create([
+        Demand::factory()->forGabinete($office)->create([
             'titulo' => 'Demanda resolvida',
             'status' => DemandStatus::Resolved,
             'aberta_em' => now()->subHours(48),
             'concluida_em' => now(),
             'prazo' => now()->addDay(),
         ]);
-        Demanda::factory()->forGabinete($office)->create([
+        Demand::factory()->forGabinete($office)->create([
             'titulo' => 'Demanda encerrada',
             'status' => DemandStatus::Closed,
             'aberta_em' => now()->subDays(2),
             'concluida_em' => now(),
             'encerrada_em' => now(),
         ]);
-        Demanda::factory()->forGabinete($otherOffice)->create([
+        Demand::factory()->forGabinete($otherOffice)->create([
             'titulo' => 'Demanda de outro gabinete',
             'status' => DemandStatus::New,
             'prazo' => now()->subDays(2),
@@ -119,7 +119,7 @@ class DashboardTest extends TestCase
     public function test_dashboard_includes_the_next_occurrence_of_a_recurring_appointment(): void
     {
         Carbon::setTestNow('2026-07-23 12:00:00');
-        $office = Gabinete::factory()->create(['timezone' => 'America/Sao_Paulo']);
+        $office = Office::factory()->create(['timezone' => 'America/Sao_Paulo']);
         $user = User::factory()->forGabinete($office)->create();
 
         Appointment::factory()->forGabinete($office)->create([
@@ -143,15 +143,15 @@ class DashboardTest extends TestCase
     public function test_dashboard_period_filters_charts_and_recent_lists_but_keeps_the_current_snapshot(): void
     {
         Carbon::setTestNow('2026-07-23 12:00:00');
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->forGabinete($office)->create();
 
-        Demanda::factory()->forGabinete($office)->create([
+        Demand::factory()->forGabinete($office)->create([
             'titulo' => 'Registro recente',
             'status' => DemandStatus::New,
             'aberta_em' => now()->subDays(10),
         ]);
-        Demanda::factory()->forGabinete($office)->create([
+        Demand::factory()->forGabinete($office)->create([
             'titulo' => 'Registro antigo',
             'status' => DemandStatus::New,
             'aberta_em' => now()->subDays(120),
@@ -171,9 +171,9 @@ class DashboardTest extends TestCase
         // Período de 30 dias: começa em 24/06 00:00; o anterior equivalente
         // (mesma duração, 29,5 dias) vai de 25/05 12:00 até 24/06 00:00.
         Carbon::setTestNow('2026-07-23 12:00:00');
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->forGabinete($office)->create();
-        $demand = fn (array $attributes) => Demanda::factory()->forGabinete($office)->create([
+        $demand = fn (array $attributes) => Demand::factory()->forGabinete($office)->create([
             'status' => DemandStatus::New,
             'prazo' => null,
             ...$attributes,
@@ -227,7 +227,7 @@ class DashboardTest extends TestCase
     public function test_dashboard_trends_without_data_are_zero(): void
     {
         Carbon::setTestNow('2026-07-23 12:00:00');
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->forGabinete($office)->create();
 
         $this->actingAs($user)
@@ -244,26 +244,26 @@ class DashboardTest extends TestCase
     public function test_dashboard_trends_ignore_other_offices(): void
     {
         Carbon::setTestNow('2026-07-23 12:00:00');
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $user = User::factory()->forGabinete($office)->create();
 
-        Demanda::factory()->forGabinete($office)->create([
+        Demand::factory()->forGabinete($office)->create([
             'status' => DemandStatus::New,
             'aberta_em' => now()->subDays(60),
             'prazo' => now()->subDays(40),
         ]);
-        Demanda::factory()->forGabinete($otherOffice)->count(2)->create([
+        Demand::factory()->forGabinete($otherOffice)->count(2)->create([
             'status' => DemandStatus::New,
             'aberta_em' => now()->subDays(60),
             'prazo' => now()->subDays(40),
         ]);
-        Demanda::factory()->forGabinete($otherOffice)->create([
+        Demand::factory()->forGabinete($otherOffice)->create([
             'status' => DemandStatus::Resolved,
             'aberta_em' => now()->subDays(50),
             'concluida_em' => now()->subDays(40),
         ]);
-        Demanda::factory()->forGabinete($otherOffice)->create([
+        Demand::factory()->forGabinete($otherOffice)->create([
             'status' => DemandStatus::Resolved,
             'aberta_em' => now()->subDays(5),
             'concluida_em' => now()->subDay(),

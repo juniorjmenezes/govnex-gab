@@ -6,10 +6,10 @@ use App\Enums\DemandEventType;
 use App\Enums\DemandOrigin;
 use App\Enums\DemandPriority;
 use App\Enums\DemandStatus;
-use App\Models\Bairro;
-use App\Models\Categoria;
-use App\Models\Demanda;
-use App\Models\DemandaEvento;
+use App\Models\Category;
+use App\Models\Demand;
+use App\Models\DemandEvent;
+use App\Models\Neighborhood;
 use App\Models\User;
 use App\Support\PerPage;
 use Carbon\CarbonImmutable;
@@ -77,7 +77,7 @@ class DemandReportService
             ->where('prazo', '<', now())
             ->count();
         $demandIds = (clone $query)->select('id');
-        $waitingReferralQuery = DemandaEvento::withoutGlobalScopes()
+        $waitingReferralQuery = DemandEvent::withoutGlobalScopes()
             ->where('gabinete_id', $gabineteId)
             ->where('tipo', DemandEventType::Encaminhamento)
             ->whereNull('retorno_recebido_em')
@@ -98,8 +98,8 @@ class DemandReportService
                 'status' => $this->enumDistribution($statusCounts, DemandStatus::cases()),
                 'priority' => $this->distribution($query, 'prioridade', DemandPriority::cases()),
                 'origin' => $this->distribution($query, 'origem', DemandOrigin::cases()),
-                'category' => $this->relationDistribution($query, 'categoria_id', Categoria::class, 'nome', $gabineteId),
-                'neighborhood' => $this->relationDistribution($query, 'bairro_id', Bairro::class, 'nome', $gabineteId, 'Não informado'),
+                'category' => $this->relationDistribution($query, 'categoria_id', Category::class, 'nome', $gabineteId),
+                'neighborhood' => $this->relationDistribution($query, 'bairro_id', Neighborhood::class, 'nome', $gabineteId, 'Não informado'),
                 'responsible' => $this->relationDistribution($query, 'responsavel_id', User::class, 'name', $gabineteId, 'Não atribuído'),
                 'monthly' => $this->monthly($query, (string) $filters['inicio'], (string) $filters['fim']),
             ],
@@ -110,7 +110,7 @@ class DemandReportService
                 ->orderBy('prazo_esperado')
                 ->limit(20)
                 ->get()
-                ->map(fn (DemandaEvento $referral): array => [
+                ->map(fn (DemandEvent $referral): array => [
                     'id' => $referral->id,
                     'recipient' => $referral->destino,
                     'deadline' => $referral->prazo_esperado?->toDateString(),
@@ -126,11 +126,11 @@ class DemandReportService
 
     /**
      * @param  array<string, mixed>  $filters
-     * @return Builder<Demanda>
+     * @return Builder<Demand>
      */
     private function query(int $gabineteId, array $filters): Builder
     {
-        return Demanda::withoutGlobalScopes()
+        return Demand::withoutGlobalScopes()
             ->where('gabinete_id', $gabineteId)
             ->whereBetween('aberta_em', [
                 CarbonImmutable::parse((string) $filters['inicio'])->startOfDay(),
@@ -148,7 +148,7 @@ class DemandReportService
                 ->where('prazo', '<', now()));
     }
 
-    /** @param Builder<Demanda> $query */
+    /** @param Builder<Demand> $query */
     private function averageResolutionHours(Builder $query): ?float
     {
         $expression = DB::connection()->getDriverName() === 'sqlite'
@@ -177,7 +177,7 @@ class DemandReportService
     }
 
     /**
-     * @param  Builder<Demanda>  $query
+     * @param  Builder<Demand>  $query
      * @param  array<int, DemandPriority>|array<int, DemandOrigin>  $cases
      * @return Collection<int, array{key: string, label: string, total: int}>
      */
@@ -193,8 +193,8 @@ class DemandReportService
     }
 
     /**
-     * @param  Builder<Demanda>  $query
-     * @param  class-string<Categoria|Bairro|User>  $model
+     * @param  Builder<Demand>  $query
+     * @param  class-string<Category|Neighborhood|User>  $model
      * @return Collection<int, array{key: string, label: string, total: int}>
      */
     private function relationDistribution(
@@ -217,7 +217,7 @@ class DemandReportService
             ->whereIn('id', $rows->pluck($foreignKey)->filter())
             ->pluck($labelColumn, 'id');
 
-        return $rows->map(fn (Demanda $row): array => [
+        return $rows->map(fn (Demand $row): array => [
             'key' => (string) ($row->getAttribute($foreignKey) ?? 'none'),
             'label' => (string) ($labels[$row->getAttribute($foreignKey)] ?? $nullLabel),
             'total' => (int) $row->getAttribute('total'),
@@ -225,7 +225,7 @@ class DemandReportService
     }
 
     /**
-     * @param  Builder<Demanda>  $query
+     * @param  Builder<Demand>  $query
      * @return Collection<int, array{key: string, label: string, total: int}>
      */
     private function monthly(Builder $query, string $start, string $end): Collection
@@ -256,7 +256,7 @@ class DemandReportService
     }
 
     /**
-     * @param  Builder<Demanda>  $query
+     * @param  Builder<Demand>  $query
      * @return array<int, array{id: int|null, name: string, assigned: int, resolved: int, average_resolution_hours: float|null}>
      */
     private function productivity(Builder $query, int $gabineteId): array
@@ -278,7 +278,7 @@ class DemandReportService
             ->whereIn('id', $rows->pluck('responsavel_id')->filter())
             ->pluck('name', 'id');
 
-        return $rows->map(fn (Demanda $row): array => [
+        return $rows->map(fn (Demand $row): array => [
             'id' => $row->responsavel_id,
             'name' => (string) ($names[$row->responsavel_id] ?? 'Não atribuído'),
             'assigned' => (int) $row->getAttribute('assigned'),
@@ -290,7 +290,7 @@ class DemandReportService
     }
 
     /**
-     * @param  Builder<Demanda>  $query
+     * @param  Builder<Demand>  $query
      * @return LengthAwarePaginator<int, array<string, mixed>>
      */
     private function paginatedDemands(Builder $query): LengthAwarePaginator
@@ -299,12 +299,12 @@ class DemandReportService
             ->orderByDesc('aberta_em')
             ->paginate(PerPage::resolve(request(), 15))
             ->withQueryString()
-            ->through(fn (Demanda $demand): array => $this->demandRow($demand));
+            ->through(fn (Demand $demand): array => $this->demandRow($demand));
     }
 
     /**
-     * @param  Builder<Demanda>  $query
-     * @return Builder<Demanda>
+     * @param  Builder<Demand>  $query
+     * @return Builder<Demand>
      */
     private function demandQuery(Builder $query): Builder
     {
@@ -323,16 +323,16 @@ class DemandReportService
     }
 
     /**
-     * @param  EloquentCollection<int, Demanda>  $demands
+     * @param  EloquentCollection<int, Demand>  $demands
      * @return array<int, array<string, mixed>>
      */
     private function demandRows(EloquentCollection $demands): array
     {
-        return $demands->map(fn (Demanda $demand): array => $this->demandRow($demand))->all();
+        return $demands->map(fn (Demand $demand): array => $this->demandRow($demand))->all();
     }
 
     /** @return array<string, mixed> */
-    private function demandRow(Demanda $demand): array
+    private function demandRow(Demand $demand): array
     {
         return [
             'id' => $demand->id,

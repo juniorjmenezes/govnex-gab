@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Atendimento;
-use App\Models\Cidadao;
+use App\Models\Attendance;
+use App\Models\Citizen;
+use App\Tenancy\OfficeContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,16 +16,16 @@ class VoterProspectingMapController extends Controller
 
     public function __invoke(Request $request): Response
     {
-        $this->authorize('viewAny', Cidadao::class);
-        $office = $request->user()?->gabinete;
+        $this->authorize('viewAny', Citizen::class);
+        $office = app(OfficeContext::class)->officeFor($request->user());
 
-        $voters = Cidadao::query()->where('eleitor', true);
+        $voters = Citizen::query()->where('eleitor', true);
         $locatedVoters = (clone $voters)
             ->whereNotNull('latitude')
             ->whereNotNull('longitude');
         $locatedCount = (clone $locatedVoters)->count();
 
-        $lastVisits = Atendimento::query()
+        $lastVisits = Attendance::query()
             ->where('visita_domiciliar', true)
             ->selectRaw('cidadao_id, MAX(atendido_em) as last_visited_at')
             ->groupBy('cidadao_id');
@@ -46,7 +47,7 @@ class VoterProspectingMapController extends Controller
             ->orderBy('cidadaos.nome')
             ->limit(self::MARKER_LIMIT)
             ->get()
-            ->map(fn (Cidadao $citizen): array => [
+            ->map(fn (Citizen $citizen): array => [
                 'id' => $citizen->id,
                 'name' => $citizen->nome,
                 'address' => implode(', ', array_filter([

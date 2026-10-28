@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Entidade;
-use App\Services\Entidades\EntidadeInvitationService;
+use App\Models\Entity;
+use App\Services\Entidades\EntityInvitationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -17,8 +17,8 @@ class EntidadeInvitationController extends Controller
 {
     public function store(
         Request $request,
-        Entidade $entidade,
-        EntidadeInvitationService $invitations,
+        Entity $entidade,
+        EntityInvitationService $invitations,
     ): RedirectResponse {
         abort(403, 'Gerenciado no Govnex Hub — altere lá.');
     }

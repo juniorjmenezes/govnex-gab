@@ -7,7 +7,7 @@ return new class extends Migration
 {
     /**
      * Alinha os valores persistidos da coluna de escopo de módulo com o
-     * backing value atual do enum (Entidade/Gabinete), que já havia sido
+     * backing value atual do enum (Entity/Office), que já havia sido
      * renomeado nos casos PHP mas continuava gravado como ORGANIZACAO/UNIDADE
      * no banco.
      */

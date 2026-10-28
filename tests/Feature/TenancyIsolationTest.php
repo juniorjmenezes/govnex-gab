@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -16,20 +16,20 @@ class TenancyIsolationTest extends TestCase
     {
         parent::setUp();
 
-        Route::middleware('web')->get('/_test/gabinetes/{gabinete}', fn (Gabinete $gabinete) => response()->json([
+        Route::middleware('web')->get('/_test/gabinetes/{gabinete}', fn (Office $gabinete) => response()->json([
             'id' => $gabinete->id,
         ]));
     }
 
     public function test_user_only_queries_own_gabinete(): void
     {
-        $ownGabinete = Gabinete::factory()->create();
-        $otherGabinete = Gabinete::factory()->create();
+        $ownGabinete = Office::factory()->create();
+        $otherGabinete = Office::factory()->create();
         $user = User::factory()->forGabinete($ownGabinete)->create();
 
         $this->actingAs($user);
 
-        $visibleIds = Gabinete::query()->pluck('id')->all();
+        $visibleIds = Office::query()->pluck('id')->all();
 
         $this->assertSame([$ownGabinete->id], $visibleIds);
         $this->assertNotContains($otherGabinete->id, $visibleIds);
@@ -37,8 +37,8 @@ class TenancyIsolationTest extends TestCase
 
     public function test_route_model_binding_returns_not_found_for_another_gabinete(): void
     {
-        $ownGabinete = Gabinete::factory()->create();
-        $otherGabinete = Gabinete::factory()->create();
+        $ownGabinete = Office::factory()->create();
+        $otherGabinete = Office::factory()->create();
         $user = User::factory()->forGabinete($ownGabinete)->create();
 
         $this->actingAs($user)
@@ -52,14 +52,14 @@ class TenancyIsolationTest extends TestCase
 
     public function test_platform_admin_can_query_all_gabinetes(): void
     {
-        $gabinetes = Gabinete::factory()->count(2)->create();
+        $gabinetes = Office::factory()->count(2)->create();
         $admin = User::factory()->root()->create();
 
         $this->actingAs($admin);
 
         $this->assertEqualsCanonicalizing(
             $gabinetes->modelKeys(),
-            Gabinete::query()->pluck('id')->all(),
+            Office::query()->pluck('id')->all(),
         );
     }
 }

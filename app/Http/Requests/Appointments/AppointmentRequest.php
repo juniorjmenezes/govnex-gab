@@ -4,17 +4,18 @@ namespace App\Http\Requests\Appointments;
 
 use App\Enums\AppointmentRecurrence;
 use App\Enums\AppointmentStatus;
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use App\Enums\ReminderChannel;
 use App\Enums\UserRole;
 use App\Enums\WhatsAppPurpose;
-use App\Models\Cidadao;
-use App\Models\Demanda;
-use App\Models\GabineteMembro;
+use App\Models\Citizen;
+use App\Models\Demand;
+use App\Models\OfficeMember;
 use App\Models\User;
 use App\Models\WhatsAppContact;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\WhatsApp\WhatsAppEligibilityService;
+use App\Tenancy\OfficeContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -24,15 +25,15 @@ class AppointmentRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->gabinete_id !== null;
+        return app(OfficeContext::class)->officeIdFor($this->user()) !== null;
     }
 
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        $gabineteId = $this->user()->gabinete_id;
-        $demandsEnabled = app(GabineteModuleManager::class)
-            ->isActive($gabineteId, GabineteModule::Demands);
+        $gabineteId = app(OfficeContext::class)->officeIdFor($this->user());
+        $demandsEnabled = app(OfficeModuleManager::class)
+            ->isActive($gabineteId, OfficeModule::Demands);
 
         return [
             'titulo' => ['required', 'string', 'max:180'],
@@ -44,25 +45,25 @@ class AppointmentRequest extends FormRequest
             'responsavel_id' => [
                 'nullable',
                 'integer',
-                Rule::exists(User::class, 'id')->where(fn ($query) => GabineteMembro::constrainActiveUsers($query, $gabineteId)
+                Rule::exists(User::class, 'id')->where(fn ($query) => OfficeMember::constrainActiveUsers($query, $gabineteId)
                     ->where('role', '!=', UserRole::Root->value)),
             ],
             'participantes' => ['array', 'max:30'],
             'participantes.*' => [
                 'integer',
                 'distinct',
-                Rule::exists(User::class, 'id')->where(fn ($query) => GabineteMembro::constrainActiveUsers($query, $gabineteId)
+                Rule::exists(User::class, 'id')->where(fn ($query) => OfficeMember::constrainActiveUsers($query, $gabineteId)
                     ->where('role', '!=', UserRole::Root->value)),
             ],
             'cidadao_id' => [
                 'nullable',
                 'integer',
-                Rule::exists(Cidadao::class, 'id')->where('gabinete_id', $gabineteId),
+                Rule::exists(Citizen::class, 'id')->where('gabinete_id', $gabineteId),
             ],
             'demanda_id' => [
                 $demandsEnabled ? 'nullable' : 'prohibited',
                 'integer',
-                Rule::exists(Demanda::class, 'id')->where('gabinete_id', $gabineteId),
+                Rule::exists(Demand::class, 'id')->where('gabinete_id', $gabineteId),
             ],
             'tipo' => ['required', 'string', 'max:80'],
             'status' => ['required', Rule::enum(AppointmentStatus::class)],
@@ -83,7 +84,7 @@ class AppointmentRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
-                $timezone = $this->user()->gabinete->timezone ?? 'America/Sao_Paulo';
+                $timezone = app(OfficeContext::class)->officeFor($this->user())->timezone ?? 'America/Sao_Paulo';
 
                 try {
                     $start = CarbonImmutable::parse((string) $this->input('inicio_em'), $timezone);
@@ -105,9 +106,9 @@ class AppointmentRequest extends FormRequest
                     ReminderChannel::WhatsApp->value,
                     ReminderChannel::FakeWhatsApp->value,
                 ], $channels) !== []
-                    && ! app(GabineteModuleManager::class)->isActive(
-                        $this->user()->gabinete_id,
-                        GabineteModule::WhatsApp,
+                    && ! app(OfficeModuleManager::class)->isActive(
+                        app(OfficeContext::class)->officeIdFor($this->user()),
+                        OfficeModule::WhatsApp,
                     )) {
                     $validator->errors()->add(
                         'lembretes',
@@ -117,7 +118,7 @@ class AppointmentRequest extends FormRequest
 
                 if (in_array(ReminderChannel::FakeWhatsApp->value, $channels, true)) {
                     $citizenId = $this->integer('cidadao_id');
-                    $citizen = $citizenId ? Cidadao::query()->find($citizenId) : null;
+                    $citizen = $citizenId ? Citizen::query()->find($citizenId) : null;
 
                     if (! $citizen?->consentimento_contato || ! $citizen->whatsapp) {
                         $validator->errors()->add(
@@ -135,11 +136,11 @@ class AppointmentRequest extends FormRequest
                         $isCitizen = $recipient === 'cidadao';
                         $contact = $isCitizen
                             ? WhatsAppContact::withoutGlobalScopes()
-                                ->where('gabinete_id', $this->user()->gabinete_id)
+                                ->where('gabinete_id', app(OfficeContext::class)->officeIdFor($this->user()))
                                 ->where('cidadao_id', $this->integer('cidadao_id'))
                                 ->first()
                             : WhatsAppContact::withoutGlobalScopes()
-                                ->where('gabinete_id', $this->user()->gabinete_id)
+                                ->where('gabinete_id', app(OfficeContext::class)->officeIdFor($this->user()))
                                 ->where('usuario_id', filter_var($recipient, FILTER_VALIDATE_INT))
                                 ->first();
                         $purpose = $isCitizen

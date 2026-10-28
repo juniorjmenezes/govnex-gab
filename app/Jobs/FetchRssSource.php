@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Models\FonteRss;
+use App\Models\RssSource;
 use App\Services\News\RssFeedFetcher;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -23,9 +23,9 @@ class FetchRssSource implements ShouldQueue
 
     public function handle(RssFeedFetcher $fetcher): void
     {
-        $fonte = FonteRss::query()->find($this->fonteId);
+        $fonte = RssSource::query()->find($this->fonteId);
 
-        if (! $fonte instanceof FonteRss || ! $fonte->ativo) {
+        if (! $fonte instanceof RssSource || ! $fonte->ativo) {
             return;
         }
 

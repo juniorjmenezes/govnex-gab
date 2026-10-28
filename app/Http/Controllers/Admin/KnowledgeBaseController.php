@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\KnowledgeBase\RecordKnowledgeReadingRequest;
 use App\Http\Requests\KnowledgeBase\StoreKnowledgeDocumentRequest;
-use App\Models\ConhecimentoDocumento;
-use App\Models\ConhecimentoLeitura;
+use App\Models\KnowledgeDocument;
+use App\Models\KnowledgeReading;
 use App\Services\KnowledgeBase\KnowledgeDocumentService;
 use App\Support\PerPage;
 use Illuminate\Database\Eloquent\Builder;
@@ -29,7 +29,7 @@ class KnowledgeBaseController extends Controller
     {
         $user = $request->user();
         $search = trim((string) $request->query('q', ''));
-        $page = ConhecimentoDocumento::query()
+        $page = KnowledgeDocument::query()
             ->platformLibrary()
             ->with('enviadoPor:id,name')
             ->when($search !== '', fn (Builder $query) => $query->where(
@@ -40,7 +40,7 @@ class KnowledgeBaseController extends Controller
             ->latest()
             ->paginate(PerPage::resolve($request, 20))
             ->withQueryString();
-        $readings = ConhecimentoLeitura::query()
+        $readings = KnowledgeReading::query()
             ->where('usuario_id', $user->id)
             ->whereIn('documento_id', $page->pluck('id'))
             ->get()
@@ -48,7 +48,7 @@ class KnowledgeBaseController extends Controller
 
         return Inertia::render('knowledge/index', [
             'scope' => 'plataforma',
-            'documents' => $page->through(fn (ConhecimentoDocumento $document): array => $this->documents
+            'documents' => $page->through(fn (KnowledgeDocument $document): array => $this->documents
                 ->summary($document, $user, $readings->get($document->id))),
             'filters' => ['q' => $search],
             'canUpload' => true,
@@ -58,7 +58,7 @@ class KnowledgeBaseController extends Controller
 
     public function store(StoreKnowledgeDocumentRequest $request): RedirectResponse
     {
-        $this->authorize('createPlatform', ConhecimentoDocumento::class);
+        $this->authorize('createPlatform', KnowledgeDocument::class);
         $this->documents->store(
             $request->file('arquivo'),
             $request->validated('titulo'),
@@ -72,7 +72,7 @@ class KnowledgeBaseController extends Controller
     }
 
     /** Dados de um documento para abrir o leitor em modal na listagem. */
-    public function show(Request $request, ConhecimentoDocumento $documento): JsonResponse
+    public function show(Request $request, KnowledgeDocument $documento): JsonResponse
     {
         $this->ensurePlatform($documento);
         $reading = $documento->leituras()->where('usuario_id', $request->user()->id)->first();
@@ -82,14 +82,14 @@ class KnowledgeBaseController extends Controller
         ]);
     }
 
-    public function file(ConhecimentoDocumento $documento): StreamedResponse
+    public function file(KnowledgeDocument $documento): StreamedResponse
     {
         $this->ensurePlatform($documento);
 
         return $this->documents->stream($documento);
     }
 
-    public function progress(RecordKnowledgeReadingRequest $request, ConhecimentoDocumento $documento): RedirectResponse
+    public function progress(RecordKnowledgeReadingRequest $request, KnowledgeDocument $documento): RedirectResponse
     {
         $this->ensurePlatform($documento);
         $this->documents->recordPage(
@@ -102,7 +102,7 @@ class KnowledgeBaseController extends Controller
         return back();
     }
 
-    public function destroy(ConhecimentoDocumento $documento): RedirectResponse
+    public function destroy(KnowledgeDocument $documento): RedirectResponse
     {
         $this->ensurePlatform($documento);
         $this->authorize('delete', $documento);
@@ -113,7 +113,7 @@ class KnowledgeBaseController extends Controller
     }
 
     /** A área administrativa trata só da biblioteca da plataforma. */
-    private function ensurePlatform(ConhecimentoDocumento $document): void
+    private function ensurePlatform(KnowledgeDocument $document): void
     {
         abort_unless($document->isPlatform(), 404);
     }

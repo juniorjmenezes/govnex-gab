@@ -2,8 +2,8 @@
 
 namespace App\Services\Appointments;
 
-use App\Enums\GabineteStatus;
-use App\Enums\GabineteType;
+use App\Enums\OfficeStatus;
+use App\Enums\OfficeType;
 use App\Models\ComissaoLegislativa;
 use App\Models\ComissaoMembro;
 use App\Models\CompromissoInstitucional;
@@ -103,8 +103,8 @@ class InstitutionalAudienceService
                 ->select('id')
                 ->from('gabinetes')
                 ->where('entidade_id', $entidadeId)
-                ->where('tipo_gabinete', GabineteType::CouncilorOffice->value)
-                ->where('status', GabineteStatus::Active->value)
+                ->where('tipo_gabinete', OfficeType::CouncilorOffice->value)
+                ->where('status', OfficeStatus::Active->value)
                 ->whereNull('deleted_at'))
             ->orderBy('gabinete_id')
             ->get(['comissao_id', 'gabinete_id'])

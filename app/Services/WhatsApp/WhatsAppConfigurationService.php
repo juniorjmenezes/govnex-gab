@@ -2,12 +2,12 @@
 
 namespace App\Services\WhatsApp;
 
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use App\Enums\WhatsAppMode;
 use App\Enums\WhatsAppPurpose;
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\WhatsAppConfiguration;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -15,14 +15,14 @@ use InvalidArgumentException;
 final class WhatsAppConfigurationService
 {
     public function __construct(
-        private readonly GabineteModuleManager $modules,
-        private readonly EntidadeWhatsAppConnectionService $connections,
+        private readonly OfficeModuleManager $modules,
+        private readonly EntityWhatsAppConnectionService $connections,
     ) {}
 
     public function forOffice(int $officeId): WhatsAppConfiguration
     {
         return DB::transaction(function () use ($officeId): WhatsAppConfiguration {
-            $office = Gabinete::withoutGlobalScopes()->with('entidade')->findOrFail($officeId);
+            $office = Office::withoutGlobalScopes()->with('entidade')->findOrFail($officeId);
             $configuration = WhatsAppConfiguration::withoutGlobalScopes()
                 ->where('gabinete_id', $officeId)
                 ->lockForUpdate()
@@ -47,7 +47,7 @@ final class WhatsAppConfigurationService
     }
 
     /** @param array<int, string> $purposes */
-    public function update(Gabinete $office, WhatsAppMode $mode, string $digestTime, array $purposes): WhatsAppConfiguration
+    public function update(Office $office, WhatsAppMode $mode, string $digestTime, array $purposes): WhatsAppConfiguration
     {
         if (! preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $digestTime)) {
             throw new InvalidArgumentException('O horário do resumo diário é inválido.');
@@ -58,7 +58,7 @@ final class WhatsAppConfigurationService
             throw new InvalidArgumentException('Uma das finalidades informadas é inválida.');
         }
         if ($mode !== WhatsAppMode::Off
-            && ! $this->modules->isActive($office, GabineteModule::WhatsApp)) {
+            && ! $this->modules->isActive($office, OfficeModule::WhatsApp)) {
             throw ValidationException::withMessages([
                 'mode' => 'O módulo WhatsApp não está habilitado para o gabinete.',
             ]);

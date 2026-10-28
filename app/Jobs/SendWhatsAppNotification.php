@@ -2,11 +2,11 @@
 
 namespace App\Jobs;
 
-use App\Enums\EntidadeQuota;
+use App\Enums\EntityQuota;
 use App\Enums\WhatsAppNotificationStatus;
 use App\Exceptions\WhatsAppGatewayException;
 use App\Models\WhatsAppNotification;
-use App\Services\Entidades\EntidadeQuotaService;
+use App\Services\Entidades\EntityQuotaService;
 use App\Services\WhatsApp\WhatsAppEligibilityService;
 use App\Services\WhatsApp\WhatsAppGatewayClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -31,7 +31,7 @@ class SendWhatsAppNotification implements ShouldQueue
     public function handle(
         WhatsAppGatewayClient $gateway,
         WhatsAppEligibilityService $eligibility,
-        EntidadeQuotaService $quotas,
+        EntityQuotaService $quotas,
     ): void {
         $notification = WhatsAppNotification::withoutGlobalScopes()
             ->with(['contact', 'templatePurpose', 'connection'])
@@ -174,12 +174,12 @@ class SendWhatsAppNotification implements ShouldQueue
                 $notification,
                 WhatsAppNotificationStatus::Failed,
                 'As tentativas de entrega ao gateway foram esgotadas.',
-                app(EntidadeQuotaService::class),
+                app(EntityQuotaService::class),
             );
         }
     }
 
-    private function reserveQuota(WhatsAppNotification $notification, EntidadeQuotaService $quotas): bool
+    private function reserveQuota(WhatsAppNotification $notification, EntityQuotaService $quotas): bool
     {
         try {
             DB::transaction(function () use ($notification, $quotas): void {
@@ -190,7 +190,7 @@ class SendWhatsAppNotification implements ShouldQueue
                 if ($locked->entidade_id === null) {
                     throw ValidationException::withMessages(['entidade' => 'A notificação não pertence a uma organização.']);
                 }
-                $quotas->reserve((int) $locked->entidade_id, EntidadeQuota::MonthlyWhatsAppMessages);
+                $quotas->reserve((int) $locked->entidade_id, EntityQuota::MonthlyWhatsAppMessages);
                 $locked->forceFill(['consumo_reservado_em' => now()])->save();
             }, 3);
 
@@ -213,7 +213,7 @@ class SendWhatsAppNotification implements ShouldQueue
     private function applyGatewayStatus(
         WhatsAppNotification $notification,
         string $status,
-        EntidadeQuotaService $quotas,
+        EntityQuotaService $quotas,
     ): void {
         $normalizedStatus = strtoupper(trim($status));
         $mapped = match ($normalizedStatus) {
@@ -267,7 +267,7 @@ class SendWhatsAppNotification implements ShouldQueue
         WhatsAppNotification $notification,
         WhatsAppNotificationStatus $status,
         string $error,
-        EntidadeQuotaService $quotas,
+        EntityQuotaService $quotas,
     ): void {
         DB::transaction(function () use ($notification, $status, $error, $quotas): void {
             $locked = WhatsAppNotification::withoutGlobalScopes()->lockForUpdate()->find($notification->id);
@@ -277,7 +277,7 @@ class SendWhatsAppNotification implements ShouldQueue
             if ($locked->consumo_reservado_em !== null
                 && $locked->consumo_registrado_em === null
                 && $locked->entidade_id !== null) {
-                $quotas->release((int) $locked->entidade_id, EntidadeQuota::MonthlyWhatsAppMessages);
+                $quotas->release((int) $locked->entidade_id, EntityQuota::MonthlyWhatsAppMessages);
                 $locked->consumo_reservado_em = null;
             }
             $locked->forceFill([
@@ -291,7 +291,7 @@ class SendWhatsAppNotification implements ShouldQueue
 
     private function releaseQuotaReservation(
         WhatsAppNotification $notification,
-        EntidadeQuotaService $quotas,
+        EntityQuotaService $quotas,
     ): void {
         DB::transaction(function () use ($notification, $quotas): void {
             $locked = WhatsAppNotification::withoutGlobalScopes()->lockForUpdate()->find($notification->id);
@@ -301,7 +301,7 @@ class SendWhatsAppNotification implements ShouldQueue
                 || $locked->entidade_id === null) {
                 return;
             }
-            $quotas->release((int) $locked->entidade_id, EntidadeQuota::MonthlyWhatsAppMessages);
+            $quotas->release((int) $locked->entidade_id, EntityQuota::MonthlyWhatsAppMessages);
             $locked->forceFill(['consumo_reservado_em' => null])->save();
         }, 3);
     }

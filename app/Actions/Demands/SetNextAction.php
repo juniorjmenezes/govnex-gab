@@ -3,7 +3,7 @@
 namespace App\Actions\Demands;
 
 use App\Enums\DemandEventType;
-use App\Models\Demanda;
+use App\Models\Demand;
 use App\Models\User;
 use App\Services\Demands\DemandNotificationService;
 use App\Services\Demands\DemandTimelineRecorder;
@@ -30,13 +30,13 @@ class SetNextAction
     ) {}
 
     public function handle(
-        Demanda $demand,
+        Demand $demand,
         User $user,
         string $descricao,
         ?Carbon $data,
         ?User $responsavel,
-    ): Demanda {
-        return DB::transaction(function () use ($demand, $user, $descricao, $data, $responsavel): Demanda {
+    ): Demand {
+        return DB::transaction(function () use ($demand, $user, $descricao, $data, $responsavel): Demand {
             // Reabrir o formulário com o lápis reenvia esta mesma rota para
             // corrigir descrição/data/responsável — sem essa checagem, cada
             // ajuste duplicava o evento "definida" na timeline e reenviava a

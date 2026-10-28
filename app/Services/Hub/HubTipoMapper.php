@@ -2,8 +2,8 @@
 
 namespace App\Services\Hub;
 
-use App\Enums\EntidadeType;
-use App\Enums\GabineteType;
+use App\Enums\EntityType;
+use App\Enums\OfficeType;
 
 /**
  * Traduz os tipos da estrutura do Govnex Hub para os do GAB.
@@ -15,7 +15,7 @@ use App\Enums\GabineteType;
  *
  * O tipo do gabinete não viaja do Hub: é derivado da combinação tipo da
  * entidade + tipo da unidade, e sempre respeita
- * `EntidadeType::allowedGabineteTypes()`.
+ * `EntityType::allowedGabineteTypes()`.
  */
 class HubTipoMapper
 {
@@ -32,12 +32,12 @@ class HubTipoMapper
     ];
 
     /** Os valores coincidem nos dois lados; qualquer outro tipo do Hub não tem equivalente. */
-    public function entidadeType(mixed $tipoDoHub): ?EntidadeType
+    public function entidadeType(mixed $tipoDoHub): ?EntityType
     {
-        return is_string($tipoDoHub) ? EntidadeType::tryFrom(strtoupper(trim($tipoDoHub))) : null;
+        return is_string($tipoDoHub) ? EntityType::tryFrom(strtoupper(trim($tipoDoHub))) : null;
     }
 
-    public function gabineteType(EntidadeType $entidade, mixed $tipoDaUnidade): ?GabineteType
+    public function gabineteType(EntityType $entidade, mixed $tipoDaUnidade): ?OfficeType
     {
         if (! is_string($tipoDaUnidade)) {
             return null;
@@ -46,16 +46,16 @@ class HubTipoMapper
         $tipo = strtoupper(trim($tipoDaUnidade));
 
         $gabinete = match ($entidade) {
-            EntidadeType::IndependentOffice => $tipo === 'GABINETE' ? GabineteType::IndependentOffice : null,
-            EntidadeType::CityCouncil => match (true) {
-                $tipo === 'GABINETE' => GabineteType::CouncilorOffice,
-                in_array($tipo, self::ADMINISTRATIVAS, true) => GabineteType::AdministrativeDepartment,
+            EntityType::IndependentOffice => $tipo === 'GABINETE' ? OfficeType::IndependentOffice : null,
+            EntityType::CityCouncil => match (true) {
+                $tipo === 'GABINETE' => OfficeType::CouncilorOffice,
+                in_array($tipo, self::ADMINISTRATIVAS, true) => OfficeType::AdministrativeDepartment,
                 default => null,
             },
-            EntidadeType::CityHall => match (true) {
-                $tipo === 'GABINETE' => GabineteType::MayorOffice,
-                $tipo === 'SECRETARIA' => GabineteType::Secretariat,
-                in_array($tipo, self::ADMINISTRATIVAS, true) => GabineteType::AdministrativeDepartment,
+            EntityType::CityHall => match (true) {
+                $tipo === 'GABINETE' => OfficeType::MayorOffice,
+                $tipo === 'SECRETARIA' => OfficeType::Secretariat,
+                in_array($tipo, self::ADMINISTRATIVAS, true) => OfficeType::AdministrativeDepartment,
                 default => null,
             },
         };

@@ -3,9 +3,9 @@
 namespace Tests\Feature\MultiEntidade;
 
 use App\Enums\AccessRole;
-use App\Enums\GabineteType;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Enums\OfficeType;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -28,13 +28,13 @@ class LegacyEntryAfterMembershipChangeTest extends TestCase
 
     public function test_user_removed_from_origin_office_enters_another_active_office(): void
     {
-        $origin = Gabinete::factory()->create();
-        $other = Gabinete::factory()->for($origin->entidade, 'entidade')->create([
-            'tipo_gabinete' => GabineteType::AdministrativeDepartment,
+        $origin = Office::factory()->create();
+        $other = Office::factory()->for($origin->entidade, 'entidade')->create([
+            'tipo_gabinete' => OfficeType::AdministrativeDepartment,
         ]);
         $user = User::factory()->operator()->forGabinete($origin)->create();
 
-        GabineteMembro::query()->create([
+        OfficeMember::query()->create([
             'gabinete_id' => $other->id,
             'usuario_id' => $user->id,
             'papel' => AccessRole::Operator,
@@ -54,7 +54,7 @@ class LegacyEntryAfterMembershipChangeTest extends TestCase
 
     public function test_user_without_any_active_office_goes_to_the_directory(): void
     {
-        $origin = Gabinete::factory()->create();
+        $origin = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($origin)->create();
         $this->removeFrom($origin, $user);
 
@@ -65,7 +65,7 @@ class LegacyEntryAfterMembershipChangeTest extends TestCase
 
     public function test_active_origin_office_keeps_being_the_entry_point(): void
     {
-        $origin = Gabinete::factory()->create();
+        $origin = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($origin)->create();
 
         $this->actingAs($user)
@@ -77,9 +77,9 @@ class LegacyEntryAfterMembershipChangeTest extends TestCase
             ));
     }
 
-    private function removeFrom(Gabinete $gabinete, User $user): void
+    private function removeFrom(Office $gabinete, User $user): void
     {
-        GabineteMembro::query()
+        OfficeMember::query()
             ->where('gabinete_id', $gabinete->id)
             ->where('usuario_id', $user->id)
             ->update(['ativo' => false, 'desativado_em' => now()]);

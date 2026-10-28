@@ -5,13 +5,13 @@ namespace Tests\Feature;
 use App\Enums\AccessRole;
 use App\Enums\DemandResultado;
 use App\Enums\DemandStatus;
-use App\Models\Bairro;
-use App\Models\Categoria;
-use App\Models\Cidadao;
-use App\Models\Demanda;
-use App\Models\DemandaEvento;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Models\Category;
+use App\Models\Citizen;
+use App\Models\Demand;
+use App\Models\DemandEvent;
+use App\Models\Neighborhood;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
@@ -23,11 +23,11 @@ class DemandManagementTest extends TestCase
 
     public function test_demand_is_created_with_sequential_protocol_and_office_from_backend(): void
     {
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
-        $citizen = Cidadao::factory()->forGabinete($office)->create();
-        $category = Categoria::factory()->forGabinete($office)->create();
+        $citizen = Citizen::factory()->forGabinete($office)->create();
+        $category = Category::factory()->forGabinete($office)->create();
 
         $this->actingAs($advisor);
 
@@ -41,13 +41,13 @@ class DemandManagementTest extends TestCase
         $this->post(route('demands.store'), $this->payload($citizen, $category))
             ->assertRedirect();
 
-        $demands = Demanda::withoutGlobalScopes()->orderBy('id')->get();
+        $demands = Demand::withoutGlobalScopes()->orderBy('id')->get();
         $this->assertCount(2, $demands);
         $this->assertSame($office->id, $demands[0]->gabinete_id);
         $this->assertSame(now()->year.'-000001', $demands[0]->protocolo);
         $this->assertSame(now()->year.'-000002', $demands[1]->protocolo);
         $this->assertSame(DemandStatus::New, $demands[0]->status);
-        $this->assertSame(2, DemandaEvento::withoutGlobalScopes()->where('tipo', 'demanda_criada')->count());
+        $this->assertSame(2, DemandEvent::withoutGlobalScopes()->where('tipo', 'demanda_criada')->count());
     }
 
     /**
@@ -58,15 +58,15 @@ class DemandManagementTest extends TestCase
      */
     public function test_a_team_member_paused_in_the_team_screen_cannot_be_assigned_as_responsible(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
         $pausedMember = User::factory()->operator()->forGabinete($office)->create();
-        GabineteMembro::query()->updateOrCreate(
+        OfficeMember::query()->updateOrCreate(
             ['gabinete_id' => $office->id, 'usuario_id' => $pausedMember->id],
             ['papel' => AccessRole::Operator, 'ativo' => false, 'ingressou_em' => now(), 'desativado_em' => now()],
         );
-        $citizen = Cidadao::factory()->forGabinete($office)->create();
-        $category = Categoria::factory()->forGabinete($office)->create();
+        $citizen = Citizen::factory()->forGabinete($office)->create();
+        $category = Category::factory()->forGabinete($office)->create();
 
         $this->actingAs($advisor)
             ->post(route('demands.store'), [
@@ -78,9 +78,9 @@ class DemandManagementTest extends TestCase
 
     public function test_demand_can_be_created_without_category(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
-        $citizen = Cidadao::factory()->forGabinete($office)->create();
+        $citizen = Citizen::factory()->forGabinete($office)->create();
 
         $this->actingAs($advisor)
             ->post(route('demands.store'), [
@@ -89,35 +89,35 @@ class DemandManagementTest extends TestCase
             ])
             ->assertRedirect();
 
-        $demand = Demanda::query()->sole();
+        $demand = Demand::query()->sole();
         $this->assertNull($demand->categoria_id);
     }
 
     public function test_protocol_sequence_is_independent_for_each_office(): void
     {
-        $firstOffice = Gabinete::factory()->create();
-        $secondOffice = Gabinete::factory()->create();
+        $firstOffice = Office::factory()->create();
+        $secondOffice = Office::factory()->create();
         $firstUser = User::factory()->operator()->forGabinete($firstOffice)->create();
         $secondUser = User::factory()->operator()->forGabinete($secondOffice)->create();
-        $firstCitizen = Cidadao::factory()->forGabinete($firstOffice)->create();
-        $secondCitizen = Cidadao::factory()->forGabinete($secondOffice)->create();
-        $firstCategory = Categoria::factory()->forGabinete($firstOffice)->create();
-        $secondCategory = Categoria::factory()->forGabinete($secondOffice)->create();
+        $firstCitizen = Citizen::factory()->forGabinete($firstOffice)->create();
+        $secondCitizen = Citizen::factory()->forGabinete($secondOffice)->create();
+        $firstCategory = Category::factory()->forGabinete($firstOffice)->create();
+        $secondCategory = Category::factory()->forGabinete($secondOffice)->create();
 
         $this->actingAs($firstUser)->post(route('demands.store'), $this->payload($firstCitizen, $firstCategory));
         $this->actingAs($secondUser)->post(route('demands.store'), $this->payload($secondCitizen, $secondCategory));
 
         $this->assertSame(
             [now()->year.'-000001', now()->year.'-000001'],
-            Demanda::withoutGlobalScopes()->orderBy('id')->pluck('protocolo')->all(),
+            Demand::withoutGlobalScopes()->orderBy('id')->pluck('protocolo')->all(),
         );
     }
 
     public function test_status_transition_and_reopening_preserve_history_and_dates(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
-        $demand = Demanda::factory()->forGabinete($office, creator: $advisor)->create();
+        $demand = Demand::factory()->forGabinete($office, creator: $advisor)->create();
 
         $this->actingAs($advisor)
             ->patch(route('demands.transition', $demand), ['status' => DemandStatus::InProgress->value])
@@ -228,10 +228,10 @@ class DemandManagementTest extends TestCase
 
     public function test_only_councilor_or_chief_of_staff_can_delete_a_demand(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
         $chief = User::factory()->administrator()->forGabinete($office)->create();
-        $demand = Demanda::factory()->forGabinete($office, creator: $advisor)->create();
+        $demand = Demand::factory()->forGabinete($office, creator: $advisor)->create();
 
         $this->actingAs($advisor)
             ->delete(route('demands.destroy', $demand))
@@ -246,10 +246,10 @@ class DemandManagementTest extends TestCase
 
     public function test_user_cannot_access_demand_from_another_office(): void
     {
-        $ownOffice = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $ownOffice = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($ownOffice)->create();
-        $foreignDemand = Demanda::factory()->forGabinete($otherOffice)->create();
+        $foreignDemand = Demand::factory()->forGabinete($otherOffice)->create();
 
         $this->actingAs($user)->get(route('demands.show', $foreignDemand))->assertNotFound();
         $this->get(route('demands.edit', $foreignDemand))->assertNotFound();
@@ -258,17 +258,17 @@ class DemandManagementTest extends TestCase
 
     public function test_inbox_defaults_to_open_demands_and_supports_search(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $category = Categoria::factory()->forGabinete($office)->create();
-        Demanda::factory()->forGabinete($office, categoria: $category, creator: $user)->create([
+        $category = Category::factory()->forGabinete($office)->create();
+        Demand::factory()->forGabinete($office, categoria: $category, creator: $user)->create([
             'titulo' => 'Iluminação da praça',
             'prioridade' => 'urgente',
             'status' => DemandStatus::InProgress,
             'prazo' => now()->subDay(),
         ]);
-        Demanda::factory()->forGabinete($office, creator: $user)->create(['titulo' => 'Outra solicitação']);
-        Demanda::factory()->forGabinete($office, creator: $user)->create([
+        Demand::factory()->forGabinete($office, creator: $user)->create(['titulo' => 'Outra solicitação']);
+        Demand::factory()->forGabinete($office, creator: $user)->create([
             'titulo' => 'Já resolvida',
             'status' => DemandStatus::Resolved,
         ]);
@@ -291,12 +291,12 @@ class DemandManagementTest extends TestCase
 
     public function test_mine_and_awaiting_tabs_scope_the_list(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
         $other = User::factory()->operator()->forGabinete($office)->create();
-        Demanda::factory()->forGabinete($office, creator: $user)->create(['responsavel_id' => $user->id]);
-        Demanda::factory()->forGabinete($office, creator: $user)->create(['responsavel_id' => $other->id]);
-        Demanda::factory()->forGabinete($office, creator: $user)->create(['status' => DemandStatus::Awaiting]);
+        Demand::factory()->forGabinete($office, creator: $user)->create(['responsavel_id' => $user->id]);
+        Demand::factory()->forGabinete($office, creator: $user)->create(['responsavel_id' => $other->id]);
+        Demand::factory()->forGabinete($office, creator: $user)->create(['status' => DemandStatus::Awaiting]);
 
         $this->actingAs($user)
             ->get(route('demands.index', ['tab' => 'mine']))
@@ -308,14 +308,14 @@ class DemandManagementTest extends TestCase
 
     public function test_favoriting_a_demand_always_sorts_it_first(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $older = Demanda::factory()->forGabinete($office, creator: $user)->create([
+        $older = Demand::factory()->forGabinete($office, creator: $user)->create([
             'titulo' => 'Mais antiga',
             'aberta_em' => now()->subDays(5),
             'ultima_atividade_em' => now()->subDays(5),
         ]);
-        $newer = Demanda::factory()->forGabinete($office, creator: $user)->create([
+        $newer = Demand::factory()->forGabinete($office, creator: $user)->create([
             'titulo' => 'Mais recente',
             'aberta_em' => now(),
             'ultima_atividade_em' => now(),
@@ -350,8 +350,8 @@ class DemandManagementTest extends TestCase
     public function test_favoriting_another_offices_demand_is_rejected(): void
     {
         [$user] = $this->demandContext();
-        $foreignOffice = Gabinete::factory()->create();
-        $foreignDemand = Demanda::factory()->forGabinete($foreignOffice)->create();
+        $foreignOffice = Office::factory()->create();
+        $foreignDemand = Demand::factory()->forGabinete($foreignOffice)->create();
 
         $this->actingAs($user)
             ->patch(route('demands.favorite.toggle', $foreignDemand))
@@ -359,7 +359,7 @@ class DemandManagementTest extends TestCase
     }
 
     /** @return array<string, mixed> */
-    private function payload(Cidadao $citizen, ?Categoria $category, ?Bairro $neighborhood = null): array
+    private function payload(Citizen $citizen, ?Category $category, ?Neighborhood $neighborhood = null): array
     {
         return [
             'cidadao_id' => $citizen->id,
@@ -376,12 +376,12 @@ class DemandManagementTest extends TestCase
         ];
     }
 
-    /** @return array{User, Demanda} */
+    /** @return array{User, Demand} */
     private function demandContext(): array
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
-        $demand = Demanda::factory()->forGabinete($office, creator: $advisor)->create();
+        $demand = Demand::factory()->forGabinete($office, creator: $advisor)->create();
 
         return [$advisor, $demand];
     }

@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Models\PartidoCor;
+use App\Models\PartyColor;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -42,13 +42,13 @@ class UpdatePartyColorRequest extends FormRequest
                 return;
             }
 
-            $normalized = PartidoCor::normalizeSigla($sigla);
+            $normalized = PartyColor::normalizeSigla($sigla);
             $current = $this->route('partidoCor');
-            $currentId = $current instanceof PartidoCor ? $current->id : null;
-            $duplicate = PartidoCor::query()
+            $currentId = $current instanceof PartyColor ? $current->id : null;
+            $duplicate = PartyColor::query()
                 ->when($currentId !== null, fn ($query) => $query->whereKeyNot($currentId))
                 ->get(['sigla'])
-                ->contains(fn (PartidoCor $partidoCor): bool => PartidoCor::normalizeSigla($partidoCor->sigla) === $normalized);
+                ->contains(fn (PartyColor $partidoCor): bool => PartyColor::normalizeSigla($partidoCor->sigla) === $normalized);
 
             if ($duplicate) {
                 $validator->errors()->add(

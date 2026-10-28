@@ -6,19 +6,19 @@ use App\Enums\AppointmentStatus;
 use App\Enums\CommitteeRole;
 use App\Enums\CommitteeStatus;
 use App\Enums\CommitteeType;
-use App\Enums\EntidadeModule;
-use App\Enums\EntidadeType;
+use App\Enums\EntityModule;
+use App\Enums\EntityType;
 use App\Enums\EventType;
-use App\Enums\GabineteModule;
-use App\Enums\GabineteType;
+use App\Enums\OfficeModule;
+use App\Enums\OfficeType;
 use App\Models\Appointment;
 use App\Models\ComissaoLegislativa;
 use App\Models\CompromissoInstitucional;
-use App\Models\Entidade;
-use App\Models\EntidadeModulo;
-use App\Models\Evento;
-use App\Models\Gabinete;
-use App\Models\GabineteModulo;
+use App\Models\Entity;
+use App\Models\EntityModuleSubscription;
+use App\Models\Event;
+use App\Models\Office;
+use App\Models\OfficeModuleSubscription;
 use App\Models\User;
 use App\Services\Committees\CommitteeMembershipService;
 use Carbon\CarbonImmutable;
@@ -45,10 +45,10 @@ class InstitutionalAppointmentTest extends TestCase
     public function test_appointment_without_targets_reaches_every_councilor_office_of_the_city_council(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereadorA = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $vereadorB = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $setor = $this->gabinete($camara, GabineteType::AdministrativeDepartment);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereadorA = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $vereadorB = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $setor = $this->gabinete($camara, OfficeType::AdministrativeDepartment);
         $compromisso = $this->compromisso($secretaria, ['titulo' => 'Sessão ordinária']);
 
         foreach ([$vereadorA, $vereadorB] as $vereador) {
@@ -80,9 +80,9 @@ class InstitutionalAppointmentTest extends TestCase
     public function test_appointment_with_targets_reaches_only_the_listed_offices(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $membro = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $foraDaLista = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $membro = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $foraDaLista = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $compromisso = $this->compromisso($secretaria, ['titulo' => 'Reunião da comissão de finanças'], [$membro]);
 
         $this->agenda($this->usuario($membro))
@@ -103,12 +103,12 @@ class InstitutionalAppointmentTest extends TestCase
     public function test_offices_of_another_city_council_never_see_or_change_it(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
         $compromisso = $this->compromisso($secretaria);
         $outraCamara = $this->camara();
-        $outraSecretaria = $this->gabinete($outraCamara, GabineteType::LegislativeSecretariat);
-        $vereadorDeFora = $this->gabinete($outraCamara, GabineteType::CouncilorOffice);
-        $independente = Gabinete::factory()->create(['timezone' => self::TIMEZONE]);
+        $outraSecretaria = $this->gabinete($outraCamara, OfficeType::LegislativeSecretariat);
+        $vereadorDeFora = $this->gabinete($outraCamara, OfficeType::CouncilorOffice);
+        $independente = Office::factory()->create(['timezone' => self::TIMEZONE]);
 
         foreach ([$vereadorDeFora, $outraSecretaria, $independente] as $gabinete) {
             $user = $this->usuario($gabinete);
@@ -137,9 +137,9 @@ class InstitutionalAppointmentTest extends TestCase
     public function test_only_the_secretariat_creates_updates_and_deletes(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $outroVereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $outroVereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $admin = $this->usuario($secretaria);
 
         // Vereador não tem o módulo de gestão; auditor da Secretaria só lê.
@@ -211,13 +211,13 @@ class InstitutionalAppointmentTest extends TestCase
     public function test_targets_must_be_active_councilor_offices_of_the_same_city_council(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $setor = $this->gabinete($camara, GabineteType::AdministrativeDepartment);
-        $suspenso = Gabinete::factory()->suspended()->create([
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $setor = $this->gabinete($camara, OfficeType::AdministrativeDepartment);
+        $suspenso = Office::factory()->suspended()->create([
             'entidade_id' => $camara->id,
-            'tipo_gabinete' => GabineteType::CouncilorOffice,
+            'tipo_gabinete' => OfficeType::CouncilorOffice,
         ]);
-        $deFora = $this->gabinete($this->camara(), GabineteType::CouncilorOffice);
+        $deFora = $this->gabinete($this->camara(), OfficeType::CouncilorOffice);
 
         foreach ([$setor, $suspenso, $deFora, $secretaria] as $alvo) {
             $this->actingAs($this->usuario($secretaria))
@@ -238,11 +238,11 @@ class InstitutionalAppointmentTest extends TestCase
     public function test_committee_meeting_targets_only_the_active_members_of_the_committee(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $membroA = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $membroB = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $exMembro = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $foraDaComissao = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $membroA = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $membroB = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $exMembro = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $foraDaComissao = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $comissao = $this->comissao($camara, [$membroA, $membroB, $exMembro]);
         $comissao->membros()->where('gabinete_id', $exMembro->id)->update(['saiu_em' => '2026-10-01']);
         $admin = $this->usuario($secretaria);
@@ -288,10 +288,10 @@ class InstitutionalAppointmentTest extends TestCase
     public function test_committee_audience_is_a_snapshot_taken_when_linking(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $membroA = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $membroB = $this->gabinete($camara, GabineteType::CouncilorOffice);
-        $novato = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $membroA = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $membroB = $this->gabinete($camara, OfficeType::CouncilorOffice);
+        $novato = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $comissao = $this->comissao($camara, [$membroA, $membroB]);
         $outraComissao = $this->comissao($camara, [$novato], 'Comissão de Finanças');
         $admin = $this->usuario($secretaria);
@@ -351,10 +351,10 @@ class InstitutionalAppointmentTest extends TestCase
     public function test_committee_must_be_an_active_committee_of_the_same_city_council_with_members(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $outraCamara = $this->camara();
-        $deFora = $this->comissao($outraCamara, [$this->gabinete($outraCamara, GabineteType::CouncilorOffice)]);
+        $deFora = $this->comissao($outraCamara, [$this->gabinete($outraCamara, OfficeType::CouncilorOffice)]);
         $vazia = $this->comissao($camara, [], 'Comissão sem membros');
         $extinta = $this->comissao($camara, [$vereador], 'Comissão extinta');
         $extinta->forceFill(['status' => CommitteeStatus::Extinct])->save();
@@ -383,8 +383,8 @@ class InstitutionalAppointmentTest extends TestCase
     public function test_agenda_merges_institutional_items_with_appointments_and_events(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $user = $this->usuario($vereador);
         $at = fn (string $time) => CarbonImmutable::parse(self::DAY.' '.$time, self::TIMEZONE)->utc();
         $appointment = Appointment::factory()->forGabinete($vereador)->create([
@@ -398,7 +398,7 @@ class InstitutionalAppointmentTest extends TestCase
             'inicio_em' => $at('09:00'),
             'fim_em' => $at('12:00'),
         ]);
-        $event = Evento::factory()->forGabinete($vereador, $user, $user)->create([
+        $event = Event::factory()->forGabinete($vereador, $user, $user)->create([
             'tipo' => EventType::Assembly,
             'inicio_em' => $at('14:00'),
             'fim_em' => $at('16:00'),
@@ -438,8 +438,8 @@ class InstitutionalAppointmentTest extends TestCase
     public function test_secretariat_does_not_gain_access_to_councilor_private_agenda(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $privado = Appointment::factory()->forGabinete($vereador)->create([
             'inicio_em' => CarbonImmutable::parse(self::DAY.' 10:00', self::TIMEZONE)->utc(),
             'fim_em' => CarbonImmutable::parse(self::DAY.' 11:00', self::TIMEZONE)->utc(),
@@ -455,13 +455,13 @@ class InstitutionalAppointmentTest extends TestCase
     public function test_disabled_modules_hide_the_institutional_agenda(): void
     {
         $camara = $this->camara();
-        $secretaria = $this->gabinete($camara, GabineteType::LegislativeSecretariat);
-        $vereador = $this->gabinete($camara, GabineteType::CouncilorOffice);
+        $secretaria = $this->gabinete($camara, OfficeType::LegislativeSecretariat);
+        $vereador = $this->gabinete($camara, OfficeType::CouncilorOffice);
         $this->compromisso($secretaria);
 
-        EntidadeModulo::query()
+        EntityModuleSubscription::query()
             ->where('entidade_id', $camara->id)
-            ->where('modulo', EntidadeModule::LegislativeSecretariat->value)
+            ->where('modulo', EntityModule::LegislativeSecretariat->value)
             ->update(['ativo' => false]);
 
         foreach ([$vereador, $secretaria] as $gabinete) {
@@ -475,13 +475,13 @@ class InstitutionalAppointmentTest extends TestCase
             ->assertForbidden();
 
         // Com a Câmara ligada de novo, o vereador sem Agenda continua sem ver.
-        EntidadeModulo::query()
+        EntityModuleSubscription::query()
             ->where('entidade_id', $camara->id)
-            ->where('modulo', EntidadeModule::LegislativeSecretariat->value)
+            ->where('modulo', EntityModule::LegislativeSecretariat->value)
             ->update(['ativo' => true]);
-        GabineteModulo::query()
+        OfficeModuleSubscription::query()
             ->where('gabinete_id', $vereador->id)
-            ->where('modulo', GabineteModule::Schedule->value)
+            ->where('modulo', OfficeModule::Schedule->value)
             ->update(['ativo' => false]);
         // O cache de módulos vale por requisição; a próxima começa limpa.
         app()->forgetScopedInstances();
@@ -498,39 +498,39 @@ class InstitutionalAppointmentTest extends TestCase
             ->assertOk();
     }
 
-    private function camara(): Entidade
+    private function camara(): Entity
     {
-        $camara = Entidade::factory()->create([
-            'tipo' => EntidadeType::CityCouncil,
+        $camara = Entity::factory()->create([
+            'tipo' => EntityType::CityCouncil,
             'interface_simplificada' => false,
         ]);
-        EntidadeModulo::query()
+        EntityModuleSubscription::query()
             ->where('entidade_id', $camara->id)
-            ->where('modulo', EntidadeModule::LegislativeSecretariat->value)
+            ->where('modulo', EntityModule::LegislativeSecretariat->value)
             ->update(['ativo' => true, 'ativado_em' => now()]);
 
         return $camara;
     }
 
-    private function gabinete(Entidade $entidade, GabineteType $tipo): Gabinete
+    private function gabinete(Entity $entidade, OfficeType $tipo): Office
     {
-        return Gabinete::factory()->create([
+        return Office::factory()->create([
             'entidade_id' => $entidade->id,
             'tipo_gabinete' => $tipo,
             'timezone' => self::TIMEZONE,
         ]);
     }
 
-    private function usuario(Gabinete $gabinete): User
+    private function usuario(Office $gabinete): User
     {
         return User::factory()->administrator()->forGabinete($gabinete)->create();
     }
 
     /**
      * @param  array<string, mixed>  $attributes
-     * @param  list<Gabinete>  $alvos
+     * @param  list<Office>  $alvos
      */
-    private function compromisso(Gabinete $secretaria, array $attributes = [], array $alvos = []): CompromissoInstitucional
+    private function compromisso(Office $secretaria, array $attributes = [], array $alvos = []): CompromissoInstitucional
     {
         return CompromissoInstitucional::factory()
             ->publishedBy($secretaria)
@@ -542,8 +542,8 @@ class InstitutionalAppointmentTest extends TestCase
             ]);
     }
 
-    /** @param  list<Gabinete>  $membros */
-    private function comissao(Entidade $entidade, array $membros, string $nome = 'Comissão de Educação'): ComissaoLegislativa
+    /** @param  list<Office>  $membros */
+    private function comissao(Entity $entidade, array $membros, string $nome = 'Comissão de Educação'): ComissaoLegislativa
     {
         $comissao = new ComissaoLegislativa;
         $comissao->forceFill([

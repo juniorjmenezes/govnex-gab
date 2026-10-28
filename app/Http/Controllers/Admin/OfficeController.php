@@ -4,23 +4,22 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\AccessRole;
 use App\Enums\DemandStatus;
-use App\Enums\EntidadeStatus;
-use App\Enums\EntidadeType;
-use App\Enums\GabineteModule;
-use App\Enums\GabineteStatus;
-use App\Enums\GabineteType;
+use App\Enums\EntityStatus;
+use App\Enums\EntityType;
+use App\Enums\OfficeModule;
+use App\Enums\OfficeStatus;
+use App\Enums\OfficeType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\OfficeRequest;
 use App\Http\Requests\Admin\UpdateOfficeModulesRequest;
 use App\Http\Requests\Admin\UpdateOfficeStatusRequest;
 use App\Jobs\SyncOfficeSectionVotesFromGovnexApi;
-use App\Models\Entidade;
-use App\Models\Gabinete;
-use App\Models\GabineteModulo;
-use App\Models\GabineteModuloEvento;
-use App\Models\SincronizacaoTse;
-use App\Services\Modules\GabineteModuleCatalog;
-use App\Services\Modules\GabineteModuleManager;
+use App\Models\Office;
+use App\Models\OfficeModuleEvent;
+use App\Models\OfficeModuleSubscription;
+use App\Models\TseSync;
+use App\Services\Modules\OfficeModuleCatalog;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\Politics\OfficeHolderCandidateResolver;
 use App\Services\Politics\TsePoliticalDataSyncService;
 use App\Support\PerPage;
@@ -39,7 +38,7 @@ use Inertia\Response;
  */
 class OfficeController extends Controller
 {
-    public function edit(Gabinete $office): Response
+    public function edit(Office $office): Response
     {
         $this->authorize('update', $office);
 
@@ -66,7 +65,7 @@ class OfficeController extends Controller
                 'state' => $office->entidade->estado,
                 'timezone' => $office->entidade->timezone,
                 'gabinetes_count' => $office->entidade->gabinetes()->withoutGlobalScopes()->count(),
-                'tipos_gabinete' => array_map(fn (GabineteType $gabineteType): array => [
+                'tipos_gabinete' => array_map(fn (OfficeType $gabineteType): array => [
                     'value' => $gabineteType->value,
                     'label' => $gabineteType->label(),
                     'leader_label' => $gabineteType->leaderLabel(),
@@ -77,7 +76,7 @@ class OfficeController extends Controller
 
     public function index(Request $request): Response
     {
-        $this->authorize('viewAny', Gabinete::class);
+        $this->authorize('viewAny', Office::class);
         abort_unless($request->user()->isRoot(), 403);
         $filters = [
             'q' => trim($request->string('q')->toString()),
@@ -85,7 +84,7 @@ class OfficeController extends Controller
             'estado' => strtoupper($request->string('estado')->toString()),
         ];
 
-        $paginator = Gabinete::withoutGlobalScopes()
+        $paginator = Office::withoutGlobalScopes()
             ->select('gabinetes.*')
             ->when($filters['q'] !== '', function (Builder $query) use ($filters): void {
                 $search = $filters['q'];
@@ -157,13 +156,13 @@ class OfficeController extends Controller
             ->paginate(PerPage::resolve($request, 15))
             ->withQueryString();
 
-        $syncsByOffice = SincronizacaoTse::query()
+        $syncsByOffice = TseSync::query()
             ->whereIn('gabinete_id', $paginator->getCollection()->pluck('id'))
             ->latest('id')
             ->get()
             ->groupBy('gabinete_id');
         $officeData = $paginator->getCollection()
-            ->map(fn (Gabinete $office): array => [
+            ->map(fn (Office $office): array => [
                 'id' => $office->id,
                 'name' => $office->nome,
                 'slug' => $office->slug,
@@ -250,18 +249,18 @@ class OfficeController extends Controller
                 ],
                 'political_syncs' => $syncsByOffice
                     ->get($office->id, collect())
-                    ->unique(fn (SincronizacaoTse $sync): string => TsePoliticalDataSyncService::datasetHistoryKey(
+                    ->unique(fn (TseSync $sync): string => TsePoliticalDataSyncService::datasetHistoryKey(
                         $sync->dataset,
                         $sync->ano,
                         $sync->uf,
                     ))
                     ->take(10)
-                    ->map(fn (SincronizacaoTse $sync): array => $sync->toSummary())
+                    ->map(fn (TseSync $sync): array => $sync->toSummary())
                     ->values()
                     ->all(),
                 'modules' => $office->modulos
                     ->where('ativo', true)
-                    ->map(fn (GabineteModulo $setting): string => $setting->modulo->value)
+                    ->map(fn (OfficeModuleSubscription $setting): string => $setting->modulo->value)
                     ->values()
                     ->all(),
             ])
@@ -282,16 +281,16 @@ class OfficeController extends Controller
             'offices' => $offices,
             'filters' => $filters,
             'statuses' => array_map(
-                fn (GabineteStatus $status): array => [
+                fn (OfficeStatus $status): array => [
                     'value' => $status->value,
                     'label' => $status->label(),
                 ],
-                GabineteStatus::cases(),
+                OfficeStatus::cases(),
             ),
         ]);
     }
 
-    public function editModules(Gabinete $office, GabineteModuleCatalog $moduleCatalog): Response
+    public function editModules(Office $office, OfficeModuleCatalog $moduleCatalog): Response
     {
         $this->authorize('update', $office);
 
@@ -309,12 +308,12 @@ class OfficeController extends Controller
             ],
             'selectedModules' => $office->modulos
                 ->where('ativo', true)
-                ->map(fn (GabineteModulo $setting): string => $setting->modulo->value)
+                ->map(fn (OfficeModuleSubscription $setting): string => $setting->modulo->value)
                 ->values()
                 ->all(),
             'moduleCatalog' => array_values($moduleCatalog->definitions($office->tipo_gabinete)),
             'moduleHistory' => $office->moduloEventos
-                ->map(fn (GabineteModuloEvento $event): array => [
+                ->map(fn (OfficeModuleEvent $event): array => [
                     'id' => $event->id,
                     'module' => $event->modulo->value,
                     'action' => $event->acao,
@@ -328,8 +327,8 @@ class OfficeController extends Controller
 
     public function updateModules(
         UpdateOfficeModulesRequest $request,
-        Gabinete $office,
-        GabineteModuleManager $modules,
+        Office $office,
+        OfficeModuleManager $modules,
     ): RedirectResponse {
         $modules->sync($office, $request->validated('modules'), $request->user(), [
             'origem' => 'ADMIN_GABINETE',
@@ -345,10 +344,10 @@ class OfficeController extends Controller
 
     public function update(
         OfficeRequest $request,
-        Gabinete $office,
+        Office $office,
         OfficeHolderCandidateResolver $holderResolver,
         TsePoliticalDataSyncService $politicalDataSync,
-        GabineteModuleManager $modules,
+        OfficeModuleManager $modules,
     ): RedirectResponse {
         $validated = $request->validated();
         $municipalityChanged = $validated['municipio'] !== $office->municipio
@@ -375,7 +374,7 @@ class OfficeController extends Controller
 
             // Conta e vínculo do responsável vêm do Govnex Hub: esta tela não
             // cria nem altera usuário (docs/INTEGRACAO_GOVNEX_HUB.md).
-            if ($office->entidade?->tipo === EntidadeType::IndependentOffice) {
+            if ($office->entidade?->tipo === EntityType::IndependentOffice) {
                 $office->entidade->forceFill([
                     // Entidade ligada ao Hub recebe o nome de lá, por webhook.
                     ...($office->entidade->hub_entidade_id === null
@@ -391,7 +390,7 @@ class OfficeController extends Controller
         $office->refresh();
         $holderResolver->resolveOffice($office);
 
-        if ($municipalityChanged && $modules->isActive($office, GabineteModule::Politics)) {
+        if ($municipalityChanged && $modules->isActive($office, OfficeModule::Politics)) {
             SyncOfficeSectionVotesFromGovnexApi::dispatch($office->id);
         }
 
@@ -406,22 +405,22 @@ class OfficeController extends Controller
 
     public function updateStatus(
         UpdateOfficeStatusRequest $request,
-        Gabinete $office,
+        Office $office,
     ): RedirectResponse {
-        $status = GabineteStatus::from($request->validated('status'));
+        $status = OfficeStatus::from($request->validated('status'));
         $office->forceFill([
             'status' => $status,
-            'suspended_at' => $status === GabineteStatus::Suspended ? now() : null,
+            'suspended_at' => $status === OfficeStatus::Suspended ? now() : null,
         ])->save();
 
         // Situação de entidade ligada ao Hub é definida lá, por webhook.
-        if ($office->entidade?->tipo === EntidadeType::IndependentOffice
+        if ($office->entidade?->tipo === EntityType::IndependentOffice
             && $office->entidade->hub_entidade_id === null) {
             $office->entidade->forceFill([
-                'status' => $status === GabineteStatus::Active
-                    ? EntidadeStatus::Active
-                    : EntidadeStatus::Suspended,
-                'suspensa_em' => $status === GabineteStatus::Suspended ? now() : null,
+                'status' => $status === OfficeStatus::Active
+                    ? EntityStatus::Active
+                    : EntityStatus::Suspended,
+                'suspensa_em' => $status === OfficeStatus::Suspended ? now() : null,
             ])->save();
         }
 
@@ -432,7 +431,7 @@ class OfficeController extends Controller
         ]);
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => $status === GabineteStatus::Active
+            'message' => $status === OfficeStatus::Active
                 ? 'Gabinete reativado.'
                 : 'Gabinete suspenso. Os usuários serão bloqueados.',
         ]);

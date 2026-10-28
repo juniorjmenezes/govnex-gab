@@ -19,9 +19,9 @@ use App\Enums\WhatsAppPurpose;
 use App\Jobs\ProcessAppointmentReminder;
 use App\Models\Appointment;
 use App\Models\AppointmentReminder;
-use App\Models\Categoria;
-use App\Models\Demanda;
-use App\Models\Gabinete;
+use App\Models\Category;
+use App\Models\Demand;
+use App\Models\Office;
 use App\Models\WhatsAppConfiguration;
 use App\Models\WhatsAppContact;
 use App\Models\WhatsAppNotification;
@@ -162,7 +162,7 @@ final class RunWhatsAppLiveTest extends Command
      */
     private function executeStage(
         string $stage,
-        Gabinete $office,
+        Office $office,
         Collection $teamContacts,
         Collection $citizenContacts,
     ): void {
@@ -220,11 +220,11 @@ final class RunWhatsAppLiveTest extends Command
      * @param  Collection<int, WhatsAppContact>  $citizenContacts
      * @return list<int>
      */
-    private function runDemands(Gabinete $office, Collection $teamContacts, Collection $citizenContacts): array
+    private function runDemands(Office $office, Collection $teamContacts, Collection $citizenContacts): array
     {
         $users = $teamContacts->map->user->values();
         $citizens = $citizenContacts->map->citizen->values();
-        $category = Categoria::withoutGlobalScopes()
+        $category = Category::withoutGlobalScopes()
             ->where('gabinete_id', $office->id)
             ->where('ativo', true)
             ->orderBy('id')
@@ -258,14 +258,14 @@ final class RunWhatsAppLiveTest extends Command
         }
 
         $assigned = $this->notificationsForOrigins(
-            Demanda::class,
+            Demand::class,
             $demandIds,
             [WhatsAppPurpose::DemandAssigned],
         );
         $this->awaitSubmitted($assigned, 'demands-assigned', 3);
 
         foreach ($demandIds as $demandId) {
-            $demand = Demanda::withoutGlobalScopes()->findOrFail($demandId);
+            $demand = Demand::withoutGlobalScopes()->findOrFail($demandId);
             if ($demand->status === DemandStatus::New) {
                 app(TransitionDemandStatus::class)->handle($demand, DemandStatus::InProgress, $users[0]);
             } elseif ($demand->status !== DemandStatus::InProgress) {
@@ -273,7 +273,7 @@ final class RunWhatsAppLiveTest extends Command
             }
         }
         $status = $this->notificationsForOrigins(
-            Demanda::class,
+            Demand::class,
             $demandIds,
             [WhatsAppPurpose::DemandStatusChanged],
         );
@@ -281,7 +281,7 @@ final class RunWhatsAppLiveTest extends Command
 
         $observationIds = array_map('intval', (array) ($this->manifest['records']['observations'] ?? []));
         foreach ([0, 1] as $index) {
-            $demand = Demanda::withoutGlobalScopes()->findOrFail($demandIds[$index]);
+            $demand = Demand::withoutGlobalScopes()->findOrFail($demandIds[$index]);
             $author = $users[$index === 0 ? 1 : 0];
             $text = 'Registro complementar para continuidade do acompanhamento.';
             $existing = $demand->eventos()
@@ -298,7 +298,7 @@ final class RunWhatsAppLiveTest extends Command
             $this->saveManifest();
         }
         $observations = $this->notificationsForOrigins(
-            Demanda::class,
+            Demand::class,
             array_slice($demandIds, 0, 2),
             [WhatsAppPurpose::DemandObservationAdded],
         );
@@ -350,7 +350,7 @@ final class RunWhatsAppLiveTest extends Command
      * @return list<int>
      */
     private function runAgendaReminders(
-        Gabinete $office,
+        Office $office,
         Collection $teamContacts,
         Collection $citizenContacts,
     ): array {
@@ -590,7 +590,7 @@ final class RunWhatsAppLiveTest extends Command
      * @param  array<string, mixed>|null  $existing
      */
     private function preflight(
-        Gabinete $office,
+        Office $office,
         Collection $teamContacts,
         Collection $citizenContacts,
         ?array $existing,
@@ -652,7 +652,7 @@ final class RunWhatsAppLiveTest extends Command
      * @param  array<string, mixed>|null  $existing
      * @return array{Collection<int, WhatsAppContact>, Collection<int, WhatsAppContact>}
      */
-    private function contacts(Gabinete $office, ?array $existing): array
+    private function contacts(Office $office, ?array $existing): array
     {
         $teamIds = $existing['contacts']['team_ids'] ?? $this->integerOptions('team-contact');
         $citizenIds = $existing['contacts']['citizen_ids'] ?? $this->integerOptions('citizen-contact');
@@ -688,13 +688,13 @@ final class RunWhatsAppLiveTest extends Command
     }
 
     /** @param array<string, mixed>|null $existing */
-    private function office(string $value, ?array $existing): Gabinete
+    private function office(string $value, ?array $existing): Office
     {
         if ($existing !== null) {
-            return Gabinete::withoutGlobalScopes()->findOrFail((int) $existing['office']['id']);
+            return Office::withoutGlobalScopes()->findOrFail((int) $existing['office']['id']);
         }
         $normalized = Str::slug(trim($value));
-        $offices = Gabinete::withoutGlobalScopes()
+        $offices = Office::withoutGlobalScopes()
             ->where(fn ($query) => $query->where('slug', $normalized)->orWhere('nome', trim($value)))
             ->get();
         if ($offices->count() !== 1) {
@@ -710,7 +710,7 @@ final class RunWhatsAppLiveTest extends Command
      */
     private function showDryRun(
         string $runId,
-        Gabinete $office,
+        Office $office,
         Collection $teamContacts,
         Collection $citizenContacts,
     ): void {
@@ -862,7 +862,7 @@ final class RunWhatsAppLiveTest extends Command
      */
     private function newManifest(
         string $runId,
-        Gabinete $office,
+        Office $office,
         Collection $teamContacts,
         Collection $citizenContacts,
     ): array {

@@ -1,9 +1,9 @@
 <?php
 
 use App\Enums\AccessRole;
-use App\Enums\EntidadeType;
+use App\Enums\EntityType;
 use App\Enums\UserRole;
-use App\Models\Entidade;
+use App\Models\Entity;
 use App\Services\Hub\HubPapelMapper;
 use Illuminate\Support\Facades\Log;
 
@@ -46,8 +46,8 @@ it('reconhece root como papel que não é vínculo', function () {
 });
 
 it('administrador de gabinete só administra a entidade quando ela é gabinete independente', function () {
-    $independente = Entidade::factory()->create(['tipo' => EntidadeType::IndependentOffice]);
-    $camara = Entidade::factory()->create(['tipo' => EntidadeType::CityCouncil]);
+    $independente = Entity::factory()->create(['tipo' => EntityType::IndependentOffice]);
+    $camara = Entity::factory()->create(['tipo' => EntityType::CityCouncil]);
 
     expect(papelMapper()->entidadeRoleDeUnidade(AccessRole::Administrator, $independente))->toBe(AccessRole::Administrator)
         ->and(papelMapper()->entidadeRoleDeUnidade(AccessRole::Administrator, $camara))->toBe(AccessRole::Operator)

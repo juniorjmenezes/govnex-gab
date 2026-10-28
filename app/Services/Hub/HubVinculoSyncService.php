@@ -3,10 +3,10 @@
 namespace App\Services\Hub;
 
 use App\Enums\AccessRole;
-use App\Models\Entidade;
-use App\Models\EntidadeMembro;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Models\Entity;
+use App\Models\EntityMember;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -123,7 +123,7 @@ class HubVinculoSyncService
     }
 
     /**
-     * Entidade ou unidade do vínculo que ainda não está espelhada é criada
+     * Entity ou unidade do vínculo que ainda não está espelhada é criada
      * sob demanda pela API do Hub (respeitando a habilitação do GAB na
      * entidade e os tipos com equivalente) — a fila não garante que o
      * `*.criada` chegue antes do vínculo. Fica fora da transação dos vínculos
@@ -176,7 +176,7 @@ class HubVinculoSyncService
             return null;
         }
 
-        $entidade = Entidade::query()->where('hub_entidade_id', $hubEntidadeId)->first();
+        $entidade = Entity::query()->where('hub_entidade_id', $hubEntidadeId)->first();
 
         if ($entidade === null) {
             // Nem sob demanda deu para espelhar (Hub fora do ar, GAB não
@@ -193,7 +193,7 @@ class HubVinculoSyncService
         $gabinete = null;
 
         if ($hubUnidadeId !== null) {
-            $gabinete = Gabinete::withoutGlobalScopes()
+            $gabinete = Office::withoutGlobalScopes()
                 ->where('entidade_id', $entidade->id)
                 ->where('hub_unidade_id', $hubUnidadeId)
                 ->first();
@@ -213,7 +213,7 @@ class HubVinculoSyncService
         $papelDeAcesso = $this->papeis->accessRole($papel);
 
         $this->escreverMembro(
-            EntidadeMembro::query()->firstOrNew([
+            EntityMember::query()->firstOrNew([
                 'entidade_id' => $entidade->id,
                 'usuario_id' => $user->id,
             ]),
@@ -225,7 +225,7 @@ class HubVinculoSyncService
 
         if ($gabinete !== null) {
             $this->escreverMembro(
-                GabineteMembro::query()->firstOrNew([
+                OfficeMember::query()->firstOrNew([
                     'gabinete_id' => $gabinete->id,
                     'usuario_id' => $user->id,
                 ]),
@@ -242,7 +242,7 @@ class HubVinculoSyncService
      * original — é a data de entrada da pessoa naquele contexto, não a data do
      * último evento que chegou.
      */
-    private function escreverMembro(EntidadeMembro|GabineteMembro $membro, AccessRole $papel, bool $ativo): void
+    private function escreverMembro(EntityMember|OfficeMember $membro, AccessRole $papel, bool $ativo): void
     {
         $membro->forceFill([
             'papel' => $papel,
@@ -258,13 +258,13 @@ class HubVinculoSyncService
      */
     private function desativarAusentes(User $user, array $entidadesVistas, array $gabinetesVistos): void
     {
-        GabineteMembro::query()
+        OfficeMember::query()
             ->where('usuario_id', $user->id)
             ->where('ativo', true)
             ->when($gabinetesVistos !== [], fn ($q) => $q->whereNotIn('gabinete_id', $gabinetesVistos))
             ->update(['ativo' => false, 'desativado_em' => now()]);
 
-        EntidadeMembro::query()
+        EntityMember::query()
             ->where('usuario_id', $user->id)
             ->where('ativo', true)
             ->when($entidadesVistas !== [], fn ($q) => $q->whereNotIn('entidade_id', $entidadesVistas))
@@ -277,14 +277,14 @@ class HubVinculoSyncService
      *
      * `users.role` e `users.gabinete_id` continuam sendo o que Policies, filas,
      * comandos e notificações leem fora de uma requisição com contexto
-     * resolvido (ver `ResolveEntidadeContext`). Enquanto essa dívida existir,
+     * resolvido (ver `ResolveEntityContext`). Enquanto essa dívida existir,
      * eles precisam refletir algum vínculo real — e o critério é o mesmo da
      * entrada pós-login: o vínculo ativo mais antigo.
      *
      * Root fica de fora: é conta local de emergência (decisão #6) e não pertence
      * a gabinete nenhum.
      *
-     * A gravação é silenciosa de propósito. `UserEntidadeMembershipObserver`
+     * A gravação é silenciosa de propósito. `UserEntityMembershipObserver`
      * reescreveria os vínculos a partir de `role`/`gabinete_id` — o caminho
      * inverso deste — e, com o Hub como fonte da verdade, dois escritores para
      * a mesma linha só produziriam disputa. O observer continua valendo para as
@@ -296,7 +296,7 @@ class HubVinculoSyncService
             return;
         }
 
-        $principal = GabineteMembro::query()
+        $principal = OfficeMember::query()
             ->where('usuario_id', $user->id)
             ->where('ativo', true)
             ->orderBy('ingressou_em')

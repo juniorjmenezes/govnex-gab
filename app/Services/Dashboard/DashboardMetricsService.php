@@ -7,22 +7,22 @@ use App\Enums\AppointmentStatus;
 use App\Enums\CommitteeStatus;
 use App\Enums\DemandOrigin;
 use App\Enums\DemandStatus;
-use App\Enums\EntidadeModule;
-use App\Enums\GabineteModule;
-use App\Enums\GabineteType;
+use App\Enums\EntityModule;
+use App\Enums\OfficeModule;
+use App\Enums\OfficeType;
 use App\Models\Appointment;
-use App\Models\Bairro;
-use App\Models\Categoria;
-use App\Models\Cidadao;
+use App\Models\Category;
+use App\Models\Citizen;
 use App\Models\ComissaoLegislativa;
 use App\Models\ComissaoMembro;
 use App\Models\CompromissoInstitucional;
-use App\Models\ConhecimentoDocumento;
-use App\Models\Demanda;
-use App\Models\DemandaEvento;
-use App\Models\Gabinete;
+use App\Models\Demand;
+use App\Models\DemandEvent;
+use App\Models\KnowledgeDocument;
+use App\Models\Neighborhood;
+use App\Models\Office;
 use App\Models\User;
-use App\Services\Modules\EntidadeModuleManager;
+use App\Services\Modules\EntityModuleManager;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -37,7 +37,7 @@ class DashboardMetricsService
     /** @var list<string> */
     private array $openStatuses;
 
-    public function __construct(private readonly EntidadeModuleManager $entidadeModules)
+    public function __construct(private readonly EntityModuleManager $entidadeModules)
     {
         $this->openStatuses = DemandStatus::openValues();
     }
@@ -49,17 +49,17 @@ class DashboardMetricsService
         int $period,
         string $timezone = 'America/Sao_Paulo',
         array $activeModules = [],
-        ?Gabinete $gabinete = null,
+        ?Office $gabinete = null,
     ): array {
         $now = CarbonImmutable::now();
         $start = $now->subDays($period - 1)->startOfDay();
         $capabilities = [
-            'relationship' => in_array(GabineteModule::Relationship->value, $activeModules, true),
-            'demands' => in_array(GabineteModule::Demands->value, $activeModules, true),
-            'schedule' => in_array(GabineteModule::Schedule->value, $activeModules, true),
-            'politics' => in_array(GabineteModule::Politics->value, $activeModules, true),
-            'whatsapp' => in_array(GabineteModule::WhatsApp->value, $activeModules, true),
-            'legislativeSecretariat' => $gabinete?->tipo_gabinete === GabineteType::LegislativeSecretariat,
+            'relationship' => in_array(OfficeModule::Relationship->value, $activeModules, true),
+            'demands' => in_array(OfficeModule::Demands->value, $activeModules, true),
+            'schedule' => in_array(OfficeModule::Schedule->value, $activeModules, true),
+            'politics' => in_array(OfficeModule::Politics->value, $activeModules, true),
+            'whatsapp' => in_array(OfficeModule::WhatsApp->value, $activeModules, true),
+            'legislativeSecretariat' => $gabinete?->tipo_gabinete === OfficeType::LegislativeSecretariat,
         ];
 
         if (! $capabilities['demands']) {
@@ -83,7 +83,7 @@ class DashboardMetricsService
                     'for_today' => 0,
                     'overdue' => 0,
                     'resolved_month' => 0,
-                    'citizens' => $capabilities['relationship'] ? Cidadao::query()->count() : 0,
+                    'citizens' => $capabilities['relationship'] ? Citizen::query()->count() : 0,
                     'average_resolution_hours' => null,
                     'near_deadline' => 0,
                     'resolved_period' => 0,
@@ -109,18 +109,18 @@ class DashboardMetricsService
             ];
         }
 
-        $periodQuery = fn (): Builder => Demanda::query()->where('aberta_em', '>=', $start);
-        $statusCounts = Demanda::query()
+        $periodQuery = fn (): Builder => Demand::query()->where('aberta_em', '>=', $start);
+        $statusCounts = Demand::query()
             ->selectRaw('status, COUNT(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $overdueQuery = fn (): Builder => Demanda::query()
+        $overdueQuery = fn (): Builder => Demand::query()
             ->whereIn('status', $this->openStatuses)
             ->whereNotNull('prazo')
             ->where('prazo', '<', $now);
 
-        $upcomingQuery = fn (): Builder => Demanda::query()
+        $upcomingQuery = fn (): Builder => Demand::query()
             ->whereIn('status', $this->openStatuses)
             ->whereBetween('prazo', [$now, $now->addDays(7)]);
 
@@ -151,16 +151,16 @@ class DashboardMetricsService
                 'new' => (int) ($statusCounts[DemandStatus::New->value] ?? 0),
                 'in_progress' => (int) ($statusCounts[DemandStatus::InProgress->value] ?? 0),
                 'awaiting' => (int) ($statusCounts[DemandStatus::Awaiting->value] ?? 0),
-                'for_today' => Demanda::query()
+                'for_today' => Demand::query()
                     ->whereNull('proxima_acao_concluida_em')
                     ->whereDate('proxima_acao_data', $now->toDateString())
                     ->count(),
                 'overdue' => $overdue,
-                'resolved_month' => Demanda::query()
+                'resolved_month' => Demand::query()
                     ->where('status', DemandStatus::Resolved)
                     ->whereBetween('concluida_em', [$now->startOfMonth(), $now])
                     ->count(),
-                'citizens' => Cidadao::query()->count(),
+                'citizens' => Citizen::query()->count(),
                 'average_resolution_hours' => $this->averageResolutionHours($start),
                 'near_deadline' => $nearDeadline,
                 'resolved_period' => $trends['resolved_period']['current'],
@@ -172,8 +172,8 @@ class DashboardMetricsService
                     'label' => $status->label(),
                     'total' => (int) ($statusCounts[$status->value] ?? 0),
                 ]),
-                'category' => $this->relationDistribution($periodQuery(), 'categoria_id', Categoria::class, 'nome'),
-                'neighborhood' => $this->relationDistribution($periodQuery(), 'bairro_id', Bairro::class, 'nome', 'Não informado'),
+                'category' => $this->relationDistribution($periodQuery(), 'categoria_id', Category::class, 'nome'),
+                'neighborhood' => $this->relationDistribution($periodQuery(), 'bairro_id', Neighborhood::class, 'nome', 'Não informado'),
                 'responsible' => $this->relationDistribution($periodQuery(), 'responsavel_id', User::class, 'name', 'Não atribuído'),
                 'origin' => $this->enumDistribution($periodQuery(), 'origem', DemandOrigin::cases()),
                 'monthly' => $this->monthlyEvolution($start, $now),
@@ -188,13 +188,13 @@ class DashboardMetricsService
                 ->limit(6)
                 ->get()),
             'upcomingDeadlines' => $this->demandCards($upcomingQuery()->orderBy('prazo')->limit(6)->get()),
-            'recentActivity' => DemandaEvento::query()
+            'recentActivity' => DemandEvent::query()
                 ->where('created_at', '>=', $start)
                 ->with(['demanda:id,protocolo,titulo', 'usuario:id,name'])
                 ->latest('created_at')
                 ->limit(8)
                 ->get()
-                ->map(fn (DemandaEvento $event): array => [
+                ->map(fn (DemandEvent $event): array => [
                     'id' => $event->id,
                     'event' => $event->tipo->value,
                     'description' => $event->descricao ?? $event->tipo->label(),
@@ -219,7 +219,7 @@ class DashboardMetricsService
      * @return array<string, mixed>
      */
     private function buildLegislativeSecretariat(
-        Gabinete $gabinete,
+        Office $gabinete,
         string $timezone,
         array $capabilities,
         int $period,
@@ -275,7 +275,7 @@ class DashboardMetricsService
                         ->where('entidade_id', $gabinete->entidade_id)
                         ->where('status', CommitteeStatus::Active))
                     ->count(),
-                'recent_documents' => ConhecimentoDocumento::query()
+                'recent_documents' => KnowledgeDocument::query()
                     ->visibleTo($gabinete->id, $gabinete->entidade_id)
                     ->where('created_at', '>=', $start)
                     ->count(),
@@ -292,7 +292,7 @@ class DashboardMetricsService
      * compromissos próprios recorrentes passam pela mesma expansão de
      * ocorrências usada em `upcomingAppointments()`.
      */
-    private function appointmentsTodayForGabinete(Gabinete $gabinete, string $timezone): int
+    private function appointmentsTodayForGabinete(Office $gabinete, string $timezone): int
     {
         $localToday = CarbonImmutable::now($timezone)->startOfDay();
         $rangeStart = $localToday->utc();
@@ -323,7 +323,7 @@ class DashboardMetricsService
             ))
             ->count();
 
-        $institutionalEnabled = $this->entidadeModules->isActive($gabinete->entidade_id, EntidadeModule::LegislativeSecretariat);
+        $institutionalEnabled = $this->entidadeModules->isActive($gabinete->entidade_id, EntityModule::LegislativeSecretariat);
         $institutional = $institutionalEnabled
             ? CompromissoInstitucional::query()
                 ->visibleTo($gabinete)
@@ -549,7 +549,12 @@ class DashboardMetricsService
             array_push($bindings, $at($from), $at($edge));
         }
 
-        $row = (array) Demanda::query()->toBase()->selectRaw(implode(', ', $columns), $bindings)->first();
+        // implode() perde o tipo literal-string dos elementos de $columns
+        // pro PHPStan, mas cada um só combina fragmentos fixos com o índice
+        // inteiro do loop — nenhum dado de requisição entra no texto; os
+        // valores de verdade vão parametrizados em $bindings.
+        // @phpstan-ignore-next-line argument.type
+        $row = (array) Demand::query()->toBase()->selectRaw(implode(', ', $columns), $bindings)->first();
         $value = fn (string $key): int => (int) ($row[$key] ?? 0);
         $points = range(1, self::SPARKLINE_POINTS);
         $stock = function (string $prefix, int $currentValue) use ($value, $points): array {
@@ -584,8 +589,12 @@ class DashboardMetricsService
             $bindings[] = $edge->format('Y-m-d H:i:s');
         }
 
-        $row = (array) Cidadao::query()->toBase()->selectRaw(implode(', ', $columns), $bindings)->first();
-        $current = Cidadao::query()->count();
+        // Mesmo caso de demandTrends() acima: implode() perde o
+        // literal-string, mas $columns só combina texto fixo com o índice
+        // inteiro do loop.
+        // @phpstan-ignore-next-line argument.type
+        $row = (array) Citizen::query()->toBase()->selectRaw(implode(', ', $columns), $bindings)->first();
+        $current = Citizen::query()->count();
         $series = array_map(fn (int $index): int => (int) ($row["total_{$index}"] ?? 0), range(1, self::SPARKLINE_POINTS));
         $series[array_key_last($series)] = $current;
 
@@ -594,7 +603,7 @@ class DashboardMetricsService
 
     private function averageResolutionHours(CarbonImmutable $start): ?float
     {
-        $query = Demanda::query()
+        $query = Demand::query()
             ->whereNotNull('concluida_em')
             ->where('concluida_em', '>=', $start);
 
@@ -608,8 +617,8 @@ class DashboardMetricsService
     }
 
     /**
-     * @param  Builder<Demanda>  $query
-     * @param  class-string<Categoria|Bairro|User>  $model
+     * @param  Builder<Demand>  $query
+     * @param  class-string<Category|Neighborhood|User>  $model
      * @return Collection<int, array{key: string, label: string, total: int}>
      */
     private function relationDistribution(
@@ -627,7 +636,7 @@ class DashboardMetricsService
         $ids = $rows->pluck($foreignKey)->filter()->values();
         $labels = $model::query()->whereIn('id', $ids)->pluck($labelColumn, 'id');
 
-        return $rows->map(fn (Demanda $row): array => [
+        return $rows->map(fn (Demand $row): array => [
             'key' => (string) ($row->getAttribute($foreignKey) ?? 'none'),
             'label' => (string) ($labels[$row->getAttribute($foreignKey)] ?? $nullLabel),
             'total' => (int) $row->getAttribute('total'),
@@ -635,7 +644,7 @@ class DashboardMetricsService
     }
 
     /**
-     * @param  Builder<Demanda>  $query
+     * @param  Builder<Demand>  $query
      * @param  array<int, DemandOrigin>  $cases
      * @return Collection<int, array{key: string, label: string, total: int}>
      */
@@ -657,13 +666,18 @@ class DashboardMetricsService
         $expression = DB::connection()->getDriverName() === 'sqlite'
             ? "strftime('%Y-%m', aberta_em)"
             : "DATE_FORMAT(aberta_em, '%Y-%m')";
-        $counts = Demanda::query()
+        $counts = Demand::query()
             ->where('aberta_em', '>=', $chartStart)
             ->selectRaw("{$expression} as month_key, COUNT(*) as total")
             ->groupBy('month_key')
             ->pluck('total', 'month_key');
-        $resolvedExpression = str_replace('aberta_em', 'concluida_em', $expression);
-        $resolvedCounts = Demanda::query()
+        // Repete o ternário em vez de `str_replace($expression, ...)`: dá o
+        // mesmo SQL, mas o PHPStan só reconhece como `literal-string` uma
+        // string montada direto de literais, não transformada em runtime.
+        $resolvedExpression = DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('%Y-%m', concluida_em)"
+            : "DATE_FORMAT(concluida_em, '%Y-%m')";
+        $resolvedCounts = Demand::query()
             ->where('concluida_em', '>=', $chartStart)
             ->selectRaw("{$resolvedExpression} as month_key, COUNT(*) as total")
             ->groupBy('month_key')
@@ -684,7 +698,7 @@ class DashboardMetricsService
     }
 
     /**
-     * @param  EloquentCollection<int, Demanda>  $demands
+     * @param  EloquentCollection<int, Demand>  $demands
      * @return array<int, array<string, mixed>>
      */
     private function demandCards(EloquentCollection $demands): array
@@ -695,7 +709,7 @@ class DashboardMetricsService
             'responsavel:id,name',
         ]);
 
-        return $demands->map(fn (Demanda $demand): array => [
+        return $demands->map(fn (Demand $demand): array => [
             'id' => $demand->id,
             'protocol' => $demand->protocolo,
             'title' => $demand->titulo,

@@ -5,14 +5,14 @@ namespace App\Services\Politics;
 use App\Enums\CandidateScope;
 use App\Enums\ElectionType;
 use App\Jobs\SyncOfficeSectionVotesFromGovnexApi;
-use App\Models\CandidatoFavorito;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\Gabinete;
+use App\Models\Candidate;
+use App\Models\Election;
+use App\Models\FavoriteCandidate;
+use App\Models\Office;
 
 class OfficeHolderCandidateResolver
 {
-    public function resolveOffice(Gabinete $office): ?CandidatoPolitico
+    public function resolveOffice(Office $office): ?Candidate
     {
         $number = $office->numero_eleitoral;
 
@@ -22,13 +22,13 @@ class OfficeHolderCandidateResolver
             return null;
         }
 
-        $election = Eleicao::query()
+        $election = Election::query()
             ->where('tipo', ElectionType::Municipal)
             ->whereDate('primeiro_turno_em', '<=', today())
             ->latest('primeiro_turno_em')
             ->first();
         $candidate = $election
-            ? CandidatoPolitico::query()
+            ? Candidate::query()
                 ->where('eleicao_id', $election->id)
                 ->where('abrangencia', CandidateScope::Municipal)
                 ->where('municipio_eleitoral_id', $office->municipio_eleitoral_id)
@@ -41,7 +41,7 @@ class OfficeHolderCandidateResolver
             'candidato_titular_id' => $candidate?->id,
         ])->save();
 
-        if ($candidate instanceof CandidatoPolitico) {
+        if ($candidate instanceof Candidate) {
             $this->favorite($office, $candidate);
         }
 
@@ -59,9 +59,9 @@ class OfficeHolderCandidateResolver
      * gabinete. E sem escopo de tenant — isto roda em job e em importação,
      * onde não há sessão para o escopo global resolver o gabinete.
      */
-    private function favorite(Gabinete $office, CandidatoPolitico $candidate): void
+    private function favorite(Office $office, Candidate $candidate): void
     {
-        $exists = CandidatoFavorito::withoutGlobalScopes()
+        $exists = FavoriteCandidate::withoutGlobalScopes()
             ->where('gabinete_id', $office->id)
             ->where('candidato_politico_id', $candidate->id)
             ->exists();
@@ -70,7 +70,7 @@ class OfficeHolderCandidateResolver
             return;
         }
 
-        CandidatoFavorito::withoutGlobalScopes()->forceCreate([
+        FavoriteCandidate::withoutGlobalScopes()->forceCreate([
             'gabinete_id' => $office->id,
             'candidato_politico_id' => $candidate->id,
             'escolhido_por_id' => null,
@@ -92,15 +92,15 @@ class OfficeHolderCandidateResolver
     {
         $resolved = 0;
 
-        Gabinete::withoutGlobalScopes()
+        Office::withoutGlobalScopes()
             ->whereNotNull('numero_eleitoral')
             ->when($officeId !== null, fn ($query) => $query->whereKey($officeId))
             ->get()
-            ->each(function (Gabinete $office) use (&$resolved): void {
+            ->each(function (Office $office) use (&$resolved): void {
                 $previousId = $office->candidato_titular_id;
                 $candidate = $this->resolveOffice($office);
 
-                if (! $candidate instanceof CandidatoPolitico) {
+                if (! $candidate instanceof Candidate) {
                     return;
                 }
 

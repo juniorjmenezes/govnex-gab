@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\Eleicao;
-use App\Models\PesquisaEleitoral;
-use App\Models\ResultadoPesquisaEleitoral;
+use App\Models\Election;
+use App\Models\ElectoralPoll;
+use App\Models\ElectoralPollResult;
 use App\Services\Politics\Polls\MediaCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -65,15 +65,15 @@ class MediaCalculatorTest extends TestCase
     /** @return list<array{candidato_politico_id: int|null, nome: string, partido: string|null, media: float, pesquisas_incluidas: int, amostra_total: int}> */
     private function calcular(): array
     {
-        $pesquisas = PesquisaEleitoral::query()->with('resultados')->get();
+        $pesquisas = ElectoralPoll::query()->with('resultados')->get();
 
         return (new MediaCalculator)->calcular($pesquisas);
     }
 
-    private function poll(int $sampleSize, int $publishedDaysAgo, float $percentual): PesquisaEleitoral
+    private function poll(int $sampleSize, int $publishedDaysAgo, float $percentual): ElectoralPoll
     {
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
-        $poll = PesquisaEleitoral::query()->create([
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
+        $poll = ElectoralPoll::query()->create([
             'eleicao_id' => $election->id,
             'external_id' => (string) Str::uuid(),
             'external_election_id' => (string) Str::uuid(),
@@ -86,7 +86,7 @@ class MediaCalculatorTest extends TestCase
             'fonte_url' => 'https://exemplo.test',
         ]);
 
-        ResultadoPesquisaEleitoral::query()->create([
+        ElectoralPollResult::query()->create([
             'pesquisa_eleitoral_id' => $poll->id,
             'external_candidate_id' => 'cand-1',
             'candidato_nome' => 'Fulano',

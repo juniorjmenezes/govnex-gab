@@ -1,7 +1,7 @@
 <?php
 
-use App\Enums\EntidadeModule;
-use App\Enums\EntidadeQuota;
+use App\Enums\EntityModule;
+use App\Enums\EntityQuota;
 use App\Enums\LicenseStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -101,18 +101,18 @@ return new class extends Migration
 
     /**
      * Cria o plano de referência "LEGADO_COMPLETO" consumido por
-     * EntidadeEntitlementService::provisionLegacyCompatible() sempre que uma
+     * EntityEntitlementService::provisionLegacyCompatible() sempre que uma
      * nova entidade independente é criada (cadastro administrativo e seeder).
      */
     private function seedLegacyCompatiblePlan(): void
     {
         $now = now();
-        $modules = array_column(EntidadeModule::cases(), 'value');
+        $modules = array_column(EntityModule::cases(), 'value');
         $quotas = [
-            EntidadeQuota::ActiveGabinetes->value => null,
-            EntidadeQuota::ActiveUsers->value => null,
-            EntidadeQuota::StorageBytes->value => null,
-            EntidadeQuota::MonthlyWhatsAppMessages->value => null,
+            EntityQuota::ActiveGabinetes->value => null,
+            EntityQuota::ActiveUsers->value => null,
+            EntityQuota::StorageBytes->value => null,
+            EntityQuota::MonthlyWhatsAppMessages->value => null,
         ];
 
         $planId = DB::table('planos_comerciais')->insertGetId([

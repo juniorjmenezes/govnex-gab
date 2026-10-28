@@ -3,8 +3,8 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\WhatsAppPurpose;
-use App\Models\Entidade;
-use App\Models\Gabinete;
+use App\Models\Entity;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -23,7 +23,7 @@ class WhatsAppAdminTest extends TestCase
     }
 
     /**
-     * `Entidade::getRouteKeyName()` é `slug`, não `id` — as rotas
+     * `Entity::getRouteKeyName()` é `slug`, não `id` — as rotas
      * `whatsapp/entidades/{entidade}/...` só resolvem com o slug na URL.
      * `selectedEntidade.id` usado nessas URLs (em vez de `.slug`) 404ava
      * sempre, porque a comparação cai para a coluna `slug`, não `id`.
@@ -31,8 +31,8 @@ class WhatsAppAdminTest extends TestCase
     public function test_index_exposes_the_entidade_slug_needed_for_the_connection_routes(): void
     {
         $root = User::factory()->root()->create();
-        $entidade = Entidade::factory()->create();
-        $gabinete = Gabinete::factory()->create(['entidade_id' => $entidade->id]);
+        $entidade = Entity::factory()->create();
+        $gabinete = Office::factory()->create(['entidade_id' => $entidade->id]);
 
         $this->actingAs($root)
             ->get(route('admin.whatsapp.index', ['gabinete_id' => $gabinete->id]))
@@ -46,7 +46,7 @@ class WhatsAppAdminTest extends TestCase
     public function test_consult_accounts_resolves_by_entidade_slug(): void
     {
         $root = User::factory()->root()->create();
-        $entidade = Entidade::factory()->create();
+        $entidade = Entity::factory()->create();
 
         $this->actingAs($root)
             ->post("/admin/whatsapp/entidades/{$entidade->slug}/contas/consultar")
@@ -57,7 +57,7 @@ class WhatsAppAdminTest extends TestCase
     public function test_consult_accounts_404s_for_a_numeric_id_instead_of_the_slug(): void
     {
         $root = User::factory()->root()->create();
-        $entidade = Entidade::factory()->create();
+        $entidade = Entity::factory()->create();
 
         $this->actingAs($root)
             ->post("/admin/whatsapp/entidades/{$entidade->id}/contas/consultar")
@@ -73,7 +73,7 @@ class WhatsAppAdminTest extends TestCase
     {
         config(['whatsapp.request_secret' => null]);
         $root = User::factory()->root()->create();
-        $entidade = Entidade::factory()->create();
+        $entidade = Entity::factory()->create();
 
         $this->actingAs($root)
             ->post("/admin/whatsapp/entidades/{$entidade->slug}/contas/consultar")
@@ -93,8 +93,8 @@ class WhatsAppAdminTest extends TestCase
     public function test_create_template_flashes_a_friendly_error_instead_of_crashing(): void
     {
         $root = User::factory()->root()->create();
-        $entidade = Entidade::factory()->create();
-        $office = Gabinete::factory()->create(['entidade_id' => $entidade->id]);
+        $entidade = Entity::factory()->create();
+        $office = Office::factory()->create(['entidade_id' => $entidade->id]);
         $purpose = WhatsAppPurpose::DemandAssigned;
         $this->readyEntidadeWhatsAppTemplate($office, $purpose);
 
@@ -118,8 +118,8 @@ class WhatsAppAdminTest extends TestCase
     public function test_activate_template_status_flashes_a_friendly_error_for_an_unapproved_template(): void
     {
         $root = User::factory()->root()->create();
-        $entidade = Entidade::factory()->create();
-        $office = Gabinete::factory()->create(['entidade_id' => $entidade->id]);
+        $entidade = Entity::factory()->create();
+        $office = Office::factory()->create(['entidade_id' => $entidade->id]);
         $template = $this->readyEntidadeWhatsAppTemplate($office, WhatsAppPurpose::DemandAssigned);
         $template->forceFill(['gateway_template_id' => null, 'ativo' => false])->save();
 

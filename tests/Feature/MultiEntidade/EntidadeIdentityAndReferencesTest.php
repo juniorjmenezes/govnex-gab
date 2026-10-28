@@ -3,10 +3,10 @@
 namespace Tests\Feature\MultiEntidade;
 
 use App\Enums\AccessRole;
-use App\Models\Bairro;
-use App\Models\EntidadeBairro;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Models\EntityNeighborhood;
+use App\Models\Neighborhood;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -27,7 +27,7 @@ class EntidadeIdentityAndReferencesTest extends TestCase
     public function test_entidade_manager_updates_identity_and_logo_without_changing_unit_identity(): void
     {
         Storage::fake('public');
-        $gabinete = Gabinete::factory()->create([
+        $gabinete = Office::factory()->create([
             'nome' => 'Gabinete parlamentar',
             'cor_principal' => '#334455',
         ]);
@@ -65,7 +65,7 @@ class EntidadeIdentityAndReferencesTest extends TestCase
 
     public function test_unprivileged_member_cannot_change_entidade_identity(): void
     {
-        $gabinete = Gabinete::factory()->create();
+        $gabinete = Office::factory()->create();
         $member = User::factory()->operator()->forGabinete($gabinete)->create();
 
         $this->actingAs($member)
@@ -82,18 +82,18 @@ class EntidadeIdentityAndReferencesTest extends TestCase
 
     public function test_shared_neighborhood_can_be_imported_by_two_units_without_sharing_private_records(): void
     {
-        $firstUnit = Gabinete::factory()->create([
+        $firstUnit = Office::factory()->create([
             'municipio' => 'Fortaleza',
             'estado' => 'CE',
         ]);
         $entidade = $firstUnit->entidade;
         $entidade->forceFill(['municipio' => 'Fortaleza', 'estado' => 'CE'])->save();
-        $secondUnit = Gabinete::factory()->for($entidade, 'entidade')->create([
+        $secondUnit = Office::factory()->for($entidade, 'entidade')->create([
             'municipio' => 'Fortaleza',
             'estado' => 'CE',
         ]);
         $manager = User::factory()->administrator()->forGabinete($firstUnit)->create();
-        GabineteMembro::query()->create([
+        OfficeMember::query()->create([
             'gabinete_id' => $secondUnit->id,
             'usuario_id' => $manager->id,
             'papel' => AccessRole::Administrator,
@@ -108,7 +108,7 @@ class EntidadeIdentityAndReferencesTest extends TestCase
             ])
             ->assertRedirect();
 
-        $reference = EntidadeBairro::query()->where('nome', 'Centro')->firstOrFail();
+        $reference = EntityNeighborhood::query()->where('nome', 'Centro')->firstOrFail();
 
         foreach ([$firstUnit, $secondUnit] as $gabinete) {
             $this->actingAs($manager)
@@ -120,7 +120,7 @@ class EntidadeIdentityAndReferencesTest extends TestCase
                 ->assertRedirect();
         }
 
-        $this->assertSame(2, Bairro::withoutGlobalScopes()
+        $this->assertSame(2, Neighborhood::withoutGlobalScopes()
             ->where('entidade_bairro_id', $reference->id)
             ->distinct()
             ->count('gabinete_id'));
@@ -129,8 +129,8 @@ class EntidadeIdentityAndReferencesTest extends TestCase
 
     public function test_reference_from_another_entidade_cannot_be_imported(): void
     {
-        $allowedUnit = Gabinete::factory()->create();
-        $blockedUnit = Gabinete::factory()->create();
+        $allowedUnit = Office::factory()->create();
+        $blockedUnit = Office::factory()->create();
         $user = User::factory()->administrator()->forGabinete($allowedUnit)->create();
         $reference = $blockedUnit->entidade->bairros()->create([
             'nome' => 'Outro bairro',

@@ -3,20 +3,20 @@
 namespace Tests\Feature;
 
 use App\Enums\CandidateScope;
-use App\Models\CandidatoPolitico;
-use App\Models\Cidadao;
-use App\Models\ComparecimentoEleitoralMunicipio;
-use App\Models\Eleicao;
-use App\Models\EleitoradoMunicipioSnapshot;
-use App\Models\Gabinete;
-use App\Models\MediaPesquisaEleitoral;
-use App\Models\MunicipioEleitoral;
-use App\Models\PartidoCor;
-use App\Models\PesquisaEleitoral;
-use App\Models\ResultadoPesquisaEleitoral;
-use App\Models\SincronizacaoTse;
+use App\Models\Candidate;
+use App\Models\CandidateMunicipalityVote;
+use App\Models\Citizen;
+use App\Models\Election;
+use App\Models\ElectoralMunicipality;
+use App\Models\ElectoralPoll;
+use App\Models\ElectoralPollAverage;
+use App\Models\ElectoralPollResult;
+use App\Models\ElectorateSnapshot;
+use App\Models\MunicipalElectionTurnout;
+use App\Models\Office;
+use App\Models\PartyColor;
+use App\Models\TseSync;
 use App\Models\User;
-use App\Models\VotacaoCandidatoMunicipio;
 use App\Services\Politics\OfficeHolderCandidateResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -32,16 +32,16 @@ class PoliticalPanelTest extends TestCase
      */
     public function test_selecting_a_past_municipal_election_shows_its_result_instead_of_polls(): void
     {
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '15890',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
+        $election = Election::query()->where('ano', 2024)->firstOrFail();
         $holder = $this->municipalCandidate($election, $municipality, '11555', 'MARCOS', 'PP');
         $winner = $this->municipalCandidate($election, $municipality, '22222', 'ANA', 'PT');
         $loser = $this->municipalCandidate($election, $municipality, '33333', 'JOAO', 'PT');
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'municipio' => 'Cruz',
             'estado' => 'CE',
             'municipio_eleitoral_id' => $municipality->id,
@@ -49,7 +49,7 @@ class PoliticalPanelTest extends TestCase
             'candidato_titular_id' => $holder->id,
         ]);
         $user = User::factory()->operator()->forGabinete($office)->create();
-        ComparecimentoEleitoralMunicipio::query()->create([
+        MunicipalElectionTurnout::query()->create([
             'municipio_eleitoral_id' => $municipality->id,
             'eleicao_id' => $election->id,
             'codigo_eleicao_tse' => '619',
@@ -61,7 +61,7 @@ class PoliticalPanelTest extends TestCase
             'abstencoes' => 200,
             'fonte_url' => 'https://dadosabertos.tse.jus.br/',
         ]);
-        PartidoCor::query()->create(['sigla' => 'PT', 'cor' => '#FF0000']);
+        PartyColor::query()->create(['sigla' => 'PT', 'cor' => '#FF0000']);
         $mayor = $this->municipalCandidate($election, $municipality, '15', 'MARIA', 'MDB', 'Prefeito');
         $defeatedMayor = $this->municipalCandidate($election, $municipality, '45', 'CARLOS', 'PSDB', 'Prefeito');
         $this->municipalVote($election, $municipality, $winner, 1_200, true);
@@ -70,7 +70,7 @@ class PoliticalPanelTest extends TestCase
         $this->municipalVote($election, $municipality, $mayor, 4_200, true);
         $this->municipalVote($election, $municipality, $defeatedMayor, 3_100, false);
 
-        $geral = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $geral = Election::query()->where('ano', 2026)->firstOrFail();
 
         $this->actingAs($user)
             ->get(route('politics.index', ['eleicao_id' => $election->id]))
@@ -125,19 +125,19 @@ class PoliticalPanelTest extends TestCase
     /** Sem votação nominal daquele município, não há apuração a mostrar. */
     public function test_the_municipal_result_is_absent_without_nominal_votes(): void
     {
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '15890',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'municipio' => 'Cruz',
             'estado' => 'CE',
             'municipio_eleitoral_id' => $municipality->id,
         ]);
         $user = User::factory()->operator()->forGabinete($office)->create();
 
-        $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
+        $election = Election::query()->where('ano', 2024)->firstOrFail();
 
         $this->actingAs($user)
             ->get(route('politics.index', ['eleicao_id' => $election->id]))
@@ -148,14 +148,14 @@ class PoliticalPanelTest extends TestCase
     }
 
     private function municipalCandidate(
-        Eleicao $election,
-        MunicipioEleitoral $municipality,
+        Election $election,
+        ElectoralMunicipality $municipality,
         string $number,
         string $ballotName,
         string $party,
         string $cargo = 'Vereador',
-    ): CandidatoPolitico {
-        return CandidatoPolitico::query()->create([
+    ): Candidate {
+        return Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => "6000{$number}",
             'abrangencia' => CandidateScope::Municipal->value,
@@ -170,13 +170,13 @@ class PoliticalPanelTest extends TestCase
     }
 
     private function municipalVote(
-        Eleicao $election,
-        MunicipioEleitoral $municipality,
-        CandidatoPolitico $candidate,
+        Election $election,
+        ElectoralMunicipality $municipality,
+        Candidate $candidate,
         int $votes,
         bool $elected,
-    ): VotacaoCandidatoMunicipio {
-        return VotacaoCandidatoMunicipio::query()->create([
+    ): CandidateMunicipalityVote {
+        return CandidateMunicipalityVote::query()->create([
             'candidato_politico_id' => $candidate->id,
             'municipio_eleitoral_id' => $municipality->id,
             'eleicao_id' => $election->id,
@@ -194,30 +194,30 @@ class PoliticalPanelTest extends TestCase
 
     public function test_panel_separates_official_electorate_from_internal_voters(): void
     {
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '13692',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'municipio' => 'Cruz',
             'estado' => 'CE',
             'municipio_eleitoral_id' => $municipality->id,
         ]);
-        $otherOffice = Gabinete::factory()->create();
+        $otherOffice = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        Cidadao::factory()->count(2)->forGabinete($office)->create(['eleitor' => true]);
-        Cidadao::factory()->forGabinete($office)->create(['eleitor' => false]);
-        Cidadao::factory()->forGabinete($otherOffice)->create(['eleitor' => true]);
-        EleitoradoMunicipioSnapshot::query()->create([
+        Citizen::factory()->count(2)->forGabinete($office)->create(['eleitor' => true]);
+        Citizen::factory()->forGabinete($office)->create(['eleitor' => false]);
+        Citizen::factory()->forGabinete($otherOffice)->create(['eleitor' => true]);
+        ElectorateSnapshot::query()->create([
             'municipio_eleitoral_id' => $municipality->id,
             'ano_referencia' => 2026,
             'data_referencia' => '2026-07-01',
             'eleitores_aptos' => 20_000,
             'fonte_url' => 'https://dadosabertos.tse.jus.br/',
         ]);
-        $lastElection = Eleicao::query()->where('ano', 2024)->firstOrFail();
-        ComparecimentoEleitoralMunicipio::query()->create([
+        $lastElection = Election::query()->where('ano', 2024)->firstOrFail();
+        MunicipalElectionTurnout::query()->create([
             'municipio_eleitoral_id' => $municipality->id,
             'eleicao_id' => $lastElection->id,
             'codigo_eleicao_tse' => '619',
@@ -241,7 +241,7 @@ class PoliticalPanelTest extends TestCase
             'numero_eleitoral' => '11555',
             'candidato_titular_id' => $holder->id,
         ])->save();
-        VotacaoCandidatoMunicipio::query()->create([
+        CandidateMunicipalityVote::query()->create([
             'candidato_politico_id' => $holder->id,
             'municipio_eleitoral_id' => $municipality->id,
             'eleicao_id' => $lastElection->id,
@@ -290,9 +290,9 @@ class PoliticalPanelTest extends TestCase
         // gravada com gabinete_id nulo (ver ElectionLifecycleService::syncDataset()).
         // O indicador do rodapé precisa achar essa sincronização mesmo sem
         // nenhum registro vinculado ao gabinete que está olhando o painel.
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
-        SincronizacaoTse::query()->create([
+        TseSync::query()->create([
             'gabinete_id' => null,
             'dataset' => 'electorate',
             'ano' => 2026,
@@ -302,7 +302,7 @@ class PoliticalPanelTest extends TestCase
             'iniciada_em' => now()->subHour(),
             'concluida_em' => now(),
         ]);
-        SincronizacaoTse::query()->create([
+        TseSync::query()->create([
             'gabinete_id' => null,
             'dataset' => 'candidates',
             'ano' => 2026,
@@ -313,8 +313,8 @@ class PoliticalPanelTest extends TestCase
         ]);
         // Sincronização de outro gabinete no mesmo dataset não deve ser
         // confundida com a global.
-        $otherOffice = Gabinete::factory()->create();
-        SincronizacaoTse::query()->create([
+        $otherOffice = Office::factory()->create();
+        TseSync::query()->create([
             'gabinete_id' => $otherOffice->id,
             'dataset' => 'electorate',
             'ano' => 2026,
@@ -334,23 +334,23 @@ class PoliticalPanelTest extends TestCase
 
     public function test_panel_lists_only_candidates_compatible_with_office_territory(): void
     {
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '13692',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        $otherMunicipality = MunicipioEleitoral::query()->create([
+        $otherMunicipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '13897',
             'nome' => 'Sobral',
             'uf' => 'CE',
         ]);
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'municipio' => 'Cruz',
             'estado' => 'CE',
             'municipio_eleitoral_id' => $municipality->id,
         ]);
         $user = User::factory()->administrator()->forGabinete($office)->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
         // Esse teste é sobre filtro de território, não sobre 2º turno: afasta
         // o 1º turno para não acionar o filtro de visibilidade pós-eleição
         // (ver visibleCandidates() em PoliticalPanelController).
@@ -383,14 +383,14 @@ class PoliticalPanelTest extends TestCase
      */
     public function test_resolving_a_titular_favorites_it_for_the_office(): void
     {
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '15890',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
+        $election = Election::query()->where('ano', 2024)->firstOrFail();
         $titular = $this->municipalCandidate($election, $municipality, '11555', 'MARCOS', 'PP');
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'municipio' => 'Cruz',
             'estado' => 'CE',
             'municipio_eleitoral_id' => $municipality->id,
@@ -411,14 +411,14 @@ class PoliticalPanelTest extends TestCase
     /** Desmarcar o titular desligaria notícias e destaque do próprio gabinete. */
     public function test_the_titular_cannot_be_removed_from_favorites(): void
     {
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '15890',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
+        $election = Election::query()->where('ano', 2024)->firstOrFail();
         $titular = $this->municipalCandidate($election, $municipality, '11555', 'MARCOS', 'PP');
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'municipio' => 'Cruz',
             'estado' => 'CE',
             'municipio_eleitoral_id' => $municipality->id,
@@ -447,9 +447,9 @@ class PoliticalPanelTest extends TestCase
 
     public function test_panel_lists_favorited_candidates_first(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
         // Esse teste é sobre ordenação por favorito, não sobre 2º turno: ver
         // comentário equivalente acima.
         $election->forceFill(['primeiro_turno_em' => today()->addMonths(6)])->save();
@@ -476,17 +476,17 @@ class PoliticalPanelTest extends TestCase
 
     public function test_candidate_party_color_matches_regardless_of_accent(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
         // Esse teste é sobre cor de partido, não sobre 2º turno: ver
         // comentário equivalente acima.
         $election->forceFill(['primeiro_turno_em' => today()->addMonths(6)])->save();
-        PartidoCor::query()->create(['sigla' => 'MISSÃO', 'cor' => '#FFD600']);
+        PartyColor::query()->create(['sigla' => 'MISSÃO', 'cor' => '#FFD600']);
 
         // O TSE publica a sigla sem acento ("MISSAO") em alguns datasets —
         // a cor cadastrada com acento ("MISSÃO") precisa valer do mesmo jeito.
-        $candidate = CandidatoPolitico::query()->create([
+        $candidate = Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => '1',
             'abrangencia' => CandidateScope::State,
@@ -507,12 +507,12 @@ class PoliticalPanelTest extends TestCase
 
     public function test_any_office_user_can_manage_favorites_and_offices_stay_isolated(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
-        $otherOffice = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
+        $otherOffice = Office::factory()->create(['estado' => 'CE']);
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
         $otherCouncilor = User::factory()->administrator()->forGabinete($otherOffice)->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
         $candidate = $this->candidate(
             $election,
             '10',
@@ -557,9 +557,9 @@ class PoliticalPanelTest extends TestCase
 
     public function test_councilor_cannot_favorite_candidate_outside_office_territory(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
         $candidate = $this->candidate(
             $election,
             '20',
@@ -576,9 +576,9 @@ class PoliticalPanelTest extends TestCase
 
     public function test_panel_exposes_state_polls_and_highlights_favorite_candidates(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
         // Esse teste é sobre pesquisa estadual e favoritos, não sobre 2º
         // turno: afasta o 1º turno pra não acionar o filtro de cargos
         // pós-eleição (ver PoliticalPanelController::polls()).
@@ -595,7 +595,7 @@ class PoliticalPanelTest extends TestCase
             'gabinete_id' => $office->id,
             'escolhido_por_id' => $councilor->id,
         ]);
-        $poll = PesquisaEleitoral::query()->create([
+        $poll = ElectoralPoll::query()->create([
             'eleicao_id' => $election->id,
             'external_id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
             'external_election_id' => '11111111-1111-4111-8111-111111111111',
@@ -610,7 +610,7 @@ class PoliticalPanelTest extends TestCase
             'fonte_url' => 'https://electiolab.test/api/v1/polls',
             'fonte_atualizada_em' => now(),
         ]);
-        ResultadoPesquisaEleitoral::query()->create([
+        ElectoralPollResult::query()->create([
             'pesquisa_eleitoral_id' => $poll->id,
             'external_candidate_id' => 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
             'candidato_politico_id' => $candidate->id,
@@ -618,7 +618,7 @@ class PoliticalPanelTest extends TestCase
             'partido_sigla' => 'ABC',
             'percentual' => 42.5,
         ]);
-        MediaPesquisaEleitoral::query()->create([
+        ElectoralPollAverage::query()->create([
             'eleicao_id' => $election->id,
             'external_id' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
             'external_election_id' => '11111111-1111-4111-8111-111111111111',
@@ -634,7 +634,7 @@ class PoliticalPanelTest extends TestCase
             'amostra_total' => 3600,
             'fonte_url' => 'https://electiolab.test/api/v1/averages',
         ]);
-        PesquisaEleitoral::query()->create([
+        ElectoralPoll::query()->create([
             'eleicao_id' => $election->id,
             'external_id' => 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
             'external_election_id' => '11111111-1111-4111-8111-111111111111',
@@ -674,9 +674,9 @@ class PoliticalPanelTest extends TestCase
      */
     public function test_polls_office_buttons_hide_senator_and_non_runoff_governor_after_first_round(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
         // Mantém a data real do seed: já passou do 1º turno (hoje é
         // posterior a primeiro_turno_em), que é justamente o cenário do bug.
         $this->assertTrue($election->primeiro_turno_em->lte(today()));
@@ -708,9 +708,9 @@ class PoliticalPanelTest extends TestCase
      */
     public function test_polls_office_buttons_keep_governor_when_the_office_state_went_to_runoff(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
         $this->assertTrue($election->primeiro_turno_em->lte(today()));
 
         $this->candidate($election, '53', CandidateScope::National, null, null, 'Presidente')
@@ -738,9 +738,9 @@ class PoliticalPanelTest extends TestCase
         // média consolidada em /averages). Sem o fallback, o filtro
         // whereIn(external_candidate_id, []) zera médias reais e já
         // calculadas.
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
         // Esse teste é sobre fallback de médias, não sobre 2º turno: ver
         // comentário equivalente acima.
         $election->forceFill(['primeiro_turno_em' => today()->addMonths(6)])->save();
@@ -753,7 +753,7 @@ class PoliticalPanelTest extends TestCase
             'Presidente',
         );
 
-        PesquisaEleitoral::query()->create([
+        ElectoralPoll::query()->create([
             'eleicao_id' => $election->id,
             'external_id' => 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
             'external_election_id' => '22222222-2222-4222-8222-222222222222',
@@ -768,7 +768,7 @@ class PoliticalPanelTest extends TestCase
             'fonte_url' => 'https://electiolab.test/api/v1/polls',
             'fonte_atualizada_em' => now(),
         ]);
-        MediaPesquisaEleitoral::query()->create([
+        ElectoralPollAverage::query()->create([
             'eleicao_id' => $election->id,
             'external_id' => 'ffffffff-ffff-4fff-8fff-ffffffffffff',
             'external_election_id' => '22222222-2222-4222-8222-222222222222',
@@ -803,9 +803,9 @@ class PoliticalPanelTest extends TestCase
         // detalhado bastam para o MediaCalculator produzir uma agregação
         // própria — nesse caso o painel deve preferi-la à /averages do
         // ElectioLab, mesmo que esta última também esteja disponível.
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
         // Esse teste é sobre qual média é usada, não sobre 2º turno: ver
         // comentário equivalente acima.
         $election->forceFill(['primeiro_turno_em' => today()->addMonths(6)])->save();
@@ -819,7 +819,7 @@ class PoliticalPanelTest extends TestCase
         );
 
         foreach ([['1111', 5, 40.0], ['2222', 10, 43.0]] as [$suffix, $daysAgo, $percentual]) {
-            $poll = PesquisaEleitoral::query()->create([
+            $poll = ElectoralPoll::query()->create([
                 'eleicao_id' => $election->id,
                 'external_id' => "poll-own-{$suffix}",
                 'external_election_id' => 'election-own',
@@ -832,7 +832,7 @@ class PoliticalPanelTest extends TestCase
                 'tamanho_amostra' => 1000,
                 'fonte_url' => 'https://electiolab.test/api/v1/polls',
             ]);
-            ResultadoPesquisaEleitoral::query()->create([
+            ElectoralPollResult::query()->create([
                 'pesquisa_eleitoral_id' => $poll->id,
                 'external_candidate_id' => 'candidate-own',
                 'candidato_politico_id' => $candidate->id,
@@ -844,7 +844,7 @@ class PoliticalPanelTest extends TestCase
 
         // Presente só para provar que deixa de ser usada: se o painel caísse
         // de volta ao ElectioLab por engano, este valor destoante apareceria.
-        MediaPesquisaEleitoral::query()->create([
+        ElectoralPollAverage::query()->create([
             'eleicao_id' => $election->id,
             'external_id' => 'average-electiolab',
             'external_election_id' => 'election-own',
@@ -878,18 +878,18 @@ class PoliticalPanelTest extends TestCase
      */
     public function test_panel_exposes_only_mayoral_polls_for_an_upcoming_municipal_election(): void
     {
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '13692',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'estado' => 'CE',
             'municipio' => 'Cruz',
             'municipio_eleitoral_id' => $municipality->id,
         ]);
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
-        $election = Eleicao::query()->where('ano', 2024)->firstOrFail();
+        $election = Election::query()->where('ano', 2024)->firstOrFail();
         // A eleição de 2024 já passou; o cenário aqui é o de uma eleição
         // municipal ainda por vir, que é quando a pesquisa importa.
         $election->forceFill(['primeiro_turno_em' => today()->addMonths(6)])->save();
@@ -905,7 +905,7 @@ class PoliticalPanelTest extends TestCase
             'gabinete_id' => $office->id,
             'escolhido_por_id' => $councilor->id,
         ]);
-        $poll = PesquisaEleitoral::query()->create([
+        $poll = ElectoralPoll::query()->create([
             'eleicao_id' => $election->id,
             'external_id' => '60606060-6060-4060-8060-606060606060',
             'external_election_id' => '70707070-7070-4070-8070-707070707070',
@@ -918,7 +918,7 @@ class PoliticalPanelTest extends TestCase
             'publicada_em' => '2024-09-20',
             'fonte_url' => 'https://electiolab.test/api/v1/polls',
         ]);
-        ResultadoPesquisaEleitoral::query()->create([
+        ElectoralPollResult::query()->create([
             'pesquisa_eleitoral_id' => $poll->id,
             'external_candidate_id' => '80808080-8080-4080-8080-808080808080',
             'candidato_politico_id' => $candidate->id,
@@ -940,14 +940,14 @@ class PoliticalPanelTest extends TestCase
     }
 
     private function candidate(
-        Eleicao $election,
+        Election $election,
         string $sequence,
         CandidateScope $scope,
         ?string $state,
         ?int $municipalityId,
         string $office,
-    ): CandidatoPolitico {
-        return CandidatoPolitico::query()->create([
+    ): Candidate {
+        return Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => $sequence,
             'abrangencia' => $scope,

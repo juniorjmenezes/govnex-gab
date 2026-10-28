@@ -6,10 +6,11 @@ use App\Enums\EventDuration;
 use App\Enums\EventStatus;
 use App\Enums\EventType;
 use App\Enums\UserRole;
-use App\Models\Cidadao;
-use App\Models\Evento;
-use App\Models\GabineteMembro;
+use App\Models\Citizen;
+use App\Models\Event;
+use App\Models\OfficeMember;
 use App\Models\User;
+use App\Tenancy\OfficeContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -20,15 +21,15 @@ class EventRequest extends FormRequest
     {
         $event = $this->route('evento');
 
-        return $event instanceof Evento
+        return $event instanceof Event
             ? $this->user()->can('update', $event)
-            : $this->user()->can('create', Evento::class);
+            : $this->user()->can('create', Event::class);
     }
 
     /** @return array<string, array<int, mixed>> */
     public function rules(): array
     {
-        $officeId = $this->user()->gabinete_id;
+        $officeId = app(OfficeContext::class)->officeIdFor($this->user());
 
         return [
             'titulo' => ['required', 'string', 'min:3', 'max:255'],
@@ -41,7 +42,7 @@ class EventRequest extends FormRequest
             'responsavel_id' => [
                 'nullable',
                 'integer',
-                Rule::exists(User::class, 'id')->where(fn ($query) => GabineteMembro::constrainActiveUsers($query, $officeId)
+                Rule::exists(User::class, 'id')->where(fn ($query) => OfficeMember::constrainActiveUsers($query, $officeId)
                     ->where('role', '!=', UserRole::Root->value)
                     ->whereNull('deleted_at')),
             ],
@@ -49,7 +50,7 @@ class EventRequest extends FormRequest
             'participantes_usuarios.*' => [
                 'integer',
                 'distinct',
-                Rule::exists(User::class, 'id')->where(fn ($query) => GabineteMembro::constrainActiveUsers($query, $officeId)
+                Rule::exists(User::class, 'id')->where(fn ($query) => OfficeMember::constrainActiveUsers($query, $officeId)
                     ->where('role', '!=', UserRole::Root->value)
                     ->whereNull('deleted_at')),
             ],
@@ -57,7 +58,7 @@ class EventRequest extends FormRequest
             'participantes_cidadaos.*' => [
                 'integer',
                 'distinct',
-                Rule::exists(Cidadao::class, 'id')->where(fn ($query) => $query
+                Rule::exists(Citizen::class, 'id')->where(fn ($query) => $query
                     ->where('gabinete_id', $officeId)
                     ->whereNull('deleted_at')),
             ],

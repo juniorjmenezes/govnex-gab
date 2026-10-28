@@ -3,8 +3,8 @@
 namespace Tests\Feature\MultiEntidade;
 
 use App\Enums\AccessRole;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,7 +19,7 @@ class LegacyTenantRouteTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $this->withoutFollowingLegacyTenantRedirects();
         $user = User::query()->where('email', 'vereador@gabinetefacil.test')->firstOrFail();
-        $gabinete = Gabinete::withoutGlobalScopes()->findOrFail($user->gabinete_id);
+        $gabinete = Office::withoutGlobalScopes()->findOrFail($user->gabinete_id);
 
         $this->actingAs($user)
             ->get('/dashboard')
@@ -29,7 +29,7 @@ class LegacyTenantRouteTest extends TestCase
     public function test_legacy_read_redirects_to_explicit_context_and_preserves_query_string(): void
     {
         $this->withoutFollowingLegacyTenantRedirects();
-        $gabinete = Gabinete::factory()->create();
+        $gabinete = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($gabinete)->create();
         $expected = "/entidades/{$gabinete->entidade->slug}/gabinetes/{$gabinete->slug}/cidadaos?q=Maria";
 
@@ -51,7 +51,7 @@ class LegacyTenantRouteTest extends TestCase
     public function test_legacy_write_uses_method_preserving_redirect_before_business_processing(): void
     {
         $this->withoutFollowingLegacyTenantRedirects();
-        $gabinete = Gabinete::factory()->create();
+        $gabinete = Office::factory()->create();
         $user = User::factory()->administrator()->forGabinete($gabinete)->create();
         $expected = "/entidades/{$gabinete->entidade->slug}/gabinetes/{$gabinete->slug}/bairros";
 
@@ -72,7 +72,7 @@ class LegacyTenantRouteTest extends TestCase
 
     public function test_explicit_context_does_not_create_legacy_route_event(): void
     {
-        $gabinete = Gabinete::factory()->create();
+        $gabinete = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($gabinete)->create();
 
         $this->actingAs($user)
@@ -91,10 +91,10 @@ class LegacyTenantRouteTest extends TestCase
     public function test_legacy_link_preserves_secondary_unit_from_same_origin_referer(): void
     {
         $this->withoutFollowingLegacyTenantRedirects();
-        $primary = Gabinete::factory()->create();
-        $secondary = Gabinete::factory()->for($primary->entidade, 'entidade')->create();
+        $primary = Office::factory()->create();
+        $secondary = Office::factory()->for($primary->entidade, 'entidade')->create();
         $user = User::factory()->operator()->forGabinete($primary)->create();
-        GabineteMembro::query()->create([
+        OfficeMember::query()->create([
             'gabinete_id' => $secondary->id,
             'usuario_id' => $user->id,
             'papel' => AccessRole::Operator,
@@ -117,7 +117,7 @@ class LegacyTenantRouteTest extends TestCase
     public function test_platform_admin_legacy_link_uses_explicit_referer_context(): void
     {
         $this->withoutFollowingLegacyTenantRedirects();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $admin = User::factory()->root()->create();
         $referer = route('context.dashboard', [
             'entidade' => $office->entidade,

@@ -1,13 +1,13 @@
 <?php
 
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use App\Enums\ReminderStatus;
 use App\Jobs\FetchRssSource;
 use App\Jobs\ProcessAppointmentReminder;
 use App\Models\AppointmentReminder;
-use App\Models\FonteRss;
+use App\Models\RssSource;
 use App\Services\Demands\DemandNotificationService;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\WhatsApp\WhatsAppDeadlineDigestService;
 use App\Services\WhatsApp\WhatsAppSensitiveDataPurger;
 use Illuminate\Foundation\Inspiring;
@@ -19,7 +19,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::call(function (): void {
-    $officeIds = app(GabineteModuleManager::class)->activeOfficeIds(GabineteModule::Schedule);
+    $officeIds = app(OfficeModuleManager::class)->activeOfficeIds(OfficeModule::Schedule);
     if ($officeIds === []) {
         return;
     }
@@ -57,7 +57,7 @@ Schedule::command('politics:tally-elections')
     ->withoutOverlapping(60);
 
 Schedule::call(function (): void {
-    FonteRss::query()
+    RssSource::query()
         ->where('ativo', true)
         ->orderBy('id')
         ->pluck('id')

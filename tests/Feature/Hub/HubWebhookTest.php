@@ -1,19 +1,19 @@
 <?php
 
 use App\Enums\AccessRole;
-use App\Enums\EntidadeModule;
-use App\Enums\EntidadeStatus;
-use App\Enums\EntidadeType;
-use App\Enums\GabineteStatus;
-use App\Enums\GabineteType;
-use App\Models\Entidade;
-use App\Models\EntidadeLicenca;
-use App\Models\EntidadeModulo;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Enums\EntityModule;
+use App\Enums\EntityStatus;
+use App\Enums\EntityType;
+use App\Enums\OfficeStatus;
+use App\Enums\OfficeType;
+use App\Models\Entity;
+use App\Models\EntityLicense;
+use App\Models\EntityModuleSubscription;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use App\Services\Hub\HubVinculoSyncService;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -144,8 +144,8 @@ it('atualiza nome e e-mail em pessoa.alterada', function () {
 });
 
 it('desativa conta e vínculos em pessoa.desligada', function () {
-    $entidade = Entidade::factory()->create(['hub_entidade_id' => '3']);
-    $gabinete = Gabinete::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '12']);
+    $entidade = Entity::factory()->create(['hub_entidade_id' => '3']);
+    $gabinete = Office::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '12']);
     $user = User::factory()->create(['hub_user_id' => '42', 'email' => 'ana@exemplo.gov.br']);
     app(HubVinculoSyncService::class)->aplicar($user, [[
         'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'operador', 'ativo' => true,
@@ -156,12 +156,12 @@ it('desativa conta e vínculos em pessoa.desligada', function () {
         ->assertJson(['acao' => 'pessoa_desligada']);
 
     expect($user->fresh()->is_active)->toBeFalse()
-        ->and(GabineteMembro::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->value('ativo'))->toBeFalsy();
+        ->and(OfficeMember::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->value('ativo'))->toBeFalsy();
 });
 
 it('aplica vinculo.criado e vinculo.alterado', function () {
-    $entidade = Entidade::factory()->create(['hub_entidade_id' => '3']);
-    $gabinete = Gabinete::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '12']);
+    $entidade = Entity::factory()->create(['hub_entidade_id' => '3']);
+    $gabinete = Office::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '12']);
 
     $vinculo = [
         'id' => '7', 'entidade_id' => '3', 'unidade_id' => '12',
@@ -184,8 +184,8 @@ it('aplica vinculo.criado e vinculo.alterado', function () {
 });
 
 it('encerra o vínculo em vinculo.encerrado mesmo se o retrato disser ativo', function () {
-    $entidade = Entidade::factory()->create(['hub_entidade_id' => '3']);
-    $gabinete = Gabinete::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '12']);
+    $entidade = Entity::factory()->create(['hub_entidade_id' => '3']);
+    $gabinete = Office::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '12']);
     $vinculo = ['id' => '7', 'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'operador', 'ativo' => true];
 
     enviarWebhookDoHub(eventoDoHub('vinculo.criado', ['pessoa' => pessoaDoHub(), 'vinculo' => $vinculo]))->assertOk();
@@ -194,7 +194,7 @@ it('encerra o vínculo em vinculo.encerrado mesmo se o retrato disser ativo', fu
     $user = User::query()->where('hub_user_id', '42')->first();
 
     expect($user->gabineteRole($gabinete->id))->toBeNull()
-        ->and(GabineteMembro::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->exists())->toBeTrue();
+        ->and(OfficeMember::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->exists())->toBeTrue();
 });
 
 it('descarta a reentrega do mesmo evento', function () {
@@ -236,7 +236,7 @@ function unidadeDoHub(array $overrides = []): array
 }
 
 it('renomeia a entidade ligada em entidade.alterada sem mexer no slug', function () {
-    $entidade = Entidade::factory()->create(['hub_entidade_id' => '3', 'nome' => 'Gabinete Santos', 'slug' => 'gabinete-santos']);
+    $entidade = Entity::factory()->create(['hub_entidade_id' => '3', 'nome' => 'Gabinete Santos', 'slug' => 'gabinete-santos']);
 
     enviarWebhookDoHub(eventoDoHub('entidade.alterada', ['entidade' => entidadeDoHub()]))
         ->assertOk()
@@ -250,34 +250,34 @@ it('renomeia a entidade ligada em entidade.alterada sem mexer no slug', function
 });
 
 it('suspende e reativa a entidade ligada conforme o status do Hub', function () {
-    $entidade = Entidade::factory()->create(['hub_entidade_id' => '3']);
+    $entidade = Entity::factory()->create(['hub_entidade_id' => '3']);
 
     enviarWebhookDoHub(eventoDoHub('entidade.alterada', ['entidade' => entidadeDoHub(['status' => 'suspensa'])]))->assertOk();
 
-    expect($entidade->fresh()->status)->toBe(EntidadeStatus::Suspended)
+    expect($entidade->fresh()->status)->toBe(EntityStatus::Suspended)
         ->and($entidade->fresh()->suspensa_em)->not->toBeNull();
 
     enviarWebhookDoHub(eventoDoHub('entidade.alterada', ['entidade' => entidadeDoHub([
         'status' => 'ativa', 'atualizado_em' => now()->addMinute()->toIso8601String(),
     ])]))->assertOk();
 
-    expect($entidade->fresh()->status)->toBe(EntidadeStatus::Active)
+    expect($entidade->fresh()->status)->toBe(EntityStatus::Active)
         ->and($entidade->fresh()->suspensa_em)->toBeNull();
 });
 
 it('suspende, sem apagar, a entidade removida no Hub', function () {
-    $entidade = Entidade::factory()->create(['hub_entidade_id' => '3']);
+    $entidade = Entity::factory()->create(['hub_entidade_id' => '3']);
 
     enviarWebhookDoHub(eventoDoHub('entidade.removida', ['entidade' => entidadeDoHub(['status' => 'ativa'])]))
         ->assertOk()
         ->assertJson(['acao' => 'entidade_sincronizada']);
 
-    expect(Entidade::query()->find($entidade->id))->not->toBeNull()
-        ->and($entidade->fresh()->status)->toBe(EntidadeStatus::Suspended);
+    expect(Entity::query()->find($entidade->id))->not->toBeNull()
+        ->and($entidade->fresh()->status)->toBe(EntityStatus::Suspended);
 });
 
 it('descarta evento de entidade mais antigo que o último aplicado', function () {
-    $entidade = Entidade::factory()->create([
+    $entidade = Entity::factory()->create([
         'hub_entidade_id' => '3', 'nome' => 'Nome Atual', 'hub_sincronizado_em' => now(),
     ]);
 
@@ -287,11 +287,11 @@ it('descarta evento de entidade mais antigo que o último aplicado', function ()
     ])]))->assertOk()->assertJson(['acao' => 'evento_antigo_descartado']);
 
     expect($entidade->fresh()->nome)->toBe('Nome Atual')
-        ->and($entidade->fresh()->status)->toBe(EntidadeStatus::Active);
+        ->and($entidade->fresh()->status)->toBe(EntityStatus::Active);
 });
 
 it('ignora com 200 a entidade que não está ligada', function () {
-    $entidade = Entidade::factory()->create(['nome' => 'Sem Ligação', 'slug' => 'gabinete-santos-renomeado']);
+    $entidade = Entity::factory()->create(['nome' => 'Sem Ligação', 'slug' => 'gabinete-santos-renomeado']);
 
     enviarWebhookDoHub(eventoDoHub('entidade.alterada', ['entidade' => entidadeDoHub()]))
         ->assertOk()
@@ -301,7 +301,7 @@ it('ignora com 200 a entidade que não está ligada', function () {
 });
 
 it('cria a entidade em entidade.criada com slug próprio, licença e módulos, sem usuário', function () {
-    Entidade::factory()->create(['slug' => 'camara-municipal-de-fortaleza']);
+    Entity::factory()->create(['slug' => 'camara-municipal-de-fortaleza']);
     $usuarios = User::query()->count();
 
     enviarWebhookDoHub(eventoDoHub('entidade.criada', ['entidade' => entidadeDoHub([
@@ -311,34 +311,34 @@ it('cria a entidade em entidade.criada com slug próprio, licença e módulos, s
         ->assertOk()
         ->assertJson(['ok' => true, 'acao' => 'entidade_criada']);
 
-    $entidade = Entidade::query()->where('hub_entidade_id', '3')->firstOrFail();
+    $entidade = Entity::query()->where('hub_entidade_id', '3')->firstOrFail();
 
-    expect($entidade->tipo)->toBe(EntidadeType::CityCouncil)
+    expect($entidade->tipo)->toBe(EntityType::CityCouncil)
         ->and($entidade->slug)->toBe('camara-municipal-de-fortaleza-2')
         ->and($entidade->nome)->toBe('Câmara Municipal de Fortaleza')
         ->and($entidade->municipio)->toBe('Fortaleza')
         ->and($entidade->estado)->toBe('CE')
         ->and($entidade->timezone)->toBe('America/Fortaleza')
-        ->and($entidade->status)->toBe(EntidadeStatus::Active)
+        ->and($entidade->status)->toBe(EntityStatus::Active)
         ->and($entidade->interface_simplificada)->toBeFalse()
         ->and($entidade->hub_sincronizado_em)->not->toBeNull()
-        ->and(EntidadeLicenca::query()->where('entidade_id', $entidade->id)->exists())->toBeTrue()
-        ->and(EntidadeModulo::query()->where('entidade_id', $entidade->id)->count())->toBe(count(EntidadeModule::cases()))
+        ->and(EntityLicense::query()->where('entidade_id', $entidade->id)->exists())->toBeTrue()
+        ->and(EntityModuleSubscription::query()->where('entidade_id', $entidade->id)->count())->toBe(count(EntityModule::cases()))
         ->and(User::query()->count())->toBe($usuarios);
 });
 
-it('cria gabinete independente e prefeitura com os tipos equivalentes', function (string $tipo, EntidadeType $esperado, bool $simplificada) {
+it('cria gabinete independente e prefeitura com os tipos equivalentes', function (string $tipo, EntityType $esperado, bool $simplificada) {
     enviarWebhookDoHub(eventoDoHub('entidade.criada', ['entidade' => entidadeDoHub(['tipo' => $tipo])]))
         ->assertOk()
         ->assertJson(['acao' => 'entidade_criada']);
 
-    $entidade = Entidade::query()->where('hub_entidade_id', '3')->firstOrFail();
+    $entidade = Entity::query()->where('hub_entidade_id', '3')->firstOrFail();
 
     expect($entidade->tipo)->toBe($esperado)
         ->and($entidade->interface_simplificada)->toBe($simplificada);
 })->with([
-    ['GABINETE_INDEPENDENTE', EntidadeType::IndependentOffice, true],
-    ['PREFEITURA', EntidadeType::CityHall, false],
+    ['GABINETE_INDEPENDENTE', EntityType::IndependentOffice, true],
+    ['PREFEITURA', EntityType::CityHall, false],
 ]);
 
 it('ignora com 200 entidade de tipo sem equivalente no GAB', function () {
@@ -346,17 +346,17 @@ it('ignora com 200 entidade de tipo sem equivalente no GAB', function () {
         ->assertOk()
         ->assertJson(['ok' => true, 'acao' => 'entidade_ignorada', 'motivo' => 'tipo_sem_equivalente']);
 
-    expect(Entidade::query()->count())->toBe(0);
+    expect(Entity::query()->count())->toBe(0);
 });
 
 it('não duplica entidade local ainda não ligada com o mesmo slug do Hub', function () {
-    $local = Entidade::factory()->create(['slug' => 'gabinete-santos-renomeado']);
+    $local = Entity::factory()->create(['slug' => 'gabinete-santos-renomeado']);
 
     enviarWebhookDoHub(eventoDoHub('entidade.criada', ['entidade' => entidadeDoHub()]))
         ->assertOk()
         ->assertJson(['acao' => 'entidade_ignorada', 'motivo' => 'casamento_pendente']);
 
-    expect(Entidade::query()->count())->toBe(1)
+    expect(Entity::query()->count())->toBe(1)
         ->and($local->fresh()->hub_entidade_id)->toBeNull();
 });
 
@@ -366,17 +366,17 @@ it('trata a reentrega de entidade.criada como atualização, sem duplicar', func
         ->assertOk()
         ->assertJson(['acao' => 'entidade_sincronizada']);
 
-    expect(Entidade::query()->where('hub_entidade_id', '3')->count())->toBe(1)
-        ->and(Entidade::query()->where('hub_entidade_id', '3')->value('nome'))->toBe('Nome Novo');
+    expect(Entity::query()->where('hub_entidade_id', '3')->count())->toBe(1)
+        ->and(Entity::query()->where('hub_entidade_id', '3')->value('nome'))->toBe('Nome Novo');
 });
 
-it('deriva o tipo do gabinete da combinação entidade + unidade', function (EntidadeType $entidade, string $unidade, ?GabineteType $esperado) {
-    $local = Entidade::factory()->create(['tipo' => $entidade, 'hub_entidade_id' => '3', 'municipio' => 'Sobral', 'estado' => 'CE', 'timezone' => 'America/Fortaleza']);
+it('deriva o tipo do gabinete da combinação entidade + unidade', function (EntityType $entidade, string $unidade, ?OfficeType $esperado) {
+    $local = Entity::factory()->create(['tipo' => $entidade, 'hub_entidade_id' => '3', 'municipio' => 'Sobral', 'estado' => 'CE', 'timezone' => 'America/Fortaleza']);
     $usuarios = User::query()->count();
 
     $resposta = enviarWebhookDoHub(eventoDoHub('unidade.criada', ['unidade' => unidadeDoHub(['tipo' => $unidade])]))->assertOk();
 
-    $gabinete = Gabinete::withoutGlobalScopes()->where('hub_unidade_id', '12')->first();
+    $gabinete = Office::withoutGlobalScopes()->where('hub_unidade_id', '12')->first();
 
     if ($esperado === null) {
         $resposta->assertJson(['acao' => 'unidade_ignorada', 'motivo' => 'tipo_sem_equivalente']);
@@ -394,50 +394,50 @@ it('deriva o tipo do gabinete da combinação entidade + unidade', function (Ent
         ->and($gabinete->timezone)->toBe('America/Fortaleza')
         ->and($gabinete->vereador_nome)->toBeNull()
         ->and($gabinete->numero_eleitoral)->toBeNull()
-        ->and(app(GabineteModuleManager::class)->activeFor($gabinete))->toBe(app(GabineteModuleManager::class)->allEnabled())
+        ->and(app(OfficeModuleManager::class)->activeFor($gabinete))->toBe(app(OfficeModuleManager::class)->allEnabled())
         ->and(User::query()->count())->toBe($usuarios)
-        ->and(GabineteMembro::query()->where('gabinete_id', $gabinete->id)->count())->toBe(0);
+        ->and(OfficeMember::query()->where('gabinete_id', $gabinete->id)->count())->toBe(0);
 })->with([
-    [EntidadeType::CityCouncil, 'GABINETE', GabineteType::CouncilorOffice],
-    [EntidadeType::CityCouncil, 'DIRETORIA', GabineteType::AdministrativeDepartment],
-    [EntidadeType::CityCouncil, 'SECRETARIA', GabineteType::AdministrativeDepartment],
-    [EntidadeType::CityHall, 'GABINETE', GabineteType::MayorOffice],
-    [EntidadeType::CityHall, 'SECRETARIA', GabineteType::Secretariat],
-    [EntidadeType::CityHall, 'SETOR', GabineteType::AdministrativeDepartment],
-    [EntidadeType::IndependentOffice, 'GABINETE', GabineteType::IndependentOffice],
-    [EntidadeType::IndependentOffice, 'SETOR', null],
-    [EntidadeType::CityHall, 'ESCOLA', null],
-    [EntidadeType::CityCouncil, 'OUTRA', null],
+    [EntityType::CityCouncil, 'GABINETE', OfficeType::CouncilorOffice],
+    [EntityType::CityCouncil, 'DIRETORIA', OfficeType::AdministrativeDepartment],
+    [EntityType::CityCouncil, 'SECRETARIA', OfficeType::AdministrativeDepartment],
+    [EntityType::CityHall, 'GABINETE', OfficeType::MayorOffice],
+    [EntityType::CityHall, 'SECRETARIA', OfficeType::Secretariat],
+    [EntityType::CityHall, 'SETOR', OfficeType::AdministrativeDepartment],
+    [EntityType::IndependentOffice, 'GABINETE', OfficeType::IndependentOffice],
+    [EntityType::IndependentOffice, 'SETOR', null],
+    [EntityType::CityHall, 'ESCOLA', null],
+    [EntityType::CityCouncil, 'OUTRA', null],
 ]);
 
 it('ignora com 200 unidade aninhada', function () {
-    Entidade::factory()->create(['tipo' => EntidadeType::CityCouncil, 'hub_entidade_id' => '3']);
+    Entity::factory()->create(['tipo' => EntityType::CityCouncil, 'hub_entidade_id' => '3']);
 
     enviarWebhookDoHub(eventoDoHub('unidade.criada', ['unidade' => unidadeDoHub(['unidade_pai_id' => '11'])]))
         ->assertOk()
         ->assertJson(['acao' => 'unidade_ignorada', 'motivo' => 'unidade_aninhada']);
 
-    expect(Gabinete::withoutGlobalScopes()->count())->toBe(0);
+    expect(Office::withoutGlobalScopes()->count())->toBe(0);
 });
 
 it('recusa um segundo gabinete em entidade independente', function () {
-    $entidade = Entidade::factory()->create(['tipo' => EntidadeType::IndependentOffice, 'hub_entidade_id' => '3']);
-    Gabinete::factory()->create(['entidade_id' => $entidade->id, 'tipo_gabinete' => GabineteType::IndependentOffice]);
+    $entidade = Entity::factory()->create(['tipo' => EntityType::IndependentOffice, 'hub_entidade_id' => '3']);
+    Office::factory()->create(['entidade_id' => $entidade->id, 'tipo_gabinete' => OfficeType::IndependentOffice]);
 
     enviarWebhookDoHub(eventoDoHub('unidade.criada', ['unidade' => unidadeDoHub()]))
         ->assertOk()
         ->assertJson(['acao' => 'unidade_ignorada', 'motivo' => 'entidade_nao_aceita']);
 
-    expect(Gabinete::withoutGlobalScopes()->where('entidade_id', $entidade->id)->count())->toBe(1);
+    expect(Office::withoutGlobalScopes()->where('entidade_id', $entidade->id)->count())->toBe(1);
 });
 
 it('reentrega de unidade.criada não duplica o gabinete', function () {
-    Entidade::factory()->create(['tipo' => EntidadeType::CityCouncil, 'hub_entidade_id' => '3']);
+    Entity::factory()->create(['tipo' => EntityType::CityCouncil, 'hub_entidade_id' => '3']);
 
     enviarWebhookDoHub(eventoDoHub('unidade.criada', ['unidade' => unidadeDoHub()]))->assertJson(['acao' => 'unidade_criada']);
     enviarWebhookDoHub(eventoDoHub('unidade.criada', ['unidade' => unidadeDoHub()]))->assertJson(['acao' => 'unidade_sincronizada']);
 
-    expect(Gabinete::withoutGlobalScopes()->where('hub_unidade_id', '12')->count())->toBe(1);
+    expect(Office::withoutGlobalScopes()->where('hub_unidade_id', '12')->count())->toBe(1);
 });
 
 it('resolve pela API do Hub a entidade de unidade que chegou antes dela', function () {
@@ -455,10 +455,10 @@ it('resolve pela API do Hub a entidade de unidade que chegou antes dela', functi
         ->assertOk()
         ->assertJson(['acao' => 'unidade_criada']);
 
-    $entidade = Entidade::query()->where('hub_entidade_id', '3')->firstOrFail();
+    $entidade = Entity::query()->where('hub_entidade_id', '3')->firstOrFail();
 
     expect($entidade->nome)->toBe('Câmara de Sobral')
-        ->and($entidade->gabinetes()->withoutGlobalScopes()->first()?->tipo_gabinete)->toBe(GabineteType::CouncilorOffice);
+        ->and($entidade->gabinetes()->withoutGlobalScopes()->first()?->tipo_gabinete)->toBe(OfficeType::CouncilorOffice);
 });
 
 it('não cria a entidade que o Hub diz não estar habilitada para o GAB', function () {
@@ -474,8 +474,8 @@ it('não cria a entidade que o Hub diz não estar habilitada para o GAB', functi
         ->assertOk()
         ->assertJson(['acao' => 'unidade_ignorada', 'motivo' => 'entidade_nao_espelhada']);
 
-    expect(Entidade::query()->count())->toBe(0)
-        ->and(Gabinete::withoutGlobalScopes()->count())->toBe(0);
+    expect(Entity::query()->count())->toBe(0)
+        ->and(Office::withoutGlobalScopes()->count())->toBe(0);
 });
 
 it('responde 500 para o Hub reenviar quando não consegue resolver a entidade', function () {
@@ -493,45 +493,45 @@ it('responde 500 para o Hub reenviar quando não consegue resolver a entidade', 
 
     enviarWebhookDoHub($evento)->assertStatus(500);
 
-    expect(Gabinete::withoutGlobalScopes()->count())->toBe(0);
+    expect(Office::withoutGlobalScopes()->count())->toBe(0);
 
     // A falha libera o id: a reentrega é processada de novo.
     enviarWebhookDoHub($evento)->assertOk()->assertJson(['acao' => 'unidade_criada']);
 });
 
 it('renomeia, suspende e reativa o gabinete ligado pelos eventos de unidade', function () {
-    $gabinete = Gabinete::factory()->create(['hub_unidade_id' => '12', 'nome' => 'Gabinete Antigo', 'slug' => 'gabinete-antigo']);
+    $gabinete = Office::factory()->create(['hub_unidade_id' => '12', 'nome' => 'Gabinete Antigo', 'slug' => 'gabinete-antigo']);
 
     enviarWebhookDoHub(eventoDoHub('unidade.alterada', ['unidade' => unidadeDoHub(['ativa' => false])]))
         ->assertOk()
         ->assertJson(['acao' => 'unidade_sincronizada']);
 
-    $gabinete = Gabinete::withoutGlobalScopes()->find($gabinete->id);
+    $gabinete = Office::withoutGlobalScopes()->find($gabinete->id);
 
     expect($gabinete->nome)->toBe('Gabinete do Vereador Santos')
         ->and($gabinete->slug)->toBe('gabinete-antigo')
-        ->and($gabinete->status)->toBe(GabineteStatus::Suspended)
+        ->and($gabinete->status)->toBe(OfficeStatus::Suspended)
         ->and($gabinete->suspended_at)->not->toBeNull();
 
     enviarWebhookDoHub(eventoDoHub('unidade.alterada', ['unidade' => unidadeDoHub([
         'ativa' => true, 'atualizado_em' => now()->addMinute()->toIso8601String(),
     ])]))->assertOk();
 
-    $gabinete = Gabinete::withoutGlobalScopes()->find($gabinete->id);
+    $gabinete = Office::withoutGlobalScopes()->find($gabinete->id);
 
-    expect($gabinete->status)->toBe(GabineteStatus::Active)
+    expect($gabinete->status)->toBe(OfficeStatus::Active)
         ->and($gabinete->suspended_at)->toBeNull();
 });
 
 it('suspende, sem apagar, o gabinete da unidade removida no Hub', function () {
-    $gabinete = Gabinete::factory()->create(['hub_unidade_id' => '12']);
+    $gabinete = Office::factory()->create(['hub_unidade_id' => '12']);
 
     enviarWebhookDoHub(eventoDoHub('unidade.removida', ['unidade' => unidadeDoHub()]))->assertOk();
 
-    $gabinete = Gabinete::withoutGlobalScopes()->find($gabinete->id);
+    $gabinete = Office::withoutGlobalScopes()->find($gabinete->id);
 
     expect($gabinete)->not->toBeNull()
-        ->and($gabinete->status)->toBe(GabineteStatus::Suspended);
+        ->and($gabinete->status)->toBe(OfficeStatus::Suspended);
 });
 
 it('ignora com 200 a unidade sem gabinete ligado', function () {

@@ -4,7 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\WhatsAppMode;
 use App\Enums\WhatsAppPurpose;
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\WhatsAppConfiguration;
 use App\Models\WhatsAppContact;
 use App\Models\WhatsAppNotification;
@@ -30,7 +30,7 @@ final class AuditWhatsAppReadiness extends Command
         $eligibleContacts = $contacts->filter->isEligible()->count();
         $pilotViolations = $this->pilotViolations();
         $configurationCount = WhatsAppConfiguration::withoutGlobalScopes()->count();
-        $officeCount = Gabinete::withoutGlobalScopes()->count();
+        $officeCount = Office::withoutGlobalScopes()->count();
         $pendingOutbox = WhatsAppNotification::withoutGlobalScopes()
             ->whereIn('status', ['PENDING', 'PROCESSING', 'RECONCILING'])
             ->count();

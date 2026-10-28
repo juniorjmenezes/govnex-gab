@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\AccessRole;
 use App\Enums\DemandStatus;
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use App\Enums\ReminderChannel;
 use App\Enums\ReminderStatus;
 use App\Enums\WhatsAppMode;
@@ -12,20 +12,20 @@ use App\Enums\WhatsAppPurpose;
 use App\Jobs\ProcessAppointmentReminder;
 use App\Models\Appointment;
 use App\Models\AppointmentReminder;
-use App\Models\CandidatoFavorito;
-use App\Models\CandidatoPolitico;
-use App\Models\Cidadao;
-use App\Models\Demanda;
-use App\Models\Eleicao;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
-use App\Models\PesquisaEleitoral;
-use App\Models\ResultadoPesquisaEleitoral;
+use App\Models\Candidate;
+use App\Models\Citizen;
+use App\Models\Demand;
+use App\Models\Election;
+use App\Models\ElectoralPoll;
+use App\Models\ElectoralPollResult;
+use App\Models\FavoriteCandidate;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use App\Models\WhatsAppNotification;
 use App\Services\Appointments\AppointmentReminderChannelManager;
 use App\Services\Demands\DemandNotificationService;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\Politics\PoliticalPollNotificationService;
 use App\Services\WhatsApp\WhatsAppConfigurationService;
 use App\Services\WhatsApp\WhatsAppContactService;
@@ -73,7 +73,7 @@ class WhatsAppEventIntegrationTest extends TestCase
             WhatsAppPurpose::DemandObservationAdded,
         ]);
         $author = User::factory()->forGabinete($office)->create();
-        $demand = Demanda::factory()->forGabinete($office, $citizen, creator: $author)->create([
+        $demand = Demand::factory()->forGabinete($office, $citizen, creator: $author)->create([
             'responsavel_id' => $responsible->id,
             'prazo' => now()->addDays(3),
         ]);
@@ -99,7 +99,7 @@ class WhatsAppEventIntegrationTest extends TestCase
     }
 
     /**
-     * `BelongsToGabinete::creating` grava `gabinete_id` a partir do CONTEXTO
+     * `BelongsToOffice::creating` grava `gabinete_id` a partir do CONTEXTO
      * atual, e módulos/conexões ativos também são resolvidos por ele. Um
      * destinatário elegível de OUTRO gabinete (ex.: aviso de pesquisa
      * eleitoral a favoritos de várias câmaras, disparado durante uma
@@ -112,7 +112,7 @@ class WhatsAppEventIntegrationTest extends TestCase
     public function test_enqueueing_for_a_recipient_in_another_office_keeps_the_notification_in_the_recipients_office(): void
     {
         [$otherOffice, $recipient] = $this->eligibleTeamContact([WhatsAppPurpose::DemandAssigned]);
-        $actorOffice = Gabinete::factory()->create();
+        $actorOffice = Office::factory()->create();
         $actor = User::factory()->forGabinete($actorOffice)->create();
 
         $this->actingAs($actor);
@@ -136,13 +136,13 @@ class WhatsAppEventIntegrationTest extends TestCase
         ]);
         $admin = User::factory()->root()->create();
         $author = User::factory()->forGabinete($office)->create();
-        $demand = Demanda::factory()->forGabinete($office, $citizen, creator: $author)->create([
+        $demand = Demand::factory()->forGabinete($office, $citizen, creator: $author)->create([
             'responsavel_id' => $responsible->id,
         ]);
-        app(GabineteModuleManager::class)->sync($office, [
-            GabineteModule::Relationship->value,
-            GabineteModule::Schedule->value,
-            GabineteModule::WhatsApp->value,
+        app(OfficeModuleManager::class)->sync($office, [
+            OfficeModule::Relationship->value,
+            OfficeModule::Schedule->value,
+            OfficeModule::WhatsApp->value,
         ], $admin);
 
         $notifications = app(DemandNotificationService::class);
@@ -193,7 +193,7 @@ class WhatsAppEventIntegrationTest extends TestCase
 
         (new ProcessAppointmentReminder($reminder->id))->handle(
             app(AppointmentReminderChannelManager::class),
-            app(GabineteModuleManager::class),
+            app(OfficeModuleManager::class),
         );
 
         $this->assertSame(ReminderStatus::Queued, $reminder->fresh()->status);
@@ -209,11 +209,11 @@ class WhatsAppEventIntegrationTest extends TestCase
         ]);
         $office->forceFill(['timezone' => 'America/Fortaleza'])->save();
 
-        Demanda::factory()->forGabinete($office, $citizen, creator: $responsible)->create([
+        Demand::factory()->forGabinete($office, $citizen, creator: $responsible)->create([
             'responsavel_id' => $responsible->id,
             'prazo' => now()->subHour(),
         ]);
-        Demanda::factory()->forGabinete($office, $citizen, creator: $responsible)->create([
+        Demand::factory()->forGabinete($office, $citizen, creator: $responsible)->create([
             'responsavel_id' => $responsible->id,
             'prazo' => now()->addHours(6),
         ]);
@@ -240,12 +240,12 @@ class WhatsAppEventIntegrationTest extends TestCase
             WhatsAppPurpose::DemandDeadlineDigest,
         ]);
         $office->forceFill(['timezone' => 'America/Fortaleza'])->save();
-        GabineteMembro::query()->updateOrCreate(
+        OfficeMember::query()->updateOrCreate(
             ['gabinete_id' => $office->id, 'usuario_id' => $responsible->id],
             ['papel' => AccessRole::Operator, 'ativo' => false, 'ingressou_em' => now(), 'desativado_em' => now()],
         );
 
-        Demanda::factory()->forGabinete($office, $citizen, creator: $responsible)->create([
+        Demand::factory()->forGabinete($office, $citizen, creator: $responsible)->create([
             'responsavel_id' => $responsible->id,
             'prazo' => now()->subHour(),
         ]);
@@ -263,13 +263,13 @@ class WhatsAppEventIntegrationTest extends TestCase
     public function test_assignment_notification_skips_a_team_member_paused_in_the_team_screen(): void
     {
         [$office, $responsible] = $this->eligibleTeamContact([WhatsAppPurpose::DemandAssigned]);
-        GabineteMembro::query()->updateOrCreate(
+        OfficeMember::query()->updateOrCreate(
             ['gabinete_id' => $office->id, 'usuario_id' => $responsible->id],
             ['papel' => AccessRole::Operator, 'ativo' => false, 'ingressou_em' => now(), 'desativado_em' => now()],
         );
         $author = User::factory()->forGabinete($office)->create();
-        $citizen = Cidadao::factory()->forGabinete($office)->create();
-        $demand = Demanda::factory()->forGabinete($office, $citizen, creator: $author)->create([
+        $citizen = Citizen::factory()->forGabinete($office)->create();
+        $demand = Demand::factory()->forGabinete($office, $citizen, creator: $author)->create([
             'responsavel_id' => $responsible->id,
         ]);
 
@@ -281,11 +281,11 @@ class WhatsAppEventIntegrationTest extends TestCase
     public function test_published_poll_keeps_internal_notification_without_enqueuing_marketing_whatsapp(): void
     {
         [$office, $councilor] = $this->eligibleTeamContact([], councilor: true);
-        $otherOffice = Gabinete::factory()->create();
+        $otherOffice = Office::factory()->create();
         $otherCouncilor = User::factory()->administrator()->forGabinete($otherOffice)->create();
         app(WhatsAppContactService::class)->declareForUser($otherCouncilor, '(85) 96666-7654', $otherCouncilor);
-        $election = Eleicao::query()->firstOrFail();
-        $candidate = CandidatoPolitico::query()->create([
+        $election = Election::query()->firstOrFail();
+        $candidate = Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => 'WHATSAPP-TEST-1',
             'abrangencia' => 'municipal',
@@ -294,13 +294,13 @@ class WhatsAppEventIntegrationTest extends TestCase
             'nome' => 'Candidato de teste',
             'nome_urna' => 'Teste',
         ]);
-        $favorite = new CandidatoFavorito;
+        $favorite = new FavoriteCandidate;
         $favorite->forceFill([
             'gabinete_id' => $office->id,
             'candidato_politico_id' => $candidate->id,
             'escolhido_por_id' => $councilor->id,
         ])->save();
-        $poll = PesquisaEleitoral::query()->create([
+        $poll = ElectoralPoll::query()->create([
             'eleicao_id' => $election->id,
             'external_id' => (string) Str::uuid(),
             'external_election_id' => (string) Str::uuid(),
@@ -314,7 +314,7 @@ class WhatsAppEventIntegrationTest extends TestCase
             'abrangencia' => 'Municipal',
             'fonte_url' => 'https://example.test/pesquisa',
         ]);
-        ResultadoPesquisaEleitoral::query()->create([
+        ElectoralPollResult::query()->create([
             'pesquisa_eleitoral_id' => $poll->id,
             'external_candidate_id' => (string) Str::uuid(),
             'candidato_politico_id' => $candidate->id,
@@ -331,23 +331,23 @@ class WhatsAppEventIntegrationTest extends TestCase
     }
 
     /** @param list<WhatsAppPurpose> $purposes
-     * @return array{Gabinete,User,Cidadao}
+     * @return array{Office,User,Citizen}
      */
     private function eligibleOffice(array $purposes): array
     {
         [$office, $user] = $this->eligibleTeamContact($purposes);
-        $citizen = Cidadao::factory()->forGabinete($office)->create();
+        $citizen = Citizen::factory()->forGabinete($office)->create();
         app(WhatsAppContactService::class)->declareForCitizen($citizen, '(88) 98888-5678', $user);
 
         return [$office, $user, $citizen];
     }
 
     /** @param list<WhatsAppPurpose> $purposes
-     * @return array{Gabinete,User}
+     * @return array{Office,User}
      */
     private function eligibleTeamContact(array $purposes, bool $councilor = false): array
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $factory = User::factory()->forGabinete($office);
         $user = ($councilor ? $factory->administrator() : $factory)->create();
         app(WhatsAppContactService::class)->declareForUser($user, '(88) 99999-1234', $user);

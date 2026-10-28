@@ -2,20 +2,20 @@
 
 namespace Tests\Feature\MultiEntidade;
 
-use App\Enums\EntidadeQuota;
-use App\Enums\EntidadeWhatsAppConnectionType;
+use App\Enums\EntityQuota;
+use App\Enums\EntityWhatsAppConnectionType;
 use App\Enums\WhatsAppMode;
 use App\Enums\WhatsAppNotificationStatus;
 use App\Enums\WhatsAppPurpose;
 use App\Jobs\SendWhatsAppNotification;
-use App\Models\EntidadeConsumo;
-use App\Models\EntidadeLicenca;
-use App\Models\Gabinete;
+use App\Models\EntityLicense;
+use App\Models\EntityUsage;
+use App\Models\Office;
 use App\Models\User;
 use App\Models\WhatsAppConfiguration;
 use App\Models\WhatsAppContact;
-use App\Services\Entidades\EntidadeQuotaService;
-use App\Services\WhatsApp\EntidadeWhatsAppConnectionService;
+use App\Services\Entidades\EntityQuotaService;
+use App\Services\WhatsApp\EntityWhatsAppConnectionService;
 use App\Services\WhatsApp\WhatsAppConfigurationService;
 use App\Services\WhatsApp\WhatsAppContactService;
 use App\Services\WhatsApp\WhatsAppEligibilityService;
@@ -51,7 +51,7 @@ class EntidadeWhatsAppIsolationTest extends TestCase
 
     public function test_non_off_mode_requires_a_persisted_entidade_connection(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
 
         $this->expectException(ValidationException::class);
         app(WhatsAppConfigurationService::class)->update(
@@ -65,7 +65,7 @@ class EntidadeWhatsAppIsolationTest extends TestCase
     public function test_an_entidade_cannot_use_another_entidades_template(): void
     {
         [$firstOffice, , $contact] = $this->contactContext();
-        $secondOffice = Gabinete::factory()->create();
+        $secondOffice = Office::factory()->create();
         $this->entidadeWhatsAppConnection($firstOffice, 6);
         $this->readyEntidadeWhatsAppTemplate($secondOffice, WhatsAppPurpose::DemandAssigned);
         app(WhatsAppConfigurationService::class)->update(
@@ -86,25 +86,25 @@ class EntidadeWhatsAppIsolationTest extends TestCase
 
     public function test_central_accounts_can_be_explicitly_shared_but_own_accounts_cannot(): void
     {
-        $firstOffice = Gabinete::factory()->create();
-        $secondOffice = Gabinete::factory()->create();
+        $firstOffice = Office::factory()->create();
+        $secondOffice = Office::factory()->create();
         $admin = User::factory()->root()->create();
         Http::fake(['*' => Http::response(['accounts' => [
             $this->remoteAccount(21),
             $this->remoteAccount(22),
         ]])]);
-        $service = app(EntidadeWhatsAppConnectionService::class);
+        $service = app(EntityWhatsAppConnectionService::class);
 
         $firstCentral = $service->assign(
             $firstOffice->entidade()->firstOrFail(),
             21,
-            EntidadeWhatsAppConnectionType::Central,
+            EntityWhatsAppConnectionType::Central,
             $admin,
         );
         $secondCentral = $service->assign(
             $secondOffice->entidade()->firstOrFail(),
             21,
-            EntidadeWhatsAppConnectionType::Central,
+            EntityWhatsAppConnectionType::Central,
             $admin,
         );
 
@@ -114,14 +114,14 @@ class EntidadeWhatsAppIsolationTest extends TestCase
         $service->assign(
             $firstOffice->entidade()->firstOrFail(),
             22,
-            EntidadeWhatsAppConnectionType::Own,
+            EntityWhatsAppConnectionType::Own,
             $admin,
         );
         try {
             $service->assign(
                 $secondOffice->entidade()->firstOrFail(),
                 22,
-                EntidadeWhatsAppConnectionType::Own,
+                EntityWhatsAppConnectionType::Own,
                 $admin,
             );
             $this->fail('Uma conta própria não deveria ser compartilhada.');
@@ -143,10 +143,10 @@ class EntidadeWhatsAppIsolationTest extends TestCase
         );
         Http::fake(['*' => Http::response(['accounts' => [$this->remoteAccount(7)]])]);
 
-        $newConnection = app(EntidadeWhatsAppConnectionService::class)->assign(
+        $newConnection = app(EntityWhatsAppConnectionService::class)->assign(
             $office->entidade()->firstOrFail(),
             7,
-            EntidadeWhatsAppConnectionType::Central,
+            EntityWhatsAppConnectionType::Central,
             User::factory()->root()->create(),
         );
 
@@ -162,9 +162,9 @@ class EntidadeWhatsAppIsolationTest extends TestCase
     public function test_monthly_quota_is_reserved_once_across_queued_notifications(): void
     {
         [$office, , $contact] = $this->eligibleContext();
-        $license = EntidadeLicenca::query()->where('entidade_id', $office->entidade_id)->firstOrFail();
+        $license = EntityLicense::query()->where('entidade_id', $office->entidade_id)->firstOrFail();
         $quotas = $license->cotas_snapshot;
-        $quotas[EntidadeQuota::MonthlyWhatsAppMessages->value] = 1;
+        $quotas[EntityQuota::MonthlyWhatsAppMessages->value] = 1;
         $license->forceFill(['cotas_snapshot' => $quotas])->save();
         $outbox = app(WhatsAppOutboxService::class);
         $first = $outbox->enqueue($contact, WhatsAppPurpose::DemandAssigned, 'quota-first', ['Pessoa', 'DEM-1', 'Hoje']);
@@ -180,9 +180,9 @@ class EntidadeWhatsAppIsolationTest extends TestCase
         $this->assertNotNull($first->fresh()->consumo_registrado_em);
         $this->assertSame(WhatsAppNotificationStatus::Suppressed, $second->fresh()->status);
         $this->assertNull($second->fresh()->consumo_reservado_em);
-        $this->assertSame(1, app(EntidadeQuotaService::class)->usage(
+        $this->assertSame(1, app(EntityQuotaService::class)->usage(
             $office->entidade_id,
-            EntidadeQuota::MonthlyWhatsAppMessages,
+            EntityQuota::MonthlyWhatsAppMessages,
         ));
         Http::assertSentCount(1);
     }
@@ -208,16 +208,16 @@ class EntidadeWhatsAppIsolationTest extends TestCase
         $this->assertSame(WhatsAppNotificationStatus::Failed, $notification->status);
         $this->assertNull($notification->consumo_reservado_em);
         $this->assertNull($notification->consumo_registrado_em);
-        $this->assertSame(0, (int) EntidadeConsumo::query()
+        $this->assertSame(0, (int) EntityUsage::query()
             ->where('entidade_id', $office->entidade_id)
-            ->where('metrica', EntidadeQuota::MonthlyWhatsAppMessages)
+            ->where('metrica', EntityQuota::MonthlyWhatsAppMessages)
             ->value('quantidade'));
     }
 
-    /** @return array{Gabinete, User, WhatsAppContact} */
+    /** @return array{Office, User, WhatsAppContact} */
     private function contactContext(): array
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->forGabinete($office)->create();
         $contact = app(WhatsAppContactService::class)->declareForUser(
             $user,
@@ -228,7 +228,7 @@ class EntidadeWhatsAppIsolationTest extends TestCase
         return [$office, $user, $contact];
     }
 
-    /** @return array{Gabinete, User, WhatsAppContact} */
+    /** @return array{Office, User, WhatsAppContact} */
     private function eligibleContext(): array
     {
         [$office, $user, $contact] = $this->contactContext();
@@ -261,7 +261,7 @@ class EntidadeWhatsAppIsolationTest extends TestCase
         (new SendWhatsAppNotification($notificationId))->handle(
             app(WhatsAppGatewayClient::class),
             app(WhatsAppEligibilityService::class),
-            app(EntidadeQuotaService::class),
+            app(EntityQuotaService::class),
         );
     }
 }

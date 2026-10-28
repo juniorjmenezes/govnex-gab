@@ -28,17 +28,21 @@ Quatro niveis, iguais em todo o ecossistema GOVNEX (decisao #5 de [INTEGRACAO_GO
 
 `App\Enums\AccessRole` e o unico enum de papel de vinculo, usado por `entidade_membros.papel`, `gabinete_membros.papel` e pelos convites. Administrador de gabinete so e administrador da **entidade** quando ela e gabinete independente; em Camara ou Prefeitura ele e operador da entidade (`AccessRole::forEntidadeOfUnit`). Funcoes de negocio (vereador, chefe de gabinete, lideranca) nao sao papel: `gabinetes.vereador_nome` e `gabinetes.candidato_titular_id` sao dado de dominio do gabinete, sem efeito em autorizacao. O historico de liderancas (`gabinete_liderancas`, model `GabineteLideranca`) foi removido em 23/09/2026 por decisao do usuario: nao tinha leitores, e papel de acesso nao implica lideranca. O rotulo contextual do titular (Vereador, Prefeito, Secretario) continua em `GabineteType::leaderLabel()`.
 
-Somente leitura do auditor em duas camadas: `ResolveEntidadeContext` recusa com 403 qualquer metodo fora de GET/HEAD/OPTIONS quando o papel projetado e auditor (exceto acoes pessoais: marcar notificacoes como lidas e registrar progresso de leitura), e as Policies de escrita exigem `role->canWrite()`. Rotas fora do contexto (perfil proprio, logout) nao passam por esse middleware.
+Somente leitura do auditor em duas camadas: `ResolveEntityContext` recusa com 403 qualquer metodo fora de GET/HEAD/OPTIONS quando o papel no gabinete da URL (`OfficeContext::roleFor()`) e auditor (exceto acoes pessoais: marcar notificacoes como lidas e registrar progresso de leitura), e as Policies de escrita exigem `roleFor($user)->canWrite()`. Rotas fora do contexto (perfil proprio, logout) nao passam por esse middleware.
 
-### Compatibilidade do contexto legado
+### Gabinete e papel da requisicao
 
-Nas rotas canonicas, `entidade_membros` e `gabinete_membros` definem acesso e papel. O middleware contextual projeta temporariamente o gabinete e o papel selecionados nos atributos legados de `User` para manter Policies e controladores operacionais antigos funcionando durante a transicao. Essa projecao existe apenas durante a requisicao e nao altera o cadastro persistido do usuario.
+Nas rotas canonicas, `entidade_membros` e `gabinete_membros` definem acesso e papel. `ResolveEntityContext` confere o vinculo e registra o gabinete da URL em `OfficeContext` (`setUnit`); nada e gravado na conta. Controllers, Policies, Form Requests e middlewares leem o contexto pelo `OfficeContext`:
 
-A projecao e 1:1: `AccessRole` do vinculo com o gabinete em contexto vira `UserRole` (`administrador`, `operador`, `auditor`); `root` nunca e sobrescrito.
+- `officeIdFor($user)` / `officeFor($user)`: o gabinete em que a pessoa atua. Para a pessoa autenticada numa rota com contexto, e o da URL; fora disso (filas, comandos, outra pessoa que nao a autenticada), e `users.gabinete_id`.
+- `requireOfficeFor($user)`: instancia nova desse gabinete, para quem vai altera-lo ou carregar relacoes (a de `officeFor()` e compartilhada pela requisicao).
+- `roleFor($user)`: o papel do vinculo com o gabinete da URL, 1:1 (`AccessRole` → `UserRole`: `administrador`, `operador`, `auditor`); `root` nunca e substituido; fora de uma rota com contexto, vale `users.role`.
 
-As colunas `users.gabinete_id` e `users.role` so poderao ser removidas depois que todos os consumidores operacionais usarem `EntidadeContext`, `GabineteContext`, `entidadeRole()` e `gabineteRole()`, e as rotas legadas deixarem de ser necessarias. Ate la, elas representam respectivamente o gabinete padrao e o papel global de administracao da plataforma, nao a fonte canonica de autorizacao contextual.
+O gabinete da requisicao nao muda dentro de `runAs()`: quem atua (e com qual papel) continua sendo o da URL, mesmo quando um fluxo grava em outro gabinete. O Inertia compartilha em `auth.user.role` e `auth.user.gabinete_id` os valores do contexto, nao os da conta.
 
-**Divida registrada — ponte `users.role`.** As Policies ainda decidem por `users.role`, projetado por requisicao. Foi mantido de proposito na simplificacao de papeis (23/09/2026) para reduzir o raio da mudanca. Fora de uma requisicao com contexto (filas, comandos, notificacoes), `users.role` vale o que foi gravado por ultimo (criacao da conta ou reprojecao do Hub), e nao o papel em cada gabinete. Criterio de remocao: Policies passarem a ler `gabineteRole()`/`entidadeRole()` do contexto resolvido e os consumidores fora de requisicao consultarem os vinculos.
+Ate 28/10/2026 o middleware projetava o gabinete e o papel do contexto em `$user->gabinete_id`/`$user->role` durante a requisicao; essa projecao foi removida depois que todos os consumidores passaram a ler o `OfficeContext`.
+
+`users.gabinete_id` e `users.role` continuam existindo com outro significado: o gabinete em que a conta nasceu (usado pela entrada legada `RedirectLegacyTenantRoute`, que resolve o contexto apos o login e de links antigos) e o papel global, gravado na criacao ou reprojetado pelo Hub. Fora de uma requisicao com contexto (filas, comandos, notificacoes, destinatarios de avisos), eles valem o que foi gravado por ultimo, e nao o papel em cada gabinete. Criterio para remover as colunas: os consumidores fora de requisicao consultarem os vinculos e a entrada legada deixar de depender de `users.gabinete_id`.
 
 Todo gabinete novo pertence obrigatoriamente a uma entidade. O schema de desenvolvimento nao admite `gabinetes.entidade_id` nulo.
 

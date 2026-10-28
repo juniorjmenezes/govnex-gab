@@ -7,7 +7,7 @@ namespace App\Enums;
  *
  * Root é a conta local da plataforma. Os demais são a projeção, por
  * requisição, do `AccessRole` do vínculo com o gabinete em contexto (ver
- * `ResolveEntidadeContext`); é o que as Policies leem. A ponte é dívida
+ * `ResolveEntityContext`); é o que as Policies leem. A ponte é dívida
  * registrada em `docs/ARCHITECTURE.md`.
  */
 enum UserRole: string

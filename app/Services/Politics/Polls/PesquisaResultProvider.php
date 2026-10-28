@@ -2,7 +2,7 @@
 
 namespace App\Services\Politics\Polls;
 
-use App\Models\PesquisaEleitoral;
+use App\Models\ElectoralPoll;
 
 /**
  * Uma fonte capaz de buscar o resultado (percentual por candidato) de uma
@@ -20,11 +20,11 @@ interface PesquisaResultProvider
      * pesquisa (cargo/abrangência suportados, dados mínimos presentes etc.) —
      * não garante que vai encontrar algo, só que faz sentido tentar.
      */
-    public function supports(PesquisaEleitoral $pesquisa): bool;
+    public function supports(ElectoralPoll $pesquisa): bool;
 
     /**
      * Busca o resultado da pesquisa nesta fonte. Retorna null quando não
      * encontrar nada correspondente (não é erro — é ausência de dado).
      */
-    public function buscar(PesquisaEleitoral $pesquisa): ?ResultadoColeta;
+    public function buscar(ElectoralPoll $pesquisa): ?ResultadoColeta;
 }

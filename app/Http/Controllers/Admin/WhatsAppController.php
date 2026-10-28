@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\EntidadeWhatsAppConnectionType;
-use App\Enums\GabineteModule;
+use App\Enums\EntityWhatsAppConnectionType;
+use App\Enums\OfficeModule;
 use App\Enums\WhatsAppMode;
 use App\Enums\WhatsAppPurpose;
 use App\Http\Controllers\Controller;
-use App\Models\Entidade;
-use App\Models\EntidadeWhatsAppConexao;
-use App\Models\Gabinete;
+use App\Models\Entity;
+use App\Models\EntityWhatsAppConnection;
+use App\Models\Office;
 use App\Models\WhatsAppContact;
 use App\Models\WhatsAppNotification;
 use App\Models\WhatsAppTemplatePurpose;
-use App\Services\Modules\GabineteModuleManager;
-use App\Services\WhatsApp\EntidadeWhatsAppConnectionService;
+use App\Services\Modules\OfficeModuleManager;
+use App\Services\WhatsApp\EntityWhatsAppConnectionService;
 use App\Services\WhatsApp\WhatsAppConfigurationService;
 use App\Services\WhatsApp\WhatsAppTemplateService;
 use Illuminate\Http\RedirectResponse;
@@ -31,10 +31,10 @@ final class WhatsAppController extends Controller
         Request $request,
         WhatsAppConfigurationService $configurations,
         WhatsAppTemplateService $templates,
-        GabineteModuleManager $modules,
-        EntidadeWhatsAppConnectionService $connections,
+        OfficeModuleManager $modules,
+        EntityWhatsAppConnectionService $connections,
     ): Response {
-        $officeModels = Gabinete::withoutGlobalScopes()
+        $officeModels = Office::withoutGlobalScopes()
             ->with('entidade:id,slug,nome')
             ->orderBy('nome')
             ->get(['id', 'entidade_id', 'nome', 'status']);
@@ -42,13 +42,13 @@ final class WhatsAppController extends Controller
         $entidade = $office?->entidade;
         $connection = $entidade ? $connections->activeFor($entidade) : null;
         $officeModules = $office ? $modules->activeFor($office) : [];
-        $offices = $officeModels->map(fn (Gabinete $item): array => [
+        $offices = $officeModels->map(fn (Office $item): array => [
             'id' => $item->id,
             'entidade_id' => $item->entidade_id,
             'entidade_name' => $item->entidade?->nome,
             'nome' => $item->nome,
             'status' => $item->status->value,
-            'whatsapp_enabled' => $modules->isActive($item, GabineteModule::WhatsApp),
+            'whatsapp_enabled' => $modules->isActive($item, OfficeModule::WhatsApp),
         ]);
         $configuration = $office ? $configurations->forOffice((int) $office->id) : null;
         $contacts = $office
@@ -105,7 +105,7 @@ final class WhatsAppController extends Controller
             'configuration' => $configuration ? [
                 'mode' => $configuration->modo->value,
                 'digest_time' => substr((string) $configuration->resumo_diario_em, 0, 5),
-                'module_enabled' => in_array(GabineteModule::WhatsApp->value, $officeModules, true),
+                'module_enabled' => in_array(OfficeModule::WhatsApp->value, $officeModules, true),
                 'purposes' => array_values(array_intersect(
                     (array) $configuration->finalidades_habilitadas,
                     array_column(WhatsAppPurpose::operationalUtilityCases(), 'value'),
@@ -151,8 +151,8 @@ final class WhatsAppController extends Controller
 
     public function consultAccounts(
         Request $request,
-        Entidade $entidade,
-        EntidadeWhatsAppConnectionService $connections,
+        Entity $entidade,
+        EntityWhatsAppConnectionService $connections,
     ): RedirectResponse {
         try {
             $accounts = $connections->availableGatewayAccounts();
@@ -175,17 +175,17 @@ final class WhatsAppController extends Controller
 
     public function assignConnection(
         Request $request,
-        Entidade $entidade,
-        EntidadeWhatsAppConnectionService $connections,
+        Entity $entidade,
+        EntityWhatsAppConnectionService $connections,
     ): RedirectResponse {
         $validated = $request->validate([
             'account_id' => ['required', 'integer', 'min:1'],
-            'type' => ['required', Rule::enum(EntidadeWhatsAppConnectionType::class)],
+            'type' => ['required', Rule::enum(EntityWhatsAppConnectionType::class)],
         ]);
         $connections->assign(
             $entidade,
             (int) $validated['account_id'],
-            EntidadeWhatsAppConnectionType::from($validated['type']),
+            EntityWhatsAppConnectionType::from($validated['type']),
             $request->user(),
         );
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Conta WhatsApp atribuída à organização. Os gabinetes permanecem em modo OFF.']);
@@ -195,8 +195,8 @@ final class WhatsAppController extends Controller
 
     public function deactivateConnection(
         Request $request,
-        Entidade $entidade,
-        EntidadeWhatsAppConnectionService $connections,
+        Entity $entidade,
+        EntityWhatsAppConnectionService $connections,
     ): RedirectResponse {
         $connections->deactivate($entidade, $request->user());
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Conexão desativada e novos envios bloqueados.']);
@@ -206,7 +206,7 @@ final class WhatsAppController extends Controller
 
     public function updateConfiguration(
         Request $request,
-        Gabinete $office,
+        Office $office,
         WhatsAppConfigurationService $configurations,
     ): RedirectResponse {
         $validated = $request->validate([
@@ -252,14 +252,14 @@ final class WhatsAppController extends Controller
     public function createTemplate(
         Request $request,
         WhatsAppTemplateService $templates,
-        EntidadeWhatsAppConnectionService $connections,
+        EntityWhatsAppConnectionService $connections,
     ): RedirectResponse {
         $validated = $request->validate([
             'entidade_id' => ['required', 'integer', 'exists:entidades,id'],
             'purpose' => ['required', Rule::enum(WhatsAppPurpose::class)],
             'body' => ['nullable', 'string', 'min:20', 'max:1024'],
         ]);
-        $entidade = Entidade::query()->whereKey($validated['entidade_id'])->firstOrFail();
+        $entidade = Entity::query()->whereKey($validated['entidade_id'])->firstOrFail();
         $connection = $connections->activeFor($entidade);
         if ($connection === null) {
             throw ValidationException::withMessages(['entidade_id' => 'Vincule uma conta WhatsApp antes de criar templates.']);
@@ -325,12 +325,12 @@ final class WhatsAppController extends Controller
     public function syncTemplates(
         Request $request,
         WhatsAppTemplateService $templates,
-        EntidadeWhatsAppConnectionService $connections,
+        EntityWhatsAppConnectionService $connections,
     ): RedirectResponse {
         $validated = $request->validate([
             'entidade_id' => ['required', 'integer', 'exists:entidades,id'],
         ]);
-        $entidade = Entidade::query()->whereKey($validated['entidade_id'])->firstOrFail();
+        $entidade = Entity::query()->whereKey($validated['entidade_id'])->firstOrFail();
         $connection = $connections->activeFor($entidade);
         if ($connection === null) {
             throw ValidationException::withMessages(['entidade_id' => 'Vincule uma conta WhatsApp antes de sincronizar templates.']);
@@ -377,7 +377,7 @@ final class WhatsAppController extends Controller
     }
 
     /** @return array{id:int,gateway_account_id:int,type:string,name:string,phone_last_four:?string,status:string,active:bool} */
-    private function presentConnection(EntidadeWhatsAppConexao $connection): array
+    private function presentConnection(EntityWhatsAppConnection $connection): array
     {
         return [
             'id' => $connection->id,

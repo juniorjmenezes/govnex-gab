@@ -36,7 +36,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Gabinete|null $gabinete
+ * @property-read Office|null $gabinete
  */
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
@@ -45,22 +45,22 @@ class User extends Authenticatable implements PasskeyUser
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, PasskeyAuthenticatable, SoftDeletes, TwoFactorAuthenticatable;
 
-    /** @return BelongsTo<Gabinete, $this> */
+    /** @return BelongsTo<Office, $this> */
     public function gabinete(): BelongsTo
     {
-        return $this->belongsTo(Gabinete::class);
+        return $this->belongsTo(Office::class);
     }
 
-    /** @return HasMany<EntidadeMembro, $this> */
+    /** @return HasMany<EntityMember, $this> */
     public function entidades(): HasMany
     {
-        return $this->hasMany(EntidadeMembro::class, 'usuario_id');
+        return $this->hasMany(EntityMember::class, 'usuario_id');
     }
 
-    /** @return HasMany<GabineteMembro, $this> */
+    /** @return HasMany<OfficeMember, $this> */
     public function gabinetes(): HasMany
     {
-        return $this->hasMany(GabineteMembro::class, 'usuario_id');
+        return $this->hasMany(OfficeMember::class, 'usuario_id');
     }
 
     public function entidadeRole(int $entidadeId): ?AccessRole
@@ -108,10 +108,10 @@ class User extends Authenticatable implements PasskeyUser
         return $this->isRoot() || $this->gabineteRole($gabineteId)?->canManage() === true;
     }
 
-    /** @return HasMany<Demanda, $this> */
+    /** @return HasMany<Demand, $this> */
     public function demandasAtribuidas(): HasMany
     {
-        return $this->hasMany(Demanda::class, 'responsavel_id');
+        return $this->hasMany(Demand::class, 'responsavel_id');
     }
 
     /** @return HasMany<Appointment, $this> */
@@ -126,16 +126,16 @@ class User extends Authenticatable implements PasskeyUser
         return $this->hasOne(WhatsAppContact::class, 'usuario_id');
     }
 
-    /** @return HasMany<Atendimento, $this> */
+    /** @return HasMany<Attendance, $this> */
     public function atendimentosRealizados(): HasMany
     {
-        return $this->hasMany(Atendimento::class, 'atendente_id');
+        return $this->hasMany(Attendance::class, 'atendente_id');
     }
 
-    /** @return HasMany<Evento, $this> */
+    /** @return HasMany<Event, $this> */
     public function eventosResponsaveis(): HasMany
     {
-        return $this->hasMany(Evento::class, 'responsavel_id');
+        return $this->hasMany(Event::class, 'responsavel_id');
     }
 
     public function isRoot(): bool

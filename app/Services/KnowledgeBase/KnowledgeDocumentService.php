@@ -2,10 +2,10 @@
 
 namespace App\Services\KnowledgeBase;
 
-use App\Enums\GabineteType;
-use App\Models\ConhecimentoDocumento;
-use App\Models\ConhecimentoLeitura;
-use App\Models\Gabinete;
+use App\Enums\OfficeType;
+use App\Models\KnowledgeDocument;
+use App\Models\KnowledgeReading;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -34,13 +34,13 @@ class KnowledgeDocumentService
         ?int $gabineteId,
         User $user,
         ?int $entidadeId = null,
-    ): ConhecimentoDocumento {
+    ): KnowledgeDocument {
         $this->assertPdfSignature($file);
 
         if ($entidadeId !== null) {
             $gabineteId = null;
         } elseif ($gabineteId !== null) {
-            $ownerEntidade = Gabinete::withoutGlobalScopes()->whereKey($gabineteId)->value('entidade_id');
+            $ownerEntidade = Office::withoutGlobalScopes()->whereKey($gabineteId)->value('entidade_id');
             $entidadeId = $ownerEntidade === null ? null : (int) $ownerEntidade;
         }
 
@@ -56,7 +56,7 @@ class KnowledgeDocumentService
         }
 
         try {
-            $document = new ConhecimentoDocumento;
+            $document = new KnowledgeDocument;
             $document->forceFill([
                 'gabinete_id' => $gabineteId,
                 'entidade_id' => $entidadeId,
@@ -77,7 +77,7 @@ class KnowledgeDocumentService
         }
     }
 
-    public function stream(ConhecimentoDocumento $document): StreamedResponse
+    public function stream(KnowledgeDocument $document): StreamedResponse
     {
         abort_unless(Storage::disk($document->disk)->exists($document->caminho), 404);
 
@@ -95,13 +95,13 @@ class KnowledgeDocumentService
      * documento sobe uma única vez para essa pessoa.
      */
     public function recordPage(
-        ConhecimentoDocumento $document,
+        KnowledgeDocument $document,
         User $user,
         int $page,
         int $reportedTotal,
-    ): ConhecimentoLeitura {
-        return DB::transaction(function () use ($document, $user, $page, $reportedTotal): ConhecimentoLeitura {
-            $document = ConhecimentoDocumento::query()->lockForUpdate()->findOrFail($document->id);
+    ): KnowledgeReading {
+        return DB::transaction(function () use ($document, $user, $page, $reportedTotal): KnowledgeReading {
+            $document = KnowledgeDocument::query()->lockForUpdate()->findOrFail($document->id);
 
             // O primeiro leitor informa o total de páginas; depois ele é fixo.
             if ($document->total_paginas === null) {
@@ -116,7 +116,7 @@ class KnowledgeDocumentService
                 ]);
             }
 
-            $reading = ConhecimentoLeitura::query()
+            $reading = KnowledgeReading::query()
                 ->lockForUpdate()
                 ->firstOrNew(['documento_id' => $document->id, 'usuario_id' => $user->id]);
 
@@ -145,7 +145,7 @@ class KnowledgeDocumentService
         });
     }
 
-    public function delete(ConhecimentoDocumento $document): void
+    public function delete(KnowledgeDocument $document): void
     {
         $path = $document->caminho;
         $disk = $document->disk;
@@ -154,7 +154,7 @@ class KnowledgeDocumentService
     }
 
     /** @return array<string, mixed> */
-    public function summary(ConhecimentoDocumento $document, User $user, ?ConhecimentoLeitura $reading): array
+    public function summary(KnowledgeDocument $document, User $user, ?KnowledgeReading $reading): array
     {
         return [
             'id' => $document->id,
@@ -164,7 +164,7 @@ class KnowledgeDocumentService
             // Rótulo do selo dos documentos compartilhados com a entidade: só
             // a Secretaria legislativa publica nesse nível (mesmo selo da
             // agenda institucional).
-            'origin_label' => $document->isEntidadeWide() ? GabineteType::LegislativeSecretariat->label() : null,
+            'origin_label' => $document->isEntidadeWide() ? OfficeType::LegislativeSecretariat->label() : null,
             'size' => $document->tamanho,
             'total_pages' => $document->total_paginas,
             'completed_readings' => $document->leituras_completas,
@@ -176,7 +176,7 @@ class KnowledgeDocumentService
     }
 
     /** @return array{pages_read: list<int>, last_page: int, percent: int, completed_at: string|null} */
-    public function progress(ConhecimentoDocumento $document, ?ConhecimentoLeitura $reading): array
+    public function progress(KnowledgeDocument $document, ?KnowledgeReading $reading): array
     {
         $pages = $reading->paginas_lidas ?? [];
         $total = (int) $document->total_paginas;

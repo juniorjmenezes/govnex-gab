@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 
@@ -23,7 +23,7 @@ $fail = static function (string $message): never {
     exit(1);
 };
 
-$moduleCodes = array_column(GabineteModule::cases(), 'value');
+$moduleCodes = array_column(OfficeModule::cases(), 'value');
 $officeIds = DB::table('gabinetes')->orderBy('id')->pluck('id')->all();
 
 if ($officeIds === []) {

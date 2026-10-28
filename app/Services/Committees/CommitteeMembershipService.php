@@ -3,12 +3,12 @@
 namespace App\Services\Committees;
 
 use App\Enums\CommitteeRole;
-use App\Enums\GabineteStatus;
-use App\Enums\GabineteType;
+use App\Enums\OfficeStatus;
+use App\Enums\OfficeType;
 use App\Models\ComissaoLegislativa;
 use App\Models\ComissaoMembro;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -114,19 +114,19 @@ class CommitteeMembershipService
     }
 
     /**
-     * Lido sem o escopo global de `Gabinete`: no contexto da Secretaria ele
+     * Lido sem o escopo global de `Office`: no contexto da Secretaria ele
      * só enxerga a própria Secretaria. O recorte é a entidade da comissão.
      */
     private function assertEligibleOffice(ComissaoLegislativa $comissao, int $gabineteId): void
     {
-        $gabinete = Gabinete::withoutGlobalScopes()
+        $gabinete = Office::withoutGlobalScopes()
             ->whereNull('deleted_at')
             ->find($gabineteId);
 
         if ($gabinete === null
             || $gabinete->entidade_id !== $comissao->entidade_id
-            || $gabinete->tipo_gabinete !== GabineteType::CouncilorOffice
-            || $gabinete->status !== GabineteStatus::Active) {
+            || $gabinete->tipo_gabinete !== OfficeType::CouncilorOffice
+            || $gabinete->status !== OfficeStatus::Active) {
             throw ValidationException::withMessages([
                 'gabinete_id' => 'Selecione um gabinete de vereador ativo desta Câmara.',
             ]);
@@ -139,7 +139,7 @@ class CommitteeMembershipService
             return;
         }
 
-        $linked = GabineteMembro::query()
+        $linked = OfficeMember::query()
             ->where('gabinete_id', $gabineteId)
             ->where('usuario_id', $usuarioId)
             ->where('ativo', true)

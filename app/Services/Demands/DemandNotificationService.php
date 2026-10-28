@@ -3,12 +3,12 @@
 namespace App\Services\Demands;
 
 use App\Enums\DemandStatus;
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use App\Enums\UserRole;
-use App\Models\Demanda;
+use App\Models\Demand;
 use App\Models\User;
 use App\Notifications\DemandActivityNotification;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\WhatsApp\WhatsAppEventNotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Notifications\DatabaseNotification;
@@ -26,12 +26,12 @@ class DemandNotificationService
 
     public function __construct(
         private readonly WhatsAppEventNotificationService $whatsApp,
-        private readonly GabineteModuleManager $modules,
+        private readonly OfficeModuleManager $modules,
     ) {}
 
-    public function assigned(Demanda $demand, ?int $previousResponsibleId = null): void
+    public function assigned(Demand $demand, ?int $previousResponsibleId = null): void
     {
-        if (! $this->modules->isActive($demand->gabinete_id, GabineteModule::Demands)) {
+        if (! $this->modules->isActive($demand->gabinete_id, OfficeModule::Demands)) {
             return;
         }
         if (! $demand->responsavel_id || $demand->responsavel_id === $previousResponsibleId) {
@@ -51,9 +51,9 @@ class DemandNotificationService
         }
     }
 
-    public function nextActionAssigned(Demanda $demand, User $definedBy): void
+    public function nextActionAssigned(Demand $demand, User $definedBy): void
     {
-        if (! $this->modules->isActive($demand->gabinete_id, GabineteModule::Demands)) {
+        if (! $this->modules->isActive($demand->gabinete_id, OfficeModule::Demands)) {
             return;
         }
         $responsibleId = $demand->proxima_acao_responsavel_id;
@@ -71,9 +71,9 @@ class DemandNotificationService
     }
 
     /** Comunica qualquer mudança de status ao responsável (interno) e ao cidadão (WhatsApp). */
-    public function statusChanged(Demanda $demand, DemandStatus $status): void
+    public function statusChanged(Demand $demand, DemandStatus $status): void
     {
-        if (! $this->modules->isActive($demand->gabinete_id, GabineteModule::Demands)) {
+        if (! $this->modules->isActive($demand->gabinete_id, OfficeModule::Demands)) {
             return;
         }
         $recipient = $demand->responsavel_id
@@ -90,9 +90,9 @@ class DemandNotificationService
         $this->whatsApp->demandStatusChanged($demand);
     }
 
-    public function updateAdded(Demanda $demand, User $author): void
+    public function updateAdded(Demand $demand, User $author): void
     {
-        if (! $this->modules->isActive($demand->gabinete_id, GabineteModule::Demands)) {
+        if (! $this->modules->isActive($demand->gabinete_id, OfficeModule::Demands)) {
             return;
         }
         if (! $demand->responsavel_id || $demand->responsavel_id === $author->id) {
@@ -112,12 +112,12 @@ class DemandNotificationService
     /** Job agendado: prazo da demanda e próxima ação chegando/atrasados. */
     public function dispatchAttention(): void
     {
-        $officeIds = $this->modules->activeOfficeIds(GabineteModule::Demands);
+        $officeIds = $this->modules->activeOfficeIds(OfficeModule::Demands);
         if ($officeIds === []) {
             return;
         }
 
-        Demanda::withoutGlobalScopes()
+        Demand::withoutGlobalScopes()
             ->whereIn('gabinete_id', $officeIds)
             ->whereNotNull('prazo')
             ->whereIn('status', DemandStatus::openValues())
@@ -138,7 +138,7 @@ class DemandNotificationService
                 }
             });
 
-        Demanda::withoutGlobalScopes()
+        Demand::withoutGlobalScopes()
             ->whereIn('gabinete_id', $officeIds)
             ->whereNotNull('proxima_acao_data')
             ->whereNull('proxima_acao_concluida_em')
@@ -172,7 +172,7 @@ class DemandNotificationService
      *
      * @return array<int, User>
      */
-    private function recipients(Demanda $demand): array
+    private function recipients(Demand $demand): array
     {
         $responsible = $demand->responsavel;
 
@@ -243,7 +243,7 @@ class DemandNotificationService
         string $key,
         string $title,
         string $message,
-        Demanda $demand,
+        Demand $demand,
     ): void {
         if (! $recipient || ! $this->belongsToOffice($recipient, (int) $demand->gabinete_id)) {
             return;

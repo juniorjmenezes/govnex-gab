@@ -25,6 +25,7 @@ GOVNEX GAB é um SaaS multi-tenant para gestão de demandas, agenda e operação
 
 ## Regras permanentes
 
+- Nomes de arquivos, classes, métodos, variáveis e funções são em inglês — em todo o código novo, em qualquer camada (controllers, models, policies, services, requests, enums, jobs, actions, notifications, componentes React, etc.). Só o schema do banco (nomes de tabela e de coluna) continua em português, porque é o que os times de dados e as ferramentas de banco já usam. Código existente em português não precisa de uma varredura dedicada para ser renomeado, mas ao tocar num arquivo por outro motivo, prefira alinhá-lo à convenção em inglês caso o custo seja baixo (ex.: um `Request` isolado) — não force a mudança quando o arquivo tem relacionamentos Eloquent, rotas ou testes amarrados ao nome atual, caso em que o renomear é um esforço planejado à parte.
 - Preserve Laravel, React, Inertia, TypeScript, Tailwind e o preset shadcn existente.
 - Não adicione Bootstrap, jQuery ou outro design system.
 - Reutilize `components/ui`; mantenha componentes de negócio fora desse diretório.

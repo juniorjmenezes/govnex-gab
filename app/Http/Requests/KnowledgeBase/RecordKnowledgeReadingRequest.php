@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\KnowledgeBase;
 
-use App\Models\ConhecimentoDocumento;
+use App\Models\KnowledgeDocument;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RecordKnowledgeReadingRequest extends FormRequest
@@ -11,7 +11,7 @@ class RecordKnowledgeReadingRequest extends FormRequest
     {
         $document = $this->route('documento');
 
-        return $document instanceof ConhecimentoDocumento
+        return $document instanceof KnowledgeDocument
             && $this->user()->can('view', $document);
     }
 

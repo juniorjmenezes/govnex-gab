@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Committees\CommitteeDocumentRequest;
 use App\Models\ComissaoLegislativa;
-use App\Models\ConhecimentoDocumento;
+use App\Models\KnowledgeDocument;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\ValidationException;
@@ -37,7 +37,7 @@ class CommitteeDocumentController extends Controller
         return back();
     }
 
-    public function destroy(ComissaoLegislativa $comissao, ConhecimentoDocumento $documento): RedirectResponse
+    public function destroy(ComissaoLegislativa $comissao, KnowledgeDocument $documento): RedirectResponse
     {
         $this->authorize('update', $comissao);
         abort_unless($comissao->documentos()->detach($documento->id) > 0, 404);

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\EntidadeType;
-use App\Models\Entidade;
+use App\Enums\EntityType;
+use App\Models\Entity;
 use App\Models\User;
 use App\Support\PerPage;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,7 +24,7 @@ class EntidadeDirectoryController extends Controller
             : $user->gabinetes()
                 ->where('ativo', true)
                 ->pluck('gabinete_id');
-        $query = Entidade::query()->with([
+        $query = Entity::query()->with([
             'gabinetes' => fn ($query) => $query
                 ->withoutGlobalScopes()
                 ->when($accessibleGabineteIds !== null, fn (Builder $query) => $query
@@ -54,7 +54,7 @@ class EntidadeDirectoryController extends Controller
         $entidades = $query
             ->paginate(PerPage::resolve($request, 8))
             ->withQueryString()
-            ->through(fn (Entidade $entidade): array => [
+            ->through(fn (Entity $entidade): array => [
                 'id' => $entidade->id,
                 'name' => $entidade->nome,
                 'slug' => $entidade->slug,
@@ -64,7 +64,7 @@ class EntidadeDirectoryController extends Controller
                 'state' => $entidade->estado,
                 'can_create_gabinete' => $user->isRoot()
                     && $entidade->isActive()
-                    && ($entidade->tipo !== EntidadeType::IndependentOffice
+                    && ($entidade->tipo !== EntityType::IndependentOffice
                         || $entidade->gabinetes->isEmpty()),
                 'gabinetes' => $entidade->gabinetes
                     ->map(fn ($gabinete): array => [

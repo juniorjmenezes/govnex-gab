@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\Settings\UpdateGabineteSettingsRequest;
-use App\Models\Bairro;
-use App\Models\Configuracao;
+use App\Http\Requests\Settings\UpdateOfficeSettingsRequest;
+use App\Models\Neighborhood;
+use App\Models\Setting;
+use App\Tenancy\OfficeContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,8 +17,8 @@ class GabineteSettingsController extends Controller
 {
     public function edit(Request $request): Response
     {
-        $gabinete = $request->user()->gabinete()->with('candidatoTitular')->firstOrFail();
-        $configuracao = Configuracao::query()->first() ?? new Configuracao;
+        $gabinete = app(OfficeContext::class)->requireOfficeFor($request->user())->loadMissing('candidatoTitular');
+        $configuracao = Setting::query()->first() ?? new Setting;
         $configuracao->setAttribute('gabinete_id', $gabinete->id);
         $this->authorize('view', $configuracao);
         $candidate = $gabinete->candidatoTitular;
@@ -58,10 +59,10 @@ class GabineteSettingsController extends Controller
         ]);
     }
 
-    public function update(UpdateGabineteSettingsRequest $request): RedirectResponse
+    public function update(UpdateOfficeSettingsRequest $request): RedirectResponse
     {
-        $gabinete = $request->user()->gabinete()->firstOrFail();
-        $configuracao = Configuracao::query()->first() ?? new Configuracao;
+        $gabinete = app(OfficeContext::class)->requireOfficeFor($request->user());
+        $configuracao = Setting::query()->first() ?? new Setting;
         $configuracao->setAttribute('gabinete_id', $gabinete->id);
         $this->authorize('update', $configuracao);
 
@@ -95,14 +96,14 @@ class GabineteSettingsController extends Controller
                     : ($removeLogo ? ['logo_path' => null] : [])),
             ]);
 
-            Bairro::withoutGlobalScopes()
+            Neighborhood::withoutGlobalScopes()
                 ->where('gabinete_id', $gabinete->id)
                 ->update([
                     'municipio' => $gabinete->municipio,
                     'estado' => $gabinete->estado,
                 ]);
 
-            Configuracao::query()->updateOrCreate([], [
+            Setting::query()->updateOrCreate([], [
                 'partido' => $validated['partido'] ?? null,
                 'legislatura' => $validated['legislatura'] ?? null,
             ]);

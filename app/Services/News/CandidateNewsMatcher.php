@@ -2,9 +2,9 @@
 
 namespace App\Services\News;
 
-use App\Models\CandidatoFavorito;
-use App\Models\NoticiaCandidato;
-use App\Models\NoticiaRss;
+use App\Models\CandidateNews;
+use App\Models\FavoriteCandidate;
+use App\Models\RssNews;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -19,7 +19,7 @@ class CandidateNewsMatcher
     /** Nomes muito curtos casariam com qualquer coisa. */
     private const MIN_TERM_LENGTH = 4;
 
-    public function matchNews(NoticiaRss $noticia): int
+    public function matchNews(RssNews $noticia): int
     {
         $favorites = $this->favorites();
 
@@ -49,15 +49,15 @@ class CandidateNewsMatcher
      * Reprocessa notícias já coletadas — útil quando o gabinete favorita um
      * candidato novo ou muda os termos, para não esperar a próxima coleta.
      */
-    public function matchRecentForFavorite(CandidatoFavorito $favorite, int $limit = 200): int
+    public function matchRecentForFavorite(FavoriteCandidate $favorite, int $limit = 200): int
     {
         $matches = 0;
 
-        NoticiaRss::query()
+        RssNews::query()
             ->latest('publicado_em')
             ->limit($limit)
             ->get(['id', 'titulo', 'resumo'])
-            ->each(function (NoticiaRss $noticia) use ($favorite, &$matches): void {
+            ->each(function (RssNews $noticia) use ($favorite, &$matches): void {
                 $haystack = $this->normalize($noticia->titulo.' '.($noticia->resumo ?? ''));
                 $term = $this->firstMatchingTerm($favorite, $haystack);
 
@@ -78,9 +78,9 @@ class CandidateNewsMatcher
      * coleta roda fora de um contexto de gabinete — por isso o forceFill em
      * vez de firstOrCreate.
      */
-    private function link(NoticiaRss $noticia, CandidatoFavorito $favorite, string $term): void
+    private function link(RssNews $noticia, FavoriteCandidate $favorite, string $term): void
     {
-        $exists = NoticiaCandidato::withoutGlobalScopes()
+        $exists = CandidateNews::withoutGlobalScopes()
             ->where('noticia_rss_id', $noticia->id)
             ->where('gabinete_id', $favorite->gabinete_id)
             ->where('candidato_politico_id', $favorite->candidato_politico_id)
@@ -90,7 +90,7 @@ class CandidateNewsMatcher
             return;
         }
 
-        (new NoticiaCandidato)->forceFill([
+        (new CandidateNews)->forceFill([
             'noticia_rss_id' => $noticia->id,
             'gabinete_id' => $favorite->gabinete_id,
             'candidato_politico_id' => $favorite->candidato_politico_id,
@@ -98,15 +98,15 @@ class CandidateNewsMatcher
         ])->save();
     }
 
-    /** @return Collection<int, CandidatoFavorito> */
+    /** @return Collection<int, FavoriteCandidate> */
     private function favorites(): Collection
     {
-        return CandidatoFavorito::withoutGlobalScopes()
+        return FavoriteCandidate::withoutGlobalScopes()
             ->with('candidato:id,nome,nome_urna')
             ->get();
     }
 
-    private function firstMatchingTerm(CandidatoFavorito $favorite, string $haystack): ?string
+    private function firstMatchingTerm(FavoriteCandidate $favorite, string $haystack): ?string
     {
         foreach ($this->excludeTerms($favorite) as $term) {
             if ($this->contains($haystack, $term)) {
@@ -124,7 +124,7 @@ class CandidateNewsMatcher
     }
 
     /** @return list<string> */
-    private function searchTerms(CandidatoFavorito $favorite): array
+    private function searchTerms(FavoriteCandidate $favorite): array
     {
         $terms = [
             $favorite->candidato?->nome_urna,
@@ -136,7 +136,7 @@ class CandidateNewsMatcher
     }
 
     /** @return list<string> */
-    private function excludeTerms(CandidatoFavorito $favorite): array
+    private function excludeTerms(FavoriteCandidate $favorite): array
     {
         return $this->sanitize($favorite->termos_exclusao ?? []);
     }

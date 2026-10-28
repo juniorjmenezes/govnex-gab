@@ -3,8 +3,8 @@
 namespace App\Actions\Demands;
 
 use App\Enums\DemandEventType;
-use App\Models\Demanda;
-use App\Models\DemandaEvento;
+use App\Models\Demand;
+use App\Models\DemandEvent;
 use App\Models\User;
 use App\Services\Demands\DemandAttachmentService;
 use App\Services\Demands\DemandNotificationService;
@@ -26,9 +26,9 @@ class CreateDemandUpdate
     ) {}
 
     /** @param list<UploadedFile> $files */
-    public function handle(Demanda $demand, User $user, string $texto, array $files = []): DemandaEvento
+    public function handle(Demand $demand, User $user, string $texto, array $files = []): DemandEvent
     {
-        return DB::transaction(function () use ($demand, $user, $texto, $files): DemandaEvento {
+        return DB::transaction(function () use ($demand, $user, $texto, $files): DemandEvent {
             $event = $this->timeline->record($demand, $user, DemandEventType::Atualizacao, $texto);
 
             if ($files !== []) {

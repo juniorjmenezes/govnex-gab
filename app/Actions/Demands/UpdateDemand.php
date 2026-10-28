@@ -4,8 +4,8 @@ namespace App\Actions\Demands;
 
 use App\Enums\DemandEventType;
 use App\Enums\DemandPriority;
-use App\Models\Cidadao;
-use App\Models\Demanda;
+use App\Models\Citizen;
+use App\Models\Demand;
 use App\Models\User;
 use App\Services\Demands\DemandNotificationService;
 use App\Services\Demands\DemandTimelineRecorder;
@@ -20,9 +20,9 @@ class UpdateDemand
     ) {}
 
     /** @param array<string, mixed> $data */
-    public function handle(Demanda $demand, array $data, User $user): Demanda
+    public function handle(Demand $demand, array $data, User $user): Demand
     {
-        return DB::transaction(function () use ($demand, $data, $user): Demanda {
+        return DB::transaction(function () use ($demand, $data, $user): Demand {
             $keys = array_map('strval', array_keys($data));
             $before = $this->rawValues($demand, $keys);
             $demand->update($data);
@@ -66,7 +66,7 @@ class UpdateDemand
      * @param  list<string>  $keys
      * @return array<string, mixed>
      */
-    private function rawValues(Demanda $demand, array $keys): array
+    private function rawValues(Demand $demand, array $keys): array
     {
         return collect($keys)->mapWithKeys(
             fn (string $key): array => [$key => $demand->getRawOriginal($key)],
@@ -79,7 +79,7 @@ class UpdateDemand
      * @param  list<string>  $changedKeys
      */
     private function recordSpecificChanges(
-        Demanda $demand,
+        Demand $demand,
         User $user,
         array $before,
         array $after,
@@ -139,6 +139,6 @@ class UpdateDemand
 
     private function citizenName(mixed $id): ?string
     {
-        return is_numeric($id) ? Cidadao::query()->whereKey((int) $id)->first()?->nome : null;
+        return is_numeric($id) ? Citizen::query()->whereKey((int) $id)->first()?->nome : null;
     }
 }

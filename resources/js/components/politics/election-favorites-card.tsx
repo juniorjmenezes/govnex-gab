@@ -1,7 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { EmptyState } from '@/components/feedback/empty-state';
-import { HeartBoldIcon } from '@/components/icons';
-import { Badge } from '@/components/ui/badge';
+import { CheckCircleBoldIcon, HeartBoldIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { SectionCard } from '@/components/ui/section-card';
 import type { ElectionFavorite } from '@/types/politics';
@@ -55,7 +54,10 @@ export function ElectionFavoritesCard({
                                 <p className="flex items-center gap-1.5 truncate font-medium">
                                     {favorite.name}
                                     {favorite.elected && (
-                                        <Badge variant="success">Eleito</Badge>
+                                        <CheckCircleBoldIcon
+                                            className="size-4 shrink-0 text-success"
+                                            aria-label="Eleito"
+                                        />
                                     )}
                                 </p>
                                 <p className="truncate text-xs text-muted-foreground">

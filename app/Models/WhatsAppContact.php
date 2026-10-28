@@ -27,7 +27,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User|null $user
- * @property-read Cidadao|null $citizen
+ * @property-read Citizen|null $citizen
  * @property-read Collection<int, WhatsAppConsent> $consents
  */
 class WhatsAppContact extends TenantModel
@@ -42,10 +42,10 @@ class WhatsAppContact extends TenantModel
         return $this->belongsTo(User::class, 'usuario_id')->withTrashed();
     }
 
-    /** @return BelongsTo<Cidadao, $this> */
+    /** @return BelongsTo<Citizen, $this> */
     public function citizen(): BelongsTo
     {
-        return $this->belongsTo(Cidadao::class, 'cidadao_id')->withTrashed();
+        return $this->belongsTo(Citizen::class, 'cidadao_id')->withTrashed();
     }
 
     /** @return HasMany<WhatsAppConsent, $this> */

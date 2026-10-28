@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\DemandStatus;
-use App\Models\Demanda;
-use App\Models\DemandaAnexo;
-use App\Models\Gabinete;
+use App\Models\Demand;
+use App\Models\DemandAttachment;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
@@ -17,14 +17,14 @@ class DemandKanbanTest extends TestCase
 
     public function test_kanban_groups_only_office_demands_and_exposes_allowed_transitions(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
-        $demand = Demanda::factory()->forGabinete($office, creator: $advisor)->create();
-        $foreignOffice = Gabinete::factory()->create();
-        Demanda::factory()->forGabinete($foreignOffice)->create();
+        $demand = Demand::factory()->forGabinete($office, creator: $advisor)->create();
+        $foreignOffice = Office::factory()->create();
+        Demand::factory()->forGabinete($foreignOffice)->create();
 
         $this->actingAs($advisor);
-        $attachment = new DemandaAnexo;
+        $attachment = new DemandAttachment;
         $attachment->forceFill([
             'gabinete_id' => $office->id,
             'demanda_id' => $demand->id,
@@ -59,13 +59,13 @@ class DemandKanbanTest extends TestCase
 
     public function test_kanban_filters_are_processed_on_server(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
-        Demanda::factory()->forGabinete($office, creator: $advisor)->create([
+        Demand::factory()->forGabinete($office, creator: $advisor)->create([
             'titulo' => 'Iluminação da praça',
             'prioridade' => 'urgente',
         ]);
-        Demanda::factory()->forGabinete($office, creator: $advisor)->create([
+        Demand::factory()->forGabinete($office, creator: $advisor)->create([
             'titulo' => 'Consulta de saúde',
             'prioridade' => 'normal',
         ]);
@@ -123,8 +123,8 @@ class DemandKanbanTest extends TestCase
     public function test_kanban_transition_cannot_access_another_office_demand(): void
     {
         [$advisor] = $this->demandContext();
-        $foreignOffice = Gabinete::factory()->create();
-        $foreignDemand = Demanda::factory()->forGabinete($foreignOffice)->create();
+        $foreignOffice = Office::factory()->create();
+        $foreignDemand = Demand::factory()->forGabinete($foreignOffice)->create();
 
         $this->actingAs($advisor)
             ->patch(route('demands.kanban.transition', $foreignDemand), [
@@ -133,12 +133,12 @@ class DemandKanbanTest extends TestCase
             ->assertNotFound();
     }
 
-    /** @return array{User, Demanda} */
+    /** @return array{User, Demand} */
     private function demandContext(): array
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
-        $demand = Demanda::factory()->forGabinete($office, creator: $advisor)->create();
+        $demand = Demand::factory()->forGabinete($office, creator: $advisor)->create();
 
         return [$advisor, $demand];
     }

@@ -5,6 +5,7 @@ namespace App\Http\Requests\Committees;
 use App\Enums\CommitteeStatus;
 use App\Enums\CommitteeType;
 use App\Models\ComissaoLegislativa;
+use App\Tenancy\OfficeContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -32,7 +33,7 @@ class CommitteeRequest extends FormRequest
                 'max:180',
                 Rule::unique('comissoes_legislativas', 'nome')
                     ->where(fn ($query) => $query
-                        ->where('entidade_id', $this->user()->gabinete?->entidade_id)
+                        ->where('entidade_id', app(OfficeContext::class)->officeFor($this->user())?->entidade_id)
                         ->whereNull('deleted_at'))
                     ->ignore($comissao instanceof ComissaoLegislativa ? $comissao->id : null),
             ],

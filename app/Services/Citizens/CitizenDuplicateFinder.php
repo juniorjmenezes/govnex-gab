@@ -2,7 +2,7 @@
 
 namespace App\Services\Citizens;
 
-use App\Models\Cidadao;
+use App\Models\Citizen;
 use Illuminate\Support\Collection;
 
 class CitizenDuplicateFinder
@@ -11,7 +11,7 @@ class CitizenDuplicateFinder
      * @param  array{cpf?: ?string, telefone?: ?string, whatsapp?: ?string, email?: ?string}  $data
      * @return Collection<int, array{id: int, nome: string, matches: list<string>}>
      */
-    public function find(array $data, ?Cidadao $ignore = null): Collection
+    public function find(array $data, ?Citizen $ignore = null): Collection
     {
         $fields = collect([
             'cpf' => ['value' => $data['cpf'] ?? null, 'label' => 'CPF'],
@@ -24,7 +24,7 @@ class CitizenDuplicateFinder
             return collect();
         }
 
-        return Cidadao::query()
+        return Citizen::query()
             ->select(['id', 'nome', ...$fields->keys()->all()])
             ->when($ignore, fn ($query) => $query->whereKeyNot($ignore->getKey()))
             ->where(function ($query) use ($fields): void {
@@ -34,7 +34,7 @@ class CitizenDuplicateFinder
             })
             ->limit(5)
             ->get()
-            ->map(function (Cidadao $cidadao) use ($fields): array {
+            ->map(function (Citizen $cidadao) use ($fields): array {
                 $matches = array_values($fields
                     ->filter(fn (array $field, string $column): bool => $cidadao->getAttribute($column) === $field['value'])
                     ->pluck('label')

@@ -3,14 +3,14 @@
 namespace App\Services\Politics;
 
 use App\Enums\ElectionType;
-use App\Enums\GabineteModule;
-use App\Exceptions\GabineteModuleDisabledException;
+use App\Enums\OfficeModule;
+use App\Exceptions\OfficeModuleDisabledException;
 use App\Jobs\PrepareOfficePoliticalData;
-use App\Models\Eleicao;
-use App\Models\Gabinete;
-use App\Models\SincronizacaoTse;
+use App\Models\Election;
+use App\Models\Office;
+use App\Models\TseSync;
 use App\Models\User;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\Politics\Polls\PollingDataService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -28,17 +28,17 @@ class OfficePoliticalDataSyncDispatcher
 
     public function __construct(
         private readonly PollingDataService $pollingDataService,
-        private readonly GabineteModuleManager $modules,
+        private readonly OfficeModuleManager $modules,
     ) {}
 
     /**
      * @param  list<string>  $tasks
-     * @return array{runs: Collection<int, SincronizacaoTse>, skipped: list<string>}
+     * @return array{runs: Collection<int, TseSync>, skipped: list<string>}
      */
-    public function queue(Gabinete $office, User $requestedBy, array $tasks = self::TASKS): array
+    public function queue(Office $office, User $requestedBy, array $tasks = self::TASKS): array
     {
-        if (! $this->modules->isActive($office, GabineteModule::Politics)) {
-            throw new GabineteModuleDisabledException(GabineteModule::Politics);
+        if (! $this->modules->isActive($office, OfficeModule::Politics)) {
+            throw new OfficeModuleDisabledException(OfficeModule::Politics);
         }
 
         $definitions = $this->taskDefinitions();
@@ -55,7 +55,7 @@ class OfficePoliticalDataSyncDispatcher
                 continue;
             }
 
-            $activeRun = SincronizacaoTse::query()
+            $activeRun = TseSync::query()
                 ->where('gabinete_id', $office->id)
                 ->where('dataset', $definition['dataset'])
                 ->where('ano', $definition['year'])
@@ -63,7 +63,7 @@ class OfficePoliticalDataSyncDispatcher
                 ->latest('id')
                 ->first();
 
-            if ($activeRun instanceof SincronizacaoTse && $this->isStale($activeRun)) {
+            if ($activeRun instanceof TseSync && $this->isStale($activeRun)) {
                 $activeRun->update([
                     'situacao' => 'falhou',
                     'erro' => 'Sincronização interrompida sem conclusão; uma nova execução foi solicitada.',
@@ -72,8 +72,8 @@ class OfficePoliticalDataSyncDispatcher
                 $activeRun = null;
             }
 
-            if (! $activeRun instanceof SincronizacaoTse) {
-                $activeRun = SincronizacaoTse::query()->create([
+            if (! $activeRun instanceof TseSync) {
+                $activeRun = TseSync::query()->create([
                     'gabinete_id' => $office->id,
                     'solicitado_por_id' => $requestedBy->id,
                     'dataset' => $definition['dataset'],
@@ -102,7 +102,7 @@ class OfficePoliticalDataSyncDispatcher
         return ['runs' => $runs, 'skipped' => $skipped];
     }
 
-    public function restart(SincronizacaoTse $run, Gabinete $office, User $requestedBy): SincronizacaoTse
+    public function restart(TseSync $run, Office $office, User $requestedBy): TseSync
     {
         if ($run->gabinete_id !== $office->id) {
             throw new RuntimeException('Esta sincronização não pertence a este gabinete.');
@@ -120,8 +120,8 @@ class OfficePoliticalDataSyncDispatcher
             throw new RuntimeException('Só é possível reiniciar sincronizações pendentes.');
         }
 
-        if (! $this->modules->isActive($office, GabineteModule::Politics)) {
-            throw new GabineteModuleDisabledException(GabineteModule::Politics);
+        if (! $this->modules->isActive($office, OfficeModule::Politics)) {
+            throw new OfficeModuleDisabledException(OfficeModule::Politics);
         }
 
         $run->update([
@@ -130,7 +130,7 @@ class OfficePoliticalDataSyncDispatcher
             'concluida_em' => now(),
         ]);
 
-        $newRun = SincronizacaoTse::query()->create([
+        $newRun = TseSync::query()->create([
             'gabinete_id' => $office->id,
             'solicitado_por_id' => $requestedBy->id,
             'dataset' => 'pollingdata_polls',
@@ -145,7 +145,7 @@ class OfficePoliticalDataSyncDispatcher
         return $newRun;
     }
 
-    public function cancel(SincronizacaoTse $run, Gabinete $office, User $requestedBy): void
+    public function cancel(TseSync $run, Office $office, User $requestedBy): void
     {
         if ($run->gabinete_id !== $office->id) {
             throw new RuntimeException('Esta sincronização não pertence a este gabinete.');
@@ -169,7 +169,7 @@ class OfficePoliticalDataSyncDispatcher
     /** @return array<string, array{dataset: string, year: int}> */
     public function taskDefinitions(): array
     {
-        $generalYear = (int) Eleicao::query()
+        $generalYear = (int) Election::query()
             ->where('tipo', ElectionType::General)
             ->max('ano');
 
@@ -178,7 +178,7 @@ class OfficePoliticalDataSyncDispatcher
             : [];
     }
 
-    private function isStale(SincronizacaoTse $run): bool
+    private function isStale(TseSync $run): bool
     {
         $lastActivityAt = $run->updated_at ?? $run->iniciada_em;
 

@@ -2,10 +2,10 @@
 
 namespace App\Http\Middleware;
 
-use App\Services\Modules\EntidadeModuleManager;
-use App\Services\Modules\GabineteModuleManager;
-use App\Tenancy\EntidadeContext;
-use App\Tenancy\GabineteContext;
+use App\Services\Modules\EntityModuleManager;
+use App\Services\Modules\OfficeModuleManager;
+use App\Tenancy\EntityContext;
+use App\Tenancy\OfficeContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Middleware;
@@ -23,8 +23,8 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
-        $gabineteContext = app(GabineteContext::class);
-        $entidadeContext = app(EntidadeContext::class);
+        $gabineteContext = app(OfficeContext::class);
+        $entidadeContext = app(EntityContext::class);
         $entidade = $entidadeContext->entidade();
 
         if ($user) {
@@ -66,12 +66,20 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $user,
+                // Papel e gabinete em que a pessoa atua nesta requisição: o
+                // cadastro da conta (`users.role`/`users.gabinete_id`) não
+                // acompanha o contexto da URL. Resolvido na renderização para
+                // incluir relações carregadas pelo controller.
+                'user' => fn (): ?array => $user ? [
+                    ...$user->toArray(),
+                    'role' => $gabineteContext->roleFor($user)->value,
+                    'gabinete_id' => $gabineteContext->officeIdFor($user),
+                ] : null,
                 'modules' => isset($gabinete)
-                    ? app(GabineteModuleManager::class)->activeFor($gabinete)
+                    ? app(OfficeModuleManager::class)->activeFor($gabinete)
                     : [],
                 'entidade_modules' => $entidade
-                    ? app(EntidadeModuleManager::class)->activeFor($entidade)
+                    ? app(EntityModuleManager::class)->activeFor($entidade)
                     : [],
                 'context' => [
                     'entidade' => $entidade ? [

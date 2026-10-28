@@ -118,7 +118,7 @@ export function PartyRow({
  * da casa em cinza. Em bancada nacional (Senado, Deputado Federal — quando
  * `home_seats` vem preenchido), mostra o Brasil inteiro colorido por partido,
  * com uma faixa de destaque na base das fatias do estado do gabinete. Cores
- * vêm de `PartidoCor`.
+ * vêm de `PartyColor`.
  *
  * A lista completa (busca incluída) e o botão "ver todos" ficam no drawer
  * que envolve este componente (`SeatCompositionDrawer`), não aqui — o drawer

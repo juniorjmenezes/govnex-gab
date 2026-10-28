@@ -3,16 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AccessRole;
-use App\Enums\EntidadeModule;
-use App\Enums\EntidadeType;
-use App\Models\Entidade;
-use App\Models\EntidadeBairro;
-use App\Models\EntidadeConvite;
+use App\Enums\EntityModule;
+use App\Enums\EntityType;
+use App\Models\Entity;
+use App\Models\EntityInvitation;
+use App\Models\EntityNeighborhood;
 use App\Models\User;
 use App\Rules\DefinidoNoHub;
-use App\Services\Entidades\EntidadeInvitationService;
-use App\Services\Entidades\EntidadeQuotaService;
-use App\Services\Modules\EntidadeModuleManager;
+use App\Services\Entidades\EntityInvitationService;
+use App\Services\Entidades\EntityQuotaService;
+use App\Services\Modules\EntityModuleManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,10 +27,10 @@ class EntidadeController extends Controller
 {
     public function show(
         Request $request,
-        Entidade $entidade,
-        EntidadeModuleManager $modules,
-        EntidadeQuotaService $quotas,
-        EntidadeInvitationService $invitations,
+        Entity $entidade,
+        EntityModuleManager $modules,
+        EntityQuotaService $quotas,
+        EntityInvitationService $invitations,
     ): Response {
         /** @var User $user */
         $user = $request->user();
@@ -83,13 +83,13 @@ class EntidadeController extends Controller
                 'role' => $membership->papel->value,
                 'active' => $membership->ativo,
             ])->values()->all() : [],
-            'invitations' => $canManage ? $entidade->convites->map(fn (EntidadeConvite $invitation): array => [
+            'invitations' => $canManage ? $entidade->convites->map(fn (EntityInvitation $invitation): array => [
                 'id' => $invitation->id,
                 'email' => $invitation->email,
                 'status' => $invitation->status->value,
                 'expires_at' => $invitation->expira_em->toIso8601String(),
             ])->values()->all() : [],
-            'sharedNeighborhoods' => $entidade->bairros->map(fn (EntidadeBairro $neighborhood): array => [
+            'sharedNeighborhoods' => $entidade->bairros->map(fn (EntityNeighborhood $neighborhood): array => [
                 'id' => $neighborhood->id,
                 'name' => $neighborhood->nome,
                 'city' => $neighborhood->municipio,
@@ -100,11 +100,11 @@ class EntidadeController extends Controller
                     ->distinct()
                     ->count('gabinete_id'),
             ])->values()->all(),
-            'moduleCatalog' => array_map(fn (EntidadeModule $module): array => [
+            'moduleCatalog' => array_map(fn (EntityModule $module): array => [
                 'code' => $module->value,
                 'name' => $module->label(),
                 'scope' => $module->scope()->value,
-            ], EntidadeModule::availableCases($entidade->tipo)),
+            ], EntityModule::availableCases($entidade->tipo)),
             'activeModules' => $modules->activeFor($entidade),
             'license' => $license ? [
                 'status' => $license->status->value,
@@ -116,7 +116,7 @@ class EntidadeController extends Controller
             'canManageModules' => $user->isRoot(),
             'canCreateGabinete' => $user->isRoot()
                 && $entidade->isActive()
-                && ($entidade->tipo !== EntidadeType::IndependentOffice
+                && ($entidade->tipo !== EntityType::IndependentOffice
                     || $entidade->gabinetes->isEmpty()),
             'entidadeRoles' => array_map(
                 fn (AccessRole $role): string => $role->value,
@@ -126,7 +126,7 @@ class EntidadeController extends Controller
         ]);
     }
 
-    public function update(Request $request, Entidade $entidade): RedirectResponse
+    public function update(Request $request, Entity $entidade): RedirectResponse
     {
         abort_unless($request->user()->canManageEntidade($entidade->id), 403);
         $validated = $request->validate([
@@ -144,7 +144,7 @@ class EntidadeController extends Controller
         return back();
     }
 
-    public function updateIdentity(Request $request, Entidade $entidade): RedirectResponse
+    public function updateIdentity(Request $request, Entity $entidade): RedirectResponse
     {
         abort_unless($request->user()->canManageEntidade($entidade->id), 403);
         $validated = $request->validate([
@@ -183,7 +183,7 @@ class EntidadeController extends Controller
         return back();
     }
 
-    public function storeNeighborhood(Request $request, Entidade $entidade): RedirectResponse
+    public function storeNeighborhood(Request $request, Entity $entidade): RedirectResponse
     {
         abort_unless($request->user()->canManageEntidade($entidade->id), 403);
         $validated = $this->validateNeighborhood($request, $entidade);
@@ -203,8 +203,8 @@ class EntidadeController extends Controller
 
     public function updateNeighborhood(
         Request $request,
-        Entidade $entidade,
-        EntidadeBairro $neighborhood,
+        Entity $entidade,
+        EntityNeighborhood $neighborhood,
     ): RedirectResponse {
         abort_unless($request->user()->canManageEntidade($entidade->id), 403);
         abort_unless($neighborhood->entidade_id === $entidade->id, 404);
@@ -224,13 +224,13 @@ class EntidadeController extends Controller
 
     public function updateModules(
         Request $request,
-        Entidade $entidade,
-        EntidadeModuleManager $modules,
+        Entity $entidade,
+        EntityModuleManager $modules,
     ): RedirectResponse {
         abort_unless($request->user()->isRoot(), 403);
         $validated = $request->validate([
             'modules' => ['required', 'array'],
-            'modules.*' => ['string', Rule::enum(EntidadeModule::class)],
+            'modules.*' => ['string', Rule::enum(EntityModule::class)],
         ]);
 
         $modules->syncActivation($entidade, $validated['modules'], $request->user());
@@ -241,14 +241,14 @@ class EntidadeController extends Controller
     }
 
     /** Nome de entidade ligada ao Hub é alterado lá (docs/INTEGRACAO_GOVNEX_HUB.md). */
-    private function nomeDefinidoNoHub(Entidade $entidade): DefinidoNoHub
+    private function nomeDefinidoNoHub(Entity $entidade): DefinidoNoHub
     {
         return new DefinidoNoHub($entidade->hub_entidade_id !== null, $entidade->nome);
     }
 
     /** @param array<string, mixed> $validated */
     private function persistIdentity(
-        Entidade $entidade,
+        Entity $entidade,
         array $validated,
         ?string $newLogo = null,
         bool $removeLogo = false,
@@ -268,8 +268,8 @@ class EntidadeController extends Controller
     /** @return array{name: string, active: bool} */
     private function validateNeighborhood(
         Request $request,
-        Entidade $entidade,
-        ?EntidadeBairro $neighborhood = null,
+        Entity $entidade,
+        ?EntityNeighborhood $neighborhood = null,
     ): array {
         $validated = $request->validate([
             'name' => [

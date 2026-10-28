@@ -1,0 +1,38 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+/**
+ * @property int $candidato_politico_id
+ * @property int|null $escolhido_por_id
+ * @property list<string>|null $termos_busca
+ * @property list<string>|null $termos_exclusao
+ * @property-read Candidate|null $candidato
+ */
+class FavoriteCandidate extends TenantModel
+{
+    protected $table = 'candidatos_favoritos';
+
+    /** @return array<string, string> */
+    protected function casts(): array
+    {
+        return [
+            'termos_busca' => 'array',
+            'termos_exclusao' => 'array',
+        ];
+    }
+
+    /** @return BelongsTo<Candidate, $this> */
+    public function candidato(): BelongsTo
+    {
+        return $this->belongsTo(Candidate::class, 'candidato_politico_id');
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function escolhidoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'escolhido_por_id')->withTrashed();
+    }
+}

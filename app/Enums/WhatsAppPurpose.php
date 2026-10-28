@@ -47,23 +47,23 @@ enum WhatsAppPurpose: string
         };
     }
 
-    public function sourceModule(): GabineteModule
+    public function sourceModule(): OfficeModule
     {
         return match ($this) {
             self::DemandAssigned,
             self::DemandStatusChanged,
             self::DemandObservationAdded,
-            self::DemandDeadlineDigest => GabineteModule::Demands,
+            self::DemandDeadlineDigest => OfficeModule::Demands,
             self::AppointmentStaffReminder,
             self::AppointmentCitizenReminder,
             self::AppointmentChanged,
-            self::AppointmentCancelled => GabineteModule::Schedule,
-            self::PoliticalPollPublished => GabineteModule::Politics,
+            self::AppointmentCancelled => OfficeModule::Schedule,
+            self::PoliticalPollPublished => OfficeModule::Politics,
             // O módulo de origem é conferido no gabinete de quem RECEBE (o de
             // vereador), e lá o compromisso institucional aparece pela Agenda.
             // `LegislativeSecretariat` só existe na própria Secretaria: usá-lo
             // aqui recusaria todo destinatário.
-            self::InstitutionalConvocation => GabineteModule::Schedule,
+            self::InstitutionalConvocation => OfficeModule::Schedule,
         };
     }
 

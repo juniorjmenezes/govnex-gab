@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\AbstractProvider;
 use Symfony\Component\HttpFoundation\RedirectResponse as SymfonyRedirectResponse;
 use Throwable;
 
@@ -41,7 +42,10 @@ class HubAuthController extends Controller
         try {
             $driver = Socialite::driver('hub');
 
-            if ($request->boolean('trocar')) {
+            // `with()` mora em `Two\AbstractProvider` (todo provider OAuth2
+            // concreto, incluindo o nosso), não na interface `Contracts\Provider`
+            // devolvida pela fachada — daí o instanceof, não um cast.
+            if ($request->boolean('trocar') && $driver instanceof AbstractProvider) {
                 $driver = $driver->with(['prompt' => 'login']);
             }
 

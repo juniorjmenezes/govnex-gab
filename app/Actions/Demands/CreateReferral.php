@@ -4,8 +4,8 @@ namespace App\Actions\Demands;
 
 use App\Enums\DemandEventType;
 use App\Enums\DemandStatus;
-use App\Models\Demanda;
-use App\Models\DemandaEvento;
+use App\Models\Demand;
+use App\Models\DemandEvent;
 use App\Models\User;
 use App\Services\Demands\DemandAttachmentService;
 use App\Services\Demands\DemandTimelineRecorder;
@@ -28,9 +28,9 @@ class CreateReferral
     /** @param array<string, mixed> $data
      * @param  list<UploadedFile>  $files
      */
-    public function handle(Demanda $demand, array $data, User $user, array $files = []): DemandaEvento
+    public function handle(Demand $demand, array $data, User $user, array $files = []): DemandEvent
     {
-        return DB::transaction(function () use ($demand, $data, $user, $files): DemandaEvento {
+        return DB::transaction(function () use ($demand, $data, $user, $files): DemandEvent {
             $event = $this->timeline->record(
                 $demand,
                 $user,

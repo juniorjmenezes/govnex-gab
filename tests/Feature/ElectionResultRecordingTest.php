@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\CandidateScope;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\Gabinete;
-use App\Models\ResultadoCandidatoEleicao;
+use App\Models\Candidate;
+use App\Models\CandidateElectionResult;
+use App\Models\Election;
+use App\Models\Office;
 use App\Models\User;
 use App\Services\Politics\ElectionLifecycleService;
 use App\Services\Politics\ElectionResultRecorder;
@@ -25,14 +25,14 @@ class ElectionResultRecordingTest extends TestCase
 {
     use RefreshDatabase;
 
-    private Eleicao $election;
+    private Election $election;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->travelTo(CarbonImmutable::parse('2026-10-13 10:00:00'));
         // Eleição-semente: 1º turno em 04/10/2026, 2º em 25/10/2026.
-        $this->election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $this->election = Election::query()->where('ano', 2026)->firstOrFail();
     }
 
     // ---- Senador ---------------------------------------------------------
@@ -78,7 +78,7 @@ class ElectionResultRecordingTest extends TestCase
             ['452', 3_000, 45.0, false, null],
         ])));
 
-        $this->assertSame(0, ResultadoCandidatoEleicao::query()->count());
+        $this->assertSame(0, CandidateElectionResult::query()->count());
     }
 
     // ---- Deputados -------------------------------------------------------
@@ -142,7 +142,7 @@ class ElectionResultRecordingTest extends TestCase
      */
     public function test_tallying_the_election_records_every_office_and_feeds_the_situation_column(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->administrator()->forGabinete($office)->create();
         $this->candidates('Senador', ['451', '452']);
         $this->candidates('Deputado Federal', ['1111', '2211']);
@@ -215,14 +215,14 @@ class ElectionResultRecordingTest extends TestCase
 
     /**
      * @param  list<string>  $numbers
-     * @return array<string, CandidatoPolitico>
+     * @return array<string, Candidate>
      */
     private function candidates(string $office, array $numbers): array
     {
         $candidates = [];
 
         foreach ($numbers as $number) {
-            $candidates[$number] = CandidatoPolitico::query()->create([
+            $candidates[$number] = Candidate::query()->create([
                 'eleicao_id' => $this->election->id,
                 'sq_candidato' => "9{$number}",
                 'abrangencia' => CandidateScope::State,
@@ -239,9 +239,9 @@ class ElectionResultRecordingTest extends TestCase
         return $candidates;
     }
 
-    private function assertResult(CandidatoPolitico $candidate, string $status, bool $elected, int $votes): void
+    private function assertResult(Candidate $candidate, string $status, bool $elected, int $votes): void
     {
-        $result = ResultadoCandidatoEleicao::query()
+        $result = CandidateElectionResult::query()
             ->where('candidato_politico_id', $candidate->id)
             ->where('turno', 1)
             ->first();

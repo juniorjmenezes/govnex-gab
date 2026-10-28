@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Enums\GabineteModule;
-use App\Models\Eleicao;
-use App\Services\Modules\GabineteModuleManager;
+use App\Enums\OfficeModule;
+use App\Models\Election;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\Politics\TsePoliticalDataSyncService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -19,14 +19,14 @@ class SyncElectionDatasetRequest extends FormRequest
     public function authorize(): bool
     {
         return $this->user()?->isRoot() === true
-            && app(GabineteModuleManager::class)->anyActiveOffice(GabineteModule::Politics);
+            && app(OfficeModuleManager::class)->anyActiveOffice(OfficeModule::Politics);
     }
 
     /** @return array<string, array<int, mixed>> */
     public function rules(): array
     {
         $election = $this->route('eleicao');
-        $datasets = $election instanceof Eleicao
+        $datasets = $election instanceof Election
             ? TsePoliticalDataSyncService::datasetsFor($election->tipo)
             : [];
 

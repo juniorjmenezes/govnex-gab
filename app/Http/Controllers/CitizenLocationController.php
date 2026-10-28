@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Cidadao;
+use App\Models\Citizen;
 use App\Services\Geocoding\GeocodingService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -13,7 +13,7 @@ class CitizenLocationController extends Controller
 {
     public function __invoke(Request $request, GeocodingService $geocoding): JsonResponse
     {
-        $this->authorize('create', Cidadao::class);
+        $this->authorize('create', Citizen::class);
 
         $validated = $request->validate([
             'logradouro' => ['required', 'string', 'max:255'],

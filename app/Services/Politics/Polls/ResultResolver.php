@@ -2,9 +2,9 @@
 
 namespace App\Services\Politics\Polls;
 
-use App\Models\PesquisaEleitoral;
-use App\Models\PesquisaFonte;
-use App\Models\ResultadoPesquisaEleitoral;
+use App\Models\ElectoralPoll;
+use App\Models\ElectoralPollResult;
+use App\Models\PollSource;
 
 /**
  * Orquestra os providers (ver {@see PesquisaResultProvider}) para uma
@@ -27,7 +27,7 @@ class ResultResolver
      * pesquisa. Não persiste nada — só resolve qual resultado usar; quem
      * chama decide se aplica via {@see persist()}.
      */
-    public function resolve(PesquisaEleitoral $pesquisa): ?ResultadoColeta
+    public function resolve(ElectoralPoll $pesquisa): ?ResultadoColeta
     {
         foreach ($this->providers as $provider) {
             if (! $provider->supports($pesquisa)) {
@@ -49,7 +49,7 @@ class ResultResolver
      * percentuais em resultados_pesquisas_eleitorais e atualiza
      * confianca/origem_provider da pesquisa.
      */
-    public function persist(PesquisaEleitoral $pesquisa, ResultadoColeta $resultado): PesquisaFonte
+    public function persist(ElectoralPoll $pesquisa, ResultadoColeta $resultado): PollSource
     {
         $fonte = $this->recordProvenance($pesquisa, $resultado);
 
@@ -72,11 +72,11 @@ class ResultResolver
      * sua própria lógica de escrita/matching de candidato já testada).
      */
     public function recordProvenance(
-        PesquisaEleitoral $pesquisa,
+        ElectoralPoll $pesquisa,
         ResultadoColeta $resultado,
         string $status = 'coletado',
-    ): PesquisaFonte {
-        return PesquisaFonte::query()->create([
+    ): PollSource {
+        return PollSource::query()->create([
             'pesquisa_eleitoral_id' => $pesquisa->id,
             'tipo' => $resultado->tipo,
             'provider' => $resultado->provider,
@@ -89,19 +89,19 @@ class ResultResolver
         ]);
     }
 
-    private function shouldApply(PesquisaEleitoral $pesquisa, ResultadoColeta $resultado): bool
+    private function shouldApply(ElectoralPoll $pesquisa, ResultadoColeta $resultado): bool
     {
         return $pesquisa->confianca === null || $resultado->confidenceScore >= $pesquisa->confianca;
     }
 
-    private function writeResultados(PesquisaEleitoral $pesquisa, ResultadoColeta $resultado): void
+    private function writeResultados(ElectoralPoll $pesquisa, ResultadoColeta $resultado): void
     {
         $keptExternalIds = [];
 
         foreach ($resultado->candidatos as $candidato) {
             $keptExternalIds[] = $candidato['external_candidate_id'];
 
-            ResultadoPesquisaEleitoral::query()->updateOrCreate(
+            ElectoralPollResult::query()->updateOrCreate(
                 [
                     'pesquisa_eleitoral_id' => $pesquisa->id,
                     'external_candidate_id' => $candidato['external_candidate_id'],
@@ -116,7 +116,7 @@ class ResultResolver
             );
         }
 
-        ResultadoPesquisaEleitoral::query()
+        ElectoralPollResult::query()
             ->where('pesquisa_eleitoral_id', $pesquisa->id)
             ->when(
                 $keptExternalIds !== [],

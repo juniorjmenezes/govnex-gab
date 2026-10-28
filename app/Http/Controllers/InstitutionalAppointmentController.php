@@ -4,17 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Enums\AppointmentStatus;
 use App\Enums\CommitteeStatus;
-use App\Enums\EntidadeModule;
-use App\Enums\GabineteStatus;
-use App\Enums\GabineteType;
+use App\Enums\EntityModule;
+use App\Enums\OfficeStatus;
+use App\Enums\OfficeType;
 use App\Http\Requests\Appointments\InstitutionalAppointmentRequest;
 use App\Models\ComissaoLegislativa;
 use App\Models\CompromissoInstitucional;
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\User;
 use App\Services\Appointments\InstitutionalAudienceService;
-use App\Services\Modules\EntidadeModuleManager;
+use App\Services\Modules\EntityModuleManager;
 use App\Services\WhatsApp\InstitutionalWhatsAppBroadcastService;
+use App\Tenancy\OfficeContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -51,8 +52,8 @@ class InstitutionalAppointmentController extends Controller
     {
         $this->authorize('create', CompromissoInstitucional::class);
         $user = $this->user($request);
-        $gabinete = $user->gabinete;
-        abort_unless($gabinete instanceof Gabinete, 403);
+        $gabinete = app(OfficeContext::class)->officeFor($user);
+        abort_unless($gabinete instanceof Office, 403);
 
         $compromisso = DB::transaction(function () use ($request, $user, $gabinete, $audience): CompromissoInstitucional {
             $compromisso = new CompromissoInstitucional($request->appointmentData());
@@ -74,7 +75,7 @@ class InstitutionalAppointmentController extends Controller
     public function edit(
         Request $request,
         CompromissoInstitucional $compromisso,
-        EntidadeModuleManager $entidadeModules,
+        EntityModuleManager $entidadeModules,
     ): Response {
         $this->authorize('update', $compromisso);
         $user = $this->user($request);
@@ -110,7 +111,7 @@ class InstitutionalAppointmentController extends Controller
             'broadcast' => [
                 'available' => $user->can('broadcastWhatsApp', $compromisso)
                     && $this->convocable($compromisso)
-                    && $entidadeModules->isActive($compromisso->entidade_id, EntidadeModule::WhatsApp),
+                    && $entidadeModules->isActive($compromisso->entidade_id, EntityModule::WhatsApp),
                 'offices' => $compromisso->audienceOffices()->count(),
             ],
         ]);
@@ -178,7 +179,7 @@ class InstitutionalAppointmentController extends Controller
      */
     private function formOptions(User $user, ?int $linkedCommitteeId = null): array
     {
-        $entidadeId = (int) $user->gabinete?->entidade_id;
+        $entidadeId = (int) app(OfficeContext::class)->officeFor($user)?->entidade_id;
         $committees = ComissaoLegislativa::query()
             ->ofEntidade($entidadeId)
             ->where(fn ($query) => $query
@@ -207,15 +208,15 @@ class InstitutionalAppointmentController extends Controller
                 ])
                 ->values()
                 ->all(),
-            // Fora do escopo global de `Gabinete`, que no contexto da
+            // Fora do escopo global de `Office`, que no contexto da
             // Secretaria só enxerga ela mesma; o recorte é a entidade dela.
-            'offices' => Gabinete::withoutGlobalScopes()
-                ->where('entidade_id', $user->gabinete?->entidade_id)
-                ->where('tipo_gabinete', GabineteType::CouncilorOffice)
-                ->where('status', GabineteStatus::Active)
+            'offices' => Office::withoutGlobalScopes()
+                ->where('entidade_id', app(OfficeContext::class)->officeFor($user)?->entidade_id)
+                ->where('tipo_gabinete', OfficeType::CouncilorOffice)
+                ->where('status', OfficeStatus::Active)
                 ->orderBy('nome')
                 ->get(['id', 'nome', 'vereador_nome'])
-                ->map(fn (Gabinete $office): array => [
+                ->map(fn (Office $office): array => [
                     'id' => $office->id,
                     'name' => $office->nome,
                     'leader' => $office->vereador_nome,
@@ -271,14 +272,14 @@ class InstitutionalAppointmentController extends Controller
     private function user(Request $request): User
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->gabinete_id !== null, 403);
+        abort_unless($user instanceof User && app(OfficeContext::class)->officeIdFor($user) !== null, 403);
 
         return $user;
     }
 
-    private function timezone(User|Gabinete|null $owner): string
+    private function timezone(User|Office|null $owner): string
     {
-        $gabinete = $owner instanceof User ? $owner->gabinete : $owner;
+        $gabinete = $owner instanceof User ? app(OfficeContext::class)->officeFor($owner) : $owner;
 
         return $gabinete->timezone ?? 'America/Sao_Paulo';
     }

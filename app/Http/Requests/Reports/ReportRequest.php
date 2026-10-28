@@ -5,9 +5,10 @@ namespace App\Http\Requests\Reports;
 use App\Enums\DemandOrigin;
 use App\Enums\DemandPriority;
 use App\Enums\DemandStatus;
-use App\Models\Bairro;
-use App\Models\Categoria;
+use App\Models\Category;
+use App\Models\Neighborhood;
 use App\Models\User;
+use App\Tenancy\OfficeContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,13 +16,13 @@ class ReportRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->gabinete_id !== null;
+        return app(OfficeContext::class)->officeIdFor($this->user()) !== null;
     }
 
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        $gabineteId = $this->user()?->gabinete_id;
+        $gabineteId = app(OfficeContext::class)->officeIdFor($this->user());
 
         return [
             'inicio' => ['required', 'date', 'before_or_equal:fim'],
@@ -32,12 +33,12 @@ class ReportRequest extends FormRequest
             'categoria_id' => [
                 'nullable',
                 'integer',
-                Rule::exists(Categoria::class, 'id')->where('gabinete_id', $gabineteId),
+                Rule::exists(Category::class, 'id')->where('gabinete_id', $gabineteId),
             ],
             'bairro_id' => [
                 'nullable',
                 'integer',
-                Rule::exists(Bairro::class, 'id')->where('gabinete_id', $gabineteId),
+                Rule::exists(Neighborhood::class, 'id')->where('gabinete_id', $gabineteId),
             ],
             'responsavel_id' => [
                 'nullable',

@@ -2,7 +2,8 @@
 
 namespace App\Http\Requests\Categories;
 
-use App\Models\Categoria;
+use App\Models\Category;
+use App\Tenancy\OfficeContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -12,9 +13,9 @@ abstract class CategoryRequest extends FormRequest
     {
         $categoria = $this->route('categoria');
 
-        return $categoria instanceof Categoria
+        return $categoria instanceof Category
             ? $this->user()->can('update', $categoria)
-            : $this->user()->can('create', Categoria::class);
+            : $this->user()->can('create', Category::class);
     }
 
     /** @return array<string, array<int, mixed>> */
@@ -26,7 +27,7 @@ abstract class CategoryRequest extends FormRequest
                 'string',
                 'max:100',
                 Rule::unique('categorias', 'nome')
-                    ->where(fn ($query) => $query->where('gabinete_id', $this->user()->gabinete_id))
+                    ->where(fn ($query) => $query->where('gabinete_id', app(OfficeContext::class)->officeIdFor($this->user())))
                     ->ignore($this->route('categoria')),
             ],
             'descricao' => ['nullable', 'string', 'max:1000'],

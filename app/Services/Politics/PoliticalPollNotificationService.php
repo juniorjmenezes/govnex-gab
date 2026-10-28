@@ -2,13 +2,13 @@
 
 namespace App\Services\Politics;
 
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use App\Enums\UserRole;
-use App\Models\CandidatoFavorito;
-use App\Models\PesquisaEleitoral;
+use App\Models\ElectoralPoll;
+use App\Models\FavoriteCandidate;
 use App\Models\User;
 use App\Notifications\PoliticalPollPublishedNotification;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\WhatsApp\WhatsAppEventNotificationService;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
@@ -17,10 +17,10 @@ class PoliticalPollNotificationService
 {
     public function __construct(
         private readonly WhatsAppEventNotificationService $whatsApp,
-        private readonly GabineteModuleManager $modules,
+        private readonly OfficeModuleManager $modules,
     ) {}
 
-    public function notifyFavorites(PesquisaEleitoral $poll): int
+    public function notifyFavorites(ElectoralPoll $poll): int
     {
         $candidateNames = $poll->resultados()
             ->whereNotNull('candidato_politico_id')
@@ -36,7 +36,7 @@ class PoliticalPollNotificationService
             return 0;
         }
 
-        $favoritesByOffice = CandidatoFavorito::withoutGlobalScopes()
+        $favoritesByOffice = FavoriteCandidate::withoutGlobalScopes()
             ->whereIn('candidato_politico_id', $candidateNames->keys())
             ->get(['gabinete_id', 'candidato_politico_id'])
             ->groupBy('gabinete_id');
@@ -54,11 +54,11 @@ class PoliticalPollNotificationService
         $sent = 0;
 
         foreach ($favoritesByOffice as $officeId => $favorites) {
-            if (! $this->modules->isActive((int) $officeId, GabineteModule::Politics)) {
+            if (! $this->modules->isActive((int) $officeId, OfficeModule::Politics)) {
                 continue;
             }
             $names = $favorites
-                ->map(fn (CandidatoFavorito $favorite): ?string => $candidateNames->get($favorite->candidato_politico_id))
+                ->map(fn (FavoriteCandidate $favorite): ?string => $candidateNames->get($favorite->candidato_politico_id))
                 ->filter()
                 ->unique()
                 ->values()
@@ -78,7 +78,7 @@ class PoliticalPollNotificationService
         return $sent;
     }
 
-    private function alreadySent(User $recipient, PesquisaEleitoral $poll): bool
+    private function alreadySent(User $recipient, ElectoralPoll $poll): bool
     {
         return DatabaseNotification::query()
             ->where('notifiable_type', User::class)

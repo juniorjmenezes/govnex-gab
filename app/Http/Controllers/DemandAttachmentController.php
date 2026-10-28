@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Demands\StoreDemandAttachmentsRequest;
-use App\Models\Demanda;
-use App\Models\DemandaAnexo;
+use App\Models\Demand;
+use App\Models\DemandAttachment;
 use App\Services\Demands\DemandAttachmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +15,7 @@ class DemandAttachmentController extends Controller
 {
     public function store(
         StoreDemandAttachmentsRequest $request,
-        Demanda $demanda,
+        Demand $demanda,
         DemandAttachmentService $attachments,
     ): RedirectResponse {
         $files = $request->allFiles()['arquivos'] ?? [];
@@ -27,7 +27,7 @@ class DemandAttachmentController extends Controller
         return to_route('demands.show', $demanda);
     }
 
-    public function download(Demanda $demanda, DemandaAnexo $anexo): StreamedResponse
+    public function download(Demand $demanda, DemandAttachment $anexo): StreamedResponse
     {
         $this->guardNestedAttachment($demanda, $anexo);
         $this->authorize('view', $anexo);
@@ -40,7 +40,7 @@ class DemandAttachmentController extends Controller
         ]);
     }
 
-    public function preview(Demanda $demanda, DemandaAnexo $anexo): StreamedResponse
+    public function preview(Demand $demanda, DemandAttachment $anexo): StreamedResponse
     {
         $this->guardNestedAttachment($demanda, $anexo);
         $this->authorize('view', $anexo);
@@ -56,8 +56,8 @@ class DemandAttachmentController extends Controller
     }
 
     public function destroy(
-        Demanda $demanda,
-        DemandaAnexo $anexo,
+        Demand $demanda,
+        DemandAttachment $anexo,
         DemandAttachmentService $attachments,
     ): RedirectResponse {
         $this->guardNestedAttachment($demanda, $anexo);
@@ -68,7 +68,7 @@ class DemandAttachmentController extends Controller
         return to_route('demands.show', $demanda);
     }
 
-    private function guardNestedAttachment(Demanda $demand, DemandaAnexo $attachment): void
+    private function guardNestedAttachment(Demand $demand, DemandAttachment $attachment): void
     {
         abort_unless($attachment->demanda_id === $demand->id, 404);
     }

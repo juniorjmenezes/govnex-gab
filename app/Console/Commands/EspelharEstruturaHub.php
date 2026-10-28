@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\EntidadeType;
-use App\Models\Entidade;
-use App\Models\Gabinete;
+use App\Enums\EntityType;
+use App\Models\Entity;
+use App\Models\Office;
 use App\Services\Hub\GovnexHubApiClient;
 use App\Services\Hub\HubEstruturaSyncService;
 use App\Services\Hub\HubIndisponivelException;
@@ -16,8 +16,8 @@ use RuntimeException;
  * Preenche as colunas de ponte com a estrutura do Hub.
  *
  * Regra de mapeamento (a mesma que o Hub usou ao importar o GAB, em
- * `ImportadorDoGab`): a `Entidade` do Hub casa com a `Entidade` local pelo
- * `slug`, e a `Unidade` do Hub casa com o `Gabinete` local, dentro da entidade
+ * `ImportadorDoGab`): a `Entity` do Hub casa com a `Entity` local pelo
+ * `slug`, e a `Unidade` do Hub casa com o `Office` local, dentro da entidade
  * já casada, pelo `slug`. Unidades do Hub sem gabinete equivalente (secretarias,
  * setores…) simplesmente não têm correspondência.
  *
@@ -76,8 +76,8 @@ class EspelharEstruturaHub extends Command
             return self::FAILURE;
         }
 
-        $semHubEntidades = Entidade::query()->whereNotIn('id', $entidadesVistas)->pluck('slug')->all();
-        $semHubGabinetes = Gabinete::withoutGlobalScopes()->whereNotIn('id', $gabinetesVistos)->pluck('slug')->all();
+        $semHubEntidades = Entity::query()->whereNotIn('id', $entidadesVistas)->pluck('slug')->all();
+        $semHubGabinetes = Office::withoutGlobalScopes()->whereNotIn('id', $gabinetesVistos)->pluck('slug')->all();
 
         $this->info(($dryRun ? '[dry-run] ' : '').'Espelhamento da estrutura do Hub');
         $this->line("Entidades casadas (preenchidas agora): {$r['casadas']}");
@@ -125,8 +125,8 @@ class EspelharEstruturaHub extends Command
         $slug = (string) ($eh['slug'] ?? '');
         // Já ligada casa pelo id (o slug do Hub muda a cada renomeação);
         // o slug só serve para ligar pela primeira vez.
-        $entidade = Entidade::query()->where('hub_entidade_id', $hubId)->first()
-            ?? ($slug === '' ? null : Entidade::query()->where('slug', $slug)->first());
+        $entidade = Entity::query()->where('hub_entidade_id', $hubId)->first()
+            ?? ($slug === '' ? null : Entity::query()->where('slug', $slug)->first());
 
         if ($entidade === null) {
             if ($this->criar) {
@@ -175,7 +175,7 @@ class EspelharEstruturaHub extends Command
     }
 
     /**
-     * Entidade do Hub sem espelho, com `--criar`: consulta a entidade (para
+     * Entity do Hub sem espelho, com `--criar`: consulta a entidade (para
      * saber se o GAB está habilitado nela, fuso e município resolvidos) e a
      * cria pelo mesmo caminho do webhook. Em `--dry-run` só relata — e relata
      * também as unidades que nasceriam junto.
@@ -183,7 +183,7 @@ class EspelharEstruturaHub extends Command
      * @param  array<string, mixed>  $eh
      * @param  array<string, mixed>  $r
      */
-    private function criarEntidadeFaltante(GovnexHubApiClient $hub, HubEstruturaSyncService $estrutura, array $eh, bool $dryRun, array &$r): ?Entidade
+    private function criarEntidadeFaltante(GovnexHubApiClient $hub, HubEstruturaSyncService $estrutura, array $eh, bool $dryRun, array &$r): ?Entity
     {
         $hubId = (string) $eh['id'];
         $rotulo = (string) ($eh['slug'] ?? '') !== '' ? (string) $eh['slug'] : "#{$hubId}";
@@ -207,7 +207,7 @@ class EspelharEstruturaHub extends Command
         $r['criacoes'][] = "Entidade '{$rotulo}'";
 
         if ($dryRun) {
-            /** @var EntidadeType $tipo */
+            /** @var EntityType $tipo */
             $tipo = app(HubTipoMapper::class)->entidadeType($estrutura->tipoDaEntidadeNoHub($detalhe));
 
             foreach ($this->achatar($hub->unidadesDaEntidade($hubId)) as $uh) {
@@ -226,20 +226,20 @@ class EspelharEstruturaHub extends Command
 
         $estrutura->criarEntidade($detalhe);
 
-        return Entidade::query()->where('hub_entidade_id', $hubId)->first();
+        return Entity::query()->where('hub_entidade_id', $hubId)->first();
     }
 
     /**
      * @param  array<string, mixed>  $r
      * @param  array<int, int>  $gabinetesVistos
      */
-    private function espelharUnidades(GovnexHubApiClient $hub, HubEstruturaSyncService $estrutura, Entidade $entidade, string $hubId, string $slug, bool $dryRun, array &$r, array &$gabinetesVistos): void
+    private function espelharUnidades(GovnexHubApiClient $hub, HubEstruturaSyncService $estrutura, Entity $entidade, string $hubId, string $slug, bool $dryRun, array &$r, array &$gabinetesVistos): void
     {
         foreach ($this->achatar($hub->unidadesDaEntidade($hubId, ! $this->atualizar)) as $uh) {
             $uId = (string) $uh['id'];
             $uSlug = (string) ($uh['slug'] ?? '');
-            $gabinete = Gabinete::withoutGlobalScopes()->where('hub_unidade_id', $uId)->first()
-                ?? ($uSlug === '' ? null : Gabinete::withoutGlobalScopes()
+            $gabinete = Office::withoutGlobalScopes()->where('hub_unidade_id', $uId)->first()
+                ?? ($uSlug === '' ? null : Office::withoutGlobalScopes()
                     ->where('entidade_id', $entidade->id)->where('slug', $uSlug)->first());
 
             if ($gabinete === null) {
@@ -283,11 +283,11 @@ class EspelharEstruturaHub extends Command
      * @param  array<string, mixed>  $r
      * @param  array<int, int>  $gabinetesVistos
      */
-    private function criarUnidadeFaltante(HubEstruturaSyncService $estrutura, Entidade $entidade, string $hubEntidadeId, array $uh, string $rotulo, bool $dryRun, array &$r, array &$gabinetesVistos): void
+    private function criarUnidadeFaltante(HubEstruturaSyncService $estrutura, Entity $entidade, string $hubEntidadeId, array $uh, string $rotulo, bool $dryRun, array &$r, array &$gabinetesVistos): void
     {
         $motivo = $estrutura->motivoParaNaoCriarUnidade($entidade->tipo, $uh);
 
-        if ($motivo === null && $entidade->tipo === EntidadeType::IndependentOffice
+        if ($motivo === null && $entidade->tipo === EntityType::IndependentOffice
             && $entidade->gabinetes()->withoutGlobalScopes()->exists()) {
             $motivo = 'entidade_nao_aceita';
         }
@@ -317,7 +317,7 @@ class EspelharEstruturaHub extends Command
      * @param  array<string, mixed>  $eh
      * @param  array<string, mixed>  $r
      */
-    private function atualizarEntidade(HubEstruturaSyncService $estrutura, Entidade $entidade, array $eh, bool $dryRun, array &$r): void
+    private function atualizarEntidade(HubEstruturaSyncService $estrutura, Entity $entidade, array $eh, bool $dryRun, array &$r): void
     {
         $mudancas = $estrutura->mudancasDaEntidade($entidade, $eh);
 
@@ -340,7 +340,7 @@ class EspelharEstruturaHub extends Command
      * @param  array<string, mixed>  $uh
      * @param  array<string, mixed>  $r
      */
-    private function atualizarGabinete(HubEstruturaSyncService $estrutura, Gabinete $gabinete, array $uh, bool $dryRun, array &$r): void
+    private function atualizarGabinete(HubEstruturaSyncService $estrutura, Office $gabinete, array $uh, bool $dryRun, array &$r): void
     {
         $mudancas = $estrutura->mudancasDaUnidade($gabinete, $uh);
 

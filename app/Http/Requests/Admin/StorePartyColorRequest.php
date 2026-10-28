@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Models\PartidoCor;
+use App\Models\PartyColor;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -41,10 +41,10 @@ class StorePartyColorRequest extends FormRequest
                 return;
             }
 
-            $normalized = PartidoCor::normalizeSigla($sigla);
-            $duplicate = PartidoCor::query()
+            $normalized = PartyColor::normalizeSigla($sigla);
+            $duplicate = PartyColor::query()
                 ->get(['sigla'])
-                ->contains(fn (PartidoCor $partidoCor): bool => PartidoCor::normalizeSigla($partidoCor->sigla) === $normalized);
+                ->contains(fn (PartyColor $partidoCor): bool => PartyColor::normalizeSigla($partidoCor->sigla) === $normalized);
 
             if ($duplicate) {
                 $validator->errors()->add(

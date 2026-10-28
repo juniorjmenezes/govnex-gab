@@ -3,12 +3,12 @@
 namespace App\Services\Admin;
 
 use App\Enums\DemandStatus;
-use App\Enums\GabineteStatus;
+use App\Enums\OfficeStatus;
 use App\Enums\UserRole;
 use App\Models\Appointment;
-use App\Models\Cidadao;
-use App\Models\Demanda;
-use App\Models\Gabinete;
+use App\Models\Citizen;
+use App\Models\Demand;
+use App\Models\Office;
 use App\Models\ReportExport;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -18,15 +18,15 @@ class PlatformMetricsService
     /** @return array<string, mixed> */
     public function build(): array
     {
-        $offices = Gabinete::withoutGlobalScopes();
+        $offices = Office::withoutGlobalScopes();
         $users = User::query()->where('role', '!=', UserRole::Root);
-        $demands = Demanda::withoutGlobalScopes();
+        $demands = Demand::withoutGlobalScopes();
 
         return [
             'summary' => [
                 'offices' => (clone $offices)->count(),
-                'active_offices' => (clone $offices)->where('status', GabineteStatus::Active)->count(),
-                'suspended_offices' => (clone $offices)->where('status', GabineteStatus::Suspended)->count(),
+                'active_offices' => (clone $offices)->where('status', OfficeStatus::Active)->count(),
+                'suspended_offices' => (clone $offices)->where('status', OfficeStatus::Suspended)->count(),
                 'active_users' => (clone $users)->where('is_active', true)->count(),
                 'demands' => (clone $demands)->count(),
                 'demands_last_30_days' => (clone $demands)->where('created_at', '>=', now()->subDays(30))->count(),
@@ -49,18 +49,18 @@ class PlatformMetricsService
             ->where('role', '!=', UserRole::Root)
             ->selectRaw('gabinete_id, count(*) as total')
             ->groupBy('gabinete_id');
-        $citizenCounts = Cidadao::withoutGlobalScopes()
+        $citizenCounts = Citizen::withoutGlobalScopes()
             ->selectRaw('gabinete_id, count(*) as total')
             ->groupBy('gabinete_id');
-        $demandCounts = Demanda::withoutGlobalScopes()
+        $demandCounts = Demand::withoutGlobalScopes()
             ->selectRaw('gabinete_id, count(*) as total')
             ->groupBy('gabinete_id');
-        $openCounts = Demanda::withoutGlobalScopes()
+        $openCounts = Demand::withoutGlobalScopes()
             ->whereIn('status', DemandStatus::openValues())
             ->selectRaw('gabinete_id, count(*) as total')
             ->groupBy('gabinete_id');
 
-        return Gabinete::withoutGlobalScopes()
+        return Office::withoutGlobalScopes()
             ->leftJoinSub($userCounts, 'user_counts', 'user_counts.gabinete_id', '=', 'gabinetes.id')
             ->leftJoinSub($citizenCounts, 'citizen_counts', 'citizen_counts.gabinete_id', '=', 'gabinetes.id')
             ->leftJoinSub($demandCounts, 'demand_counts', 'demand_counts.gabinete_id', '=', 'gabinetes.id')
@@ -79,7 +79,7 @@ class PlatformMetricsService
             ->orderByDesc('demands_count')
             ->limit(10)
             ->get()
-            ->map(fn (Gabinete $office): array => [
+            ->map(fn (Office $office): array => [
                 'id' => $office->id,
                 'name' => $office->nome,
                 'status' => $office->status->value,

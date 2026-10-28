@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Services\Politics\OfficePoliticalDataSyncDispatcher;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -13,7 +13,7 @@ class SyncOfficePoliticalDataRequest extends FormRequest
     {
         $office = $this->route('office');
 
-        return $office instanceof Gabinete
+        return $office instanceof Office
             && $this->user()->isRoot()
             && $this->user()->can('view', $office);
     }

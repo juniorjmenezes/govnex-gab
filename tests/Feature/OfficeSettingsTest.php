@@ -1,10 +1,10 @@
 <?php
 
-use App\Models\Bairro;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\Gabinete;
-use App\Models\MunicipioEleitoral;
+use App\Models\Candidate;
+use App\Models\Election;
+use App\Models\ElectoralMunicipality;
+use App\Models\Neighborhood;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
@@ -25,14 +25,14 @@ beforeEach(function () {
 
 test('councilor updates office address and visual identity', function () {
     Storage::fake('public');
-    $office = Gabinete::factory()->create([
+    $office = Office::factory()->create([
         'municipio' => 'Caucaia',
         'estado' => 'CE',
         'numero_eleitoral' => '98765',
         'cor_principal' => '#0F766E',
     ]);
     $office->entidade->forceFill(['cor_principal' => '#176B73'])->save();
-    $neighborhood = Bairro::factory()->forGabinete($office)->create([
+    $neighborhood = Neighborhood::factory()->forGabinete($office)->create([
         'municipio' => 'Caucaia',
         'estado' => 'CE',
     ]);
@@ -92,7 +92,7 @@ test('councilor updates office address and visual identity', function () {
 });
 
 test('councilor can view the configured electoral number', function () {
-    $office = Gabinete::factory()->create(['numero_eleitoral' => '98765']);
+    $office = Office::factory()->create(['numero_eleitoral' => '98765']);
     $councilor = User::factory()->administrator()->forGabinete($office)->create();
 
     $this->actingAs($councilor)
@@ -104,17 +104,17 @@ test('councilor can view the configured electoral number', function () {
 });
 
 test('councilor sees the matched tse candidate once resolved', function () {
-    $municipality = MunicipioEleitoral::query()->create([
+    $municipality = ElectoralMunicipality::query()->create([
         'codigo_tse' => '15890',
         'codigo_ibge' => '2304251',
         'nome' => 'Cruz',
         'uf' => 'CE',
     ]);
-    $election = Eleicao::query()
+    $election = Election::query()
         ->where('ano', 2024)
         ->where('tipo', 'municipal')
         ->firstOrFail();
-    $titular = CandidatoPolitico::query()->create([
+    $titular = Candidate::query()->create([
         'eleicao_id' => $election->id,
         'sq_candidato' => '60001945113',
         'abrangencia' => 'municipal',
@@ -126,7 +126,7 @@ test('councilor sees the matched tse candidate once resolved', function () {
         'numero' => '11555',
         'partido_sigla' => 'PP',
     ]);
-    $office = Gabinete::factory()->create([
+    $office = Office::factory()->create([
         'municipio' => 'Cruz',
         'estado' => 'CE',
         'municipio_eleitoral_id' => $municipality->id,
@@ -148,7 +148,7 @@ test('councilor sees the matched tse candidate once resolved', function () {
 test('councilor restores the system identity and deletes the custom logo', function () {
     Storage::fake('public');
     $logoPath = UploadedFile::fake()->image('logo-atual.png')->store('gabinetes/atual', 'public');
-    $office = Gabinete::factory()->create([
+    $office = Office::factory()->create([
         'municipio' => 'Fortaleza',
         'estado' => 'CE',
         'logo_path' => $logoPath,

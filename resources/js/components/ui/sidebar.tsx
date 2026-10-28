@@ -1,5 +1,6 @@
 export {
     Sidebar,
+    SidebarBrand,
     SidebarContent,
     SidebarFooter,
     SidebarGroup,

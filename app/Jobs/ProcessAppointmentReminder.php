@@ -4,14 +4,14 @@ namespace App\Jobs;
 
 use App\Enums\AppointmentRecurrence;
 use App\Enums\AppointmentStatus;
-use App\Enums\GabineteModule;
+use App\Enums\OfficeModule;
 use App\Enums\ReminderChannel;
 use App\Enums\ReminderStatus;
 use App\Models\AppointmentReminder;
 use App\Models\NotificationAttempt;
 use App\Services\Appointments\AppointmentReminderChannelManager;
 use App\Services\Appointments\FakeWhatsAppAppointmentReminderChannel;
-use App\Services\Modules\GabineteModuleManager;
+use App\Services\Modules\OfficeModuleManager;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -31,15 +31,15 @@ class ProcessAppointmentReminder implements ShouldQueue
 
     public function handle(
         AppointmentReminderChannelManager $channels,
-        GabineteModuleManager $modules,
+        OfficeModuleManager $modules,
     ): void {
         $pending = AppointmentReminder::withoutGlobalScopes()->find($this->reminderId);
         $requiresWhatsApp = in_array($pending?->canal, [
             ReminderChannel::FakeWhatsApp,
             ReminderChannel::WhatsApp,
         ], true);
-        if ($pending && (! $modules->isActive($pending->gabinete_id, GabineteModule::Schedule)
-            || ($requiresWhatsApp && ! $modules->isActive($pending->gabinete_id, GabineteModule::WhatsApp)))) {
+        if ($pending && (! $modules->isActive($pending->gabinete_id, OfficeModule::Schedule)
+            || ($requiresWhatsApp && ! $modules->isActive($pending->gabinete_id, OfficeModule::WhatsApp)))) {
             $pending->forceFill([
                 'status' => ReminderStatus::Cancelled,
                 'erro' => 'O módulo necessário foi desativado antes do envio.',

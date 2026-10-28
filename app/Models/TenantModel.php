@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\BelongsToGabinete;
+use App\Models\Concerns\BelongsToOffice;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 abstract class TenantModel extends Model
 {
-    use BelongsToGabinete;
+    use BelongsToOffice;
 
     /** @var list<string> */
     protected $guarded = ['gabinete_id'];

@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\AccessRole;
-use App\Models\Entidade;
-use App\Models\EntidadeMembro;
-use App\Models\Gabinete;
+use App\Models\Entity;
+use App\Models\EntityMember;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -39,7 +39,7 @@ class AccountAccessControlTest extends TestCase
      */
     public function test_suspended_primary_gabinete_does_not_disable_the_global_account(): void
     {
-        $gabinete = Gabinete::factory()->suspended()->create();
+        $gabinete = Office::factory()->suspended()->create();
         $user = User::factory()->forGabinete($gabinete)->create();
 
         $this->actingAs($user)
@@ -51,9 +51,9 @@ class AccountAccessControlTest extends TestCase
 
     public function test_entity_member_without_primary_gabinete_keeps_access(): void
     {
-        $entidade = Entidade::factory()->create();
+        $entidade = Entity::factory()->create();
         $user = User::factory()->create(['gabinete_id' => null]);
-        EntidadeMembro::query()->create([
+        EntityMember::query()->create([
             'entidade_id' => $entidade->id,
             'usuario_id' => $user->id,
             'papel' => AccessRole::Operator,

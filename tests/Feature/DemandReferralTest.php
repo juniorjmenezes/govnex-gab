@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\DemandStatus;
-use App\Models\Demanda;
-use App\Models\DemandaAnexo;
-use App\Models\DemandaEvento;
-use App\Models\Gabinete;
+use App\Models\Demand;
+use App\Models\DemandAttachment;
+use App\Models\DemandEvent;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
@@ -45,7 +45,7 @@ class DemandReferralTest extends TestCase
             ])
             ->assertRedirect();
 
-        $event = DemandaEvento::query()->where('tipo', 'encaminhamento')->sole();
+        $event = DemandEvent::query()->where('tipo', 'encaminhamento')->sole();
         $this->assertArrayNotHasKey('situacao', $event->getAttributes());
     }
 
@@ -67,8 +67,8 @@ class DemandReferralTest extends TestCase
     public function test_referral_routes_prevent_cross_office_access(): void
     {
         [$user] = $this->demandContext();
-        $foreignOffice = Gabinete::factory()->create();
-        $foreignDemand = Demanda::factory()->forGabinete($foreignOffice)->create();
+        $foreignOffice = Office::factory()->create();
+        $foreignDemand = Demand::factory()->forGabinete($foreignOffice)->create();
 
         $this->actingAs($user)->post(route('demands.referrals.store', $foreignDemand), $this->payload())
             ->assertNotFound();
@@ -96,7 +96,7 @@ class DemandReferralTest extends TestCase
     {
         [$user, $demand] = $this->demandContext();
         $this->actingAs($user)->post(route('demands.referrals.store', $demand), $this->payload());
-        $referral = DemandaEvento::query()->where('tipo', 'encaminhamento')->sole();
+        $referral = DemandEvent::query()->where('tipo', 'encaminhamento')->sole();
 
         $this->actingAs($user)
             ->post(route('demands.referrals.respond', $demand), [
@@ -111,9 +111,9 @@ class DemandReferralTest extends TestCase
     public function test_response_cannot_reference_a_referral_from_another_demand(): void
     {
         [$user, $demand] = $this->demandContext();
-        $otherDemand = Demanda::factory()->forGabinete($user->gabinete, creator: $user)->create();
+        $otherDemand = Demand::factory()->forGabinete($user->gabinete, creator: $user)->create();
         $this->actingAs($user)->post(route('demands.referrals.store', $otherDemand), $this->payload());
-        $foreignReferral = DemandaEvento::query()->where('tipo', 'encaminhamento')->sole();
+        $foreignReferral = DemandEvent::query()->where('tipo', 'encaminhamento')->sole();
 
         $this->actingAs($user)
             ->post(route('demands.referrals.respond', $demand), [
@@ -155,19 +155,19 @@ class DemandReferralTest extends TestCase
         ];
     }
 
-    /** @return array{User, Demanda} */
+    /** @return array{User, Demand} */
     private function demandContext(): array
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $demand = Demanda::factory()->forGabinete($office, creator: $user)->create();
+        $demand = Demand::factory()->forGabinete($office, creator: $user)->create();
 
         return [$user, $demand];
     }
 
-    private function attachment(User $user, Demanda $demand): DemandaAnexo
+    private function attachment(User $user, Demand $demand): DemandAttachment
     {
-        $attachment = new DemandaAnexo;
+        $attachment = new DemandAttachment;
         $attachment->forceFill([
             'gabinete_id' => $user->gabinete_id,
             'demanda_id' => $demand->id,

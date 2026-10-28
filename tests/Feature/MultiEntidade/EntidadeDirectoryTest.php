@@ -3,9 +3,9 @@
 namespace Tests\Feature\MultiEntidade;
 
 use App\Enums\AccessRole;
-use App\Models\Entidade;
-use App\Models\EntidadeMembro;
-use App\Models\Gabinete;
+use App\Models\Entity;
+use App\Models\EntityMember;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -27,15 +27,15 @@ class EntidadeDirectoryTest extends TestCase
         $admin = User::factory()->root()->create();
 
         foreach (range(1, 9) as $index) {
-            Entidade::factory()->create(['nome' => sprintf('Entidade %02d', $index)]);
+            Entity::factory()->create(['nome' => sprintf('Entidade %02d', $index)]);
         }
 
-        $target = Entidade::factory()->create([
+        $target = Entity::factory()->create([
             'nome' => 'Câmara Municipal de Aurora',
             'municipio' => 'Aurora',
             'estado' => 'CE',
         ]);
-        Gabinete::factory()->for($target, 'entidade')->create([
+        Office::factory()->for($target, 'entidade')->create([
             'nome' => 'Gabinete da Presidência',
         ]);
 
@@ -62,8 +62,8 @@ class EntidadeDirectoryTest extends TestCase
 
     public function test_directory_search_does_not_expose_an_unrelated_entidade(): void
     {
-        $allowedOffice = Gabinete::factory()->create();
-        $blockedOffice = Gabinete::factory()
+        $allowedOffice = Office::factory()->create();
+        $blockedOffice = Office::factory()
             ->for($allowedOffice->entidade, 'entidade')
             ->create(['nome' => 'Gabinete Confidencial']);
         $user = User::factory()->operator()->forGabinete($allowedOffice)->create();
@@ -82,9 +82,9 @@ class EntidadeDirectoryTest extends TestCase
 
     public function test_entity_member_without_a_primary_office_can_open_the_directory(): void
     {
-        $entidade = Entidade::factory()->create();
+        $entidade = Entity::factory()->create();
         $user = User::factory()->create(['gabinete_id' => null]);
-        EntidadeMembro::query()->create([
+        EntityMember::query()->create([
             'entidade_id' => $entidade->id,
             'usuario_id' => $user->id,
             'papel' => AccessRole::Operator,
@@ -108,7 +108,7 @@ class EntidadeDirectoryTest extends TestCase
     public function test_platform_admin_sees_the_office_dashboard_inside_explicit_context(): void
     {
         $admin = User::factory()->root()->create();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
 
         $this->actingAs($admin)
             ->get(route('context.dashboard', [

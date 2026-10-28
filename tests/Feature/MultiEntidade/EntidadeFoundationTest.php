@@ -3,12 +3,12 @@
 namespace Tests\Feature\MultiEntidade;
 
 use App\Enums\AccessRole;
-use App\Enums\GabineteType;
-use App\Models\Cidadao;
-use App\Models\ContextoAcessoEvento;
-use App\Models\EntidadeMembro;
-use App\Models\Gabinete;
-use App\Models\GabineteMembro;
+use App\Enums\OfficeType;
+use App\Models\AccessContextEvent;
+use App\Models\Citizen;
+use App\Models\EntityMember;
+use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -26,13 +26,13 @@ class EntidadeFoundationTest extends TestCase
 
     public function test_legacy_office_and_users_receive_compatible_entidade_memberships(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $councilor = User::factory()->administrator()->forGabinete($office)->create();
         $chief = User::factory()->administrator()->forGabinete($office)->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
 
         $this->assertNotNull($office->entidade_id);
-        $this->assertSame(GabineteType::IndependentOffice, $office->tipo_gabinete);
+        $this->assertSame(OfficeType::IndependentOffice, $office->tipo_gabinete);
 
         $this->assertDatabaseHas('entidade_membros', [
             'entidade_id' => $office->entidade_id,
@@ -54,14 +54,14 @@ class EntidadeFoundationTest extends TestCase
 
     public function test_explicit_unit_context_isolates_records_for_multi_unit_user(): void
     {
-        $firstUnit = Gabinete::factory()->create();
+        $firstUnit = Office::factory()->create();
         $entidade = $firstUnit->entidade;
-        $secondUnit = Gabinete::factory()->for($entidade, 'entidade')->create([
-            'tipo_gabinete' => GabineteType::AdministrativeDepartment,
+        $secondUnit = Office::factory()->for($entidade, 'entidade')->create([
+            'tipo_gabinete' => OfficeType::AdministrativeDepartment,
         ]);
         $user = User::factory()->operator()->forGabinete($firstUnit)->create();
 
-        GabineteMembro::query()->create([
+        OfficeMember::query()->create([
             'gabinete_id' => $secondUnit->id,
             'usuario_id' => $user->id,
             'papel' => AccessRole::Operator,
@@ -69,8 +69,8 @@ class EntidadeFoundationTest extends TestCase
             'ingressou_em' => now(),
         ]);
 
-        $firstCitizen = Cidadao::factory()->forGabinete($firstUnit)->create();
-        $secondCitizen = Cidadao::factory()->forGabinete($secondUnit)->create();
+        $firstCitizen = Citizen::factory()->forGabinete($firstUnit)->create();
+        $secondCitizen = Citizen::factory()->forGabinete($secondUnit)->create();
 
         $this->assertSame($entidade->id, $secondUnit->entidade_id);
         $this->assertTrue($user->canAccessEntidade($entidade->id));
@@ -101,11 +101,11 @@ class EntidadeFoundationTest extends TestCase
 
     public function test_platform_admin_is_scoped_after_entering_an_explicit_unit(): void
     {
-        $firstUnit = Gabinete::factory()->create();
-        $secondUnit = Gabinete::factory()->create();
+        $firstUnit = Office::factory()->create();
+        $secondUnit = Office::factory()->create();
         $admin = User::factory()->root()->create();
-        Cidadao::factory()->forGabinete($firstUnit)->create();
-        $expected = Cidadao::factory()->forGabinete($secondUnit)->create();
+        Citizen::factory()->forGabinete($firstUnit)->create();
+        $expected = Citizen::factory()->forGabinete($secondUnit)->create();
 
         $this->actingAs($admin)
             ->get(route('context.citizens.index', [
@@ -117,7 +117,7 @@ class EntidadeFoundationTest extends TestCase
                 ->has('citizens.data', 1)
                 ->where('citizens.data.0.id', $expected->id));
 
-        $this->assertTrue(ContextoAcessoEvento::query()
+        $this->assertTrue(AccessContextEvent::query()
             ->where('usuario_id', $admin->id)
             ->where('administrador_plataforma', true)
             ->exists());
@@ -125,8 +125,8 @@ class EntidadeFoundationTest extends TestCase
 
     public function test_user_cannot_enter_an_unrelated_entidade_or_unit(): void
     {
-        $allowed = Gabinete::factory()->create();
-        $blocked = Gabinete::factory()->create();
+        $allowed = Office::factory()->create();
+        $blocked = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($allowed)->create();
 
         $this->actingAs($user)
@@ -144,11 +144,11 @@ class EntidadeFoundationTest extends TestCase
 
     public function test_deactivated_membership_blocks_context_without_deleting_data(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $citizen = Cidadao::factory()->forGabinete($office)->create();
+        $citizen = Citizen::factory()->forGabinete($office)->create();
 
-        EntidadeMembro::query()
+        EntityMember::query()
             ->where('usuario_id', $user->id)
             ->update(['ativo' => false, 'desativado_em' => now()]);
 
@@ -164,10 +164,10 @@ class EntidadeFoundationTest extends TestCase
 
     public function test_entity_page_does_not_inherit_primary_office_from_another_entidade(): void
     {
-        $primaryOffice = Gabinete::factory()->create();
-        $otherEntidade = Gabinete::factory()->create()->entidade;
+        $primaryOffice = Office::factory()->create();
+        $otherEntidade = Office::factory()->create()->entidade;
         $user = User::factory()->operator()->forGabinete($primaryOffice)->create();
-        EntidadeMembro::query()->create([
+        EntityMember::query()->create([
             'entidade_id' => $otherEntidade->id,
             'usuario_id' => $user->id,
             'papel' => AccessRole::Operator,
@@ -186,7 +186,7 @@ class EntidadeFoundationTest extends TestCase
 
     public function test_entity_page_keeps_the_users_own_gabinete_in_context(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $chief = User::factory()->administrator()->forGabinete($office)->create();
 
         $this->actingAs($chief)

@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\GabineteModule;
-use App\Services\Modules\GabineteModuleManager;
+use App\Enums\OfficeModule;
+use App\Services\Modules\OfficeModuleManager;
 use App\Services\Politics\TsePoliticalDataSyncService;
 use Illuminate\Console\Command;
 
@@ -16,9 +16,9 @@ class GeocodePollingLocations extends Command
 
     public function handle(
         TsePoliticalDataSyncService $service,
-        GabineteModuleManager $modules,
+        OfficeModuleManager $modules,
     ): int {
-        if (! $modules->anyActiveOffice(GabineteModule::Politics)) {
+        if (! $modules->anyActiveOffice(OfficeModule::Politics)) {
             $this->info('Nenhum gabinete ativo possui o módulo Inteligência política; geocodificação ignorada.');
 
             return self::SUCCESS;

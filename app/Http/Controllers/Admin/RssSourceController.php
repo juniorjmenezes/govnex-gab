@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreRssSourceRequest;
 use App\Jobs\FetchRssSource;
-use App\Models\FonteRss;
-use App\Models\NoticiaRss;
+use App\Models\RssNews;
+use App\Models\RssSource;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,19 +18,19 @@ class RssSourceController extends Controller
     {
         abort_unless($request->user()->isRoot(), 403);
 
-        $counts = NoticiaRss::query()
+        $counts = RssNews::query()
             ->selectRaw('fonte_rss_id, count(*) as total')
             ->groupBy('fonte_rss_id')
             ->pluck('total', 'fonte_rss_id');
 
         return Inertia::render('admin/rss-sources/index', [
-            'sources' => FonteRss::query()
+            'sources' => RssSource::query()
                 ->orderBy('nome')
                 ->get([
                     'id', 'nome', 'url', 'ativo', 'ultima_coleta_em',
                     'itens_importados', 'ultimo_erro', 'ultimo_erro_em',
                 ])
-                ->map(fn (FonteRss $fonte): array => [
+                ->map(fn (RssSource $fonte): array => [
                     ...$fonte->only([
                         'id', 'nome', 'url', 'ativo', 'itens_importados', 'ultimo_erro',
                     ]),
@@ -43,7 +43,7 @@ class RssSourceController extends Controller
 
     public function store(StoreRssSourceRequest $request): RedirectResponse
     {
-        $fonte = FonteRss::query()->create($request->validated());
+        $fonte = RssSource::query()->create($request->validated());
 
         // Primeira coleta imediata: sem isso a fonte fica vazia até a
         // próxima janela de 15 minutos e parece que não funcionou.
@@ -54,7 +54,7 @@ class RssSourceController extends Controller
         return to_route('admin.rss-sources.index');
     }
 
-    public function update(StoreRssSourceRequest $request, FonteRss $fonteRss): RedirectResponse
+    public function update(StoreRssSourceRequest $request, RssSource $fonteRss): RedirectResponse
     {
         $fonteRss->update($request->validated());
 
@@ -63,7 +63,7 @@ class RssSourceController extends Controller
         return to_route('admin.rss-sources.index');
     }
 
-    public function destroy(Request $request, FonteRss $fonteRss): RedirectResponse
+    public function destroy(Request $request, RssSource $fonteRss): RedirectResponse
     {
         abort_unless($request->user()->isRoot(), 403);
 
@@ -75,7 +75,7 @@ class RssSourceController extends Controller
     }
 
     /** Coleta sob demanda, para o admin conferir um feed recém-cadastrado. */
-    public function collect(Request $request, FonteRss $fonteRss): RedirectResponse
+    public function collect(Request $request, RssSource $fonteRss): RedirectResponse
     {
         abort_unless($request->user()->isRoot(), 403);
 

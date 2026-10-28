@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\WhatsAppMode;
 use App\Enums\WhatsAppPurpose;
-use App\Models\Gabinete;
+use App\Models\Office;
 use App\Models\User;
 use App\Models\WhatsAppTemplatePurpose;
 use App\Services\WhatsApp\WhatsAppConfigurationService;
@@ -137,7 +137,7 @@ final class WhatsAppTemplateAccountIsolationTest extends TestCase
     public function test_marketing_purpose_cannot_be_enabled_or_created_as_utility(): void
     {
         $purpose = WhatsAppPurpose::PoliticalPollPublished;
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         Http::fake();
 
         try {

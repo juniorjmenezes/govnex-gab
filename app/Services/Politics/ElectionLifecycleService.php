@@ -5,12 +5,12 @@ namespace App\Services\Politics;
 use App\Exceptions\ElectionLifecycleException;
 use App\Jobs\SyncDatasetFromGovnexApi;
 use App\Jobs\TallyElection;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\ResultadoCandidatoEleicao;
-use App\Models\SincronizacaoTse;
+use App\Models\Candidate;
+use App\Models\CandidateElectionResult;
+use App\Models\CandidateMunicipalityVote;
+use App\Models\Election;
+use App\Models\TseSync;
 use App\Models\User;
-use App\Models\VotacaoCandidatoMunicipio;
 use App\Services\Politics\Tse\GovnexApiDatasetCatalog;
 use App\Services\Politics\Tse\GovnexApiSettings;
 use Illuminate\Contracts\Cache\LockTimeoutException;
@@ -70,10 +70,10 @@ class ElectionLifecycleService
      *
      * @return list<array{key: string, requires_year: bool, slug: string, latest_sync: array<string, mixed>|null}>
      */
-    public function datasets(Eleicao $election): array
+    public function datasets(Election $election): array
     {
         $keys = TsePoliticalDataSyncService::datasetsFor($election->tipo);
-        $latest = SincronizacaoTse::query()
+        $latest = TseSync::query()
             ->whereNull('gabinete_id')
             ->whereIn('dataset', $keys)
             ->where(fn ($query) => $query
@@ -99,7 +99,7 @@ class ElectionLifecycleService
      *
      * @throws ElectionLifecycleException
      */
-    public function syncDataset(Eleicao $election, string $dataset, User $requester): SincronizacaoTse
+    public function syncDataset(Election $election, string $dataset, User $requester): TseSync
     {
         if (! in_array($dataset, TsePoliticalDataSyncService::datasetsFor($election->tipo), true)) {
             throw new ElectionLifecycleException(
@@ -120,12 +120,12 @@ class ElectionLifecycleService
 
         try {
             $run = Cache::lock('tse:enqueue:'.TsePoliticalDataSyncService::datasetHistoryKey($dataset, $year), 15)
-                ->block(5, function () use ($dataset, $year, $requester): ?SincronizacaoTse {
+                ->block(5, function () use ($dataset, $year, $requester): ?TseSync {
                     if ($this->hasActiveRun($dataset, $year)) {
                         return null;
                     }
 
-                    $run = SincronizacaoTse::query()->create([
+                    $run = TseSync::query()->create([
                         'gabinete_id' => null,
                         'solicitado_por_id' => $requester->id,
                         'dataset' => $dataset,
@@ -167,7 +167,7 @@ class ElectionLifecycleService
      *
      * @throws ElectionLifecycleException
      */
-    public function cancelSync(Eleicao $election, SincronizacaoTse $sync, User $requester): void
+    public function cancelSync(Election $election, TseSync $sync, User $requester): void
     {
         if (! $this->belongsTo($election, $sync)) {
             throw new ElectionLifecycleException('Sincronização não encontrada para esta eleição.', 'sync');
@@ -186,7 +186,7 @@ class ElectionLifecycleService
         ]);
     }
 
-    public function belongsTo(Eleicao $election, SincronizacaoTse $sync): bool
+    public function belongsTo(Election $election, TseSync $sync): bool
     {
         return $sync->gabinete_id === null
             && in_array($sync->dataset, TsePoliticalDataSyncService::datasetsFor($election->tipo), true)
@@ -195,7 +195,7 @@ class ElectionLifecycleService
 
     // ---- Apuração --------------------------------------------------------
 
-    public function canTally(Eleicao $election): bool
+    public function canTally(Election $election): bool
     {
         return ! $election->primeiro_turno_em->isAfter(today());
     }
@@ -205,7 +205,7 @@ class ElectionLifecycleService
      *
      * @throws ElectionLifecycleException
      */
-    public function requestTally(Eleicao $election): void
+    public function requestTally(Election $election): void
     {
         if (! $this->canTally($election)) {
             throw new ElectionLifecycleException(
@@ -230,7 +230,7 @@ class ElectionLifecycleService
      *
      * @return array{recorded: int, classified: int}
      */
-    public function tally(Eleicao $election): array
+    public function tally(Election $election): array
     {
         $recorded = $this->results->recordElection($election, 1);
         $classified = $this->secondRound->classifyElection($election);
@@ -245,7 +245,7 @@ class ElectionLifecycleService
      *
      * @param  array<string, array<string, mixed>|null>  $raw  resultado por cargo do feed
      */
-    public function recordLiveTally(Eleicao $election, string $uf, int $round, array $raw): void
+    public function recordLiveTally(Election $election, string $uf, int $round, array $raw): void
     {
         foreach (array_keys(ElectionResultRecorder::OFFICES) as $office) {
             $result = $raw[$office] ?? null;
@@ -266,17 +266,17 @@ class ElectionLifecycleService
      *
      * @return list<array{office: string, label: string, source: string, candidates: int, with_result: int, elected: int, updated_at: string|null}>
      */
-    public function tallySummary(Eleicao $election): array
+    public function tallySummary(Election $election): array
     {
-        $candidates = CandidatoPolitico::query()
+        $candidates = Candidate::query()
             ->where('eleicao_id', $election->id)
             ->toBase()
             ->selectRaw('UPPER(cargo) as office, COUNT(*) as total')
             ->groupByRaw('UPPER(cargo)')
             ->pluck('total', 'office');
 
-        $tse = $this->resultCounts((new ResultadoCandidatoEleicao)->getTable(), $election);
-        $municipal = $this->resultCounts((new VotacaoCandidatoMunicipio)->getTable(), $election);
+        $tse = $this->resultCounts((new CandidateElectionResult)->getTable(), $election);
+        $municipal = $this->resultCounts((new CandidateMunicipalityVote)->getTable(), $election);
 
         $summary = [];
 
@@ -310,9 +310,9 @@ class ElectionLifecycleService
      *
      * @return array<string, object>
      */
-    private function resultCounts(string $table, Eleicao $election): array
+    private function resultCounts(string $table, Election $election): array
     {
-        return CandidatoPolitico::query()
+        return Candidate::query()
             ->toBase()
             ->join("{$table} as r", 'r.candidato_politico_id', '=', 'candidatos_politicos.id')
             ->where('candidatos_politicos.eleicao_id', $election->id)
@@ -329,7 +329,7 @@ class ElectionLifecycleService
 
     private function hasActiveRun(string $dataset, int $year): bool
     {
-        return SincronizacaoTse::query()
+        return TseSync::query()
             ->whereNull('gabinete_id')
             ->where('dataset', $dataset)
             ->when(

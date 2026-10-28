@@ -3,17 +3,17 @@
 namespace Tests\Feature;
 
 use App\Jobs\SyncOfficeSectionVotesFromGovnexApi;
-use App\Models\CandidatoPolitico;
-use App\Models\ComparecimentoEleitoralMunicipio;
-use App\Models\Eleicao;
-use App\Models\Gabinete;
-use App\Models\LocalVotacaoEleitoral;
-use App\Models\MunicipioEleitoral;
-use App\Models\PesquisaEleitoral;
-use App\Models\SecaoEleitoral;
-use App\Models\SincronizacaoTse;
-use App\Models\VotacaoCandidatoMunicipio;
-use App\Models\VotoSecaoCandidato;
+use App\Models\Candidate;
+use App\Models\CandidateMunicipalityVote;
+use App\Models\CandidateSectionVote;
+use App\Models\Election;
+use App\Models\ElectoralMunicipality;
+use App\Models\ElectoralPoll;
+use App\Models\ElectoralPollingLocation;
+use App\Models\ElectoralSection;
+use App\Models\MunicipalElectionTurnout;
+use App\Models\Office;
+use App\Models\TseSync;
 use App\Services\Politics\TsePoliticalDataSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -77,7 +77,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
 
     public function test_imports_official_tse_and_ibge_municipality_codes_and_links_office(): void
     {
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'municipio' => 'Cruz',
             'estado' => 'CE',
         ]);
@@ -89,7 +89,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
 
         $this->assertSame(1, app(TsePoliticalDataSyncService::class)->importMunicipalities());
 
-        $municipality = MunicipioEleitoral::query()->firstOrFail();
+        $municipality = ElectoralMunicipality::query()->firstOrFail();
         $this->assertSame('15890', $municipality->codigo_tse);
         $this->assertSame('2304251', $municipality->codigo_ibge);
         $this->assertSame($municipality->id, $office->fresh()->municipio_eleitoral_id);
@@ -152,7 +152,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
         $this->assertSame(3, $service->importCandidates(2026));
         $this->assertSame(
             ['DOIS', 'TRES', 'UM'],
-            CandidatoPolitico::query()->orderBy('nome_urna')->pluck('nome_urna')->all(),
+            Candidate::query()->orderBy('nome_urna')->pluck('nome_urna')->all(),
         );
     }
 
@@ -261,13 +261,13 @@ class TsePoliticalDataSyncServiceTest extends TestCase
 
     public function test_imports_turnout_once_per_zone_without_duplicating_candidate_offices(): void
     {
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '15890',
             'codigo_ibge' => '2304251',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        Gabinete::factory()->create([
+        Office::factory()->create([
             'municipio' => 'Cruz',
             'estado' => 'CE',
             'municipio_eleitoral_id' => $municipality->id,
@@ -286,7 +286,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
         // Caucaia não tem gabinete nenhum cadastrado, mas o comparecimento
         // de lá é importado do mesmo jeito — Cruz e Caucaia são 2 municípios.
         $this->assertSame(2, $processed);
-        $turnout = ComparecimentoEleitoralMunicipio::query()
+        $turnout = MunicipalElectionTurnout::query()
             ->where('municipio_eleitoral_id', $municipality->id)
             ->firstOrFail();
         $this->assertSame(1500, $turnout->eleitores_aptos);
@@ -307,13 +307,13 @@ class TsePoliticalDataSyncServiceTest extends TestCase
 
     public function test_imports_nominal_votes_and_links_office_holder_by_candidate_number(): void
     {
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '15890',
             'codigo_ibge' => '2304251',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'municipio' => 'Cruz',
             'estado' => 'CE',
             'municipio_eleitoral_id' => $municipality->id,
@@ -344,7 +344,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
         $this->assertNotNull($office->candidato_titular_id);
         $this->assertSame('11555', $office->candidatoTitular?->numero);
 
-        $vote = VotacaoCandidatoMunicipio::query()
+        $vote = CandidateMunicipalityVote::query()
             ->where('candidato_politico_id', $office->candidato_titular_id)
             ->firstOrFail();
         $this->assertSame(776, $vote->votos_nominais);
@@ -360,8 +360,8 @@ class TsePoliticalDataSyncServiceTest extends TestCase
     /** A votação nominal é gravada um estado por vez, sem perder nenhum. */
     public function test_imports_nominal_votes_state_by_state(): void
     {
-        MunicipioEleitoral::query()->create(['codigo_tse' => '15890', 'nome' => 'Cruz', 'uf' => 'CE']);
-        MunicipioEleitoral::query()->create(['codigo_tse' => '71072', 'nome' => 'São Paulo', 'uf' => 'SP']);
+        ElectoralMunicipality::query()->create(['codigo_tse' => '15890', 'nome' => 'Cruz', 'uf' => 'CE']);
+        ElectoralMunicipality::query()->create(['codigo_tse' => '71072', 'nome' => 'São Paulo', 'uf' => 'SP']);
         $this->fakeGovnexDatasets([
             'votacao-candidato-munzona-2024' => $this->records(self::CANDIDATE_VOTES_HEADER, [
                 ['30/07/2026', '02:17:54', '2024', '2', '1', '619', '06/10/2024', 'CE', '15890', '15890', 'CRUZ', '30', 'Vereador', '60001945113', '11555', 'MARCOS JOSE SILVEIRA', 'MARCOS SILVEIRA', 'PP', 'PROGRESSISTAS', 'DEFERIDO', 'DEFERIDO', 'N', '500', '500', 'ELEITO POR MÉDIA'],
@@ -390,7 +390,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
      */
     public function test_nominal_votes_require_the_state_filter_on_the_dataset(): void
     {
-        MunicipioEleitoral::query()->create(['codigo_tse' => '15890', 'nome' => 'Cruz', 'uf' => 'CE']);
+        ElectoralMunicipality::query()->create(['codigo_tse' => '15890', 'nome' => 'Cruz', 'uf' => 'CE']);
         $this->fakeGovnexDatasets(['votacao-candidato-munzona-2024' => []]);
 
         $this->expectException(RuntimeException::class);
@@ -401,13 +401,13 @@ class TsePoliticalDataSyncServiceTest extends TestCase
 
     public function test_imports_polling_locations_grouping_sections_by_same_location(): void
     {
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '15890',
             'codigo_ibge' => '2304251',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        Gabinete::factory()->create([
+        Office::factory()->create([
             'municipio' => 'Cruz',
             'estado' => 'CE',
             'municipio_eleitoral_id' => $municipality->id,
@@ -424,17 +424,17 @@ class TsePoliticalDataSyncServiceTest extends TestCase
         $processed = app(TsePoliticalDataSyncService::class)->importPollingLocations(2024);
 
         $this->assertSame(3, $processed);
-        $this->assertSame(2, LocalVotacaoEleitoral::query()->count());
-        $this->assertSame(3, SecaoEleitoral::query()->count());
+        $this->assertSame(2, ElectoralPollingLocation::query()->count());
+        $this->assertSame(3, ElectoralSection::query()->count());
 
-        $location = LocalVotacaoEleitoral::query()
+        $location = ElectoralPollingLocation::query()
             ->where('nr_local_votacao', '0001')
             ->firstOrFail();
         $this->assertSame(2, $location->secoes()->count());
         $this->assertSame('tse', $location->latitude_fonte);
         $this->assertNotNull($location->latitude);
 
-        $withoutCoordinates = LocalVotacaoEleitoral::query()
+        $withoutCoordinates = ElectoralPollingLocation::query()
             ->where('nr_local_votacao', '0002')
             ->firstOrFail();
         $this->assertNull($withoutCoordinates->latitude);
@@ -458,12 +458,12 @@ class TsePoliticalDataSyncServiceTest extends TestCase
         $processed = app(TsePoliticalDataSyncService::class)->importSectionVotes(2024, $office->id);
 
         $this->assertSame(2, $processed);
-        $this->assertSame(2, VotoSecaoCandidato::query()->count());
-        $this->assertSame(776, (int) VotoSecaoCandidato::query()->sum('votos'));
-        $this->assertSame(1, LocalVotacaoEleitoral::query()->count());
-        $this->assertSame(2, SecaoEleitoral::query()->count());
+        $this->assertSame(2, CandidateSectionVote::query()->count());
+        $this->assertSame(776, (int) CandidateSectionVote::query()->sum('votos'));
+        $this->assertSame(1, ElectoralPollingLocation::query()->count());
+        $this->assertSame(2, ElectoralSection::query()->count());
 
-        $location = LocalVotacaoEleitoral::query()->firstOrFail();
+        $location = ElectoralPollingLocation::query()->firstOrFail();
         $this->assertSame('ESCOLA MUNICIPAL', $location->nome);
         $this->assertNull($location->latitude);
     }
@@ -490,7 +490,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
         // reprocessamento por gabinete) — só a votação por seção depende do
         // titular já resolvido.
         $office = $this->officeWithResolvedTitular();
-        SincronizacaoTse::query()->create([
+        TseSync::query()->create([
             'gabinete_id' => null,
             'dataset' => 'section_votes',
             'ano' => 2024,
@@ -508,12 +508,12 @@ class TsePoliticalDataSyncServiceTest extends TestCase
         $results = app(TsePoliticalDataSyncService::class)->syncOfficeSectionVotes($office);
 
         $this->assertSame(['section_votes' => 1], $results);
-        $this->assertSame(500, (int) VotoSecaoCandidato::query()->sum('votos'));
+        $this->assertSame(500, (int) CandidateSectionVote::query()->sum('votos'));
     }
 
     public function test_office_section_votes_are_a_no_op_without_a_resolved_titular(): void
     {
-        $office = Gabinete::factory()->create(['candidato_titular_id' => null]);
+        $office = Office::factory()->create(['candidato_titular_id' => null]);
 
         $this->assertSame([], app(TsePoliticalDataSyncService::class)->syncOfficeSectionVotes($office));
     }
@@ -533,7 +533,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
 
     public function test_poll_registry_backfills_the_official_protocol_on_a_matching_poll(): void
     {
-        Gabinete::factory()->create(['estado' => 'CE']);
+        Office::factory()->create(['estado' => 'CE']);
         $poll = $this->poll('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'CE', 'governador', 'Instituto Opiniao', '2026-07-30');
         $this->fakeGovnexDatasets([
             'pesquisa-eleitoral-2026' => $this->records(self::POLL_REGISTRY_HEADER, [
@@ -547,7 +547,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
 
     public function test_poll_registry_never_overwrites_an_already_linked_protocol(): void
     {
-        Gabinete::factory()->create(['estado' => 'CE']);
+        Office::factory()->create(['estado' => 'CE']);
         $poll = $this->poll('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'CE', 'governador', 'Instituto Opiniao', '2026-07-30', 'JA-VINCULADO');
         $this->fakeGovnexDatasets([
             'pesquisa-eleitoral-2026' => $this->records(self::POLL_REGISTRY_HEADER, [
@@ -561,7 +561,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
 
     public function test_poll_registry_does_not_link_the_only_local_poll_when_the_institute_differs(): void
     {
-        Gabinete::factory()->create(['estado' => 'CE']);
+        Office::factory()->create(['estado' => 'CE']);
         $poll = $this->poll('abababab-abab-4bab-8bab-abababababab', 'CE', 'governador', 'Instituto Correto', '2026-07-30');
         $this->fakeGovnexDatasets([
             'pesquisa-eleitoral-2026' => $this->records(self::POLL_REGISTRY_HEADER, [
@@ -575,7 +575,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
 
     public function test_poll_registry_disambiguates_same_day_polls_by_institute_name(): void
     {
-        Gabinete::factory()->create(['estado' => 'CE']);
+        Office::factory()->create(['estado' => 'CE']);
         $pollA = $this->poll('cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'CE', 'governador', 'Instituto Opiniao', '2026-07-30');
         $pollB = $this->poll('dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'CE', 'governador', 'Instituto Vox', '2026-07-30');
         $this->fakeGovnexDatasets([
@@ -595,7 +595,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
         // O TSE registra um único questionário cobrindo mais de uma corrida
         // (ex.: "Governador, Senador") numa só linha — o mesmo protocolo
         // vale para a pesquisa de cada cargo coberto.
-        Gabinete::factory()->create(['estado' => 'CE']);
+        Office::factory()->create(['estado' => 'CE']);
         $governorPoll = $this->poll('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'CE', 'governador', 'Instituto Opiniao', '2026-07-30');
         $senatePoll = $this->poll('ffffffff-ffff-4fff-8fff-ffffffffffff', 'CE', 'senador', 'Instituto Opiniao', '2026-07-30');
         $this->fakeGovnexDatasets([
@@ -613,7 +613,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
     {
         // Pesquisas de presidente são nacionais (uf=BR no GOVNEX GAB) mesmo que
         // a linha do TSE traga a UF de origem do instituto.
-        Gabinete::factory()->create(['estado' => 'CE']);
+        Office::factory()->create(['estado' => 'CE']);
         $poll = $this->poll('aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', 'BR', 'presidente', 'Instituto Nacional', '2026-07-20');
         $this->fakeGovnexDatasets([
             'pesquisa-eleitoral-2026' => $this->records(self::POLL_REGISTRY_HEADER, [
@@ -632,7 +632,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
     public function test_poll_registry_completes_with_zero_without_calling_the_api_when_nothing_is_pending(): void
     {
         Http::fake();
-        $run = SincronizacaoTse::query()->create([
+        $run = TseSync::query()->create([
             'gabinete_id' => null,
             'dataset' => 'poll_registry',
             'ano' => 2026,
@@ -724,7 +724,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
         $processed = app(TsePoliticalDataSyncService::class)->importSectionVotes(2024, $office->id);
 
         $this->assertSame(1, $processed);
-        $this->assertSame(500, (int) VotoSecaoCandidato::query()->sum('votos'));
+        $this->assertSame(500, (int) CandidateSectionVote::query()->sum('votos'));
         Http::assertSent(
             fn ($request): bool => str_contains($request->url(), '/records')
                 && str_contains($request->url(), 'SQ_CANDIDATO=60001945113'),
@@ -732,20 +732,20 @@ class TsePoliticalDataSyncServiceTest extends TestCase
     }
 
     /**
-     * Gabinete cadastrado antes de as candidaturas existirem: assim que a
+     * Office cadastrado antes de as candidaturas existirem: assim que a
      * importação resolve o titular dele, a votação por seção daquele gabinete
      * entra na fila — sem o administrador precisar sincronizar de novo.
      */
     public function test_resolving_a_titular_queues_the_section_votes_import_of_that_office(): void
     {
         Queue::fake();
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '15890',
             'codigo_ibge' => '2304251',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        $office = Gabinete::factory()->create([
+        $office = Office::factory()->create([
             'municipio' => 'Cruz',
             'estado' => 'CE',
             'municipio_eleitoral_id' => $municipality->id,
@@ -771,20 +771,20 @@ class TsePoliticalDataSyncServiceTest extends TestCase
         );
     }
 
-    /** Gabinete em Cruz/CE com o titular (vereador eleito em 2024) já resolvido. */
-    private function officeWithResolvedTitular(): Gabinete
+    /** Office em Cruz/CE com o titular (vereador eleito em 2024) já resolvido. */
+    private function officeWithResolvedTitular(): Office
     {
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '15890',
             'codigo_ibge' => '2304251',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        $election = Eleicao::query()
+        $election = Election::query()
             ->where('ano', 2024)
             ->where('tipo', 'municipal')
             ->firstOrFail();
-        $titular = CandidatoPolitico::query()->create([
+        $titular = Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => '60001945113',
             'abrangencia' => 'municipal',
@@ -797,7 +797,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
             'partido_sigla' => 'PP',
         ]);
 
-        return Gabinete::factory()->create([
+        return Office::factory()->create([
             'municipio' => 'Cruz',
             'estado' => 'CE',
             'municipio_eleitoral_id' => $municipality->id,
@@ -813,9 +813,9 @@ class TsePoliticalDataSyncServiceTest extends TestCase
         string $institute,
         string $publishedAt,
         ?string $registration = null,
-    ): PesquisaEleitoral {
-        return PesquisaEleitoral::query()->create([
-            'eleicao_id' => Eleicao::query()->where('ano', 2026)->firstOrFail()->id,
+    ): ElectoralPoll {
+        return ElectoralPoll::query()->create([
+            'eleicao_id' => Election::query()->where('ano', 2026)->firstOrFail()->id,
             'external_id' => $externalId,
             'external_election_id' => '11111111-1111-4111-8111-111111111111',
             'ano' => 2026,
@@ -828,9 +828,9 @@ class TsePoliticalDataSyncServiceTest extends TestCase
         ]);
     }
 
-    private function pendingRun(string $dataset, int $year): SincronizacaoTse
+    private function pendingRun(string $dataset, int $year): TseSync
     {
-        return SincronizacaoTse::query()->create([
+        return TseSync::query()->create([
             'gabinete_id' => null,
             'dataset' => $dataset,
             'ano' => $year,
@@ -844,7 +844,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
     private function seedMunicipalityReference(string $uf, int $count): void
     {
         for ($i = 1; $i <= $count; $i++) {
-            MunicipioEleitoral::query()->create([
+            ElectoralMunicipality::query()->create([
                 'codigo_tse' => str_pad((string) (90000 + $i), 5, '0', STR_PAD_LEFT),
                 'nome' => "Município {$uf} {$i}",
                 'uf' => $uf,

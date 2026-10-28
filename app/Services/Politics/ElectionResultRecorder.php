@@ -3,9 +3,9 @@
 namespace App\Services\Politics;
 
 use App\Enums\CandidateScope;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\ResultadoCandidatoEleicao;
+use App\Models\Candidate;
+use App\Models\CandidateElectionResult;
+use App\Models\Election;
 use App\Services\Politics\Tse\TseResultsClient;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -58,11 +58,11 @@ class ElectionResultRecorder
     /**
      * Candidaturas de uma disputa. `$uf` é ignorado para presidente.
      *
-     * @return Builder<CandidatoPolitico>
+     * @return Builder<Candidate>
      */
-    public function raceQuery(Eleicao $election, string $office, ?string $uf): Builder
+    public function raceQuery(Election $election, string $office, ?string $uf): Builder
     {
-        $query = CandidatoPolitico::query()
+        $query = Candidate::query()
             ->where('eleicao_id', $election->id)
             ->whereRaw('UPPER(cargo) = ?', [self::OFFICES[$office]]);
 
@@ -84,7 +84,7 @@ class ElectionResultRecorder
      * @param  array<string, mixed>|null  $tseResult
      */
     public function record(
-        Eleicao $election,
+        Election $election,
         string $office,
         ?string $uf,
         int $round,
@@ -118,7 +118,7 @@ class ElectionResultRecorder
             return false;
         }
 
-        $alreadyRecorded = ResultadoCandidatoEleicao::query()
+        $alreadyRecorded = CandidateElectionResult::query()
             ->where('turno', $round)
             ->whereIn('candidato_politico_id', (clone $race)->select('id'))
             ->exists();
@@ -177,7 +177,7 @@ class ElectionResultRecorder
             ->values()
             ->all();
 
-        ResultadoCandidatoEleicao::query()->upsert(
+        CandidateElectionResult::query()->upsert(
             $rows,
             ['candidato_politico_id', 'turno'],
             ['votos', 'percentual_validos', 'situacao_totalizacao', 'eleito', 'updated_at'],
@@ -192,7 +192,7 @@ class ElectionResultRecorder
      * sincronizada. Disputas já gravadas param em consultas locais, sem ir
      * ao TSE. Devolve quantas disputas foram gravadas agora.
      */
-    public function recordElection(Eleicao $election, int $round): int
+    public function recordElection(Election $election, int $round): int
     {
         $recorded = 0;
 
@@ -209,13 +209,13 @@ class ElectionResultRecorder
      *
      * @return list<array{0: string, 1: string}>
      */
-    public function races(Eleicao $election): array
+    public function races(Election $election): array
     {
         $statewide = array_diff_key(self::OFFICES, ['presidente' => true]);
         $races = [['presidente', 'BR']];
 
         $placeholders = implode(', ', array_fill(0, count($statewide), '?'));
-        $rows = CandidatoPolitico::query()
+        $rows = Candidate::query()
             ->where('eleicao_id', $election->id)
             ->where('abrangencia', CandidateScope::State)
             ->whereNotNull('uf')
@@ -251,11 +251,11 @@ class ElectionResultRecorder
         $majority = array_values(array_filter($candidates, fn (array $candidate): bool => (float) $candidate['vote_percent'] > 50));
 
         [$winners, $winnerStatus] = match (true) {
-            $round === 1 && $majority !== [] => [$majority, ResultadoCandidatoEleicao::ELECTED],
+            $round === 1 && $majority !== [] => [$majority, CandidateElectionResult::ELECTED],
             // Sem maioria: os classificados; se a marcação não vier, os dois
             // mais votados.
-            $round === 1 && $hasSecondRound => [$flagged ?: array_slice($candidates, 0, 2), ResultadoCandidatoEleicao::SECOND_ROUND],
-            default => [$flagged ?: array_slice($candidates, 0, 1), ResultadoCandidatoEleicao::ELECTED],
+            $round === 1 && $hasSecondRound => [$flagged ?: array_slice($candidates, 0, 2), CandidateElectionResult::SECOND_ROUND],
+            default => [$flagged ?: array_slice($candidates, 0, 1), CandidateElectionResult::ELECTED],
         };
 
         $winnerNumbers = array_column($winners, 'number');
@@ -263,8 +263,8 @@ class ElectionResultRecorder
 
         foreach ($candidates as $candidate) {
             $winner = in_array($candidate['number'], $winnerNumbers, true);
-            $status = $winner ? $winnerStatus : ResultadoCandidatoEleicao::NOT_ELECTED;
-            $statuses[(string) $candidate['number']] = [$status, $status === ResultadoCandidatoEleicao::ELECTED];
+            $status = $winner ? $winnerStatus : CandidateElectionResult::NOT_ELECTED;
+            $statuses[(string) $candidate['number']] = [$status, $status === CandidateElectionResult::ELECTED];
         }
 
         return $statuses;
@@ -294,7 +294,7 @@ class ElectionResultRecorder
                 && str_starts_with($published, 'ELEITO') === $elected;
 
             $statuses[(string) $candidate['number']] = [
-                $consistent ? $published : ($elected ? ResultadoCandidatoEleicao::ELECTED : ResultadoCandidatoEleicao::NOT_ELECTED),
+                $consistent ? $published : ($elected ? CandidateElectionResult::ELECTED : CandidateElectionResult::NOT_ELECTED),
                 $elected,
             ];
         }

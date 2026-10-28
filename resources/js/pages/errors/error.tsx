@@ -1,3 +1,5 @@
+import { ErrorPage } from '@govnex/ui';
+import type { IconComponent } from '@govnex/ui';
 import { Head, Link } from '@inertiajs/react';
 import { AppLogoMark, AppWordmark } from '@/components/app-logo-mark';
 import {
@@ -9,8 +11,6 @@ import {
     ShieldCrossIcon,
 } from '@/components/icons';
 import { Button } from '@/components/ui/button';
-import { ErrorPage } from '@govnex/ui';
-import type { IconComponent } from '@govnex/ui';
 
 type Props = {
     status: number;

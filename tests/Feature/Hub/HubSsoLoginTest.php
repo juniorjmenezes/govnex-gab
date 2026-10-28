@@ -2,8 +2,8 @@
 
 use App\Enums\AccessRole;
 use App\Enums\UserRole;
-use App\Models\Entidade;
-use App\Models\Gabinete;
+use App\Models\Entity;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Laravel\Socialite\Facades\Socialite;
@@ -42,8 +42,8 @@ function fingirAcessoDoHub(string $sub, array $vinculos): void
 }
 
 it('casa a conta existente pelo e-mail e grava o hub_user_id', function () {
-    $entidade = Entidade::factory()->create(['hub_entidade_id' => '3']);
-    $gabinete = Gabinete::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '12']);
+    $entidade = Entity::factory()->create(['hub_entidade_id' => '3']);
+    $gabinete = Office::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '12']);
     $existente = User::factory()->create([
         'email' => 'ana@exemplo.gov.br',
         'hub_user_id' => null,
@@ -67,8 +67,8 @@ it('casa a conta existente pelo e-mail e grava o hub_user_id', function () {
 });
 
 it('cria a conta quando a pessoa ainda não existe no GAB', function () {
-    $entidade = Entidade::factory()->create(['hub_entidade_id' => '3']);
-    Gabinete::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '12']);
+    $entidade = Entity::factory()->create(['hub_entidade_id' => '3']);
+    Office::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '12']);
 
     fingirRetornoDoHub('77', 'Bruno Lima', 'bruno@exemplo.gov.br');
     fingirAcessoDoHub('77', [[

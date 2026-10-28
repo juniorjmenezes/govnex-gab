@@ -18,11 +18,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Comissão legislativa da Câmara, mantida pela Secretaria legislativa e lida
  * por todos os gabinetes da mesma entidade.
  *
- * Pertence à entidade, não a um gabinete — mesmo padrão de `EntidadeBairro`:
- * fica fora de `BelongsToGabinete`/`TenantModel`, e toda leitura passa por
+ * Pertence à entidade, não a um gabinete — mesmo padrão de `EntityNeighborhood`:
+ * fica fora de `BelongsToOffice`/`TenantModel`, e toda leitura passa por
  * `ofEntidade()` com a entidade do gabinete em contexto (nunca da requisição).
  *
- * Documentos vinculados (`documentos()`) são `ConhecimentoDocumento`s já
+ * Documentos vinculados (`documentos()`) são `KnowledgeDocument`s já
  * compartilhados com a Câmara; o vínculo é só a tabela `comissao_documentos`,
  * sem model próprio.
  *
@@ -37,7 +37,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  * @property-read Collection<int, ComissaoMembro> $membros
- * @property-read Collection<int, ConhecimentoDocumento> $documentos
+ * @property-read Collection<int, KnowledgeDocument> $documentos
  */
 #[Fillable(['nome', 'sigla', 'tipo', 'status'])]
 class ComissaoLegislativa extends Model
@@ -70,10 +70,10 @@ class ComissaoLegislativa extends Model
         return $this->status === CommitteeStatus::Active;
     }
 
-    /** @return BelongsTo<Entidade, $this> */
+    /** @return BelongsTo<Entity, $this> */
     public function entidade(): BelongsTo
     {
-        return $this->belongsTo(Entidade::class, 'entidade_id');
+        return $this->belongsTo(Entity::class, 'entidade_id');
     }
 
     /** @return BelongsTo<User, $this> */
@@ -88,11 +88,11 @@ class ComissaoLegislativa extends Model
         return $this->hasMany(ComissaoMembro::class, 'comissao_id');
     }
 
-    /** @return BelongsToMany<ConhecimentoDocumento, $this> */
+    /** @return BelongsToMany<KnowledgeDocument, $this> */
     public function documentos(): BelongsToMany
     {
         return $this->belongsToMany(
-            ConhecimentoDocumento::class,
+            KnowledgeDocument::class,
             self::DOCUMENTS_TABLE,
             'comissao_id',
             'documento_id',

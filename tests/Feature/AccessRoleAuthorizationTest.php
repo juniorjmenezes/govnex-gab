@@ -5,9 +5,9 @@ namespace Tests\Feature;
 use App\Enums\AccessRole;
 use App\Enums\AppointmentStatus;
 use App\Models\Appointment;
-use App\Models\Cidadao;
-use App\Models\Demanda;
-use App\Models\Gabinete;
+use App\Models\Citizen;
+use App\Models\Demand;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
@@ -16,7 +16,7 @@ use Tests\TestCase;
 /**
  * Papéis simplificados: root · administrador · operador · auditor.
  *
- * O auditor só lê — a recusa acontece num ponto só (`ResolveEntidadeContext`)
+ * O auditor só lê — a recusa acontece num ponto só (`ResolveEntityContext`)
  * e as Policies (`canWrite`) são a segunda camada.
  */
 class AccessRoleAuthorizationTest extends TestCase
@@ -32,7 +32,7 @@ class AccessRoleAuthorizationTest extends TestCase
     public function test_auditor_reads_demands_and_agenda(): void
     {
         [$office, $auditor] = $this->officeWithAuditor();
-        $demand = Demanda::factory()->forGabinete($office)->create();
+        $demand = Demand::factory()->forGabinete($office)->create();
 
         $this->actingAs($auditor);
 
@@ -55,8 +55,8 @@ class AccessRoleAuthorizationTest extends TestCase
     public function test_auditor_cannot_write_demands(): void
     {
         [$office, $auditor] = $this->officeWithAuditor();
-        $demand = Demanda::factory()->forGabinete($office)->create();
-        $citizen = Cidadao::factory()->forGabinete($office)->create();
+        $demand = Demand::factory()->forGabinete($office)->create();
+        $citizen = Citizen::factory()->forGabinete($office)->create();
 
         $this->actingAs($auditor);
 
@@ -76,7 +76,7 @@ class AccessRoleAuthorizationTest extends TestCase
         $this->delete($this->contextRoute($office, 'demands.destroy', ['demanda' => $demand->id]))
             ->assertForbidden();
 
-        $this->assertSame(1, Demanda::withoutGlobalScopes()->count());
+        $this->assertSame(1, Demand::withoutGlobalScopes()->count());
         $this->assertNotSame('Alterado pelo auditor', $demand->fresh()->titulo);
         $this->assertNull($demand->fresh()->deleted_at);
     }
@@ -131,11 +131,11 @@ class AccessRoleAuthorizationTest extends TestCase
     public function test_policies_deny_writes_to_the_auditor(): void
     {
         [$office, $auditor] = $this->officeWithAuditor();
-        $demand = Demanda::factory()->forGabinete($office)->create();
+        $demand = Demand::factory()->forGabinete($office)->create();
         $appointment = Appointment::factory()->forGabinete($office)->create();
 
         $this->assertTrue(Gate::forUser($auditor)->allows('view', $demand));
-        $this->assertFalse(Gate::forUser($auditor)->allows('create', Demanda::class));
+        $this->assertFalse(Gate::forUser($auditor)->allows('create', Demand::class));
         $this->assertFalse(Gate::forUser($auditor)->allows('update', $demand));
         $this->assertFalse(Gate::forUser($auditor)->allows('delete', $demand));
         $this->assertFalse(Gate::forUser($auditor)->allows('create', Appointment::class));
@@ -144,12 +144,12 @@ class AccessRoleAuthorizationTest extends TestCase
 
     public function test_operator_writes_but_does_not_delete_or_manage_the_team(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $operator = User::factory()->operator()->forGabinete($office)->create();
         $teammate = User::factory()->operator()->forGabinete($office)->create();
-        $demand = Demanda::factory()->forGabinete($office)->create();
+        $demand = Demand::factory()->forGabinete($office)->create();
 
-        $this->assertTrue(Gate::forUser($operator)->allows('create', Demanda::class));
+        $this->assertTrue(Gate::forUser($operator)->allows('create', Demand::class));
         $this->assertTrue(Gate::forUser($operator)->allows('update', $demand));
         $this->assertFalse(Gate::forUser($operator)->allows('delete', $demand));
         $this->assertFalse(Gate::forUser($operator)->allows('update', $teammate));
@@ -176,7 +176,7 @@ class AccessRoleAuthorizationTest extends TestCase
         // Pessoas e vínculos migraram para o Govnex Hub: mesmo o
         // administrador do gabinete só lê a equipe localmente (ver
         // docs/INTEGRACAO_GOVNEX_HUB.md).
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $administrator = User::factory()->administrator()->forGabinete($office)->create();
         $otherAdministrator = User::factory()->administrator()->forGabinete($office)->create();
         $root = User::factory()->root()->create();
@@ -209,17 +209,17 @@ class AccessRoleAuthorizationTest extends TestCase
         $this->assertSame(AccessRole::Administrator, $otherAdministrator->gabineteRole($office->id));
     }
 
-    /** @return array{Gabinete, User} */
+    /** @return array{Office, User} */
     private function officeWithAuditor(): array
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $auditor = User::factory()->auditor()->forGabinete($office)->create();
 
         return [$office, $auditor];
     }
 
     /** @param  array<string, mixed>  $parameters */
-    private function contextRoute(Gabinete $office, string $name, array $parameters = []): string
+    private function contextRoute(Office $office, string $name, array $parameters = []): string
     {
         return route('context.'.$name, [
             'entidade' => $office->entidade->slug,

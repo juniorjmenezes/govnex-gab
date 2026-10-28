@@ -3,9 +3,10 @@
 namespace App\Http\Requests\Appointments;
 
 use App\Enums\AppointmentStatus;
-use App\Enums\GabineteStatus;
-use App\Enums\GabineteType;
+use App\Enums\OfficeStatus;
+use App\Enums\OfficeType;
 use App\Models\CompromissoInstitucional;
+use App\Tenancy\OfficeContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -16,13 +17,13 @@ class InstitutionalAppointmentRequest extends FormRequest
     /** A autorização de verdade fica na Policy, chamada pelo controller. */
     public function authorize(): bool
     {
-        return $this->user()?->gabinete_id !== null;
+        return app(OfficeContext::class)->officeIdFor($this->user()) !== null;
     }
 
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        $entidadeId = $this->user()->gabinete?->entidade_id;
+        $entidadeId = app(OfficeContext::class)->officeFor($this->user())?->entidade_id;
 
         return [
             'titulo' => ['required', 'string', 'max:180'],
@@ -34,7 +35,7 @@ class InstitutionalAppointmentRequest extends FormRequest
             'tipo' => ['required', 'string', 'max:80'],
             'status' => ['required', Rule::enum(AppointmentStatus::class)],
             // Reunião de comissão: o público sai dos membros dela e a lista
-            // manual é ignorada. Entidade, situação e membros ativos são
+            // manual é ignorada. Entity, situação e membros ativos são
             // conferidos por `InstitutionalAudienceService`.
             'comissao_id' => ['nullable', 'integer'],
             // Vazio = todos os gabinetes de vereador da Câmara. Só entram
@@ -45,8 +46,8 @@ class InstitutionalAppointmentRequest extends FormRequest
                 'distinct',
                 Rule::exists('gabinetes', 'id')->where(fn ($query) => $query
                     ->where('entidade_id', $entidadeId)
-                    ->where('tipo_gabinete', GabineteType::CouncilorOffice->value)
-                    ->where('status', GabineteStatus::Active->value)
+                    ->where('tipo_gabinete', OfficeType::CouncilorOffice->value)
+                    ->where('status', OfficeStatus::Active->value)
                     ->whereNull('deleted_at')),
             ],
         ];
@@ -118,6 +119,6 @@ class InstitutionalAppointmentRequest extends FormRequest
 
     private function timezone(): string
     {
-        return $this->user()->gabinete->timezone ?? 'America/Sao_Paulo';
+        return app(OfficeContext::class)->officeFor($this->user())->timezone ?? 'America/Sao_Paulo';
     }
 }

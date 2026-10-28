@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\UserRole;
-use App\Models\Bairro;
-use App\Models\Categoria;
-use App\Models\Cidadao;
-use App\Models\Gabinete;
+use App\Models\Category;
+use App\Models\Citizen;
+use App\Models\Neighborhood;
+use App\Models\Office;
 use App\Models\User;
 use App\Services\Geocoding\GeocodingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,11 +19,11 @@ class BasicRegistrationsTest extends TestCase
 
     public function test_advisor_can_register_citizen_only_in_own_office(): void
     {
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
-        $neighborhood = Bairro::factory()->forGabinete($office)->create();
-        $foreignNeighborhood = Bairro::factory()->forGabinete($otherOffice)->create();
+        $neighborhood = Neighborhood::factory()->forGabinete($office)->create();
+        $foreignNeighborhood = Neighborhood::factory()->forGabinete($otherOffice)->create();
 
         $this->actingAs($advisor)->post(route('citizens.store'), [
             'nome' => 'Maria da Silva',
@@ -38,7 +38,7 @@ class BasicRegistrationsTest extends TestCase
             'gabinete_id' => $otherOffice->id,
         ])->assertRedirect();
 
-        $citizen = Cidadao::withoutGlobalScopes()->sole();
+        $citizen = Citizen::withoutGlobalScopes()->sole();
         $this->assertSame($office->id, $citizen->gabinete_id);
         $this->assertSame('85999990000', $citizen->telefone);
         $this->assertNull($citizen->cpf);
@@ -66,7 +66,7 @@ class BasicRegistrationsTest extends TestCase
     public function test_citizen_registration_with_whatsapp_consent_rolls_back_when_hash_secret_is_missing(): void
     {
         config(['whatsapp.phone_hash_secret' => null]);
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($advisor)->post(route('citizens.store'), [
@@ -77,14 +77,14 @@ class BasicRegistrationsTest extends TestCase
             'eleitor' => false,
         ])->assertRedirect();
 
-        $this->assertSame(0, Cidadao::withoutGlobalScopes()->count());
+        $this->assertSame(0, Citizen::withoutGlobalScopes()->count());
         $flash = session('inertia.flash_data', []);
         $this->assertSame('error', $flash['toast']['type'] ?? null);
     }
 
     public function test_advisor_can_search_an_address_for_citizen_location(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
         Http::fake([
             '*' => Http::response([
@@ -285,7 +285,7 @@ class BasicRegistrationsTest extends TestCase
 
     public function test_citizen_location_requires_both_coordinates(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($advisor)->post(route('citizens.store'), [
@@ -298,9 +298,9 @@ class BasicRegistrationsTest extends TestCase
 
     public function test_advisor_can_update_citizen_voter_status(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
-        $citizen = Cidadao::factory()->forGabinete($office)->create([
+        $citizen = Citizen::factory()->forGabinete($office)->create([
             'eleitor' => true,
             'latitude' => -3.731862,
             'longitude' => -38.526669,
@@ -322,9 +322,9 @@ class BasicRegistrationsTest extends TestCase
 
     public function test_possible_duplicate_warns_but_does_not_block_registration(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
-        Cidadao::factory()->forGabinete($office)->create(['telefone' => '85988887777']);
+        Citizen::factory()->forGabinete($office)->create(['telefone' => '85988887777']);
 
         $response = $this->actingAs($advisor)->post(route('citizens.store'), [
             'nome' => 'Pessoa semelhante',
@@ -333,15 +333,15 @@ class BasicRegistrationsTest extends TestCase
         ]);
 
         $response->assertRedirect()->assertSessionHas('possible_duplicates');
-        $this->assertSame(2, Cidadao::withoutGlobalScopes()->count());
+        $this->assertSame(2, Citizen::withoutGlobalScopes()->count());
     }
 
     public function test_cpf_is_unique_per_office_but_may_repeat_between_offices(): void
     {
-        $first = Gabinete::factory()->create();
-        $second = Gabinete::factory()->create();
+        $first = Office::factory()->create();
+        $second = Office::factory()->create();
         $cpf = '11144477735';
-        Cidadao::factory()->forGabinete($first)->create(['cpf' => $cpf]);
+        Citizen::factory()->forGabinete($first)->create(['cpf' => $cpf]);
 
         $this->actingAs(User::factory()->operator()->forGabinete($first)->create())
             ->post(route('citizens.store'), [
@@ -360,7 +360,7 @@ class BasicRegistrationsTest extends TestCase
 
     public function test_cpf_with_invalid_check_digits_is_rejected(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($advisor)
@@ -370,12 +370,12 @@ class BasicRegistrationsTest extends TestCase
                 'consentimento_contato' => false,
             ])->assertSessionHasErrors('cpf');
 
-        $this->assertSame(0, Cidadao::withoutGlobalScopes()->count());
+        $this->assertSame(0, Citizen::withoutGlobalScopes()->count());
     }
 
     public function test_only_office_managers_can_manage_categories_and_neighborhoods(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $chief = User::factory()->administrator()->forGabinete($office)->create();
         $advisor = User::factory()->operator()->forGabinete($office)->create();
 
@@ -402,8 +402,8 @@ class BasicRegistrationsTest extends TestCase
                 'message' => 'Bairro cadastrado.',
             ]);
 
-        $this->assertSame($office->id, Categoria::withoutGlobalScopes()->sole()->gabinete_id);
-        $neighborhood = Bairro::withoutGlobalScopes()->sole();
+        $this->assertSame($office->id, Category::withoutGlobalScopes()->sole()->gabinete_id);
+        $neighborhood = Neighborhood::withoutGlobalScopes()->sole();
         $this->assertSame($office->municipio, $neighborhood->municipio);
         $this->assertSame($office->estado, $neighborhood->estado);
 
@@ -419,8 +419,8 @@ class BasicRegistrationsTest extends TestCase
         // Pessoas e vínculos migraram para o Govnex Hub: criar, editar ou
         // redefinir senha localmente foi desligado, inclusive para quem
         // administra o gabinete (ver docs/INTEGRACAO_GOVNEX_HUB.md).
-        $office = Gabinete::factory()->create();
-        $otherOffice = Gabinete::factory()->create();
+        $office = Office::factory()->create();
+        $otherOffice = Office::factory()->create();
         $chief = User::factory()->administrator()->forGabinete($office)->create();
         $member = User::factory()->operator()->forGabinete($office)->create();
         $foreignUser = User::factory()->operator()->forGabinete($otherOffice)->create();

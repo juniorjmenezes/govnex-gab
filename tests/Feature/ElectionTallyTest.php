@@ -3,12 +3,12 @@
 namespace Tests\Feature;
 
 use App\Enums\CandidateScope;
-use App\Models\CandidatoPolitico;
-use App\Models\Eleicao;
-use App\Models\Gabinete;
-use App\Models\MunicipioEleitoral;
+use App\Models\Candidate;
+use App\Models\CandidateMunicipalityVote;
+use App\Models\Election;
+use App\Models\ElectoralMunicipality;
+use App\Models\Office;
 use App\Models\User;
-use App\Models\VotacaoCandidatoMunicipio;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -30,9 +30,9 @@ class ElectionTallyTest extends TestCase
 
     public function test_the_clock_window_uses_the_office_timezone_during_todays_round(): void
     {
-        $office = Gabinete::factory()->create(['timezone' => 'America/Manaus']);
+        $office = Office::factory()->create(['timezone' => 'America/Manaus']);
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
         // A busca da apuração não tem mais gate de horário (ver
         // ElectionTallyController::index()) — sem fake, sairia para a rede.
         Http::fake();
@@ -57,7 +57,7 @@ class ElectionTallyTest extends TestCase
 
     public function test_the_second_round_is_picked_when_it_falls_today(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake();
 
@@ -74,7 +74,7 @@ class ElectionTallyTest extends TestCase
 
     public function test_the_nearest_future_round_is_offered_outside_election_day(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake();
 
@@ -91,7 +91,7 @@ class ElectionTallyTest extends TestCase
 
     public function test_the_most_recent_past_round_is_offered_once_every_round_is_over(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
         // Esse round já passou das 17h, então o controller tenta buscar a
         // apuração — sem fake, a requisição sairia para a rede de verdade.
@@ -113,7 +113,7 @@ class ElectionTallyTest extends TestCase
         // O TSE publica a lista de candidatos (com votos zerados) desde
         // antes das 17h — a tela mostra "quem está concorrendo" o dia
         // inteiro, não só a apuração em si.
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake($this->tseFakes([
             'ce' => ['3' => [['5', 'CANDIDATO CE', '0']]],
@@ -133,7 +133,7 @@ class ElectionTallyTest extends TestCase
 
     public function test_results_combine_the_national_race_with_the_offices_own_state(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake($this->tseFakes([
             'br' => ['1' => [['22', 'CANDIDATO BR', '0'], ['13', 'OUTRO BR', '0']]],
@@ -161,7 +161,7 @@ class ElectionTallyTest extends TestCase
 
     public function test_proportional_races_are_capped_at_ten_with_a_hidden_count(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
         $manyCandidates = collect(range(1, 15))
             ->map(fn (int $i): array => [(string) $i, "CANDIDATO {$i}", (string) (150 - $i)])
@@ -185,7 +185,7 @@ class ElectionTallyTest extends TestCase
 
     public function test_a_tse_failure_on_one_race_does_not_break_the_others(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake($this->tseFakes([
             'br' => ['1' => null],
@@ -207,9 +207,9 @@ class ElectionTallyTest extends TestCase
 
     public function test_a_favorited_candidate_shows_its_live_votes(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
         $candidate = $this->stateCandidate($election, 'CE', 'Governador', '5', 'CANDIDATO DO GABINETE');
         $candidate->favoritos()->forceCreate(['gabinete_id' => $office->id]);
         Http::fake($this->tseFakes([
@@ -231,9 +231,9 @@ class ElectionTallyTest extends TestCase
 
     public function test_a_favorite_not_yet_counted_is_shown_without_votes(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
         // Cadastrado com outro número do que o publicado pelo TSE para o
         // cargo — o cruzamento não encontra, mas não derruba a página.
         $candidate = $this->stateCandidate($election, 'CE', 'governador', '9', 'FORA DA LISTA');
@@ -254,9 +254,9 @@ class ElectionTallyTest extends TestCase
 
     public function test_favorites_from_another_election_are_not_mixed_in(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $otherElection = Eleicao::query()->where('ano', 2024)->firstOrFail();
+        $otherElection = Election::query()->where('ano', 2024)->firstOrFail();
         $municipalCandidate = $this->stateCandidate($otherElection, 'CE', 'Vereador', '5', 'VEREADOR 2024');
         $municipalCandidate->favoritos()->forceCreate(['gabinete_id' => $office->id]);
         Http::fake($this->tseFakes([]));
@@ -270,9 +270,9 @@ class ElectionTallyTest extends TestCase
 
     public function test_a_favorite_shows_up_zeroed_before_voting_closes(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
-        $election = Eleicao::query()->where('ano', 2026)->firstOrFail();
+        $election = Election::query()->where('ano', 2026)->firstOrFail();
         $candidate = $this->stateCandidate($election, 'CE', 'Governador', '5', 'CANDIDATO DO GABINETE');
         $candidate->favoritos()->forceCreate(['gabinete_id' => $office->id]);
         Http::fake($this->tseFakes([
@@ -289,9 +289,9 @@ class ElectionTallyTest extends TestCase
             );
     }
 
-    private function stateCandidate(Eleicao $election, string $uf, string $cargo, string $number, string $ballotName): CandidatoPolitico
+    private function stateCandidate(Election $election, string $uf, string $cargo, string $number, string $ballotName): Candidate
     {
-        return CandidatoPolitico::query()->create([
+        return Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => $number,
             'abrangencia' => CandidateScope::State,
@@ -307,7 +307,7 @@ class ElectionTallyTest extends TestCase
 
     public function test_seats_are_counted_per_party_for_proportional_races(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake($this->tseFakes([
             'ce' => ['6' => [['11', 'A', '900', true], ['12', 'B', '800', true], ['13', 'C', '700'], ['14', 'D', '600', true]]],
@@ -333,7 +333,7 @@ class ElectionTallyTest extends TestCase
      */
     public function test_nationwide_seats_sum_every_state_but_track_the_offices_own_uf(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake($this->tseFakes([
             'ce' => ['6' => [['11', 'A', '900', true], ['12', 'B', '800', true]]],
@@ -354,7 +354,7 @@ class ElectionTallyTest extends TestCase
 
     public function test_a_first_round_without_winner_points_to_the_second_round(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake($this->tseFakes([
             'br' => ['1' => [['13', 'LULA', '500'], ['22', 'OUTRO', '400']]],
@@ -381,7 +381,7 @@ class ElectionTallyTest extends TestCase
      */
     public function test_two_tse_qualified_candidates_without_majority_go_to_second_round_instead_of_both_elected(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake($this->tseFakes([
             'br' => ['1' => [
@@ -410,7 +410,7 @@ class ElectionTallyTest extends TestCase
      */
     public function test_a_first_round_majority_winner_is_still_marked_as_elected(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake($this->tseFakes([
             'ce' => ['3' => [
@@ -440,12 +440,12 @@ class ElectionTallyTest extends TestCase
      */
     public function test_a_general_election_offers_the_city_as_an_alternate_scope(): void
     {
-        $municipality = MunicipioEleitoral::query()->create([
+        $municipality = ElectoralMunicipality::query()->create([
             'codigo_tse' => '13692',
             'nome' => 'Cruz',
             'uf' => 'CE',
         ]);
-        $office = Gabinete::factory()->create(['estado' => 'CE', 'municipio' => 'Cruz', 'municipio_eleitoral_id' => $municipality->id]);
+        $office = Office::factory()->create(['estado' => 'CE', 'municipio' => 'Cruz', 'municipio_eleitoral_id' => $municipality->id]);
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake($this->tseFakes(
             ['ce' => ['3' => [
@@ -484,7 +484,7 @@ class ElectionTallyTest extends TestCase
 
     public function test_the_city_scope_is_unavailable_without_a_linked_city(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE', 'municipio_eleitoral_id' => null]);
+        $office = Office::factory()->create(['estado' => 'CE', 'municipio_eleitoral_id' => null]);
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake($this->tseFakes(['ce' => ['3' => [['5', 'CANDIDATO CE', '0']]]]));
 
@@ -513,7 +513,7 @@ class ElectionTallyTest extends TestCase
         $this->municipalVote($election, $runnerUp, 1, 'SUPLENTE', 100);
 
         // Outra cidade, mesma eleição: não pode vazar para o gabinete de Cruz.
-        $otherCity = MunicipioEleitoral::query()->create(['codigo_tse' => '13897', 'nome' => 'Sobral', 'uf' => 'CE']);
+        $otherCity = ElectoralMunicipality::query()->create(['codigo_tse' => '13897', 'nome' => 'Sobral', 'uf' => 'CE']);
         $outsider = $this->municipalCandidate($election, $otherCity, '22', 'Prefeito');
         $this->municipalVote($election, $outsider, 1, 'ELEITO', 99999);
 
@@ -606,7 +606,7 @@ class ElectionTallyTest extends TestCase
     public function test_a_municipal_election_without_a_linked_city_has_no_municipal_section(): void
     {
         $this->travelTo(CarbonImmutable::parse('2024-10-07 10:00:00', 'America/Sao_Paulo'));
-        $office = Gabinete::factory()->create(['estado' => 'CE', 'municipio_eleitoral_id' => null]);
+        $office = Office::factory()->create(['estado' => 'CE', 'municipio_eleitoral_id' => null]);
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake();
 
@@ -625,26 +625,26 @@ class ElectionTallyTest extends TestCase
      * Cruz/CE no dia seguinte ao 1º turno de 2024 (eleição municipal semeada
      * pela migration), com o gabinete vinculado ao município.
      *
-     * @return array{0: Eleicao, 1: User, 2: MunicipioEleitoral}
+     * @return array{0: Election, 1: User, 2: ElectoralMunicipality}
      */
     private function municipalScenario(): array
     {
         $this->travelTo(CarbonImmutable::parse('2024-10-07 10:00:00', 'America/Sao_Paulo'));
         Http::fake();
-        $municipality = MunicipioEleitoral::query()->create(['codigo_tse' => '15890', 'nome' => 'Cruz', 'uf' => 'CE']);
-        $office = Gabinete::factory()->create([
+        $municipality = ElectoralMunicipality::query()->create(['codigo_tse' => '15890', 'nome' => 'Cruz', 'uf' => 'CE']);
+        $office = Office::factory()->create([
             'estado' => 'CE',
             'municipio' => 'Cruz',
             'municipio_eleitoral_id' => $municipality->id,
         ]);
         $user = User::factory()->operator()->forGabinete($office)->create();
 
-        return [Eleicao::query()->where('ano', 2024)->firstOrFail(), $user, $municipality];
+        return [Election::query()->where('ano', 2024)->firstOrFail(), $user, $municipality];
     }
 
-    private function municipalCandidate(Eleicao $election, MunicipioEleitoral $municipality, string $number, string $office): CandidatoPolitico
+    private function municipalCandidate(Election $election, ElectoralMunicipality $municipality, string $number, string $office): Candidate
     {
-        return CandidatoPolitico::query()->create([
+        return Candidate::query()->create([
             'eleicao_id' => $election->id,
             'sq_candidato' => "9{$municipality->codigo_tse}{$number}",
             'abrangencia' => CandidateScope::Municipal,
@@ -659,9 +659,9 @@ class ElectionTallyTest extends TestCase
         ]);
     }
 
-    private function municipalVote(Eleicao $election, CandidatoPolitico $candidate, int $round, string $status, int $votes): void
+    private function municipalVote(Election $election, Candidate $candidate, int $round, string $status, int $votes): void
     {
-        VotacaoCandidatoMunicipio::query()->create([
+        CandidateMunicipalityVote::query()->create([
             'candidato_politico_id' => $candidate->id,
             'municipio_eleitoral_id' => $candidate->municipio_eleitoral_id,
             'eleicao_id' => $election->id,
@@ -788,7 +788,7 @@ class ElectionTallyTest extends TestCase
 
     public function test_the_countdown_moves_to_the_second_round_after_the_first(): void
     {
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake();
 
@@ -804,7 +804,7 @@ class ElectionTallyTest extends TestCase
 
     public function test_the_first_round_can_be_picked_after_it_has_passed(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake($this->tseFakes([
             'ce' => ['3' => [['5', 'CANDIDATO CE', '0']]],
@@ -825,7 +825,7 @@ class ElectionTallyTest extends TestCase
 
     public function test_the_second_round_fetches_the_second_round_turno_code(): void
     {
-        $office = Gabinete::factory()->create(['estado' => 'CE']);
+        $office = Office::factory()->create(['estado' => 'CE']);
         $user = User::factory()->operator()->forGabinete($office)->create();
         Http::fake($this->tseFakes([
             'ce' => ['3' => [['5', 'CANDIDATO CE', '0']]],

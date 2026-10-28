@@ -3,13 +3,13 @@
 namespace Tests\Feature\MultiEntidade;
 
 use App\Enums\AccessRole;
-use App\Enums\EntidadeInvitationStatus;
-use App\Enums\EntidadeType;
-use App\Models\EntidadeConvite;
-use App\Models\Gabinete;
+use App\Enums\EntityInvitationStatus;
+use App\Enums\EntityType;
+use App\Models\EntityInvitation;
+use App\Models\Office;
 use App\Models\User;
-use App\Notifications\EntidadeInvitationNotification;
-use App\Services\Entidades\EntidadeInvitationService;
+use App\Notifications\EntityInvitationNotification;
+use App\Services\Entidades\EntityInvitationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
@@ -22,9 +22,9 @@ class EntidadeInvitationTest extends TestCase
     public function test_email_invitation_is_hashed_notified_and_accepted_once(): void
     {
         Notification::fake();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $actor = User::factory()->administrator()->forGabinete($office)->create();
-        $service = app(EntidadeInvitationService::class);
+        $service = app(EntityInvitationService::class);
 
         $result = $service->invite(
             $office->entidade,
@@ -37,7 +37,7 @@ class EntidadeInvitationTest extends TestCase
 
         $this->assertNotSame($result['credential'], $result['invitation']->token_hash);
         $this->assertSame(hash('sha256', $result['credential']), $result['invitation']->token_hash);
-        Notification::assertSentOnDemand(EntidadeInvitationNotification::class);
+        Notification::assertSentOnDemand(EntityInvitationNotification::class);
 
         $user = $service->accept(
             $result['credential'],
@@ -56,7 +56,7 @@ class EntidadeInvitationTest extends TestCase
             'usuario_id' => $user->id,
             'papel' => AccessRole::Operator->value,
         ]);
-        $this->assertSame(EntidadeInvitationStatus::Accepted, $result['invitation']->fresh()->status);
+        $this->assertSame(EntityInvitationStatus::Accepted, $result['invitation']->fresh()->status);
 
         $this->expectException(ValidationException::class);
         $service->accept($result['credential'], $user);
@@ -65,10 +65,10 @@ class EntidadeInvitationTest extends TestCase
     public function test_existing_account_must_authenticate_as_the_invited_user(): void
     {
         Notification::fake();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $actor = User::factory()->administrator()->forGabinete($office)->create();
         $existing = User::factory()->create(['email' => 'existente@example.test']);
-        $service = app(EntidadeInvitationService::class);
+        $service = app(EntityInvitationService::class);
         $result = $service->invite(
             $office->entidade,
             $office,
@@ -92,9 +92,9 @@ class EntidadeInvitationTest extends TestCase
     public function test_expired_invitation_is_rejected_and_marked_expired(): void
     {
         Notification::fake();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $actor = User::factory()->administrator()->forGabinete($office)->create();
-        $service = app(EntidadeInvitationService::class);
+        $service = app(EntityInvitationService::class);
         $result = $service->invite(
             $office->entidade,
             null,
@@ -103,7 +103,7 @@ class EntidadeInvitationTest extends TestCase
             null,
             $actor,
         );
-        EntidadeConvite::query()->whereKey($result['invitation']->id)->update([
+        EntityInvitation::query()->whereKey($result['invitation']->id)->update([
             'expira_em' => now()->subMinute(),
         ]);
 
@@ -115,7 +115,7 @@ class EntidadeInvitationTest extends TestCase
         }
 
         $this->assertSame(
-            EntidadeInvitationStatus::Expired,
+            EntityInvitationStatus::Expired,
             $result['invitation']->fresh()->status,
         );
     }
@@ -123,12 +123,12 @@ class EntidadeInvitationTest extends TestCase
     public function test_invitation_rejects_unit_from_another_entidade(): void
     {
         Notification::fake();
-        $first = Gabinete::factory()->create();
-        $second = Gabinete::factory()->create();
+        $first = Office::factory()->create();
+        $second = Office::factory()->create();
         $actor = User::factory()->administrator()->forGabinete($first)->create();
 
         $this->expectException(ValidationException::class);
-        app(EntidadeInvitationService::class)->invite(
+        app(EntityInvitationService::class)->invite(
             $first->entidade,
             $second,
             'fora@example.test',
@@ -141,7 +141,7 @@ class EntidadeInvitationTest extends TestCase
     public function test_entidade_operator_cannot_invite(): void
     {
         Notification::fake();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $operator = User::factory()->operator()->forGabinete($office)->create();
 
         $this->actingAs($operator)
@@ -162,9 +162,9 @@ class EntidadeInvitationTest extends TestCase
     public function test_office_administrator_in_city_council_cannot_invite_at_entidade_level(): void
     {
         Notification::fake();
-        $managedOffice = Gabinete::factory()->create();
-        $managedOffice->entidade->forceFill(['tipo' => EntidadeType::CityCouncil])->save();
-        $otherOffice = Gabinete::factory()->for($managedOffice->entidade, 'entidade')->create();
+        $managedOffice = Office::factory()->create();
+        $managedOffice->entidade->forceFill(['tipo' => EntityType::CityCouncil])->save();
+        $otherOffice = Office::factory()->for($managedOffice->entidade, 'entidade')->create();
         $manager = User::factory()->administrator()->forGabinete($managedOffice)->create();
 
         $this->assertSame(AccessRole::Operator, $manager->entidadeRole($managedOffice->entidade_id));
@@ -191,7 +191,7 @@ class EntidadeInvitationTest extends TestCase
         // (ver docs/INTEGRACAO_GOVNEX_HUB.md). O aceite de convites
         // anteriores ao corte continua funcionando (ver EntidadeInvitationAcceptController).
         Notification::fake();
-        $office = Gabinete::factory()->create();
+        $office = Office::factory()->create();
         $administrator = User::factory()->administrator()->forGabinete($office)->create();
 
         $this->actingAs($administrator)

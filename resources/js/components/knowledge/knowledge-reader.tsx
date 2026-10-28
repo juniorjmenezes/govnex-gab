@@ -67,9 +67,15 @@ export function KnowledgeReader({
     const [zoomIndex, setZoomIndex] = useState(1);
     const [width, setWidth] = useState<number>();
     const [pageHeight, setPageHeight] = useState<number>();
+    const [prevZoomAndWidth, setPrevZoomAndWidth] = useState([
+        zoomIndex,
+        width,
+    ]);
     // Páginas vistas nesta sessão que o servidor ainda pode não ter confirmado.
     const [seenPages, setSeenPages] = useState<Set<number>>(() => new Set());
-    const [loadedPages, setLoadedPages] = useState<Set<number>>(() => new Set());
+    const [loadedPages, setLoadedPages] = useState<Set<number>>(
+        () => new Set(),
+    );
     const [loadError, setLoadError] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -100,10 +106,13 @@ export function KnowledgeReader({
     }, []);
 
     // A altura estimada muda de escala com o zoom; remedimos na próxima
-    // página que renderizar de verdade.
-    useEffect(() => {
+    // página que renderizar de verdade. Ajuste durante a renderização (não
+    // num efeito): evita o re-render em cascata de um setState síncrono
+    // dentro de useEffect.
+    if (prevZoomAndWidth[0] !== zoomIndex || prevZoomAndWidth[1] !== width) {
+        setPrevZoomAndWidth([zoomIndex, width]);
         setPageHeight(undefined);
-    }, [zoomIndex, width]);
+    }
 
     const pagesRead = useMemo(
         () => new Set([...progress.pages_read, ...seenPages]),
@@ -221,9 +230,10 @@ export function KnowledgeReader({
 
         const activeObserver = new IntersectionObserver(
             (entries) => {
-                const best = entries.reduce<
-                    { page: number; ratio: number } | null
-                >((current, entry) => {
+                const best = entries.reduce<{
+                    page: number;
+                    ratio: number;
+                } | null>((current, entry) => {
                     if (!entry.isIntersecting) {
                         return current;
                     }
@@ -364,7 +374,7 @@ export function KnowledgeReader({
 
     const content = (
         <>
-            <div className="flex flex-col gap-3 border-b bg-card p-4 shrink-0 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex shrink-0 flex-col gap-3 border-b bg-card p-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap items-center gap-2">
                     <Button
                         type="button"

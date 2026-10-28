@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\GabineteTransferStatus;
+use App\Enums\OfficeTransferStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('gabinete_id')->constrained('gabinetes')->restrictOnDelete();
             $table->foreignId('entidade_origem_id')->constrained('entidades')->restrictOnDelete();
             $table->foreignId('entidade_destino_id')->constrained('entidades')->restrictOnDelete();
-            $table->string('status', 30)->default(GabineteTransferStatus::PendingDestination->value);
+            $table->string('status', 30)->default(OfficeTransferStatus::PendingDestination->value);
             $table->timestamp('agendada_para')->nullable();
             $table->foreignId('solicitada_por')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('aceita_origem_por')->nullable()->constrained('users')->nullOnDelete();

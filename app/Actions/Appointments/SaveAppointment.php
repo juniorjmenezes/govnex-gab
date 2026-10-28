@@ -7,6 +7,7 @@ use App\Enums\AppointmentStatus;
 use App\Models\Appointment;
 use App\Models\User;
 use App\Services\Appointments\AppointmentReminderScheduler;
+use App\Tenancy\OfficeContext;
 use Illuminate\Support\Facades\DB;
 
 class SaveAppointment
@@ -14,6 +15,7 @@ class SaveAppointment
     public function __construct(
         private readonly AppointmentReminderScheduler $scheduler,
         private readonly CompleteNextAction $completeNextAction,
+        private readonly OfficeContext $context,
     ) {}
 
     /**
@@ -27,7 +29,7 @@ class SaveAppointment
             $appointment ??= new Appointment;
             $appointment->forceFill([
                 ...$data,
-                'gabinete_id' => $user->gabinete_id,
+                'gabinete_id' => $this->context->officeIdFor($user),
                 'criado_por_id' => $appointment->exists ? $appointment->criado_por_id : $user->id,
             ])->save();
             $appointment->participantes()->sync($participants);

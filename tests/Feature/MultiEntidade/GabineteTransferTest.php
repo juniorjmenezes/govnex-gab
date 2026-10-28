@@ -3,18 +3,18 @@
 namespace Tests\Feature\MultiEntidade;
 
 use App\Enums\AccessRole;
-use App\Enums\GabineteModule;
-use App\Enums\GabineteTransferStatus;
+use App\Enums\OfficeModule;
+use App\Enums\OfficeTransferStatus;
 use App\Enums\WhatsAppMode;
 use App\Enums\WhatsAppNotificationStatus;
 use App\Enums\WhatsAppPurpose;
-use App\Models\Demanda;
-use App\Models\Entidade;
-use App\Models\Gabinete;
+use App\Models\Demand;
+use App\Models\Entity;
+use App\Models\Office;
 use App\Models\User;
 use App\Models\WhatsAppConfiguration;
 use App\Models\WhatsAppNotification;
-use App\Services\Entidades\GabineteTransferService;
+use App\Services\Entidades\OfficeTransferService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -41,7 +41,7 @@ class GabineteTransferTest extends TestCase
         $destination->forceFill(['municipio' => 'Sobral'])->save();
 
         $this->expectException(ValidationException::class);
-        app(GabineteTransferService::class)->request(
+        app(OfficeTransferService::class)->request(
             $source,
             $gabinete,
             $destination,
@@ -52,16 +52,16 @@ class GabineteTransferTest extends TestCase
     public function test_transfer_requires_source_destination_and_platform_approval(): void
     {
         [$source, $gabinete, $sourceManager, $destination, $destinationManager, $admin] = $this->context();
-        $service = app(GabineteTransferService::class);
+        $service = app(OfficeTransferService::class);
 
         $transfer = $service->request($source, $gabinete, $destination, $sourceManager);
-        $this->assertSame(GabineteTransferStatus::PendingDestination, $transfer->status);
+        $this->assertSame(OfficeTransferStatus::PendingDestination, $transfer->status);
 
         $transfer = $service->acceptDestination($transfer, $destinationManager);
-        $this->assertSame(GabineteTransferStatus::PendingPlatform, $transfer->status);
+        $this->assertSame(OfficeTransferStatus::PendingPlatform, $transfer->status);
 
         $transfer = $service->approve($transfer, $admin);
-        $this->assertSame(GabineteTransferStatus::Completed, $transfer->status);
+        $this->assertSame(OfficeTransferStatus::Completed, $transfer->status);
         $this->assertSame($destination->id, $gabinete->fresh()->entidade_id);
         $this->assertNotNull($transfer->manifesto_hash);
         $this->assertDatabaseCount('gabinete_transferencia_eventos', 3);
@@ -71,11 +71,11 @@ class GabineteTransferTest extends TestCase
     {
         [$source, $gabinete, $sourceManager, $destination, $destinationManager, $admin] = $this->context();
         $member = User::factory()->operator()->forGabinete($gabinete)->create();
-        $demand = Demanda::factory()->forGabinete($gabinete, creator: $member)->create();
+        $demand = Demand::factory()->forGabinete($gabinete, creator: $member)->create();
 
         DB::table('entidade_modulos')
             ->where('entidade_id', $destination->id)
-            ->where('modulo', GabineteModule::Demands->value)
+            ->where('modulo', OfficeModule::Demands->value)
             ->update(['contratado' => false, 'ativo' => false, 'updated_at' => now()]);
         (new WhatsAppConfiguration)->forceFill([
             'entidade_id' => $source->id,
@@ -85,9 +85,9 @@ class GabineteTransferTest extends TestCase
             'finalidades_habilitadas' => [],
         ])->save();
 
-        $transfer = app(GabineteTransferService::class)->request($source, $gabinete, $destination, $sourceManager);
-        app(GabineteTransferService::class)->acceptDestination($transfer, $destinationManager);
-        app(GabineteTransferService::class)->approve($transfer, $admin);
+        $transfer = app(OfficeTransferService::class)->request($source, $gabinete, $destination, $sourceManager);
+        app(OfficeTransferService::class)->acceptDestination($transfer, $destinationManager);
+        app(OfficeTransferService::class)->approve($transfer, $admin);
 
         $this->assertDatabaseHas('demandas', [
             'id' => $demand->id,
@@ -112,7 +112,7 @@ class GabineteTransferTest extends TestCase
         ]);
         $this->assertDatabaseHas('gabinete_modulos', [
             'gabinete_id' => $gabinete->id,
-            'modulo' => GabineteModule::Demands->value,
+            'modulo' => OfficeModule::Demands->value,
             'ativo' => false,
         ]);
         $this->assertDatabaseHas('whatsapp_configuracoes', [
@@ -126,8 +126,8 @@ class GabineteTransferTest extends TestCase
     public function test_open_whatsapp_delivery_blocks_platform_approval(): void
     {
         [$source, $gabinete, $sourceManager, $destination, $destinationManager, $admin] = $this->context();
-        $transfer = app(GabineteTransferService::class)->request($source, $gabinete, $destination, $sourceManager);
-        app(GabineteTransferService::class)->acceptDestination($transfer, $destinationManager);
+        $transfer = app(OfficeTransferService::class)->request($source, $gabinete, $destination, $sourceManager);
+        app(OfficeTransferService::class)->acceptDestination($transfer, $destinationManager);
         (new WhatsAppNotification)->forceFill([
             'entidade_id' => $source->id,
             'gabinete_id' => $gabinete->id,
@@ -142,13 +142,13 @@ class GabineteTransferTest extends TestCase
         ])->save();
 
         try {
-            app(GabineteTransferService::class)->approve($transfer, $admin);
+            app(OfficeTransferService::class)->approve($transfer, $admin);
             $this->fail('A transferência deveria aguardar o envio WhatsApp.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('whatsapp', $exception->errors());
         }
 
-        $this->assertSame(GabineteTransferStatus::PendingPlatform, $transfer->fresh()->status);
+        $this->assertSame(OfficeTransferStatus::PendingPlatform, $transfer->fresh()->status);
         $this->assertSame($source->id, $gabinete->fresh()->entidade_id);
     }
 
@@ -156,11 +156,11 @@ class GabineteTransferTest extends TestCase
     {
         [$source, $gabinete, $sourceManager, $destination, $destinationManager, $admin] = $this->context();
         User::factory()->operator()->forGabinete($gabinete)->create();
-        $transfer = app(GabineteTransferService::class)->request($source, $gabinete, $destination, $sourceManager);
-        app(GabineteTransferService::class)->acceptDestination($transfer, $destinationManager);
-        $completed = app(GabineteTransferService::class)->approve($transfer, $admin);
+        $transfer = app(OfficeTransferService::class)->request($source, $gabinete, $destination, $sourceManager);
+        app(OfficeTransferService::class)->acceptDestination($transfer, $destinationManager);
+        $completed = app(OfficeTransferService::class)->approve($transfer, $admin);
 
-        $unrelatedUnit = Gabinete::factory()->create();
+        $unrelatedUnit = Office::factory()->create();
         $unrelatedManager = User::factory()->administrator()->forGabinete($unrelatedUnit)->create();
         $this->actingAs($unrelatedManager)
             ->get(route('entidades.transfers.show', [
@@ -173,9 +173,9 @@ class GabineteTransferTest extends TestCase
     public function test_legacy_source_context_no_longer_resolves_the_transferred_unit(): void
     {
         [$source, $gabinete, $sourceManager, $destination, $destinationManager, $admin] = $this->context();
-        $transfer = app(GabineteTransferService::class)->request($source, $gabinete, $destination, $sourceManager);
-        app(GabineteTransferService::class)->acceptDestination($transfer, $destinationManager);
-        app(GabineteTransferService::class)->approve($transfer, $admin);
+        $transfer = app(OfficeTransferService::class)->request($source, $gabinete, $destination, $sourceManager);
+        app(OfficeTransferService::class)->acceptDestination($transfer, $destinationManager);
+        app(OfficeTransferService::class)->approve($transfer, $admin);
 
         $this->actingAs($sourceManager)
             ->get(route('context.dashboard', [
@@ -186,16 +186,16 @@ class GabineteTransferTest extends TestCase
     }
 
     /**
-     * @return array{Entidade,Gabinete,User,Entidade,User,User}
+     * @return array{Entity,Office,User,Entity,User,User}
      */
     private function context(): array
     {
-        $gabinete = Gabinete::factory()->create(['municipio' => 'Fortaleza', 'estado' => 'CE']);
+        $gabinete = Office::factory()->create(['municipio' => 'Fortaleza', 'estado' => 'CE']);
         $source = $gabinete->entidade;
         $source->forceFill(['municipio' => 'Fortaleza', 'estado' => 'CE'])->save();
         $sourceManager = User::factory()->administrator()->forGabinete($gabinete)->create();
 
-        $destinationUnit = Gabinete::factory()->create(['municipio' => 'Fortaleza', 'estado' => 'CE']);
+        $destinationUnit = Office::factory()->create(['municipio' => 'Fortaleza', 'estado' => 'CE']);
         $destination = $destinationUnit->entidade;
         $destination->forceFill(['municipio' => 'Fortaleza', 'estado' => 'CE'])->save();
         $destinationManager = User::factory()->administrator()->forGabinete($destinationUnit)->create();

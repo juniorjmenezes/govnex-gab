@@ -5,29 +5,33 @@ namespace App\Services\WhatsApp;
 use App\Enums\WhatsAppConsentAction;
 use App\Enums\WhatsAppContactStatus;
 use App\Jobs\SyncWhatsAppSuppression;
-use App\Models\Cidadao;
+use App\Models\Citizen;
 use App\Models\User;
 use App\Models\WhatsAppConsent;
 use App\Models\WhatsAppContact;
+use App\Tenancy\OfficeContext;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 final class WhatsAppContactService
 {
-    public function __construct(private readonly WhatsAppPhoneService $phones) {}
+    public function __construct(
+        private readonly WhatsAppPhoneService $phones,
+        private readonly OfficeContext $context,
+    ) {}
 
     public function declareForUser(User $user, string $phone, User $actor, string $source = 'PROFILE'): WhatsAppContact
     {
-        if (! $user->gabinete_id || (! $actor->isRoot() && $actor->id !== $user->id)) {
+        if (! $this->context->officeIdFor($user) || (! $actor->isRoot() && $actor->id !== $user->id)) {
             throw new InvalidArgumentException('O usuário não pode declarar este contato.');
         }
 
-        return $this->declare((int) $user->gabinete_id, $phone, $actor, $source, $user->id, null);
+        return $this->declare((int) $this->context->officeIdFor($user), $phone, $actor, $source, $user->id, null);
     }
 
-    public function declareForCitizen(Cidadao $citizen, string $phone, User $actor, string $source = 'CITIZEN_FORM'): WhatsAppContact
+    public function declareForCitizen(Citizen $citizen, string $phone, User $actor, string $source = 'CITIZEN_FORM'): WhatsAppContact
     {
-        if (! $actor->isRoot() && (int) $actor->gabinete_id !== (int) $citizen->gabinete_id) {
+        if (! $actor->isRoot() && (int) $this->context->officeIdFor($actor) !== (int) $citizen->gabinete_id) {
             throw new InvalidArgumentException('O usuário não pode declarar este contato.');
         }
 
@@ -36,7 +40,7 @@ final class WhatsAppContactService
 
     public function revoke(WhatsAppContact $contact, User $actor, string $source = 'PROFILE'): WhatsAppContact
     {
-        if (! $actor->isRoot() && (int) $actor->gabinete_id !== (int) $contact->gabinete_id) {
+        if (! $actor->isRoot() && (int) $this->context->officeIdFor($actor) !== (int) $contact->gabinete_id) {
             throw new InvalidArgumentException('O usuário não pode revogar este contato.');
         }
 

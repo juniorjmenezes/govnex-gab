@@ -2,8 +2,17 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 @import '@govnex/ui/styles.css';
+@import '@fontsource-variable/geist-mono';
 
 @custom-variant dark (&:is(.dark *));
+
+/*
+ * Teste: Geist Mono no lugar do JetBrains Mono padrão da govnex-ui, só no
+ * GAB — não mexe no pacote compartilhado (afetaria Hub/API/GHO).
+ */
+:root {
+    --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+}
 
 /*
  * Cor primária do GOVNEX GAB, por cima do laranja padrão da govnex-ui — único

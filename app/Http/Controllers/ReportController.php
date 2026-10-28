@@ -11,11 +11,12 @@ use App\Enums\UserRole;
 use App\Http\Requests\Reports\ReportRequest;
 use App\Http\Requests\Reports\StoreReportExportRequest;
 use App\Jobs\GenerateReportExport;
-use App\Models\Bairro;
-use App\Models\Categoria;
+use App\Models\Category;
+use App\Models\Neighborhood;
 use App\Models\ReportExport;
 use App\Models\User;
 use App\Services\Reports\DemandReportService;
+use App\Tenancy\OfficeContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -27,7 +28,7 @@ class ReportController extends Controller
     public function index(ReportRequest $request, DemandReportService $reports): Response
     {
         $this->authorize('viewAny', ReportExport::class);
-        $gabineteId = $request->user()->gabinete_id;
+        $gabineteId = app(OfficeContext::class)->officeIdFor($request->user());
         abort_unless($gabineteId !== null, 403);
         $filters = $request->filters();
 
@@ -38,8 +39,8 @@ class ReportController extends Controller
                 'statuses' => $this->enumOptions(DemandStatus::cases()),
                 'priorities' => $this->enumOptions(DemandPriority::cases()),
                 'origins' => $this->enumOptions(DemandOrigin::cases()),
-                'categories' => Categoria::query()->select(['id', 'nome'])->where('ativo', true)->orderBy('nome')->get(),
-                'neighborhoods' => Bairro::query()->select(['id', 'nome'])->where('ativo', true)->orderBy('nome')->get(),
+                'categories' => Category::query()->select(['id', 'nome'])->where('ativo', true)->orderBy('nome')->get(),
+                'neighborhoods' => Neighborhood::query()->select(['id', 'nome'])->where('ativo', true)->orderBy('nome')->get(),
                 'members' => User::query()
                     ->where('gabinete_id', $gabineteId)
                     ->where('role', '!=', UserRole::Root)
@@ -77,7 +78,7 @@ class ReportController extends Controller
     {
         $this->authorize('create', ReportExport::class);
         $user = $request->user();
-        abort_unless($user->gabinete_id !== null, 403);
+        abort_unless(app(OfficeContext::class)->officeIdFor($user) !== null, 403);
 
         $export = ReportExport::query()->create([
             'solicitado_por_id' => $user->id,

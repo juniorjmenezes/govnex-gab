@@ -4,7 +4,7 @@ namespace App\Enums;
 
 enum ModuleScope: string
 {
-    case Entidade = 'ENTIDADE';
-    case Gabinete = 'GABINETE';
+    case Entity = 'ENTIDADE';
+    case Office = 'GABINETE';
     case Both = 'AMBOS';
 }
