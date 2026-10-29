@@ -4,6 +4,7 @@ import {
     CheckReadIcon,
     CloseIcon,
     SmileCircleIcon,
+    SquareArrowRightUpIcon,
 } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import {
@@ -97,23 +98,29 @@ export function NotificationCenter() {
                         </p>
                     </div>
                 ) : (
-                    <div className="min-h-0 flex-1 overflow-y-auto p-2">
+                    <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-2">
                         {notifications.items.map((item) => (
                             <div
                                 key={item.id}
                                 className={cn(
-                                    'rounded-md px-3 py-2.5 text-sm',
+                                    'flex flex-col gap-2 rounded-lg px-3 py-2.5 text-sm',
                                     !item.read_at && 'bg-accent/70',
                                 )}
                             >
-                                <div className="flex gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        className="h-auto min-w-0 flex-1 justify-start px-0 py-0 text-left tracking-normal normal-case hover:bg-transparent"
-                                        onClick={() => markRead(item.id)}
-                                    >
-                                        <span className="block w-full min-w-0">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="h-auto min-w-0 justify-start px-0 py-0 text-left tracking-normal normal-case hover:bg-transparent"
+                                    onClick={() => markRead(item.id)}
+                                >
+                                    <span className="flex w-full min-w-0 items-start gap-2">
+                                        {!item.read_at && (
+                                            <span
+                                                aria-hidden="true"
+                                                className="mt-1.5 size-2 shrink-0 rounded-full bg-primary"
+                                            />
+                                        )}
+                                        <span className="block min-w-0 flex-1">
                                             <span className="block truncate text-sm font-medium">
                                                 {item.title}
                                             </span>
@@ -121,15 +128,12 @@ export function NotificationCenter() {
                                                 {item.message}
                                             </span>
                                         </span>
-                                    </Button>
-                                    {!item.read_at && (
-                                        <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />
-                                    )}
-                                </div>
+                                    </span>
+                                </Button>
                                 {item.url && (
                                     <Button
                                         type="button"
-                                        variant="link"
+                                        variant="outline"
                                         size="xs"
                                         onClick={() =>
                                             router.patch(
@@ -144,9 +148,16 @@ export function NotificationCenter() {
                                                 },
                                             )
                                         }
-                                        className="mt-2 h-auto px-0 tracking-normal normal-case"
+                                        className={cn(
+                                            'w-fit gap-1 tracking-normal normal-case',
+                                            !item.read_at && 'ml-4',
+                                        )}
                                     >
                                         Abrir item
+                                        <SquareArrowRightUpIcon
+                                            className="size-3"
+                                            aria-hidden="true"
+                                        />
                                     </Button>
                                 )}
                             </div>
