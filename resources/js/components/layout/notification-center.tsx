@@ -1,6 +1,7 @@
 import { router, usePage } from '@inertiajs/react';
 import {
     ChatRoundUnreadIcon,
+    CheckOutlineIcon,
     CheckReadIcon,
     CloseIcon,
     SmileCircleIcon,
@@ -11,6 +12,7 @@ import {
     Drawer,
     DrawerClose,
     DrawerContent,
+    DrawerFooter,
     DrawerHeader,
     DrawerTitle,
     DrawerTrigger,
@@ -60,31 +62,12 @@ export function NotificationCenter() {
             <DrawerContent side="right" className="max-w-sm">
                 <DrawerHeader className="shrink-0 flex-row items-center justify-between gap-2 border-b p-4">
                     <DrawerTitle>Notificações</DrawerTitle>
-                    <div className="flex shrink-0 items-center gap-1">
-                        {notifications.unread_count > 0 && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 gap-1 text-xs tracking-normal normal-case"
-                                onClick={() =>
-                                    router.patch(
-                                        tenantUrl('/notificacoes/ler-todas'),
-                                        {},
-                                        { preserveScroll: true },
-                                    )
-                                }
-                            >
-                                <CheckReadIcon className="size-3.5" />
-                                Ler todas
-                            </Button>
-                        )}
-                        <DrawerClose
-                            render={<Button variant="ghost" size="icon-sm" />}
-                            aria-label="Fechar"
-                        >
-                            <CloseIcon aria-hidden="true" />
-                        </DrawerClose>
-                    </div>
+                    <DrawerClose
+                        render={<Button variant="ghost" size="icon-sm" />}
+                        aria-label="Fechar"
+                    >
+                        <CloseIcon aria-hidden="true" />
+                    </DrawerClose>
                 </DrawerHeader>
                 {notifications.items.length === 0 ? (
                     <div className="px-3 py-8 text-center">
@@ -98,12 +81,12 @@ export function NotificationCenter() {
                         </p>
                     </div>
                 ) : (
-                    <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-2">
+                    <div className="flex min-h-0 flex-1 flex-col divide-y overflow-y-auto">
                         {notifications.items.map((item) => (
                             <div
                                 key={item.id}
                                 className={cn(
-                                    'flex flex-col gap-2 rounded-lg px-3 py-2.5 text-sm',
+                                    'flex flex-col gap-2 px-4 py-3 text-sm',
                                     !item.read_at && 'bg-accent/70',
                                 )}
                             >
@@ -114,10 +97,15 @@ export function NotificationCenter() {
                                     onClick={() => markRead(item.id)}
                                 >
                                     <span className="flex w-full min-w-0 items-start gap-2">
-                                        {!item.read_at && (
-                                            <span
+                                        {item.read_at ? (
+                                            <CheckReadIcon
                                                 aria-hidden="true"
-                                                className="mt-1.5 size-2 shrink-0 rounded-full bg-primary"
+                                                className="mt-0.5 size-3.5 shrink-0 text-primary"
+                                            />
+                                        ) : (
+                                            <CheckOutlineIcon
+                                                aria-hidden="true"
+                                                className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
                                             />
                                         )}
                                         <span className="block min-w-0 flex-1">
@@ -148,10 +136,7 @@ export function NotificationCenter() {
                                                 },
                                             )
                                         }
-                                        className={cn(
-                                            'w-fit gap-1 tracking-normal normal-case',
-                                            !item.read_at && 'ml-4',
-                                        )}
+                                        className="ml-5 w-fit gap-1 tracking-normal normal-case"
                                     >
                                         Abrir item
                                         <SquareArrowRightUpIcon
@@ -163,6 +148,25 @@ export function NotificationCenter() {
                             </div>
                         ))}
                     </div>
+                )}
+                {notifications.unread_count > 0 && (
+                    <DrawerFooter className="shrink-0 border-t p-3">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1.5 text-xs tracking-normal normal-case"
+                            onClick={() =>
+                                router.patch(
+                                    tenantUrl('/notificacoes/ler-todas'),
+                                    {},
+                                    { preserveScroll: true },
+                                )
+                            }
+                        >
+                            <CheckReadIcon className="size-3.5" />
+                            Ler todas
+                        </Button>
+                    </DrawerFooter>
                 )}
             </DrawerContent>
         </Drawer>
