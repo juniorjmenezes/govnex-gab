@@ -149,6 +149,51 @@ class PlatformAdministrationTest extends TestCase
                 ));
     }
 
+    public function test_platform_admin_can_view_the_office_details_page(): void
+    {
+        $admin = User::factory()->root()->create();
+        $office = Office::factory()->create(['nome' => 'Gabinete Detalhado']);
+        $responsible = User::factory()->forGabinete($office)->administrator()->create();
+        Demand::factory()->forGabinete($office, creator: $responsible)->count(2)->create();
+
+        $this->actingAs($admin)
+            ->get(route('admin.offices.show', $office))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/offices/show')
+                ->where('office.id', $office->id)
+                ->where('office.name', 'Gabinete Detalhado')
+                ->where('office.demands_count', 2)
+                ->where('office.responsible.id', $responsible->id));
+    }
+
+    public function test_tenant_user_cannot_view_the_office_details_page(): void
+    {
+        $office = Office::factory()->create();
+        $tenantUser = User::factory()->forGabinete($office)->administrator()->create();
+
+        $this->actingAs($tenantUser)
+            ->get(route('admin.offices.show', $office))
+            ->assertForbidden();
+    }
+
+    /**
+     * A rota genérica `gabinetes/{office}` precisa ser registrada depois de
+     * `gabinetes/novo` para não capturar "novo" como um id de gabinete.
+     */
+    public function test_office_details_route_does_not_collide_with_the_create_route(): void
+    {
+        $admin = User::factory()->root()->create();
+
+        $this->actingAs($admin)
+            ->get(route('admin.offices.create'))
+            ->assertRedirect(route('admin.offices.index'))
+            ->assertInertiaFlash('toast', [
+                'type' => 'error',
+                'message' => 'A estrutura é criada no Govnex Hub. Entidades e gabinetes nascem aqui automaticamente.',
+            ]);
+    }
+
     public function test_platform_admin_can_request_pollingdata_sync(): void
     {
         Queue::fake();

@@ -1,7 +1,5 @@
-import { Head, Link, router } from '@inertiajs/react';
-import type { ReactNode } from 'react';
+import { Head, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
-import { SyncStatusDot } from '@/components/admin/sync-progress';
 import {
     EntityCellSubtitle,
     EntityCellTitle,
@@ -11,14 +9,11 @@ import { PaginationLinks } from '@/components/common/pagination-links';
 import { TableActionButton } from '@/components/common/table-action-button';
 import {
     BuildingsIcon,
-    CheckCircleIcon,
-    CloseCircleIcon,
     CloseIcon,
     EyeIcon,
     MagnifierIcon,
     PenIcon,
     PowerIcon,
-    RefreshIcon,
     SettingsIcon,
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
@@ -35,18 +30,8 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import {
-    Surface,
-    surfaceClasses,
-    SurfaceHeader,
-    SurfaceTitle,
-} from '@/components/ui/surface';
+import { Surface, surfaceClasses } from '@/components/ui/surface';
 import { preservedListParams } from '@/lib/pagination';
-import {
-    datasetLabels,
-    syncStatusDetail,
-    syncStatusLabels,
-} from '@/lib/political-sync';
 import { cn } from '@/lib/utils';
 import type { AdminOffice, OfficePagination } from '@/types';
 
@@ -65,9 +50,6 @@ const statusActionLabel = (office: AdminOffice) =>
 
 export default function Offices({ offices, filters, statuses }: Props) {
     const [statusTarget, setStatusTarget] = useState<AdminOffice | null>(null);
-    const [detailsTargetId, setDetailsTargetId] = useState<number | null>(null);
-    const detailsTarget =
-        offices.data.find((office) => office.id === detailsTargetId) ?? null;
     const [query, setQuery] = useState(filters.q);
     const [status, setStatus] = useState(filters.status);
     const [state, setState] = useState(filters.estado);
@@ -125,6 +107,9 @@ export default function Offices({ offices, filters, statuses }: Props) {
         router.get('/admin/gabinetes', {}, { replace: true });
     };
 
+    const openDetails = (office: AdminOffice) => {
+        router.get(`/admin/gabinetes/${office.id}`);
+    };
     const openEdit = (office: AdminOffice) => {
         router.get(`/admin/gabinetes/${office.id}/editar`);
     };
@@ -275,9 +260,7 @@ export default function Offices({ offices, filters, statuses }: Props) {
                                                     variant="outline"
                                                     label={`Ver detalhes de ${office.name}`}
                                                     onClick={() =>
-                                                        setDetailsTargetId(
-                                                            office.id,
-                                                        )
+                                                        openDetails(office)
                                                     }
                                                 >
                                                     <EyeIcon aria-hidden="true" />
@@ -368,9 +351,7 @@ export default function Offices({ offices, filters, statuses }: Props) {
                                     <TableActionButton
                                         variant="outline"
                                         label={`Ver detalhes de ${office.name}`}
-                                        onClick={() =>
-                                            setDetailsTargetId(office.id)
-                                        }
+                                        onClick={() => openDetails(office)}
                                     >
                                         <EyeIcon aria-hidden="true" />
                                     </TableActionButton>
@@ -425,11 +406,6 @@ export default function Offices({ offices, filters, statuses }: Props) {
                 </Surface>
             </PageContainer>
 
-            <OfficeDetailsDialog
-                office={detailsTarget}
-                onClose={() => setDetailsTargetId(null)}
-            />
-
             <Dialog
                 open={statusTarget !== null}
                 onOpenChange={(open) => !open && setStatusTarget(null)}
@@ -470,301 +446,6 @@ export default function Offices({ offices, filters, statuses }: Props) {
                 </DialogContent>
             </Dialog>
         </>
-    );
-}
-
-function OfficeDetailsDialog({
-    office,
-    onClose,
-}: {
-    office: AdminOffice | null;
-    onClose: () => void;
-}) {
-    const latestSync = office?.political_syncs[0];
-    const holder = office?.office_holder_candidate;
-    const holderName =
-        holder?.ballot_name || holder?.name || office?.councilor_name;
-    const holderDetails = [
-        holder?.party,
-        holder?.number ?? office?.candidate_number,
-    ]
-        .filter(Boolean)
-        .join(' · ');
-
-    return (
-        <Dialog
-            open={office !== null}
-            onOpenChange={(open) => !open && onClose()}
-        >
-            <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-2xl">
-                <DialogHeader>
-                    <div className="flex flex-wrap items-center gap-2 pr-8">
-                        <DialogTitle>{office?.name}</DialogTitle>
-                        {office && (
-                            <Badge
-                                variant={
-                                    office.status === 'ativo'
-                                        ? 'default'
-                                        : 'secondary'
-                                }
-                            >
-                                {office.status_label}
-                            </Badge>
-                        )}
-                    </div>
-                    <DialogDescription>
-                        {office?.entidade?.name ?? 'Entidade não definida'} ·{' '}
-                        {office?.city}/{office?.state}
-                    </DialogDescription>
-                </DialogHeader>
-
-                {office && (
-                    <div className="flex-1 space-y-4 overflow-y-auto">
-                        <Surface as="section" className="overflow-hidden">
-                            <SurfaceHeader>
-                                <SurfaceTitle as="h3">
-                                    Pessoas e acesso
-                                </SurfaceTitle>
-                            </SurfaceHeader>
-                            <dl className="grid gap-4 p-4 sm:grid-cols-2">
-                                <OfficeDetail
-                                    label="Titular"
-                                    secondary={holderDetails || undefined}
-                                >
-                                    {holderName || 'Não definido'}
-                                </OfficeDetail>
-                                <OfficeDetail
-                                    label="Responsável"
-                                    secondary={office.responsible?.email}
-                                >
-                                    {office.responsible?.name ?? 'Não definido'}
-                                </OfficeDetail>
-                                <OfficeDetail label="Último acesso">
-                                    {office.responsible?.last_login_at
-                                        ? new Date(
-                                              office.responsible.last_login_at,
-                                          ).toLocaleString('pt-BR')
-                                        : 'Ainda não acessou'}
-                                </OfficeDetail>
-                                <OfficeDetail label="Usuários">
-                                    {office.active_users_count.toLocaleString(
-                                        'pt-BR',
-                                    )}{' '}
-                                    ativos de{' '}
-                                    {office.users_count.toLocaleString('pt-BR')}
-                                </OfficeDetail>
-                            </dl>
-                        </Surface>
-
-                        <Surface as="section" className="overflow-hidden">
-                            <SurfaceHeader>
-                                <SurfaceTitle as="h3">Utilização</SurfaceTitle>
-                            </SurfaceHeader>
-                            <dl className="grid gap-4 p-4 sm:grid-cols-3">
-                                <OfficeDetail label="Cidadãos">
-                                    {office.citizens_count.toLocaleString(
-                                        'pt-BR',
-                                    )}
-                                </OfficeDetail>
-                                <OfficeDetail label="Demandas">
-                                    {office.demands_count.toLocaleString(
-                                        'pt-BR',
-                                    )}
-                                </OfficeDetail>
-                                <OfficeDetail label="Demandas abertas">
-                                    {office.open_demands_count.toLocaleString(
-                                        'pt-BR',
-                                    )}
-                                </OfficeDetail>
-                            </dl>
-                        </Surface>
-
-                        <Surface as="section" className="overflow-hidden">
-                            <SurfaceHeader>
-                                <SurfaceTitle as="h3">
-                                    Dados políticos
-                                </SurfaceTitle>
-                            </SurfaceHeader>
-                            <dl className="grid gap-4 p-4 sm:grid-cols-2">
-                                <OfficeDetail label="Disponibilidade">
-                                    <PoliticalReadiness office={office} />
-                                </OfficeDetail>
-                                <OfficeDetail
-                                    label="Município eleitoral"
-                                    secondary={
-                                        office.municipality_linked
-                                            ? [
-                                                  office.municipality_tse_code &&
-                                                      `TSE ${office.municipality_tse_code}`,
-                                                  office.municipality_ibge_code &&
-                                                      `IBGE ${office.municipality_ibge_code}`,
-                                              ]
-                                                  .filter(Boolean)
-                                                  .join(' · ')
-                                            : undefined
-                                    }
-                                >
-                                    {office.municipality_linked
-                                        ? 'Vinculado'
-                                        : 'Não vinculado'}
-                                </OfficeDetail>
-                                <OfficeDetail
-                                    label="Eleitorado"
-                                    secondary={
-                                        office.electorate_reference_date
-                                            ? `Referência: ${new Date(
-                                                  office.electorate_reference_date,
-                                              ).toLocaleDateString('pt-BR')}`
-                                            : undefined
-                                    }
-                                >
-                                    {office.electorate_count !== null
-                                        ? office.electorate_count.toLocaleString(
-                                              'pt-BR',
-                                          )
-                                        : 'Não importado'}
-                                </OfficeDetail>
-                                <OfficeDetail
-                                    label="Última sincronização"
-                                    secondary={
-                                        latestSync
-                                            ? (datasetLabels[
-                                                  latestSync.dataset
-                                              ] ?? latestSync.dataset)
-                                            : undefined
-                                    }
-                                >
-                                    {latestSync ? (
-                                        <div className="flex flex-wrap items-center gap-1.5">
-                                            <SyncStatusDot
-                                                status={latestSync.status}
-                                            />
-                                            <span className="text-xs font-medium">
-                                                {syncStatusLabels[
-                                                    latestSync.status
-                                                ] ?? latestSync.status}
-                                            </span>
-                                            <span className="text-xs text-muted-foreground">
-                                                {syncStatusDetail(latestSync)}
-                                            </span>
-                                        </div>
-                                    ) : (
-                                        'Nunca sincronizado'
-                                    )}
-                                </OfficeDetail>
-                            </dl>
-                            <div className="border-t p-4">
-                                <p className="mb-3 text-xs text-muted-foreground">
-                                    O que já foi importado do TSE para este
-                                    município
-                                </p>
-                                <ul className="grid gap-2 sm:grid-cols-2">
-                                    {office.political_data_checklist
-                                        .filter(
-                                            (item) => item.key !== 'electorate',
-                                        )
-                                        .map((item) => (
-                                            <li
-                                                key={item.key}
-                                                className="flex items-start gap-2 text-sm"
-                                            >
-                                                {item.available ? (
-                                                    <CheckCircleIcon className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                                ) : (
-                                                    <CloseCircleIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                                                )}
-                                                <span className="min-w-0">
-                                                    <span
-                                                        className={
-                                                            item.available
-                                                                ? undefined
-                                                                : 'text-muted-foreground'
-                                                        }
-                                                    >
-                                                        {item.label}
-                                                    </span>
-                                                    {item.note && (
-                                                        <span className="block text-xs text-muted-foreground">
-                                                            {item.note}
-                                                        </span>
-                                                    )}
-                                                </span>
-                                            </li>
-                                        ))}
-                                </ul>
-                            </div>
-                        </Surface>
-                    </div>
-                )}
-
-                <DialogFooter>
-                    {office?.modules.includes('POLITICA') && (
-                        <Button variant="outline" asChild>
-                            {/* Os dados do TSE são sincronizados por eleição. */}
-                            <Link href="/admin/eleicoes">
-                                <RefreshIcon aria-hidden="true" />
-                                Dados do TSE
-                            </Link>
-                        </Button>
-                    )}
-                    <Button type="button" onClick={onClose}>
-                        Fechar
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-function OfficeDetail({
-    label,
-    secondary,
-    children,
-}: {
-    label: string;
-    secondary?: string;
-    children: ReactNode;
-}) {
-    return (
-        <div className="min-w-0">
-            <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="mt-0.5 text-sm font-medium">{children}</dd>
-            {secondary && (
-                <dd className="text-xs text-muted-foreground">{secondary}</dd>
-            )}
-        </div>
-    );
-}
-
-function PoliticalReadiness({ office }: { office: AdminOffice }) {
-    if (!office.modules.includes('POLITICA')) {
-        return (
-            <p className="mt-0.5 text-sm font-medium text-muted-foreground">
-                Módulo Política desativado
-            </p>
-        );
-    }
-
-    const hasActiveSync = office.political_syncs.some((sync) =>
-        ['pendente', 'processando'].includes(sync.status),
-    );
-    const hasFailure = office.political_syncs.some(
-        (sync) => sync.status === 'falhou',
-    );
-    const text = hasActiveSync
-        ? 'Dados políticos atualizando'
-        : hasFailure
-          ? 'Falha na sincronização política'
-          : office.municipality_linked && office.electorate_count !== null
-            ? 'Dados políticos disponíveis'
-            : 'Dados políticos pendentes';
-
-    return (
-        <p
-            className={`mt-0.5 text-sm font-medium ${hasFailure ? 'text-destructive' : 'text-foreground'}`}
-        >
-            {text}
-        </p>
     );
 }
 

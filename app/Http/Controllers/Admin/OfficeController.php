@@ -26,6 +26,7 @@ use App\Support\PerPage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -84,8 +85,7 @@ class OfficeController extends Controller
             'estado' => strtoupper($request->string('estado')->toString()),
         ];
 
-        $paginator = Office::withoutGlobalScopes()
-            ->select('gabinetes.*')
+        $paginator = $this->officeBaseQuery()
             ->when($filters['q'] !== '', function (Builder $query) use ($filters): void {
                 $search = $filters['q'];
                 $query->where(function (Builder $query) use ($search): void {
@@ -97,61 +97,6 @@ class OfficeController extends Controller
             })
             ->when($filters['status'] !== '', fn (Builder $query) => $query->where('status', $filters['status']))
             ->when($filters['estado'] !== '', fn (Builder $query) => $query->where('estado', $filters['estado']))
-            ->with([
-                'entidade:id,nome,slug,tipo,status',
-                'membros' => fn ($query) => $query
-                    ->where('papel', AccessRole::Administrator)
-                    ->where('ativo', true)
-                    ->orderBy('ingressou_em')
-                    ->orderBy('id')
-                    ->with('usuario:id,name,email,is_active,last_login_at'),
-                'municipioEleitoral:id,codigo_tse,codigo_ibge,nome,uf',
-                'candidatoTitular:id,nome,nome_urna,numero,partido_sigla',
-                'modulos:id,gabinete_id,modulo,ativo',
-            ])
-            ->withCount([
-                'membros as users_count',
-                'membros as active_users_count' => fn ($query) => $query
-                    ->where('ativo', true)
-                    ->whereHas('usuario', fn ($query) => $query->where('is_active', true)),
-            ])
-            ->addSelect([
-                'demands_count' => DB::table('demandas')
-                    ->selectRaw('count(*)')
-                    ->whereColumn('gabinete_id', 'gabinetes.id'),
-                'open_demands_count' => DB::table('demandas')
-                    ->selectRaw('count(*)')
-                    ->whereColumn('gabinete_id', 'gabinetes.id')
-                    ->whereIn('status', DemandStatus::openValues()),
-                'citizens_count' => DB::table('cidadaos')
-                    ->selectRaw('count(*)')
-                    ->whereColumn('gabinete_id', 'gabinetes.id'),
-                'electorate_count' => DB::table('eleitorado_municipio_snapshots')
-                    ->select('eleitores_aptos')
-                    ->whereColumn('municipio_eleitoral_id', 'gabinetes.municipio_eleitoral_id')
-                    ->latest('data_referencia')
-                    ->limit(1),
-                'electorate_reference_date' => DB::table('eleitorado_municipio_snapshots')
-                    ->select('data_referencia')
-                    ->whereColumn('municipio_eleitoral_id', 'gabinetes.municipio_eleitoral_id')
-                    ->latest('data_referencia')
-                    ->limit(1),
-                'candidates_count' => DB::table('candidatos_politicos')
-                    ->selectRaw('count(*)')
-                    ->whereColumn('municipio_eleitoral_id', 'gabinetes.municipio_eleitoral_id'),
-                'turnout_count' => DB::table('comparecimentos_eleitorais_municipio')
-                    ->selectRaw('count(*)')
-                    ->whereColumn('municipio_eleitoral_id', 'gabinetes.municipio_eleitoral_id'),
-                'candidate_votes_count' => DB::table('votacoes_candidatos_municipio')
-                    ->selectRaw('count(*)')
-                    ->whereColumn('municipio_eleitoral_id', 'gabinetes.municipio_eleitoral_id'),
-                'polling_locations_count' => DB::table('locais_votacao_eleitorais')
-                    ->selectRaw('count(*)')
-                    ->whereColumn('municipio_eleitoral_id', 'gabinetes.municipio_eleitoral_id'),
-                'section_votes_count' => DB::table('votos_secao_candidato')
-                    ->selectRaw('count(*)')
-                    ->whereColumn('candidato_politico_id', 'gabinetes.candidato_titular_id'),
-            ])
             ->latest()
             ->paginate(PerPage::resolve($request, 15))
             ->withQueryString();
@@ -162,108 +107,10 @@ class OfficeController extends Controller
             ->get()
             ->groupBy('gabinete_id');
         $officeData = $paginator->getCollection()
-            ->map(fn (Office $office): array => [
-                'id' => $office->id,
-                'name' => $office->nome,
-                'slug' => $office->slug,
-                'status' => $office->status->value,
-                'status_label' => $office->status->label(),
-                'hub_linked' => $office->hub_unidade_id !== null,
-                'entidade' => $office->entidade ? [
-                    'id' => $office->entidade->id,
-                    'name' => $office->entidade->nome,
-                    'slug' => $office->entidade->slug,
-                    'type' => $office->entidade->tipo->value,
-                ] : null,
-                'councilor_name' => $office->vereador_nome,
-                'candidate_number' => $office->numero_eleitoral,
-                'office_holder_candidate' => $office->candidatoTitular ? [
-                    'id' => $office->candidatoTitular->id,
-                    'name' => $office->candidatoTitular->nome,
-                    'ballot_name' => $office->candidatoTitular->nome_urna,
-                    'number' => $office->candidatoTitular->numero,
-                    'party' => $office->candidatoTitular->partido_sigla,
-                ] : null,
-                'city' => $office->municipio,
-                'state' => $office->estado,
-                'timezone' => $office->timezone,
-                'phone' => $office->telefone,
-                'email' => $office->email,
-                'address' => $office->endereco,
-                'suspended_at' => $office->suspended_at?->toIso8601String(),
-                'created_at' => $office->created_at?->toIso8601String(),
-                'users_count' => (int) $office->getAttribute('users_count'),
-                'active_users_count' => (int) $office->getAttribute('active_users_count'),
-                'responsible' => $office->membros->first()?->usuario?->only([
-                    'id', 'name', 'email', 'is_active', 'last_login_at',
-                ]),
-                'demands_count' => (int) $office->getAttribute('demands_count'),
-                'open_demands_count' => (int) $office->getAttribute('open_demands_count'),
-                'citizens_count' => (int) $office->getAttribute('citizens_count'),
-                'municipality_linked' => $office->municipioEleitoral !== null,
-                'municipality_tse_code' => $office->municipioEleitoral?->codigo_tse,
-                'municipality_ibge_code' => $office->municipioEleitoral?->codigo_ibge,
-                'electorate_count' => $office->getAttribute('electorate_count') !== null
-                    ? (int) $office->getAttribute('electorate_count')
-                    : null,
-                'electorate_reference_date' => $office->getAttribute('electorate_reference_date'),
-                'political_data_checklist' => [
-                    [
-                        'key' => 'electorate',
-                        'label' => 'Eleitorado',
-                        'available' => $office->getAttribute('electorate_count') !== null,
-                        'note' => null,
-                    ],
-                    [
-                        'key' => 'candidates',
-                        'label' => 'Candidaturas',
-                        'available' => (int) $office->getAttribute('candidates_count') > 0,
-                        'note' => null,
-                    ],
-                    [
-                        'key' => 'turnout',
-                        'label' => 'Comparecimento',
-                        'available' => (int) $office->getAttribute('turnout_count') > 0,
-                        'note' => null,
-                    ],
-                    [
-                        'key' => 'candidate_votes',
-                        'label' => 'Votação nominal',
-                        'available' => (int) $office->getAttribute('candidate_votes_count') > 0,
-                        'note' => null,
-                    ],
-                    [
-                        'key' => 'polling_locations',
-                        'label' => 'Locais de votação',
-                        'available' => (int) $office->getAttribute('polling_locations_count') > 0,
-                        'note' => null,
-                    ],
-                    [
-                        'key' => 'section_votes',
-                        'label' => 'Votação por seção',
-                        'available' => (int) $office->getAttribute('section_votes_count') > 0,
-                        'note' => $office->candidato_titular_id === null
-                            ? 'Depende do titular já resolvido (candidaturas + votação nominal antes).'
-                            : null,
-                    ],
-                ],
-                'political_syncs' => $syncsByOffice
-                    ->get($office->id, collect())
-                    ->unique(fn (TseSync $sync): string => TsePoliticalDataSyncService::datasetHistoryKey(
-                        $sync->dataset,
-                        $sync->ano,
-                        $sync->uf,
-                    ))
-                    ->take(10)
-                    ->map(fn (TseSync $sync): array => $sync->toSummary())
-                    ->values()
-                    ->all(),
-                'modules' => $office->modulos
-                    ->where('ativo', true)
-                    ->map(fn (OfficeModuleSubscription $setting): string => $setting->modulo->value)
-                    ->values()
-                    ->all(),
-            ])
+            ->map(fn (Office $office): array => $this->presentOffice(
+                $office,
+                $syncsByOffice->get($office->id, collect()),
+            ))
             ->all();
 
         $offices = [
@@ -287,6 +134,21 @@ class OfficeController extends Controller
                 ],
                 OfficeStatus::cases(),
             ),
+        ]);
+    }
+
+    public function show(Office $office): Response
+    {
+        $this->authorize('view', $office);
+
+        $office = $this->officeBaseQuery()->whereKey($office->id)->firstOrFail();
+        $syncs = TseSync::query()
+            ->where('gabinete_id', $office->id)
+            ->latest('id')
+            ->get();
+
+        return Inertia::render('admin/offices/show', [
+            'office' => $this->presentOffice($office, $syncs),
         ]);
     }
 
@@ -437,5 +299,181 @@ class OfficeController extends Controller
         ]);
 
         return back();
+    }
+
+    /**
+     * Query base reutilizada por `index` e `show`: carrega os mesmos
+     * relacionamentos e contadores agregados para apresentar um gabinete da
+     * administração da plataforma, sem duplicar a lógica de apresentação.
+     */
+    private function officeBaseQuery(): Builder
+    {
+        return Office::withoutGlobalScopes()
+            ->select('gabinetes.*')
+            ->with([
+                'entidade:id,nome,slug,tipo,status',
+                'membros' => fn ($query) => $query
+                    ->where('papel', AccessRole::Administrator)
+                    ->where('ativo', true)
+                    ->orderBy('ingressou_em')
+                    ->orderBy('id')
+                    ->with('usuario:id,name,email,is_active,last_login_at'),
+                'municipioEleitoral:id,codigo_tse,codigo_ibge,nome,uf',
+                'candidatoTitular:id,nome,nome_urna,numero,partido_sigla',
+                'modulos:id,gabinete_id,modulo,ativo',
+            ])
+            ->withCount([
+                'membros as users_count',
+                'membros as active_users_count' => fn ($query) => $query
+                    ->where('ativo', true)
+                    ->whereHas('usuario', fn ($query) => $query->where('is_active', true)),
+            ])
+            ->addSelect([
+                'demands_count' => DB::table('demandas')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('gabinete_id', 'gabinetes.id'),
+                'open_demands_count' => DB::table('demandas')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('gabinete_id', 'gabinetes.id')
+                    ->whereIn('status', DemandStatus::openValues()),
+                'citizens_count' => DB::table('cidadaos')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('gabinete_id', 'gabinetes.id'),
+                'electorate_count' => DB::table('eleitorado_municipio_snapshots')
+                    ->select('eleitores_aptos')
+                    ->whereColumn('municipio_eleitoral_id', 'gabinetes.municipio_eleitoral_id')
+                    ->latest('data_referencia')
+                    ->limit(1),
+                'electorate_reference_date' => DB::table('eleitorado_municipio_snapshots')
+                    ->select('data_referencia')
+                    ->whereColumn('municipio_eleitoral_id', 'gabinetes.municipio_eleitoral_id')
+                    ->latest('data_referencia')
+                    ->limit(1),
+                'candidates_count' => DB::table('candidatos_politicos')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('municipio_eleitoral_id', 'gabinetes.municipio_eleitoral_id'),
+                'turnout_count' => DB::table('comparecimentos_eleitorais_municipio')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('municipio_eleitoral_id', 'gabinetes.municipio_eleitoral_id'),
+                'candidate_votes_count' => DB::table('votacoes_candidatos_municipio')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('municipio_eleitoral_id', 'gabinetes.municipio_eleitoral_id'),
+                'polling_locations_count' => DB::table('locais_votacao_eleitorais')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('municipio_eleitoral_id', 'gabinetes.municipio_eleitoral_id'),
+                'section_votes_count' => DB::table('votos_secao_candidato')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('candidato_politico_id', 'gabinetes.candidato_titular_id'),
+            ]);
+    }
+
+    /**
+     * @param  Collection<int, TseSync>  $syncs  Sincronizações do gabinete,
+     *                                           já restritas a ele (não
+     *                                           precisam estar agrupadas).
+     */
+    private function presentOffice(Office $office, Collection $syncs): array
+    {
+        return [
+            'id' => $office->id,
+            'name' => $office->nome,
+            'slug' => $office->slug,
+            'status' => $office->status->value,
+            'status_label' => $office->status->label(),
+            'hub_linked' => $office->hub_unidade_id !== null,
+            'entidade' => $office->entidade ? [
+                'id' => $office->entidade->id,
+                'name' => $office->entidade->nome,
+                'slug' => $office->entidade->slug,
+                'type' => $office->entidade->tipo->value,
+            ] : null,
+            'councilor_name' => $office->vereador_nome,
+            'candidate_number' => $office->numero_eleitoral,
+            'office_holder_candidate' => $office->candidatoTitular ? [
+                'id' => $office->candidatoTitular->id,
+                'name' => $office->candidatoTitular->nome,
+                'ballot_name' => $office->candidatoTitular->nome_urna,
+                'number' => $office->candidatoTitular->numero,
+                'party' => $office->candidatoTitular->partido_sigla,
+            ] : null,
+            'city' => $office->municipio,
+            'state' => $office->estado,
+            'timezone' => $office->timezone,
+            'phone' => $office->telefone,
+            'email' => $office->email,
+            'address' => $office->endereco,
+            'suspended_at' => $office->suspended_at?->toIso8601String(),
+            'created_at' => $office->created_at?->toIso8601String(),
+            'users_count' => (int) $office->getAttribute('users_count'),
+            'active_users_count' => (int) $office->getAttribute('active_users_count'),
+            'responsible' => $office->membros->first()?->usuario?->only([
+                'id', 'name', 'email', 'is_active', 'last_login_at',
+            ]),
+            'demands_count' => (int) $office->getAttribute('demands_count'),
+            'open_demands_count' => (int) $office->getAttribute('open_demands_count'),
+            'citizens_count' => (int) $office->getAttribute('citizens_count'),
+            'municipality_linked' => $office->municipioEleitoral !== null,
+            'municipality_tse_code' => $office->municipioEleitoral?->codigo_tse,
+            'municipality_ibge_code' => $office->municipioEleitoral?->codigo_ibge,
+            'electorate_count' => $office->getAttribute('electorate_count') !== null
+                ? (int) $office->getAttribute('electorate_count')
+                : null,
+            'electorate_reference_date' => $office->getAttribute('electorate_reference_date'),
+            'political_data_checklist' => [
+                [
+                    'key' => 'electorate',
+                    'label' => 'Eleitorado',
+                    'available' => $office->getAttribute('electorate_count') !== null,
+                    'note' => null,
+                ],
+                [
+                    'key' => 'candidates',
+                    'label' => 'Candidaturas',
+                    'available' => (int) $office->getAttribute('candidates_count') > 0,
+                    'note' => null,
+                ],
+                [
+                    'key' => 'turnout',
+                    'label' => 'Comparecimento',
+                    'available' => (int) $office->getAttribute('turnout_count') > 0,
+                    'note' => null,
+                ],
+                [
+                    'key' => 'candidate_votes',
+                    'label' => 'Votação nominal',
+                    'available' => (int) $office->getAttribute('candidate_votes_count') > 0,
+                    'note' => null,
+                ],
+                [
+                    'key' => 'polling_locations',
+                    'label' => 'Locais de votação',
+                    'available' => (int) $office->getAttribute('polling_locations_count') > 0,
+                    'note' => null,
+                ],
+                [
+                    'key' => 'section_votes',
+                    'label' => 'Votação por seção',
+                    'available' => (int) $office->getAttribute('section_votes_count') > 0,
+                    'note' => $office->candidato_titular_id === null
+                        ? 'Depende do titular já resolvido (candidaturas + votação nominal antes).'
+                        : null,
+                ],
+            ],
+            'political_syncs' => $syncs
+                ->unique(fn (TseSync $sync): string => TsePoliticalDataSyncService::datasetHistoryKey(
+                    $sync->dataset,
+                    $sync->ano,
+                    $sync->uf,
+                ))
+                ->take(10)
+                ->map(fn (TseSync $sync): array => $sync->toSummary())
+                ->values()
+                ->all(),
+            'modules' => $office->modulos
+                ->where('ativo', true)
+                ->map(fn (OfficeModuleSubscription $setting): string => $setting->modulo->value)
+                ->values()
+                ->all(),
+        ];
     }
 }

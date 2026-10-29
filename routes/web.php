@@ -67,6 +67,7 @@ Route::middleware(['auth', 'verified', 'user.active'])->group(function () {
         Route::get('gabinetes', [OfficeController::class, 'index'])->name('offices.index');
         Route::get('gabinetes/novo', EstruturaNoHubController::class)->name('offices.create');
         Route::get('gabinetes/{office}/editar', [OfficeController::class, 'edit'])->name('offices.edit');
+        Route::get('gabinetes/{office}', [OfficeController::class, 'show'])->name('offices.show');
         Route::post('gabinetes', EstruturaNoHubController::class)->name('offices.store');
         Route::put('gabinetes/{office}', [OfficeController::class, 'update'])->name('offices.update');
         Route::get('gabinetes/{office}/modulos', [OfficeController::class, 'editModules'])
