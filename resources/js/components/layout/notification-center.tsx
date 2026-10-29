@@ -3,6 +3,7 @@ import {
     ChatRoundUnreadIcon,
     CheckReadIcon,
     CloseIcon,
+    SmileCircleIcon,
 } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import {
@@ -86,7 +87,11 @@ export function NotificationCenter() {
                 </DrawerHeader>
                 {notifications.items.length === 0 ? (
                     <div className="px-3 py-8 text-center">
-                        <p className="text-sm font-medium">Tudo em dia</p>
+                        <SmileCircleIcon
+                            className="mx-auto size-8 text-muted-foreground"
+                            aria-hidden="true"
+                        />
+                        <p className="mt-2 text-sm font-medium">Tudo em dia</p>
                         <p className="mt-1 text-xs text-muted-foreground">
                             Novos prazos e lembretes aparecerão aqui.
                         </p>
