@@ -150,11 +150,11 @@ export function NotificationCenter() {
                     </div>
                 )}
                 {notifications.unread_count > 0 && (
-                    <DrawerFooter className="shrink-0 border-t p-3">
+                    <DrawerFooter className="flex-row justify-end border-t p-4">
                         <Button
-                            variant="ghost"
-                            size="sm"
-                            className="gap-1.5 text-xs tracking-normal normal-case"
+                            type="button"
+                            variant="outline"
+                            className="w-full"
                             onClick={() =>
                                 router.patch(
                                     tenantUrl('/notificacoes/ler-todas'),
@@ -163,7 +163,7 @@ export function NotificationCenter() {
                                 )
                             }
                         >
-                            <CheckReadIcon className="size-3.5" />
+                            <CheckReadIcon aria-hidden="true" />
                             Ler todas
                         </Button>
                     </DrawerFooter>
