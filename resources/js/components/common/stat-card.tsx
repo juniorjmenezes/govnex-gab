@@ -7,23 +7,20 @@ export { StatCardSkeleton };
 export type { StatCardProgress, StatCardProps, StatCardTrend } from '@govnex/ui';
 
 /**
- * Valor em fonte maior — só no GAB, em avaliação, por ora. Cards com
- * sparkline usam o layout `icon-leading`; sem gráfico, usam o padrão
- * `stacked` do pacote.
+ * Valor em fonte maior e sparkline no rodapé — só no GAB, em
+ * avaliação, por ora. Todos os cards usam o layout `stacked`.
  */
 export function StatCard({
     valueClassName,
     layout,
-    sparkline,
+    chartPlacement,
     ...props
 }: StatCardProps) {
-    const hasSparkline = sparkline !== undefined && sparkline.length > 1;
-
     return (
         <BaseStatCard
             {...props}
-            sparkline={sparkline}
-            layout={layout ?? (hasSparkline ? 'icon-leading' : 'stacked')}
+            layout={layout ?? 'stacked'}
+            chartPlacement={chartPlacement ?? 'footer'}
             valueClassName={cn('text-3xl', valueClassName)}
         />
     );
