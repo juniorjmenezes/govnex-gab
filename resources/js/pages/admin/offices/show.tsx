@@ -191,35 +191,34 @@ export default function OfficeShow({ office }: Props) {
                         <p className="mb-3 text-xs text-muted-foreground">
                             O que já foi importado do TSE para este município
                         </p>
-                        <ul className="grid gap-2 sm:grid-cols-2">
+                        <ul className="flex flex-wrap gap-x-4 gap-y-3">
                             {office.political_data_checklist
                                 .filter((item) => item.key !== 'electorate')
                                 .map((item) => (
                                     <li
                                         key={item.key}
-                                        className="flex items-start gap-2 text-sm"
+                                        className="flex max-w-56 flex-col gap-1"
                                     >
-                                        {item.available ? (
-                                            <CheckCircleIcon className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                        ) : (
-                                            <CloseCircleIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                                        )}
-                                        <span className="min-w-0">
-                                            <span
-                                                className={
-                                                    item.available
-                                                        ? undefined
-                                                        : 'text-muted-foreground'
-                                                }
-                                            >
-                                                {item.label}
-                                            </span>
-                                            {item.note && (
-                                                <span className="block text-xs text-muted-foreground">
-                                                    {item.note}
-                                                </span>
+                                        <Badge
+                                            variant={
+                                                item.available
+                                                    ? 'success'
+                                                    : 'outline'
+                                            }
+                                            className="gap-1.5"
+                                        >
+                                            {item.available ? (
+                                                <CheckCircleIcon aria-hidden="true" />
+                                            ) : (
+                                                <CloseCircleIcon aria-hidden="true" />
                                             )}
-                                        </span>
+                                            {item.label}
+                                        </Badge>
+                                        {item.note && (
+                                            <span className="text-xs leading-snug text-muted-foreground">
+                                                {item.note}
+                                            </span>
+                                        )}
                                     </li>
                                 ))}
                         </ul>
