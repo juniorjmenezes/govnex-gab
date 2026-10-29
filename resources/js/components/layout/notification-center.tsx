@@ -1,13 +1,18 @@
 import { router, usePage } from '@inertiajs/react';
-import { ChatRoundUnreadIcon, CheckReadIcon } from '@/components/icons';
+import {
+    ChatRoundUnreadIcon,
+    CheckReadIcon,
+    CloseIcon,
+} from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+    Drawer,
+    DrawerClose,
+    DrawerContent,
+    DrawerHeader,
+    DrawerTitle,
+    DrawerTrigger,
+} from '@/components/ui/drawer';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
 
@@ -25,54 +30,60 @@ export function NotificationCenter() {
     };
 
     return (
-        <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1.5 px-2.5 focus-visible:border-transparent focus-visible:ring-0"
-                    aria-label={`Abrir central de notificações. ${notifications.unread_count} não lidas.`}
-                >
-                    <ChatRoundUnreadIcon
-                        className="size-4"
-                        aria-hidden="true"
-                    />
-                    {showCount && (
-                        <span
+        <Drawer>
+            <DrawerTrigger
+                render={
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 px-2.5 focus-visible:border-transparent focus-visible:ring-0"
+                        aria-label={`Abrir central de notificações. ${notifications.unread_count} não lidas.`}
+                    >
+                        <ChatRoundUnreadIcon
+                            className="size-4"
                             aria-hidden="true"
-                            className="text-xs font-medium text-muted-foreground tabular-nums"
+                        />
+                        {showCount && (
+                            <span
+                                aria-hidden="true"
+                                className="text-xs font-medium text-muted-foreground tabular-nums"
+                            >
+                                {notifications.unread_count}
+                            </span>
+                        )}
+                    </Button>
+                }
+            />
+            <DrawerContent side="right" className="max-w-sm">
+                <DrawerHeader className="shrink-0 flex-row items-center justify-between gap-2 border-b p-4">
+                    <DrawerTitle>Notificações</DrawerTitle>
+                    <div className="flex shrink-0 items-center gap-1">
+                        {notifications.unread_count > 0 && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 gap-1 text-xs tracking-normal normal-case"
+                                onClick={() =>
+                                    router.patch(
+                                        tenantUrl('/notificacoes/ler-todas'),
+                                        {},
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                <CheckReadIcon className="size-3.5" />
+                                Ler todas
+                            </Button>
+                        )}
+                        <DrawerClose
+                            render={<Button variant="ghost" size="icon-sm" />}
+                            aria-label="Fechar"
                         >
-                            {notifications.unread_count}
-                        </span>
-                    )}
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-                align="end"
-                className="w-[min(22rem,calc(100vw-2rem))]"
-            >
-                <div className="flex items-center justify-between px-2">
-                    <DropdownMenuLabel>Notificações</DropdownMenuLabel>
-                    {notifications.unread_count > 0 && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 gap-1 text-xs tracking-normal normal-case"
-                            onClick={() =>
-                                router.patch(
-                                    tenantUrl('/notificacoes/ler-todas'),
-                                    {},
-                                    { preserveScroll: true },
-                                )
-                            }
-                        >
-                            <CheckReadIcon className="size-3.5" />
-                            Ler todas
-                        </Button>
-                    )}
-                </div>
-                <DropdownMenuSeparator />
+                            <CloseIcon aria-hidden="true" />
+                        </DrawerClose>
+                    </div>
+                </DrawerHeader>
                 {notifications.items.length === 0 ? (
                     <div className="px-3 py-8 text-center">
                         <p className="text-sm font-medium">Tudo em dia</p>
@@ -81,7 +92,7 @@ export function NotificationCenter() {
                         </p>
                     </div>
                 ) : (
-                    <div className="max-h-96 overflow-y-auto p-1">
+                    <div className="min-h-0 flex-1 overflow-y-auto p-2">
                         {notifications.items.map((item) => (
                             <div
                                 key={item.id}
@@ -137,7 +148,7 @@ export function NotificationCenter() {
                         ))}
                     </div>
                 )}
-            </DropdownMenuContent>
-        </DropdownMenu>
+            </DrawerContent>
+        </Drawer>
     );
 }
