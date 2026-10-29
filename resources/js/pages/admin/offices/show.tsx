@@ -13,6 +13,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Surface, SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
     datasetLabels,
     syncStatusDetail,
     syncStatusLabels,
@@ -191,14 +196,11 @@ export default function OfficeShow({ office }: Props) {
                         <p className="mb-3 text-xs text-muted-foreground">
                             O que já foi importado do TSE para este município
                         </p>
-                        <ul className="flex flex-wrap gap-x-4 gap-y-3">
+                        <ul className="flex flex-wrap gap-2">
                             {office.political_data_checklist
                                 .filter((item) => item.key !== 'electorate')
-                                .map((item) => (
-                                    <li
-                                        key={item.key}
-                                        className="flex max-w-56 flex-col gap-1"
-                                    >
+                                .map((item) => {
+                                    const badge = (
                                         <Badge
                                             variant={
                                                 item.available
@@ -214,13 +216,25 @@ export default function OfficeShow({ office }: Props) {
                                             )}
                                             {item.label}
                                         </Badge>
-                                        {item.note && (
-                                            <span className="text-xs leading-snug text-muted-foreground">
-                                                {item.note}
-                                            </span>
-                                        )}
-                                    </li>
-                                ))}
+                                    );
+
+                                    return (
+                                        <li key={item.key}>
+                                            {item.note ? (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        {badge}
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        {item.note}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            ) : (
+                                                badge
+                                            )}
+                                        </li>
+                                    );
+                                })}
                         </ul>
                     </div>
                 </Surface>
