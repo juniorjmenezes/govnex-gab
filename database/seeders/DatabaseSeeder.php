@@ -9,6 +9,7 @@ use App\Enums\DemandStatus;
 use App\Enums\EntityModule;
 use App\Enums\EntityStatus;
 use App\Enums\EntityType;
+use App\Enums\OfficePosition;
 use App\Enums\OfficeStatus;
 use App\Enums\OfficeType;
 use App\Enums\UserRole;
@@ -20,6 +21,7 @@ use App\Models\Entity;
 use App\Models\EntityNeighborhood;
 use App\Models\Neighborhood;
 use App\Models\Office;
+use App\Models\OfficeMember;
 use App\Models\Setting;
 use App\Models\TenantModel;
 use App\Models\User;
@@ -91,6 +93,12 @@ class DatabaseSeeder extends Seeder
             ->where('gabinete_id', $avulso->id)
             ->get()
             ->each(fn (User $user) => $memberships->syncLegacyUser($user, $administrator));
+
+        // O GAB decide pelo cargo local (o papel do Hub é ignorado): sem cargo,
+        // a conta de demonstração não entraria no gabinete.
+        $this->assignPosition($accounts['councilor']['email'], $avulso, OfficePosition::Councilor);
+        $this->assignPosition($accounts['chief']['email'], $avulso, OfficePosition::ChiefOfStaff);
+        $this->assignPosition($accounts['advisor']['email'], $avulso, OfficePosition::Advisor);
 
         $moduleManager = app(OfficeModuleManager::class);
         $moduleManager->sync(
@@ -240,6 +248,11 @@ class DatabaseSeeder extends Seeder
             ->whereIn('gabinete_id', [...array_keys($councilorOffices), $secretariat->id])
             ->get()
             ->each(fn (User $user) => $memberships->syncLegacyUser($user, $administrator));
+
+        foreach ($councilorOffices as [$office]) {
+            $this->assignPosition($office->slug.'@gabinetefacil.test', $office, OfficePosition::Councilor);
+        }
+        $this->assignPosition('secretaria-legislativa.barra-nova@gabinetefacil.test', $secretariat, OfficePosition::Secretary);
 
         foreach ($councilorOffices as [$office, $bairros]) {
             $this->seedOffice($office, $bairros);
@@ -428,6 +441,20 @@ class DatabaseSeeder extends Seeder
         $model->forceFill(['gabinete_id' => $gabineteId, ...$identity, ...$values])->save();
 
         return $model;
+    }
+
+    private function assignPosition(string $email, Office $office, OfficePosition $position): void
+    {
+        $user = User::query()->where('email', $email)->first();
+
+        if ($user === null) {
+            return;
+        }
+
+        OfficeMember::query()
+            ->where('gabinete_id', $office->id)
+            ->where('usuario_id', $user->id)
+            ->update(['cargo' => $position->value]);
     }
 
     /**

@@ -1,11 +1,11 @@
-import { Head } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { ActivityMark } from '@/components/common/activity-mark';
-import { ActivityToggleButton } from '@/components/common/activity-toggle-button';
 import { HubManagedHint } from '@/components/common/hub-managed-hint';
-import { TableActionButton } from '@/components/common/table-action-button';
-import { KeyIcon, TrashBinTrashIcon } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AppSelect } from '@/components/ui/app-select';
+import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import {
     surfaceClasses,
@@ -20,31 +20,61 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { accessRoleLabels } from '@/lib/access-roles';
-import type { AccessRole } from '@/lib/access-roles';
+import { useTenantUrl } from '@/hooks/use-tenant-url';
 import { cn } from '@/lib/utils';
+
+/**
+ * Equipe do gabinete. Pessoas e vínculos vêm do Govnex Hub; o que a pessoa
+ * faz aqui é o cargo local (sem cargo, ela não acessa o gabinete).
+ */
 type Member = {
     id: number;
     name: string;
     email: string;
-    role: AccessRole;
+    position: string | null;
     is_active: boolean;
     account_active: boolean;
     last_login_at: string | null;
     created_at: string;
 };
-type RoleOption = { value: string; label: string };
+type PositionOption = { value: string; label: string };
+
+const NO_POSITION_GUIDANCE =
+    'Sem cargo, a pessoa não acessa o gabinete. Peça ao vereador ou ao chefe de gabinete para definir o cargo; se ninguém do gabinete tem cargo ainda, o primeiro é concedido pelo operador do sistema.';
+
 export default function Team({
     members,
-    allowedRoles,
-    canManage,
+    canAssignPositions,
+    positionOptions,
+    positionLabels,
+    currentUserId,
+    isRoot,
 }: {
     members: Member[];
-    allowedRoles: RoleOption[];
-    canManage: boolean;
+    canAssignPositions: boolean;
+    positionOptions: PositionOption[];
+    positionLabels: Record<string, string>;
+    currentUserId: number;
+    isRoot: boolean;
 }) {
-    const manageable = (member: Member) =>
-        allowedRoles.some((role) => role.value === member.role);
+    const tenantUrl = useTenantUrl();
+    const { errors } = usePage<{ errors: Record<string, string> }>().props;
+    const positionLabel = (value: string) => positionLabels[value] ?? value;
+    // Regras do servidor espelhadas na tela: ninguém mexe no próprio cargo e
+    // só a equipe GOVNEX (root) mexe no cargo de vereador.
+    const editable = (member: Member) =>
+        canAssignPositions &&
+        (isRoot ||
+            (member.id !== currentUserId && member.position !== 'VEREADOR'));
+    const withoutPosition = members.filter(
+        (member) => member.position === null,
+    ).length;
+    const updatePosition = (member: Member, value: string) =>
+        router.put(
+            tenantUrl(`/equipe/${member.id}/cargo`),
+            { cargo: value === '' ? null : value },
+            { preserveScroll: true },
+        );
 
     return (
         <>
@@ -52,8 +82,28 @@ export default function Team({
             <PageContainer>
                 <PageHeader
                     title="Equipe"
-                    description="Consulte os acessos, funções e situação dos integrantes do gabinete."
+                    description="Consulte os integrantes do gabinete e o cargo de cada um."
                 />
+                {errors.cargo && (
+                    <Alert variant="destructive">
+                        <AlertTitle>Cargo não alterado</AlertTitle>
+                        <AlertDescription>{errors.cargo}</AlertDescription>
+                    </Alert>
+                )}
+                {withoutPosition > 0 && (
+                    <Alert variant="warning">
+                        <AlertTitle>
+                            {withoutPosition === 1
+                                ? '1 integrante sem cargo'
+                                : `${withoutPosition} integrantes sem cargo`}
+                        </AlertTitle>
+                        <AlertDescription>
+                            {canAssignPositions
+                                ? 'Sem cargo, a pessoa não acessa o gabinete. Defina o cargo de cada integrante na coluna Cargo.'
+                                : NO_POSITION_GUIDANCE}
+                        </AlertDescription>
+                    </Alert>
+                )}
                 <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
                     <Card className="gap-0 overflow-hidden py-0">
                         <Table>
@@ -65,12 +115,7 @@ export default function Team({
                                         </span>
                                     </TableHead>
                                     <TableHead>Nome</TableHead>
-                                    <TableHead>Papel</TableHead>
-                                    {canManage && (
-                                        <TableHead className="text-right">
-                                            Ações
-                                        </TableHead>
-                                    )}
+                                    <TableHead>Cargo</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -88,11 +133,6 @@ export default function Team({
                                             <span className="block text-xs text-muted-foreground">
                                                 {member.email}
                                             </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="block">
-                                                {accessRoleLabels[member.role]}
-                                            </span>
                                             <span className="block text-xs text-muted-foreground">
                                                 {member.last_login_at
                                                     ? `Último acesso: ${new Date(
@@ -103,50 +143,46 @@ export default function Team({
                                                     : 'Ainda não acessou'}
                                             </span>
                                         </TableCell>
-                                        {canManage && (
-                                            <TableCell>
-                                                {manageable(member) && (
-                                                    <div className="flex justify-end gap-2">
-                                                        <TableActionButton
-                                                            label={`Gerenciado no Govnex Hub — redefina a senha de ${member.name} lá`}
-                                                            variant="outline"
-                                                            disabled
-                                                        >
-                                                            <KeyIcon aria-hidden="true" />
-                                                        </TableActionButton>
-                                                        <ActivityToggleButton
-                                                            active={
-                                                                member.is_active
-                                                            }
-                                                            name={member.name}
-                                                            disabled
-                                                        />
-                                                        <TableActionButton
-                                                            label={`Gerenciado no Govnex Hub — remova ${member.name} lá`}
-                                                            variant="destructive"
-                                                            disabled
-                                                        >
-                                                            <TrashBinTrashIcon aria-hidden="true" />
-                                                        </TableActionButton>
-                                                    </div>
-                                                )}
-                                            </TableCell>
-                                        )}
+                                        <TableCell>
+                                            {editable(member) ? (
+                                                <AppSelect
+                                                    value={
+                                                        member.position ?? ''
+                                                    }
+                                                    onValueChange={(value) =>
+                                                        updatePosition(
+                                                            member,
+                                                            value,
+                                                        )
+                                                    }
+                                                    options={positionOptions}
+                                                    emptyLabel="Sem cargo"
+                                                    placeholder="Sem cargo"
+                                                    clearable={false}
+                                                    aria-label={`Cargo de ${member.name}`}
+                                                    className="w-48"
+                                                />
+                                            ) : member.position ? (
+                                                positionLabel(member.position)
+                                            ) : (
+                                                <Badge variant="warning">
+                                                    Sem cargo
+                                                </Badge>
+                                            )}
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
                     </Card>
-                    {canManage && (
-                        <div className={cn(surfaceClasses, 'overflow-hidden')}>
-                            <SurfaceHeader>
-                                <SurfaceTitle>Novo integrante</SurfaceTitle>
-                            </SurfaceHeader>
-                            <div className="p-5">
-                                <HubManagedHint text="Pessoas e vínculos são geridos no Govnex Hub. Para adicionar, editar, redefinir senha ou remover um integrante, acesse o Hub." />
-                            </div>
+                    <div className={cn(surfaceClasses, 'overflow-hidden')}>
+                        <SurfaceHeader>
+                            <SurfaceTitle>Novo integrante</SurfaceTitle>
+                        </SurfaceHeader>
+                        <div className="p-5">
+                            <HubManagedHint text="Pessoas e vínculos são geridos no Govnex Hub. Para adicionar ou remover um integrante, acesse o Hub; o cargo é definido aqui, na Equipe." />
                         </div>
-                    )}
+                    </div>
                 </div>
             </PageContainer>
         </>

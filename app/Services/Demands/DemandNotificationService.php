@@ -207,8 +207,7 @@ class DemandNotificationService
             ->get();
 
         $leadership = $members->filter(
-            fn (User $member): bool => $member->role === UserRole::Administrator
-                || $member->gabineteRole($officeId)?->canManage() === true,
+            fn (User $member): bool => $member->gabinetePosition($officeId)?->leadsOffice() === true,
         );
 
         return $this->fallbackCache[$officeId] = ($leadership->isNotEmpty() ? $leadership : $members)

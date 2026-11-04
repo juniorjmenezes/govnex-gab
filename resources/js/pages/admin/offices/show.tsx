@@ -6,12 +6,18 @@ import {
     CheckCircleIcon,
     CloseCircleIcon,
     RefreshIcon,
+    ShieldUserIcon,
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Surface, SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
+import {
+    Surface,
+    SurfaceDescription,
+    SurfaceHeader,
+    SurfaceTitle,
+} from '@/components/ui/surface';
 import {
     Tooltip,
     TooltipContent,
@@ -64,8 +70,22 @@ export default function OfficeShow({ office }: Props) {
                 />
 
                 <Surface as="section" className="overflow-hidden">
-                    <SurfaceHeader>
+                    <SurfaceHeader
+                        actions={
+                            <Button variant="outline" asChild>
+                                <Link
+                                    href={`/admin/gabinetes/${office.id}/cargos`}
+                                >
+                                    <ShieldUserIcon aria-hidden="true" />
+                                    Equipe e cargos
+                                </Link>
+                            </Button>
+                        }
+                    >
                         <SurfaceTitle as="h3">Pessoas e acesso</SurfaceTitle>
+                        {!office.has_positions && (
+                            <SurfaceDescription>Sem cargos</SurfaceDescription>
+                        )}
                     </SurfaceHeader>
                     <dl className="grid gap-4 p-4 sm:grid-cols-2">
                         <OfficeDetail

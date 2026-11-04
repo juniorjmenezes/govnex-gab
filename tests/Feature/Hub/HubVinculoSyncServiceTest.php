@@ -1,7 +1,7 @@
 <?php
 
-use App\Enums\AccessRole;
 use App\Enums\EntityType;
+use App\Enums\OfficePosition;
 use App\Enums\UserRole;
 use App\Models\Entity;
 use App\Models\EntityMember;
@@ -10,6 +10,16 @@ use App\Models\OfficeMember;
 use App\Models\User;
 use App\Services\Hub\HubVinculoSyncService;
 use Illuminate\Support\Facades\Http;
+
+function vinculadoAoGabinete(User $user, int $gabineteId): bool
+{
+    return OfficeMember::query()->where('usuario_id', $user->id)->where('gabinete_id', $gabineteId)->where('ativo', true)->exists();
+}
+
+function vinculadoAEntidade(User $user, int $entidadeId): bool
+{
+    return EntityMember::query()->where('usuario_id', $user->id)->where('entidade_id', $entidadeId)->where('ativo', true)->exists();
+}
 
 function hubSync(): HubVinculoSyncService
 {
@@ -39,24 +49,10 @@ it('cria vínculo de entidade e gabinete a partir do retrato do Hub', function (
         'ativo' => true,
     ]]);
 
-    expect($user->fresh()->gabineteRole($gabinete->id))->toBe(AccessRole::Operator)
-        ->and($user->fresh()->entidadeRole($entidade->id))->toBe(AccessRole::Operator)
+    expect(vinculadoAoGabinete($user, $gabinete->id))->toBeTrue()
+        ->and(vinculadoAEntidade($user, $entidade->id))->toBeTrue()
         ->and($user->fresh()->gabinete_id)->toBe($gabinete->id)
         ->and($user->fresh()->role)->toBe(UserRole::Operator);
-});
-
-it('mapeia administrador de gabinete independente para administrador da entidade', function () {
-    [$entidade, $gabinete] = hubEstrutura();
-    $entidade->forceFill(['tipo' => EntityType::IndependentOffice])->save();
-    $user = User::factory()->create(['gabinete_id' => null]);
-
-    hubSync()->aplicar($user, [[
-        'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'administrador', 'ativo' => true,
-    ]]);
-
-    expect($user->fresh()->entidadeRole($entidade->id))->toBe(AccessRole::Administrator)
-        ->and($user->fresh()->gabineteRole($gabinete->id))->toBe(AccessRole::Administrator)
-        ->and($user->fresh()->role)->toBe(UserRole::Administrator);
 });
 
 it('desativa, sem apagar, o vínculo que não veio mais no retrato', function () {
@@ -115,7 +111,7 @@ it('elege como principal o vínculo de gabinete ativo mais antigo', function () 
     // Os dois entram no mesmo instante; o desempate é pela ordem de criação da
     // linha, e o primeiro escrito foi o da unidade 13.
     expect($user->fresh()->gabinete_id)->toBe($segundo->id)
-        ->and($user->fresh()->gabineteRole($primeiro->id))->toBe(AccessRole::Operator);
+        ->and(vinculadoAoGabinete($user, $primeiro->id))->toBeTrue();
 });
 
 it('ignora vínculo cuja entidade ainda não foi espelhada no GAB', function () {
@@ -192,94 +188,6 @@ it('aplica o vínculo mapeável e preserva o resto quando há vínculo não mape
         ->and(OfficeMember::query()->where('gabinete_id', $outro->id)->where('usuario_id', $user->id)->value('ativo'))->toBeTruthy();
 });
 
-it('em Câmara, administrador do gabinete é operador da entidade', function () {
-    [$entidade, $gabinete] = hubEstrutura();
-    $entidade->forceFill(['tipo' => EntityType::CityCouncil])->save();
-    $user = User::factory()->create(['gabinete_id' => null]);
-
-    hubSync()->aplicar($user, [[
-        'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'administrador', 'ativo' => true,
-    ]]);
-
-    expect($user->fresh()->gabineteRole($gabinete->id))->toBe(AccessRole::Administrator)
-        ->and($user->fresh()->entidadeRole($entidade->id))->toBe(AccessRole::Operator)
-        ->and($user->fresh()->role)->toBe(UserRole::Administrator);
-});
-
-it('aplica o papel auditor no gabinete e na entidade', function () {
-    [$entidade, $gabinete] = hubEstrutura();
-    $user = User::factory()->create(['gabinete_id' => null]);
-
-    hubSync()->aplicar($user, [[
-        'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'auditor', 'ativo' => true,
-    ]]);
-
-    expect($user->fresh()->gabineteRole($gabinete->id))->toBe(AccessRole::Auditor)
-        ->and($user->fresh()->entidadeRole($entidade->id))->toBe(AccessRole::Auditor)
-        ->and($user->fresh()->role)->toBe(UserRole::Auditor);
-});
-
-it('papel desconhecido do Hub vira auditor', function () {
-    [, $gabinete] = hubEstrutura();
-    $user = User::factory()->create(['gabinete_id' => null]);
-
-    hubSync()->aplicar($user, [[
-        'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'vereador', 'ativo' => true,
-    ]]);
-
-    expect($user->fresh()->gabineteRole($gabinete->id))->toBe(AccessRole::Auditor)
-        ->and($user->fresh()->role)->toBe(UserRole::Auditor);
-});
-
-it('ignora vínculo com papel root sem travar a desativação dos ausentes', function () {
-    [, $gabinete] = hubEstrutura('3', '12');
-    [, $outro] = hubEstrutura('4', '20');
-    $user = User::factory()->create(['gabinete_id' => null]);
-
-    hubSync()->aplicar($user, [[
-        'entidade_id' => '4', 'unidade_id' => '20', 'papel' => 'operador', 'ativo' => true,
-    ]]);
-
-    hubSync()->aplicar($user, [[
-        'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'root', 'ativo' => true,
-    ]]);
-
-    expect(OfficeMember::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->exists())->toBeFalse()
-        ->and(OfficeMember::query()->where('gabinete_id', $outro->id)->where('usuario_id', $user->id)->value('ativo'))->toBeFalsy()
-        ->and($user->fresh()->role)->not->toBe(UserRole::Root);
-
-    hubSync()->aplicarVinculo($user, [
-        'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'root', 'ativo' => true,
-    ]);
-
-    expect(OfficeMember::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->exists())->toBeFalse();
-});
-
-it('preserva o administrador ao receber depois um vínculo de operador em outra unidade', function () {
-    [$entidade, $gabinete] = hubEstrutura('3', '12');
-    $segundo = Office::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '13']);
-    $user = User::factory()->create(['gabinete_id' => null]);
-
-    hubSync()->aplicar($user, [[
-        'entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'administrador', 'ativo' => true,
-    ]]);
-
-    $this->travel(1)->minutes();
-
-    hubSync()->aplicarVinculo($user, [
-        'entidade_id' => '3', 'unidade_id' => '13', 'papel' => 'operador', 'ativo' => true,
-    ]);
-    hubSync()->aplicar($user, [
-        ['entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'administrador', 'ativo' => true],
-        ['entidade_id' => '3', 'unidade_id' => '13', 'papel' => 'operador', 'ativo' => true],
-    ]);
-
-    expect($user->fresh()->gabinete_id)->toBe($gabinete->id)
-        ->and($user->fresh()->role)->toBe(UserRole::Administrator)
-        ->and($user->fresh()->gabineteRole($gabinete->id))->toBe(AccessRole::Administrator)
-        ->and($user->fresh()->gabineteRole($segundo->id))->toBe(AccessRole::Operator);
-});
-
 /** Hub com uma Câmara (3) habilitada ou não para o GAB e seu gabinete raiz (12). */
 function fingirEstruturaSobDemanda(bool $habilitado = true): void
 {
@@ -316,8 +224,8 @@ it('cria sob demanda a entidade e o gabinete do vínculo ainda não espelhados',
 
     expect($entidade->tipo)->toBe(EntityType::CityCouncil)
         ->and($gabinete->entidade_id)->toBe($entidade->id)
-        ->and($user->fresh()->gabineteRole($gabinete->id))->toBe(AccessRole::Administrator)
-        ->and($user->fresh()->entidadeRole($entidade->id))->toBe(AccessRole::Operator)
+        ->and(vinculadoAoGabinete($user, $gabinete->id))->toBeTrue()
+        ->and(vinculadoAEntidade($user, $entidade->id))->toBeTrue()
         ->and($user->fresh()->gabinete_id)->toBe($gabinete->id);
 });
 
@@ -331,7 +239,7 @@ it('cria sob demanda só a entidade quando o vínculo é de entidade', function 
 
     $entidade = Entity::query()->where('hub_entidade_id', '3')->firstOrFail();
 
-    expect($user->fresh()->entidadeRole($entidade->id))->toBe(AccessRole::Operator)
+    expect(vinculadoAEntidade($user, $entidade->id))->toBeTrue()
         ->and(Office::withoutGlobalScopes()->count())->toBe(0);
 });
 
@@ -346,4 +254,58 @@ it('descarta o vínculo quando o Hub diz que o GAB não está habilitado na enti
     expect(Entity::query()->count())->toBe(0)
         ->and(Office::withoutGlobalScopes()->count())->toBe(0)
         ->and(EntityMember::query()->where('usuario_id', $user->id)->count())->toBe(0);
+});
+
+it('ignora o papel do Hub: qualquer valor só vincula, sem cargo e sem acesso', function (?string $papel) {
+    [$entidade, $gabinete] = hubEstrutura();
+    $entidade->forceFill(['tipo' => EntityType::IndependentOffice])->save();
+    $user = User::factory()->create(['gabinete_id' => null, 'role' => UserRole::Operator]);
+
+    hubSync()->aplicar($user, [[
+        'entidade_id' => '3', 'unidade_id' => '12', 'papel' => $papel, 'ativo' => true,
+    ]]);
+
+    $membro = OfficeMember::query()->where('usuario_id', $user->id)->sole();
+
+    expect(vinculadoAoGabinete($user, $gabinete->id))->toBeTrue()
+        ->and(vinculadoAEntidade($user, $entidade->id))->toBeTrue()
+        ->and($membro->papel)->toBeNull()
+        ->and($membro->cargo)->toBeNull()
+        ->and($user->fresh()->role)->toBe(UserRole::Operator)
+        ->and($user->fresh()->canAccessGabinete($gabinete->id))->toBeFalse()
+        ->and($user->fresh()->canManageGabinete($gabinete->id))->toBeFalse()
+        ->and($user->fresh()->canManageEntidade($entidade->id))->toBeFalse();
+})->with(['administrador', 'operador', 'auditor', 'root', 'vereador', null]);
+
+it('preserva o cargo local quando o retrato do Hub muda o papel', function () {
+    [, $gabinete] = hubEstrutura();
+    $user = User::factory()->create(['gabinete_id' => null]);
+    $link = ['entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'operador', 'ativo' => true];
+
+    hubSync()->aplicar($user, [$link]);
+    OfficeMember::query()->where('usuario_id', $user->id)->update(['cargo' => OfficePosition::Councilor->value]);
+
+    hubSync()->aplicar($user, [[...$link, 'papel' => 'auditor']]);
+    hubSync()->aplicarVinculo($user, [...$link, 'papel' => 'administrador']);
+
+    expect($user->fresh()->gabinetePosition($gabinete->id))->toBe(OfficePosition::Councilor)
+        ->and($user->fresh()->canManageGabinete($gabinete->id))->toBeTrue();
+});
+
+it('reativa sem o cargo de liderança quando outra pessoa ativa já o ocupa', function () {
+    [, $gabinete] = hubEstrutura();
+    $user = User::factory()->create(['gabinete_id' => null]);
+    $link = ['entidade_id' => '3', 'unidade_id' => '12', 'papel' => 'operador', 'ativo' => true];
+
+    hubSync()->aplicar($user, [$link]);
+    OfficeMember::query()->where('usuario_id', $user->id)->update(['cargo' => OfficePosition::Councilor->value]);
+    hubSync()->aplicar($user, [[...$link, 'ativo' => false]]);
+
+    $successor = User::factory()->forGabinete($gabinete)->withPosition(OfficePosition::Councilor)->create();
+
+    hubSync()->aplicar($user, [$link]);
+
+    expect(vinculadoAoGabinete($user, $gabinete->id))->toBeTrue()
+        ->and($user->fresh()->gabinetePosition($gabinete->id))->toBeNull()
+        ->and($successor->gabinetePosition($gabinete->id))->toBe(OfficePosition::Councilor);
 });

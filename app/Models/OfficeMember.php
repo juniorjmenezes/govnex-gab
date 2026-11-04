@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AccessRole;
+use App\Enums\OfficePosition;
 use Illuminate\Contracts\Database\Query\Builder as QueryContract;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,6 +14,7 @@ use Illuminate\Support\Carbon;
  * @property int $gabinete_id
  * @property int $usuario_id
  * @property AccessRole $papel
+ * @property OfficePosition|null $cargo
  * @property bool $ativo
  * @property Carbon|null $ingressou_em
  * @property-read User $usuario
@@ -39,6 +41,7 @@ class OfficeMember extends Model
     {
         return [
             'papel' => AccessRole::class,
+            'cargo' => OfficePosition::class,
             'ativo' => 'boolean',
             'ingressou_em' => 'datetime',
             'desativado_em' => 'datetime',

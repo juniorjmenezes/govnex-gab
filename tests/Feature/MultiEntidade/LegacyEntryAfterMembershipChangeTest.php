@@ -38,6 +38,7 @@ class LegacyEntryAfterMembershipChangeTest extends TestCase
             'gabinete_id' => $other->id,
             'usuario_id' => $user->id,
             'papel' => AccessRole::Operator,
+            'cargo' => 'ASSESSOR',
             'ativo' => true,
             'ingressou_em' => now(),
         ]);

@@ -2,7 +2,6 @@
 
 namespace App\Services\Hub;
 
-use App\Enums\AccessRole;
 use App\Models\Entity;
 use App\Models\EntityMember;
 use App\Models\Office;
@@ -33,10 +32,7 @@ use Throwable;
  */
 class HubVinculoSyncService
 {
-    public function __construct(
-        private readonly HubPapelMapper $papeis,
-        private readonly HubEstruturaSyncService $estrutura,
-    ) {}
+    public function __construct(private readonly HubEstruturaSyncService $estrutura) {}
 
     /**
      * Retrato completo: aplica todos os vínculos recebidos, desativa os que
@@ -47,9 +43,7 @@ class HubVinculoSyncService
     public function aplicar(User $user, array $vinculos): void
     {
         foreach ($vinculos as $vinculo) {
-            if (! $this->papeis->isRoot($this->texto($vinculo['papel'] ?? null))) {
-                $this->garantirEstrutura($user, $vinculo);
-            }
+            $this->garantirEstrutura($user, $vinculo);
         }
 
         DB::transaction(function () use ($user, $vinculos): void {
@@ -58,13 +52,6 @@ class HubVinculoSyncService
             $ignorados = 0;
 
             foreach ($vinculos as $vinculo) {
-                // Root não é vínculo (é conta local): o item é descartado sem
-                // contar como "não mapeado", para não travar a desativação
-                // dos ausentes.
-                if ($this->ehVinculoRoot($user, $vinculo)) {
-                    continue;
-                }
-
                 $aplicado = $this->escrever($user, $vinculo);
 
                 if ($aplicado === null) {
@@ -104,10 +91,6 @@ class HubVinculoSyncService
      */
     public function aplicarVinculo(User $user, array $vinculo): void
     {
-        if ($this->ehVinculoRoot($user, $vinculo)) {
-            return;
-        }
-
         $this->garantirEstrutura($user, $vinculo);
 
         DB::transaction(function () use ($user, $vinculo): void {
@@ -208,18 +191,15 @@ class HubVinculoSyncService
             }
         }
 
+        // O `papel` que o Hub ainda envia é ignorado: o vínculo só diz que a
+        // pessoa está vinculada. O que ela faz no gabinete é o cargo local.
         $ativo = $this->booleano($vinculo['ativo'] ?? true);
-        $papel = $this->texto($vinculo['papel'] ?? null);
-        $papelDeAcesso = $this->papeis->accessRole($papel);
 
         $this->escreverMembro(
             EntityMember::query()->firstOrNew([
                 'entidade_id' => $entidade->id,
                 'usuario_id' => $user->id,
             ]),
-            $gabinete !== null
-                ? $this->papeis->entidadeRoleDeUnidade($papelDeAcesso, $entidade)
-                : $papelDeAcesso,
             $ativo,
         );
 
@@ -229,7 +209,6 @@ class HubVinculoSyncService
                     'gabinete_id' => $gabinete->id,
                     'usuario_id' => $user->id,
                 ]),
-                $papelDeAcesso,
                 $ativo,
             );
         }
@@ -241,11 +220,33 @@ class HubVinculoSyncService
      * Um vínculo desativado e reativado depois preserva o `ingressou_em`
      * original — é a data de entrada da pessoa naquele contexto, não a data do
      * último evento que chegou.
+     *
+     * `gabinete_membros.cargo` é local do GAB: o Hub nunca o envia, e este
+     * método não pode escrevê-lo nem limpá-lo.
      */
-    private function escreverMembro(EntityMember|OfficeMember $membro, AccessRole $papel, bool $ativo): void
+    private function escreverMembro(EntityMember|OfficeMember $membro, bool $ativo): void
     {
+        // Reativar um vínculo cujo cargo de vereador/chefe já foi passado a
+        // outra pessoa ativa quebraria a regra de 1 por gabinete: o vínculo
+        // volta, mas sem esse cargo (única exceção a "o sync nunca mexe no
+        // cargo").
+        if ($membro instanceof OfficeMember && $ativo && ! $membro->ativo && $membro->exists
+            && $membro->cargo?->leadsOffice() === true
+            && OfficeMember::query()
+                ->where('gabinete_id', $membro->gabinete_id)
+                ->whereKeyNot($membro->getKey())
+                ->where('ativo', true)
+                ->where('cargo', $membro->cargo->value)
+                ->exists()) {
+            Log::warning('Vínculo reativado pelo Hub sem o cargo de liderança, já ocupado por outra pessoa.', [
+                'gabinete_id' => $membro->gabinete_id,
+                'usuario_id' => $membro->usuario_id,
+                'cargo' => $membro->cargo->value,
+            ]);
+            $membro->forceFill(['cargo' => null]);
+        }
+
         $membro->forceFill([
-            'papel' => $papel,
             'ativo' => $ativo,
             'ingressou_em' => $membro->ingressou_em ?? now(),
             'desativado_em' => $ativo ? null : ($membro->desativado_em ?? now()),
@@ -275,7 +276,7 @@ class HubVinculoSyncService
      * Projeta o vínculo principal nos campos herdados do modelo de "um usuário
      * por gabinete".
      *
-     * `users.role` e `users.gabinete_id` continuam sendo o que Policies, filas,
+     * `users.gabinete_id` continua sendo o que Policies, filas,
      * comandos e notificações leem fora de uma requisição com contexto
      * resolvido (ver `ResolveEntityContext`). Enquanto essa dívida existir,
      * eles precisam refletir algum vínculo real — e o critério é o mesmo da
@@ -303,28 +304,9 @@ class HubVinculoSyncService
             ->orderBy('id')
             ->first();
 
-        $user->forceFill([
-            'gabinete_id' => $principal?->gabinete_id,
-            'role' => $principal !== null
-                ? $this->papeis->userRole($principal->papel)
-                : $user->role,
-        ])->saveQuietly();
-    }
-
-    /** @param  array<string, mixed>  $vinculo */
-    private function ehVinculoRoot(User $user, array $vinculo): bool
-    {
-        if (! $this->papeis->isRoot($this->texto($vinculo['papel'] ?? null))) {
-            return false;
-        }
-
-        Log::warning('Vínculo do Hub ignorado: root é conta local do GAB, não papel de vínculo.', [
-            'usuario_id' => $user->id,
-            'hub_entidade_id' => $vinculo['entidade_id'] ?? null,
-            'hub_unidade_id' => $vinculo['unidade_id'] ?? null,
-        ]);
-
-        return true;
+        // `users.role` não é mais projetado: fora a marca de root, ele é
+        // inerte (o cargo local decide).
+        $user->forceFill(['gabinete_id' => $principal?->gabinete_id])->saveQuietly();
     }
 
     private function texto(mixed $valor): ?string

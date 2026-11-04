@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Actions\Appointments\SaveAppointment;
 use App\Actions\Demands\CompleteNextAction;
+use App\Authorization\OfficeAccess;
+use App\Authorization\OfficeCapability;
 use App\Enums\AppointmentRecurrence;
 use App\Enums\AppointmentStatus;
 use App\Enums\EntityModule;
@@ -164,7 +166,7 @@ class AppointmentController extends Controller
 
         return Inertia::render('appointments/index', [
             'appointments' => $agendaItems,
-            'canDelete' => app(OfficeContext::class)->roleFor($user)->isAdministrator(),
+            'canDelete' => app(OfficeAccess::class)->can($user, OfficeCapability::DeleteRecords),
             'filters' => $filters,
             'range' => [
                 'start' => $start->toIso8601String(),

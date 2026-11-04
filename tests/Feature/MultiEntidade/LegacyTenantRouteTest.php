@@ -98,6 +98,7 @@ class LegacyTenantRouteTest extends TestCase
             'gabinete_id' => $secondary->id,
             'usuario_id' => $user->id,
             'papel' => AccessRole::Operator,
+            'cargo' => 'ASSESSOR',
             'ativo' => true,
             'ingressou_em' => now(),
         ]);

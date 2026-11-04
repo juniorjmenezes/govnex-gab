@@ -15,6 +15,7 @@ import {
     PenIcon,
     PowerIcon,
     SettingsIcon,
+    ShieldUserIcon,
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
@@ -109,6 +110,9 @@ export default function Offices({ offices, filters, statuses }: Props) {
 
     const openDetails = (office: AdminOffice) => {
         router.get(`/admin/gabinetes/${office.id}`);
+    };
+    const openPositions = (office: AdminOffice) => {
+        router.get(`/admin/gabinetes/${office.id}/cargos`);
     };
     const openEdit = (office: AdminOffice) => {
         router.get(`/admin/gabinetes/${office.id}/editar`);
@@ -236,6 +240,14 @@ export default function Offices({ offices, filters, statuses }: Props) {
                                                 {office.responsible?.email ??
                                                     '—'}
                                             </EntityCellSubtitle>
+                                            {!office.has_positions && (
+                                                <Badge
+                                                    variant="warning"
+                                                    className="mt-1"
+                                                >
+                                                    Sem cargos
+                                                </Badge>
+                                            )}
                                         </td>
                                         <td className="px-3 py-3 text-right font-normal tabular-nums first:px-5 last:px-5">
                                             {office.demands_count.toLocaleString(
@@ -264,6 +276,15 @@ export default function Offices({ offices, filters, statuses }: Props) {
                                                     }
                                                 >
                                                     <EyeIcon aria-hidden="true" />
+                                                </TableActionButton>
+                                                <TableActionButton
+                                                    variant="outline"
+                                                    label={`Equipe e cargos de ${office.name}`}
+                                                    onClick={() =>
+                                                        openPositions(office)
+                                                    }
+                                                >
+                                                    <ShieldUserIcon aria-hidden="true" />
                                                 </TableActionButton>
                                                 <TableActionButton
                                                     variant="outline"
@@ -339,6 +360,9 @@ export default function Offices({ offices, filters, statuses }: Props) {
                                     Responsável:{' '}
                                     {office.responsible?.name ?? 'não definido'}
                                 </p>
+                                {!office.has_positions && (
+                                    <Badge variant="warning">Sem cargos</Badge>
+                                )}
                                 <div className="flex items-center justify-between gap-3 text-sm">
                                     <span>
                                         {office.demands_count.toLocaleString(
@@ -354,6 +378,13 @@ export default function Offices({ offices, filters, statuses }: Props) {
                                         onClick={() => openDetails(office)}
                                     >
                                         <EyeIcon aria-hidden="true" />
+                                    </TableActionButton>
+                                    <TableActionButton
+                                        variant="outline"
+                                        label={`Equipe e cargos de ${office.name}`}
+                                        onClick={() => openPositions(office)}
+                                    >
+                                        <ShieldUserIcon aria-hidden="true" />
                                     </TableActionButton>
                                     <TableActionButton
                                         variant="outline"

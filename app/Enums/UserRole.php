@@ -3,12 +3,10 @@
 namespace App\Enums;
 
 /**
- * Papel projetado em `users.role`.
- *
- * Root é a conta local da plataforma. Os demais são a projeção, por
- * requisição, do `AccessRole` do vínculo com o gabinete em contexto (ver
- * `ResolveEntityContext`); é o que as Policies leem. A ponte é dívida
- * registrada em `docs/ARCHITECTURE.md`.
+ * `users.role`. Só a marca de root (`isRoot()`) é lida: root é a conta local
+ * da plataforma, com poder total. Os demais valores são inertes — o GAB
+ * decide pelo cargo local (`OfficePosition`) — e saem na limpeza do schema
+ * (docs/INTEGRACAO_GOVNEX_HUB.md).
  */
 enum UserRole: string
 {

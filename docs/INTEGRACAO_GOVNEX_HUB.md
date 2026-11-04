@@ -41,7 +41,7 @@ Os vínculos têm `ativo`, `ingressou_em`, `desativado_em` e `criado_por`. Remov
 
 ### Como a autorização usa isso
 
-As rotas são `/entidades/{entidade}/gabinetes/{gabinete}/...`. O middleware `ResolveEntityContext` confere se há vínculo ativo e registra o gabinete da URL no `OfficeContext`, sem gravar nada na conta. Policies, controllers e Form Requests leem dali o gabinete (`officeIdFor()`) e o papel do vínculo com esse gabinete (`roleFor()`, 1:1: `ADMINISTRADOR` → `administrador`, `OPERADOR` → `operador`, `AUDITOR` → `auditor`; `root` não muda). Papel `auditor` no gabinete da URL recebe 403 em qualquer escrita dentro do contexto. O isolamento de dados usa o mesmo `OfficeContext`. Detalhes em [ARCHITECTURE.md](ARCHITECTURE.md#gabinete-e-papel-da-requisicao).
+As rotas são `/entidades/{entidade}/gabinetes/{gabinete}/...`. O middleware `ResolveEntityContext` confere se há vínculo ativo **com cargo** e registra o gabinete da URL no `OfficeContext`, sem gravar nada na conta. Policies, controllers e Form Requests leem dali o gabinete (`officeIdFor()`) e o cargo do vínculo com esse gabinete (`positionFor()`), e decidem por `OfficeAccess` (ver "Cargos locais" abaixo). Desde 04/11/2026 o papel do Hub não é lido. Cargo `AUDITOR` no gabinete da URL recebe 403 em qualquer escrita dentro do contexto. O isolamento de dados usa o mesmo `OfficeContext`. Detalhes em [ARCHITECTURE.md](ARCHITECTURE.md#gabinete-e-cargo-da-requisicao).
 
 A entrada após o login (`/dashboard`) usa `users.gabinete_id` enquanto a pessoa tiver acesso a esse gabinete; senão, o vínculo ativo mais antigo; sem nenhum, o diretório de entidades (`RedirectLegacyTenantRoute`).
 
@@ -207,6 +207,40 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    como acesso de emergência; `/settings/security` (senha, 2FA, passkeys) ficou
    restrita a `root` e redireciona os demais para o painel.
 
+   **Contingência (04/11/2026, PLATFORM.md §4).** O acesso local do root
+   (senha + 2FA, ou passkey) passou a depender de `GAB_ROOT_LOGIN_ENABLED`
+   (`config/govnexgab.php`, padrão `false`; regra em `App\Auth\LocalRootLogin`):
+
+   | Hub configurado (`HUB_BASE_URL` + `HUB_OIDC_CLIENT_ID` + `HUB_OIDC_CLIENT_SECRET`) | Flag | Acesso local do root |
+   |---|---|---|
+   | não | qualquer | **liga** — ambiente novo não tem outra porta de entrada |
+   | sim | `false` (padrão do código) | **desligado**: o botão "Acesso local de emergência" some e o `POST /login` é recusado com a mensagem genérica de credenciais (não revela se a conta existe); passkey também recusa |
+   | sim | `true` (**produção**, ver abaixo) | liga, só para root ativo |
+
+   **Decisão do proprietário (04/11/2026): a equipe GOVNEX faz todos os
+   cadastros e administra o GAB pelo root local, sem SSO — no dia a dia e em
+   emergência.** Por isso, em produção, `GAB_ROOT_LOGIN_ENABLED=true` (ver
+   `.env.production.example`); o padrão do código continua `false` (ambiente
+   sem a variável fica fechado). **Recomendado, pendente:** exigir 2FA ou
+   passkey em toda conta root de produção (hoje é opcional, em
+   `/settings/security`).
+
+   - Não-root nunca entra por senha nem por passkey.
+   - Limite: 5 tentativas por minuto por e-mail + IP (limiter `login` do
+     Fortify); a 6ª recebe 429.
+   - Auditoria reforçada: toda tentativa contra conta root grava
+     `ROOT_LOGIN_LOCAL` em `contexto_acesso_eventos` (`resultado`
+     `PERMITIDO`/`NEGADO`, `administrador_plataforma = true`, `contexto` com
+     `contingencia: true`, `motivo` — `sucesso`, `credenciais_invalidas`,
+     `bloqueado_por_tentativas`, `desligado_por_flag`, `conta_inativa` —,
+     `metodo`, estado da flag e do Hub) e um `Log::warning`. A senha nunca é
+     registrada; IP e user agent só como HMAC.
+   - **Ligar/desligar:** no servidor, ajuste `GAB_ROOT_LOGIN_ENABLED` e rode
+     `php artisan config:cache` (ou reinicie os containers que leem o
+     `.env`). Em produção ela fica `true`; desligue só se a decisão mudar
+     (ex.: root deixar de ser o caminho de administração). Confira as
+     tentativas em `contexto_acesso_eventos` (`evento = 'ROOT_LOGIN_LOCAL'`).
+
    **Variáveis de ambiente** (ver `.env.example` e `config/services.php`, chave
    `services.hub`). Sem `HUB_BASE_URL` + `HUB_OIDC_CLIENT_ID` +
    `HUB_OIDC_CLIENT_SECRET` preenchidos, a tela de login nem oferece o botão do
@@ -222,6 +256,9 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    | `HUB_API_SECRET` | `sistemas.client_secret` do Sistema GAB no Hub | Duplo papel: `Bearer` na leitura de `/api/v1/*` e chave HMAC que valida o webhook. |
    | `HUB_TIMEOUT` | opcional, 15 | Timeout das chamadas ao Hub. |
    | `HUB_WEBHOOK_WINDOW_SECONDS` | opcional, 300 | Tolerância do `X-Hub-Timestamp`. |
+   | `HUB_WEBHOOK_MAX_ATTEMPTS` | opcional, 5 | Teto de tentativas de um evento com falha nossa. |
+   | `HUB_WEBHOOK_RETENTION_DAYS` | opcional, 30 | Retenção dos eventos `PROCESSADO`. |
+   | `HUB_WEBHOOK_FAILED_RETENTION_DAYS` | opcional, 90 | Retenção dos eventos `FALHA_PERMANENTE`. |
 
    **Peças.** `app/Services/Hub/`: `HubSocialiteProvider` (driver `hub` do
    Socialite, registrado em `AppServiceProvider`; sem `nonce`, perfil pelo
@@ -230,11 +267,49 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    (casa a conta por `hub_user_id` e, na falta dele, por e-mail — a carga
    inicial da decisão #7 acontecendo no primeiro acesso —, ou cria),
    `HubVinculoSyncService` (escreve `entidade_membros`/`gabinete_membros` e
-   reprojeta `users.role`/`users.gabinete_id`), `HubPapelMapper` (traduz o
-   `papel` opaco para `AccessRole`, decisão #5), `HubCallbackSignatureValidator`
+   reprojeta `users.gabinete_id`; desde 04/11/2026 ignora o `papel` — o
+   `HubPapelMapper` foi removido), `HubCallbackSignatureValidator`
    e `HubEventProcessor`. Controllers: `Auth/HubAuthController` e
    `Api/HubCallbackController`. Colunas de ponte: `users.hub_user_id` (já
    existia), `entidades.hub_entidade_id` e `gabinetes.hub_unidade_id`.
+
+   **Caixa de entrada do webhook (04/11/2026, PLATFORM.md §5).** A
+   idempotência deixou de ser `Cache::add` e passou para a tabela
+   `hub_webhook_eventos` (`App\Models\HubWebhookEvent`, lógica em
+   `HubWebhookInbox`), com `evento_id` (o `id` do Hub) **único**. A assinatura e
+   o formato continuam sendo conferidos antes — nada é gravado com assinatura
+   ou payload inválidos (401/422). O processamento continua síncrono pelo
+   `HubEventProcessor`, e o contrato com o Hub não mudou:
+
+   | Situação | Status na tabela | Resposta |
+   |---|---|---|
+   | Processado (inclui `*_ignorada`, com o motivo em `resultado`) | `PROCESSADO` | 200 com o resultado |
+   | Payload inaplicável (`RuntimeException`) | `FALHA_PERMANENTE` | 409 |
+   | Falha nossa | `FALHA_TRANSITORIA` (backoff `min(2^tentativas, 60)` min) ou `FALHA_PERMANENTE` ao atingir o teto | 500 |
+   | Reentrega de `PROCESSADO`/`FALHA_PERMANENTE`, ou com outra entrega processando | inalterado | 200 `{ok, duplicado: true}` |
+   | Reentrega de `FALHA_TRANSITORIA`/`RECEBIDO` | reprocessa (`tentativas + 1`) | conforme o resultado |
+
+   Concorrência: a gravação é `INSERT` com ignore no UNIQUE, e a retomada de
+   uma linha existente é um `UPDATE` condicional ao status — duas entregas do
+   mesmo `id` nunca processam juntas. `ultimo_erro` guarda a mensagem do 409
+   (a mesma devolvida ao Hub) ou só a classe da exceção no 500; o detalhe vai
+   para o `report()`. O `payload` (evento validado, com dados pessoais) é
+   guardado para o reprocesso e nunca é logado.
+
+   - `php artisan hub:reprocessar-webhooks` (agendado a cada 5 minutos,
+     `withoutOverlapping`): reprocessa `FALHA_TRANSITORIA` com a próxima
+     tentativa vencida, `RECEBIDO` esquecido há mais de 5 minutos e
+     `PROCESSANDO` preso há mais de 15, sempre abaixo do teto. `--id=<uuid>`
+     reprocessa um evento específico, inclusive `FALHA_PERMANENTE`;
+     `--dry-run` só lista.
+   - `php artisan hub:limpar-webhooks` (diário, 03:50): apaga `PROCESSADO` com
+     mais de `HUB_WEBHOOK_RETENTION_DAYS` e `FALHA_PERMANENTE` parados há mais
+     de `HUB_WEBHOOK_FAILED_RETENTION_DAYS`; pendentes e falhas temporárias
+     ficam. Depois da limpeza, uma reentrega do mesmo `id` seria processada de
+     novo — o Hub não reenvia avisos tão antigos, e o retrato é idempotente.
+   - Reprocessar um aviso antigo pode reaplicar um retrato mais velho que o
+     atual (eventos de estrutura já descartam por `atualizado_em`; de pessoa e
+     vínculo, não). Use `--id` com isso em mente.
 
    **Duas regras que valem para quem replicar.** Retrato, não diferença: o login
    aplica a lista completa e desativa o que não veio; o webhook mexe só no
@@ -417,7 +492,9 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
 4. **Corte:** ✅ **concluído em 24/09/2026 no que depende só de código.** Login local do GAB já recusa quem não é `root` desde a fase 2 (decisão #2); SSO pelo Hub é o caminho normal. Telas de gestão de usuários do GAB passaram a somente leitura: `TeamController`/`UserPolicy` (equipe do gabinete) e `EntidadeInvitationController::store` (convite novo) retornam 403 com "Gerenciado no Govnex Hub — altere lá" (`HubManagedHint`); convites pendentes anteriores ao corte ainda podem ser aceitos (`EntidadeInvitationAcceptController`, não tocado). Sessões já abertas continuam até expirar se o Hub cair (decisão #10); root continua local (decisão #6), fora desse corte. Falta só a decisão de produção sobre desligar senha/2FA/passkeys locais dos não-root (passo 5).
 5. **Limpeza:** remover senha, 2FA e passkeys locais do GAB e `users.role` como dado editável. ✅ Em 28/10/2026 saiu a projeção do contexto em `users.gabinete_id`/`users.role` durante a requisição (`ResolveEntityContext`): Policies, controllers, Form Requests e middlewares passaram a ler gabinete e papel do `OfficeContext`. As rotas sem prefixo continuam, de propósito: `RedirectLegacyTenantRoute` é a entrada após o login e trata links antigos, e lê `users.gabinete_id` como gabinete de origem da conta (assim como `EnsureOfficeIsActive` nessas rotas e o gabinete padrão do `HandleInertiaRequests` em telas sem gabinete). As colunas ficam até os consumidores fora de requisição (filas, comandos, notificações) consultarem os vínculos.
 
-## Vocabulário de papéis (decisão #5, fechada em 23/09/2026)
+## Vocabulário de papéis (decisão #5, fechada em 23/09/2026 — superada em 04/11/2026)
+
+> **Superada:** o Hub não tem mais papéis; o GAB ignora o `papel` recebido e decide pelo cargo local (ver "Cargos locais"). O texto abaixo é histórico.
 
 Quatro níveis, iguais em todos os produtos do ecossistema:
 
@@ -458,6 +535,114 @@ Mapeamento para os papéis antigos:
 | GRI (quando integrado) | `risk_management`, `unit_manager`, `risk_owner`, `collaborator` | operador (as funções viram atribuições no GRI) |
 | GPC (quando integrado) | `administrator` | administrador |
 | GPC (quando integrado) | `analyst` | operador; auditor para revisores só de leitura |
+
+## Cargos locais
+
+**Decisão (04/11/2026): o Hub é só vínculo e autenticação. Não há papéis do
+Hub; cada sistema controla os seus.** O GAB deixou de depender do papel do Hub
+por completo: o campo `papel` ainda chega no login e no webhook (o Hub ainda o
+envia), mas é **ignorado** — vínculo ativo significa só "está vinculado". Não
+há mais pontes de transição.
+
+- **Cargo = local do GAB**, em `gabinete_membros.cargo`
+  (`App\Enums\OfficePosition`: `VEREADOR`, `CHEFE_GABINETE`, `SECRETARIO`,
+  `ASSESSOR`, `AUDITOR`). O Hub não o envia, e o `HubVinculoSyncService`
+  nunca o escreve nem o limpa — nem ao encerrar e reativar o vínculo.
+- **Cargo por tipo de gabinete** (`OfficePosition::allowedFor()`, único mapa,
+  validado no backend): gabinete parlamentar e gabinete independente →
+  vereador, chefe de gabinete, assessor; Secretaria legislativa → secretário,
+  assessor; `AUDITOR` em **todos** os tipos (único cargo dos demais, por ora).
+- **Decisão num ponto só**: `App\Authorization\OfficeAccess::can($user, OfficeCapability)`,
+  só pelo cargo. As Policies e os `canDelete` dos controllers consultam
+  capacidades nomeadas (`writeRecords`, `deleteRecords`, `reassignDemands`,
+  `exportReports`, `configureOffice`, `manageTeam` e três do módulo Secretaria
+  legislativa). A interface recebe o mesmo mapa em `auth.permissions`; em
+  `auth.user.role` só vai a marca `root`/`membro`.
+- **Matriz.** Root: poder total em qualquer gabinete. Vereador e chefe de
+  gabinete: tudo, iguais (inclusive Equipe e atribuição de cargos). Assessor:
+  lê tudo, cria e altera; não exclui, não redistribui demandas (trocar
+  responsável já definido; atribuir o primeiro pode), não abre Relatórios,
+  não configura, não vê a Equipe. Secretário: só o módulo Secretaria
+  legislativa; fora dele só lê (**pendente**). Auditor: somente leitura — o
+  `ResolveEntityContext` recusa escrita e as Policies negam.
+- **Falha fechada sem cargo.** Vínculo ativo sem cargo não tem capacidade
+  nenhuma e **não entra no gabinete** (`User::canAccessGabinete()` exige
+  cargo): a entrada pós-login cai no diretório da entidade, como quem não tem
+  gabinete, e a rota do gabinete responde 403. A Equipe mostra "Sem cargo" e
+  orienta a pedir ao vereador/chefe de gabinete ou ao operador do sistema.
+- **Gestão da entidade** (`User::canManageEntidade()`: transferências,
+  módulos, convites legados): root ou, em gabinete independente, quem lidera o
+  gabinete dela pelo cargo. Câmara e Prefeitura ainda não têm cargo de
+  entidade — só root (**pendente**).
+- **Unicidade (decisão do proprietário, 04/11/2026):** no máximo **1
+  vereador e 1 chefe de gabinete ativos** por gabinete; assessor, auditor e
+  secretário são ilimitados; vínculo inativo com o cargo não conta. Vale em
+  todos os caminhos (Equipe, Administração do root, `gab:cargo-conceder`),
+  porque todos gravam pelo `OfficePositionAssigner`, que confere com
+  `lockForUpdate` sobre os membros do gabinete. Rede de segurança no banco:
+  coluna gerada `gabinete_membros.cargo_lider_ativo` (só tem valor para
+  vereador/chefe em vínculo ativo) com índice único por gabinete. Recusa com
+  "Este gabinete já tem um vereador ativo (Nome). Remova ou altere o cargo
+  dele antes." (idem chefe). Na Administração, o root pode marcar
+  **Substituir**: retira o cargo do atual e atribui ao novo numa só operação,
+  com um motivo e uma auditoria (`contexto.substituido_id`). Se o Hub reativar
+  um vínculo cujo cargo de liderança já é de outra pessoa ativa, o vínculo
+  volta **sem** esse cargo (log de aviso) — única exceção a "o sync nunca
+  mexe no cargo".
+- **Proteções da Equipe** (não valem para root nem para o comando de
+  operador): ninguém atribui, altera ou remove o **próprio** cargo; só root
+  atribui, altera ou remove o cargo de **vereador** (vereador e chefe
+  gerenciam chefe, assessor, secretário e auditor; o seletor nem oferece
+  vereador); e ninguém deixa o gabinete **sem nenhum** vereador/chefe ativo.
+- **Quem atribui cargo**: root ou quem tem cargo de vereador/chefe de gabinete
+  no gabinete, na Equipe (`PUT equipe/{usuario}/cargo`), com as proteções
+  acima. Cada mudança grava
+  `CARGO_ALTERADO` em `contexto_acesso_eventos` (`contexto`: `membro_id`,
+  `de`, `para`). Pessoas e vínculos continuam só no Hub.
+
+**Partida (primeiro cargo do gabinete) em tela, só root.** Em Administração →
+Gabinetes, o botão "Equipe e cargos" (`/admin/gabinetes/{id}/cargos`,
+`Admin\OfficePositionController`) lista os integrantes vinculados ao gabinete
+(espelho do Hub, inclusive quem ainda não entrou: nome, e-mail, situação do
+vínculo, cargo ou "Sem cargo") e deixa o root conceder, trocar ou retirar o
+cargo de qualquer um, sem depender de já existir vereador/chefe no gabinete.
+Regra em `OfficeAccess::canManagePositionsOnPlatform()` (só root); cargos
+limitados a `OfficePosition::allowedFor()`; **motivo obrigatório**; grava
+`CARGO_CONCEDIDO_POR_OPERADOR` com `usuario_id` = o root e `contexto` =
+`membro_id`, `de`, `para`, `origem: tela_administracao`, `ator: root`,
+`motivo`; idempotente. A lista de gabinetes marca com "Sem cargos" os que ainda
+não têm nenhum integrante ativo com cargo. A tela não cria, edita nem remove
+pessoas ou vínculos (isso é do Hub). A gravação é a mesma da Equipe e do
+comando (`App\Services\Offices\OfficePositionAssigner`).
+
+**Partida por comando (contingência).** Quem opera o servidor também concede
+com `gab:cargo-conceder` (PLATFORM.md §3.1, padrão do
+`gho:gestor-acesso-conceder`). Exige pessoa ativa com `hub_user_id`, gabinete
+identificado pelo **id da unidade no Hub** (`gabinetes.hub_unidade_id`, o mesmo
+sistema de identificadores da pessoa), vínculo ativo, cargo permitido ao tipo
+do gabinete e `--motivo`; recusa root; é idempotente (cargo igual não grava
+nada). Grava `CARGO_CONCEDIDO_POR_OPERADOR` em `contexto_acesso_eventos` com
+`usuario_id` nulo e `contexto` = `membro_id`, `de`, `para`, `origem`,
+`ator: sistema`, `motivo`. Aceita qualquer cargo permitido ao tipo, mas o uso esperado
+é VEREADOR ou CHEFE_GABINETE; os demais são atribuídos depois pela Equipe.
+
+```bash
+php artisan gab:cargo-conceder 42 12 CHEFE_GABINETE --motivo="Partida do gabinete — chamado #123"
+```
+
+**Colunas inertes (limpeza pendente do schema).** `gabinete_membros.papel` e
+`entidade_membros.papel` ficaram nullable e não são lidas (o sync do Hub grava
+`null`; convites e a sincronização legada de contas criadas no GAB ainda
+gravam valores, sem efeito); `entidade_convites.papel_*` idem; em
+`users.role` só a marca `root` é lida. `App\Enums\AccessRole` e os valores
+não-root de `UserRole` existem só para essas colunas.
+
+**Passos restantes.** O Hub parar de enviar `papel` (claims, API de leitura e
+webhook) — o GAB já ignora; remover as colunas inertes acima (trocar
+`users.role` por um `is_root`); cargo de entidade para Câmara/Prefeitura;
+poderes do secretário fora do módulo; cargos próprios para gabinete do
+prefeito, secretaria e setor administrativo; GRI, GPC e demais produtos
+adotarem o mesmo modelo (cargo/perfil local, Hub só vínculo).
 
 ## Até a integração
 

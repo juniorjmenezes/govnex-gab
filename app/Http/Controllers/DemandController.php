@@ -11,6 +11,8 @@ use App\Actions\Demands\SetNextAction;
 use App\Actions\Demands\ToggleDemandFavorite;
 use App\Actions\Demands\TransitionDemandStatus;
 use App\Actions\Demands\UpdateDemand;
+use App\Authorization\OfficeAccess;
+use App\Authorization\OfficeCapability;
 use App\Enums\DemandEventType;
 use App\Enums\DemandOrigin;
 use App\Enums\DemandPriority;
@@ -117,7 +119,7 @@ class DemandController extends Controller
 
         return Inertia::render('demands/index', [
             'demands' => $demands,
-            'canDelete' => app(OfficeContext::class)->roleFor($user)->isAdministrator(),
+            'canDelete' => app(OfficeAccess::class)->can($user, OfficeCapability::DeleteRecords),
             'filters' => $filters,
             'tabCounts' => $this->tabCounts($user),
             'options' => $this->filterOptions(),

@@ -3,8 +3,13 @@
 namespace App\Enums;
 
 /**
- * Papel de acesso de um vínculo (entidade ou gabinete) — o vocabulário único
- * do ecossistema Govnex, o mesmo que o Hub envia em `Vinculo.papel`.
+ * LEGADO, não decide nada: o GAB não lê mais papel do Hub (o cargo local,
+ * `OfficePosition`, é a autorização). Sobrevive só porque convites antigos e
+ * a sincronização legada ainda gravam as colunas inertes `papel`; sai na
+ * limpeza do schema (docs/INTEGRACAO_GOVNEX_HUB.md).
+ *
+ * Papel de acesso de um vínculo (entidade ou gabinete) — o vocabulário que o
+ * Hub ainda envia em `Vinculo.papel`.
  *
  * Root não aparece aqui: é conta local de emergência (`UserRole::Root`), nunca
  * vínculo. Funções de negócio (vereador, chefe de gabinete, líder) não são

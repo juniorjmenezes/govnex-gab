@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Authorization\OfficeAccess;
+use App\Authorization\OfficeCapability;
 use App\Enums\EventDuration;
 use App\Enums\EventStatus;
 use App\Enums\EventType;
@@ -304,6 +306,6 @@ class EventController extends Controller
 
     private function canDelete(Request $request): bool
     {
-        return app(OfficeContext::class)->roleFor($request->user())->isAdministrator();
+        return app(OfficeAccess::class)->can($request->user(), OfficeCapability::DeleteRecords);
     }
 }

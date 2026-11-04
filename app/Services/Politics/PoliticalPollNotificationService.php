@@ -3,9 +3,10 @@
 namespace App\Services\Politics;
 
 use App\Enums\OfficeModule;
-use App\Enums\UserRole;
+use App\Enums\OfficePosition;
 use App\Models\ElectoralPoll;
 use App\Models\FavoriteCandidate;
+use App\Models\OfficeMember;
 use App\Models\User;
 use App\Notifications\PoliticalPollPublishedNotification;
 use App\Services\Modules\OfficeModuleManager;
@@ -45,12 +46,16 @@ class PoliticalPollNotificationService
             return 0;
         }
 
-        $recipients = User::query()
+        // Quem lidera o gabinete pelo cargo local (vereador ou chefe de gabinete).
+        $recipients = OfficeMember::query()
             ->whereIn('gabinete_id', $favoritesByOffice->keys())
-            ->where('role', UserRole::Administrator)
-            ->where('is_active', true)
+            ->where('ativo', true)
+            ->whereIn('cargo', [OfficePosition::Councilor->value, OfficePosition::ChiefOfStaff->value])
+            ->whereHas('usuario', fn ($query) => $query->where('is_active', true))
+            ->with('usuario')
             ->get()
-            ->groupBy('gabinete_id');
+            ->groupBy('gabinete_id')
+            ->map(fn (Collection $memberships): Collection => $memberships->map(fn (OfficeMember $membership): User => $membership->usuario));
         $sent = 0;
 
         foreach ($favoritesByOffice as $officeId => $favorites) {

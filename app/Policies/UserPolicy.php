@@ -2,16 +2,21 @@
 
 namespace App\Policies;
 
+use App\Authorization\OfficeAccess;
+use App\Authorization\OfficeCapability;
 use App\Models\User;
 use App\Tenancy\OfficeContext;
 
 class UserPolicy
 {
-    public function __construct(private readonly OfficeContext $context) {}
+    public function __construct(
+        private readonly OfficeContext $context,
+        private readonly OfficeAccess $access,
+    ) {}
 
     public function viewAny(User $user): bool
     {
-        return $user->isRoot() || $this->context->roleFor($user)->canManageTeam();
+        return $user->isRoot() || $this->access->can($user, OfficeCapability::ManageTeam);
     }
 
     public function view(User $user, User $target): bool

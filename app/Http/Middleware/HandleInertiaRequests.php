@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Authorization\OfficeAccess;
 use App\Services\Modules\EntityModuleManager;
 use App\Services\Modules\OfficeModuleManager;
 use App\Tenancy\EntityContext;
@@ -66,15 +67,23 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                // Papel e gabinete em que a pessoa atua nesta requisição: o
-                // cadastro da conta (`users.role`/`users.gabinete_id`) não
+                // Gabinete em que a pessoa atua nesta requisição: o
+                // cadastro da conta (`users.gabinete_id`) não
                 // acompanha o contexto da URL. Resolvido na renderização para
                 // incluir relações carregadas pelo controller.
                 'user' => fn (): ?array => $user ? [
                     ...$user->toArray(),
-                    'role' => $gabineteContext->roleFor($user)->value,
+                    // Só a marca de root interessa à interface; o resto
+                    // vem de `permissions` (cargo).
+                    'role' => $user->isRoot() ? 'root' : 'membro',
                     'gabinete_id' => $gabineteContext->officeIdFor($user),
                 ] : null,
+                // Capacidades no gabinete em que atua (cargo local ou, sem
+                // cargo, papel do vínculo). Só para esconder controles: as
+                // Policies seguem como autoridade.
+                'permissions' => fn (): ?array => $user
+                    ? app(OfficeAccess::class)->capabilitiesFor($user)
+                    : null,
                 'modules' => isset($gabinete)
                     ? app(OfficeModuleManager::class)->activeFor($gabinete)
                     : [],

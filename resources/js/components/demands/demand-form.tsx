@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import type { Control, FieldPath } from 'react-hook-form';
@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
 import { Textarea } from '@/components/ui/textarea';
 import { useTenantUrl } from '@/hooks/use-tenant-url';
-import type { Demand, DemandOptions, OfficeLocation } from '@/types';
+import type { Auth, Demand, DemandOptions, OfficeLocation } from '@/types';
 
 const schema = z
     .object({
@@ -78,6 +78,12 @@ export function DemandForm({
     officeLocation?: OfficeLocation;
 }) {
     const tenantUrl = useTenantUrl();
+    const { auth } = usePage<{ auth: Auth }>().props;
+    // Redistribuir (trocar o responsável já definido) é capacidade própria —
+    // o servidor (`DemandPolicy::reassign`) segue como autoridade.
+    const responsibleLocked =
+        Boolean(demand?.responsavel_id) &&
+        auth.permissions?.reassignDemands === false;
     const deadline = dateTimeParts(demand?.prazo);
     const {
         control,
@@ -271,6 +277,7 @@ export function DemandForm({
                             value: item.id.toString(),
                             label: item.name,
                         }))}
+                        disabled={responsibleLocked}
                     />
                     <div className="grid gap-4 sm:grid-cols-2 md:col-span-2">
                         <div className="space-y-1">
@@ -388,6 +395,7 @@ function SelectField({
     error,
     required = false,
     startAdornment,
+    disabled = false,
 }: {
     id: string;
     label: string;
@@ -397,6 +405,7 @@ function SelectField({
     error?: string;
     required?: boolean;
     startAdornment?: ReactNode;
+    disabled?: boolean;
 }) {
     return (
         <div className="space-y-1">
@@ -416,6 +425,7 @@ function SelectField({
                         emptyLabel={required ? undefined : 'Não informado'}
                         aria-invalid={Boolean(error)}
                         startAdornment={startAdornment}
+                        disabled={disabled}
                     />
                 )}
             />

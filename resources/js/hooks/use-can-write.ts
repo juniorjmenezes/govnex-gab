@@ -2,11 +2,12 @@ import { usePage } from '@inertiajs/react';
 import type { Auth } from '@/types';
 
 /**
- * Perfil auditor é somente leitura. Só esconde controles: o servidor
- * (`ResolveEntidadeContext` + Policies `canWrite`) segue como autoridade.
+ * Pode criar e alterar registros do gabinete (pelo cargo local; auditor e
+ * quem não tem cargo nunca). Só esconde controles: o servidor
+ * (`ResolveEntityContext` + Policies via `OfficeAccess`) segue como autoridade.
  */
 export function useCanWrite(): boolean {
     const { auth } = usePage<{ auth: Auth }>().props;
 
-    return auth.user?.role !== 'auditor';
+    return auth.permissions?.writeRecords ?? false;
 }

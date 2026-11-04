@@ -1,6 +1,10 @@
 import type { GabineteModuleCode } from './modules';
 
-export type UserRole = 'root' | 'administrador' | 'operador' | 'auditor';
+/**
+ * Só a marca de root interessa à interface; o que a pessoa pode fazer vem de
+ * `Auth.permissions` (cargo local).
+ */
+export type UserRole = 'root' | 'membro';
 
 export type EntidadeModuleCode = GabineteModuleCode;
 
@@ -33,8 +37,26 @@ export type User = {
     [key: string]: unknown;
 };
 
+/**
+ * Capacidades no gabinete em que a pessoa atua — espelha
+ * `App\Authorization\OfficeAccess::capabilitiesFor()`. Só esconde controles.
+ */
+export type OfficePermissions = {
+    writeRecords: boolean;
+    deleteRecords: boolean;
+    reassignDemands: boolean;
+    exportReports: boolean;
+    configureOffice: boolean;
+    manageTeam: boolean;
+    writeLegislativeSecretariat: boolean;
+    deleteLegislativeSecretariat: boolean;
+    moderateLegislativeSecretariat: boolean;
+    assignPositions: boolean;
+};
+
 export type Auth = {
     user: User;
+    permissions?: OfficePermissions | null;
     modules: GabineteModuleCode[];
     entidade_modules: EntidadeModuleCode[];
     context: {

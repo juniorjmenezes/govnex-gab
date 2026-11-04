@@ -2,7 +2,8 @@
 
 namespace App\Models;
 
-use App\Enums\AccessRole;
+use App\Enums\EntityType;
+use App\Enums\OfficePosition;
 use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -63,49 +64,62 @@ class User extends Authenticatable implements PasskeyUser
         return $this->hasMany(OfficeMember::class, 'usuario_id');
     }
 
-    public function entidadeRole(int $entidadeId): ?AccessRole
+    /** Cargo local do vínculo ativo com `$gabineteId`, ou `null` sem cargo. */
+    public function gabinetePosition(int $gabineteId): ?OfficePosition
     {
-        $role = $this->entidades()
-            ->where('entidade_id', $entidadeId)
-            ->where('ativo', true)
-            ->value('papel');
-
-        return $role instanceof AccessRole
-            ? $role
-            : (is_string($role) ? AccessRole::tryFrom($role) : null);
-    }
-
-    public function gabineteRole(int $gabineteId): ?AccessRole
-    {
-        $role = $this->gabinetes()
+        $position = $this->gabinetes()
             ->where('gabinete_id', $gabineteId)
             ->where('ativo', true)
-            ->value('papel');
+            ->value('cargo');
 
-        return $role instanceof AccessRole
-            ? $role
-            : (is_string($role) ? AccessRole::tryFrom($role) : null);
+        return $position instanceof OfficePosition
+            ? $position
+            : (is_string($position) ? OfficePosition::tryFrom($position) : null);
     }
 
+    /** Vínculo ativo com a entidade (o Hub só diz "está vinculado"). */
     public function canAccessEntidade(int $entidadeId): bool
     {
-        return $this->isRoot() || $this->entidadeRole($entidadeId) !== null;
+        return $this->isRoot() || $this->entidades()
+            ->where('entidade_id', $entidadeId)
+            ->where('ativo', true)
+            ->exists();
     }
 
+    /**
+     * Entra no gabinete quem tem vínculo ativo **com cargo** (falha fechada):
+     * vínculo sem cargo vê o diretório da entidade, mas não os dados do
+     * gabinete, até alguém atribuir o cargo.
+     */
     public function canAccessGabinete(int $gabineteId): bool
     {
-        return $this->isRoot() || $this->gabineteRole($gabineteId) !== null;
+        return $this->isRoot() || $this->gabinetePosition($gabineteId) !== null;
     }
 
+    /**
+     * Administra a entidade: root ou, em gabinete independente (a entidade
+     * existe só por causa dele), quem lidera o gabinete dela (vereador ou
+     * chefe de gabinete). Câmara e Prefeitura ainda não têm cargo de
+     * entidade: só root (pendente em docs/INTEGRACAO_GOVNEX_HUB.md).
+     */
     public function canManageEntidade(int $entidadeId): bool
     {
-        return $this->isRoot()
-            || $this->entidadeRole($entidadeId)?->canManage() === true;
+        if ($this->isRoot()) {
+            return true;
+        }
+
+        return Entity::query()->whereKey($entidadeId)->where('tipo', EntityType::IndependentOffice->value)->exists()
+            && $this->gabinetes()
+                ->where('ativo', true)
+                ->whereIn('cargo', [OfficePosition::Councilor->value, OfficePosition::ChiefOfStaff->value])
+                ->whereIn('gabinete_id', fn ($query) => $query->select('id')->from('gabinetes')->where('entidade_id', $entidadeId))
+                ->exists();
     }
 
+    /** Lidera o gabinete pelo cargo (vereador ou chefe de gabinete), ou é root. */
     public function canManageGabinete(int $gabineteId): bool
     {
-        return $this->isRoot() || $this->gabineteRole($gabineteId)?->canManage() === true;
+        return $this->isRoot() || $this->gabinetePosition($gabineteId)?->leadsOffice() === true;
     }
 
     /** @return HasMany<Demand, $this> */

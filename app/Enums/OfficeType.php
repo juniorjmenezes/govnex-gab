@@ -11,8 +11,8 @@ enum OfficeType: string
     case AdministrativeDepartment = 'SETOR_ADMINISTRATIVO';
     /**
      * Unidade da Câmara que coordena recursos compartilhados entre os
-     * gabinetes de vereador (uma por Câmara). O titular é rótulo de função,
-     * não papel de acesso: continua `AccessRole::Administrator` do gabinete.
+     * gabinetes de vereador (uma por Câmara). O titular recebe o cargo local
+     * `SECRETARIO` (`OfficePosition`).
      */
     case LegislativeSecretariat = 'SECRETARIA_LEGISLATIVA';
 

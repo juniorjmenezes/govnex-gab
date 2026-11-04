@@ -23,6 +23,7 @@ class TeamMembershipTest extends TestCase
             'gabinete_id' => $office->id,
             'usuario_id' => $member->id,
             'papel' => AccessRole::Operator,
+            'cargo' => 'ASSESSOR',
             'ativo' => true,
             'ingressou_em' => now(),
         ]);
@@ -37,7 +38,7 @@ class TeamMembershipTest extends TestCase
                 ->component('team/index')
                 ->where('members', fn ($members) => collect($members)
                     ->contains(fn (array $item): bool => $item['id'] === $member->id
-                        && $item['role'] === AccessRole::Operator->value)));
+                        && $item['position'] === 'ASSESSOR')));
     }
 
     public function test_removing_office_access_is_blocked_now_that_links_are_managed_in_the_hub(): void
@@ -50,6 +51,7 @@ class TeamMembershipTest extends TestCase
             'gabinete_id' => $office->id,
             'usuario_id' => $member->id,
             'papel' => AccessRole::Operator,
+            'cargo' => 'ASSESSOR',
             'ativo' => true,
             'ingressou_em' => now(),
         ]);
