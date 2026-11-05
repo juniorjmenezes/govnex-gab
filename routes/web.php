@@ -171,11 +171,11 @@ Route::middleware(['auth', 'verified', 'user.active'])->group(function () {
             ->name('users.reset-password');
         Route::delete('usuarios/{rootUsuario}', [RootUserController::class, 'destroy'])->name('users.destroy');
 
-        Route::get('integracoes/govnex-api', [GovnexApiIntegrationController::class, 'edit'])
+        Route::get('govnex-api', [GovnexApiIntegrationController::class, 'edit'])
             ->name('integrations.govnex-api.edit');
-        Route::put('integracoes/govnex-api', [GovnexApiIntegrationController::class, 'update'])
+        Route::put('govnex-api', [GovnexApiIntegrationController::class, 'update'])
             ->name('integrations.govnex-api.update');
-        Route::post('integracoes/govnex-api/testar', [GovnexApiIntegrationController::class, 'test'])
+        Route::post('govnex-api/testar', [GovnexApiIntegrationController::class, 'test'])
             ->middleware('throttle:10,1')
             ->name('integrations.govnex-api.test');
 

@@ -20,7 +20,7 @@ class GovnexApiIntegrationTest extends TestCase
         $admin = User::factory()->root()->create();
 
         $this->actingAs($admin)
-            ->get('/admin/integracoes/govnex-api')
+            ->get('/admin/govnex-api')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('admin/integrations/govnex-api')
@@ -35,11 +35,11 @@ class GovnexApiIntegrationTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->get('/admin/integracoes/govnex-api')
+            ->get('/admin/govnex-api')
             ->assertForbidden();
 
         $this->actingAs($user)
-            ->put('/admin/integracoes/govnex-api', ['url' => 'https://exemplo.test/api/v1'])
+            ->put('/admin/govnex-api', ['url' => 'https://exemplo.test/api/v1'])
             ->assertForbidden();
     }
 
@@ -48,7 +48,7 @@ class GovnexApiIntegrationTest extends TestCase
         $admin = User::factory()->root()->create();
 
         $this->actingAs($admin)
-            ->put('/admin/integracoes/govnex-api', [
+            ->put('/admin/govnex-api', [
                 'url' => 'https://api.exemplo.test/api/v1/',
                 'chave' => 'gnx_chave_de_teste_com_tamanho',
             ])
@@ -74,7 +74,7 @@ class GovnexApiIntegrationTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get('/admin/integracoes/govnex-api')
+            ->get('/admin/govnex-api')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('integration.has_key', true)
@@ -93,7 +93,7 @@ class GovnexApiIntegrationTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->put('/admin/integracoes/govnex-api', [
+            ->put('/admin/govnex-api', [
                 'url' => 'https://nova.test/api/v1',
                 'chave' => '',
             ])
@@ -113,7 +113,7 @@ class GovnexApiIntegrationTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->put('/admin/integracoes/govnex-api', [
+            ->put('/admin/govnex-api', [
                 'url' => 'https://api.exemplo.test/api/v1',
                 'chave' => '',
                 'remover_chave' => true,
@@ -149,7 +149,7 @@ class GovnexApiIntegrationTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->post('/admin/integracoes/govnex-api/testar')
+            ->post('/admin/govnex-api/testar')
             ->assertRedirect();
 
         $record = GovnexApiIntegration::query()->firstOrFail();
@@ -172,7 +172,7 @@ class GovnexApiIntegrationTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->post('/admin/integracoes/govnex-api/testar')
+            ->post('/admin/govnex-api/testar')
             ->assertRedirect();
 
         $record = GovnexApiIntegration::query()->firstOrFail();
@@ -185,7 +185,7 @@ class GovnexApiIntegrationTest extends TestCase
         $admin = User::factory()->root()->create();
 
         $this->actingAs($admin)
-            ->put('/admin/integracoes/govnex-api', ['url' => 'nao-e-url'])
+            ->put('/admin/govnex-api', ['url' => 'nao-e-url'])
             ->assertSessionHasErrors('url');
     }
 }
