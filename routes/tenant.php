@@ -111,6 +111,7 @@ $registerTenantRoutes = static function (): void {
     });
 
     Route::middleware('module:DEMANDAS')->group(function () {
+        Route::get('demandas/cidadaos/buscar', [DemandController::class, 'searchCitizens'])->name('demands.citizens.search');
         Route::get('demandas/kanban', [DemandController::class, 'kanban'])->name('demands.kanban');
         Route::patch('demandas/{demanda}/kanban-status', [DemandController::class, 'transitionFromKanban'])->name('demands.kanban.transition');
         Route::patch('demandas/{demanda}/status', [DemandController::class, 'transition'])->name('demands.transition');

@@ -75,7 +75,7 @@ abstract class DemandRequest extends FormRequest
             'responsavel_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->where(fn ($query) => OfficeMember::constrainActiveUsers($query, $officeId)),
+                Rule::exists('users', 'id')->where(fn ($query) => OfficeMember::constrainAssignableUsers($query, $officeId)),
             ],
             'endereco' => ['nullable', 'string', 'max:255'],
             'numero' => ['nullable', 'string', 'max:20'],

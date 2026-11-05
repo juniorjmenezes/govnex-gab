@@ -140,13 +140,14 @@ class DemandNextActionTest extends TestCase
         $this->assertNotNull($demand->fresh()->proxima_acao_concluida_em);
     }
 
-    public function test_completing_without_a_pending_next_action_fails(): void
+    public function test_completing_without_a_pending_next_action_returns_an_error_toast(): void
     {
         [$user, $demand] = $this->demandContext();
 
         $this->actingAs($user)
             ->patch(route('demands.next-action.complete', $demand))
-            ->assertStatus(500);
+            ->assertRedirect()
+            ->assertInertiaFlash('toast.type', 'error');
     }
 
     public function test_inbox_today_and_overdue_tabs_reflect_next_action_dates(): void

@@ -238,7 +238,8 @@ it('dá a um operador com cargo de vereador o que o cargo permite na requisiçã
 it('exige redistribuir para trocar o responsável já definido, mas não para atribuir o primeiro', function () {
     $office = councilorOffice();
     $advisor = memberWithPosition($office, UserRole::Operator, OfficePosition::Advisor);
-    $teammate = memberWithPosition($office, UserRole::Operator, null);
+    // Responsável precisa ter cargo local (mesma regra da validação).
+    $teammate = memberWithPosition($office, UserRole::Operator, OfficePosition::Advisor);
     $other = memberWithPosition($office, UserRole::Operator, OfficePosition::ChiefOfStaff);
     $unassigned = Demand::factory()->forGabinete($office)->create(['responsavel_id' => null]);
     $assigned = Demand::factory()->forGabinete($office)->create(['responsavel_id' => $teammate->id]);

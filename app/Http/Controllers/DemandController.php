@@ -31,10 +31,12 @@ use App\Models\Citizen;
 use App\Models\Demand;
 use App\Models\DemandEvent;
 use App\Models\Neighborhood;
+use App\Models\OfficeMember;
 use App\Models\User;
 use App\Support\PerPage;
 use App\Tenancy\OfficeContext;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -46,6 +48,8 @@ class DemandController extends Controller
 {
     /** @var list<string> */
     private const TABS = ['inbox', 'mine', 'awaiting', 'today', 'overdue'];
+
+    private const CITIZEN_COLUMNS = ['id', 'nome', 'bairro_id', 'endereco', 'numero', 'complemento', 'ponto_referencia'];
 
     public function index(Request $request): Response
     {
@@ -154,14 +158,17 @@ class DemandController extends Controller
         match ($tab) {
             'mine' => $query->where('responsavel_id', $user->id)->whereIn('status', DemandStatus::openValues()),
             'awaiting' => $query->where('status', DemandStatus::Awaiting),
-            'today' => $query->whereNull('proxima_acao_concluida_em')->whereDate('proxima_acao_data', $today),
+            'today' => $query->whereIn('status', DemandStatus::openValues())
+                ->whereNull('proxima_acao_concluida_em')
+                ->whereDate('proxima_acao_data', $today),
             'overdue' => $query->where(function (Builder $query) use ($today): void {
                 $query->where(function (Builder $query): void {
                     $query->whereIn('status', DemandStatus::openValues())
                         ->whereNotNull('prazo')
                         ->where('prazo', '<', now());
                 })->orWhere(function (Builder $query) use ($today): void {
-                    $query->whereNull('proxima_acao_concluida_em')
+                    $query->whereIn('status', DemandStatus::openValues())
+                        ->whereNull('proxima_acao_concluida_em')
                         ->whereNotNull('proxima_acao_data')
                         ->whereDate('proxima_acao_data', '<', $today);
                 });
@@ -263,15 +270,29 @@ class DemandController extends Controller
             ],
             'options' => [
                 'priorities' => $this->enumOptions(DemandPriority::cases()),
-                'members' => User::query()
-                    ->where('gabinete_id', app(OfficeContext::class)->officeIdFor($user))
-                    ->where('role', '!=', UserRole::Root)
-                    ->where('is_active', true)
-                    ->select(['id', 'name'])
-                    ->orderBy('name')
-                    ->get(),
+                'members' => $this->assignableMembers($user),
             ],
         ]);
+    }
+
+    /** Busca de solicitantes para o seletor do formulário (escopo do gabinete). */
+    public function searchCitizens(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Demand::class);
+        $this->authorize('viewAny', Citizen::class);
+
+        $search = trim($request->string('q')->toString());
+        $officeId = app(OfficeContext::class)->officeIdFor($request->user());
+
+        return response()->json(
+            Citizen::query()
+                ->select(self::CITIZEN_COLUMNS)
+                ->where('gabinete_id', $officeId)
+                ->when($search !== '', fn (Builder $query) => $query->where('nome', 'like', '%'.addcslashes($search, '%_\\').'%'))
+                ->orderBy('nome')
+                ->limit(20)
+                ->get(),
+        );
     }
 
     public function create(Request $request): Response
@@ -336,7 +357,7 @@ class DemandController extends Controller
 
         return Inertia::render('demands/edit', [
             'demand' => $demanda,
-            'options' => $this->formOptions(),
+            'options' => $this->formOptions($demanda->cidadao_id),
         ]);
     }
 
@@ -434,14 +455,33 @@ class DemandController extends Controller
         return back();
     }
 
+    /**
+     * Responsáveis elegíveis: mesmo critério da validação
+     * (`OfficeMember::constrainAssignableUsers`), sem Root.
+     *
+     * @return Collection<int, User>
+     */
+    private function assignableMembers(User $user): Collection
+    {
+        $officeId = (int) app(OfficeContext::class)->officeIdFor($user);
+
+        return User::query()
+            ->tap(fn (Builder $query) => OfficeMember::constrainAssignableUsers($query, $officeId))
+            ->where('role', '!=', UserRole::Root)
+            ->select(['id', 'name'])
+            ->orderBy('name')
+            ->get();
+    }
+
     /** @return array<string, mixed> */
-    private function formOptions(): array
+    private function formOptions(?int $currentCitizenId = null): array
     {
         return [
             ...$this->filterOptions(),
             'creationPriorities' => $this->enumOptions([DemandPriority::Normal, DemandPriority::High, DemandPriority::Urgent]),
-            'citizens' => Citizen::query()->select(['id', 'nome', 'bairro_id', 'endereco', 'numero', 'complemento', 'ponto_referencia'])
-                ->orderBy('nome')->limit(500)->get(),
+            'citizens' => $currentCitizenId
+                ? Citizen::query()->select(self::CITIZEN_COLUMNS)->whereKey($currentCitizenId)->get()
+                : collect(),
         ];
     }
 
@@ -457,15 +497,8 @@ class DemandController extends Controller
                 ->where('ativo', true)
                 ->orderBy('nome')
                 ->get(),
-            'citizens' => Citizen::query()->select(['id', 'nome'])->orderBy('nome')->limit(500)->get(),
             'neighborhoods' => Neighborhood::query()->select(['id', 'nome'])->where('ativo', true)->orderBy('nome')->get(),
-            'members' => User::query()
-                ->where('gabinete_id', app(OfficeContext::class)->officeIdFor(request()->user()))
-                ->where('role', '!=', UserRole::Root)
-                ->where('is_active', true)
-                ->select(['id', 'name'])
-                ->orderBy('name')
-                ->get(),
+            'members' => $this->assignableMembers(request()->user()),
         ];
     }
 

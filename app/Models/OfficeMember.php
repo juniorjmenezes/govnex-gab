@@ -80,6 +80,26 @@ class OfficeMember extends Model
             });
     }
 
+    /**
+     * Usuários que podem receber uma demanda/ação: membros ativos
+     * (`constrainActiveUsers`) que TÊM cargo local no gabinete — vínculo sem
+     * cargo não acessa nada (falha fechada), então não faz sentido atribuir
+     * trabalho a ele. É a mesma regra de `User::canAccessGabinete()` expressa
+     * como consulta, para validar e listar com o mesmo critério.
+     */
+    public static function constrainAssignableUsers(QueryContract $query, int $gabineteId): QueryContract
+    {
+        return static::constrainActiveUsers($query, $gabineteId)
+            ->whereExists(function (QueryContract $withPosition) use ($gabineteId): void {
+                $withPosition->selectRaw('1')
+                    ->from('gabinete_membros')
+                    ->whereColumn('gabinete_membros.usuario_id', 'users.id')
+                    ->where('gabinete_membros.gabinete_id', $gabineteId)
+                    ->where('gabinete_membros.ativo', true)
+                    ->whereNotNull('gabinete_membros.cargo');
+            });
+    }
+
     public static function isActiveMember(User $user, int $gabineteId): bool
     {
         return static::constrainActiveUsers(User::query()->whereKey($user->id), $gabineteId)->exists();

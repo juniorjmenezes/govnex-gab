@@ -271,6 +271,7 @@ export function CitizenForm({
                                             value={field.value}
                                             onValueChange={field.onChange}
                                             placeholder="Selecione"
+                                            emptyLabel="Sem bairro"
                                             options={neighborhoods.map(
                                                 (item) => ({
                                                     value: item.id.toString(),

@@ -5,6 +5,8 @@ import { Controller, useForm, useWatch } from 'react-hook-form';
 import type { Control, FieldPath } from 'react-hook-form';
 import { z } from 'zod';
 import { CategoryIconBadge } from '@/components/categories/category-appearance';
+import { CitizenSelect } from '@/components/demands/citizen-select';
+import type { CitizenSelectOption } from '@/components/demands/citizen-select';
 import { AddressFields } from '@/components/forms/address-fields';
 import { DatePicker } from '@/components/forms/date-picker';
 import { FieldError } from '@/components/forms/field-error';
@@ -157,11 +159,7 @@ export function DemandForm({
             router.post(tenantUrl('/demandas'), payload, requestOptions);
         }
     };
-    const applyCitizenAddress = (citizenId: string) => {
-        const citizen = options.citizens?.find(
-            (item) => item.id.toString() === citizenId,
-        );
-
+    const applyCitizenAddress = (citizen: CitizenSelectOption | null) => {
         if (!citizen) {
             return;
         }
@@ -189,20 +187,14 @@ export function DemandForm({
                             control={control}
                             name="cidadao_id"
                             render={({ field }) => (
-                                <AppSelect
+                                <CitizenSelect
                                     id="cidadao_id"
                                     value={field.value}
-                                    onValueChange={(selected) => {
+                                    initialOptions={options.citizens ?? []}
+                                    onChange={(selected, citizen) => {
                                         field.onChange(selected);
-                                        applyCitizenAddress(selected);
+                                        applyCitizenAddress(citizen);
                                     }}
-                                    placeholder="Selecione o cidadão"
-                                    options={(options.citizens ?? []).map(
-                                        (citizen) => ({
-                                            value: citizen.id.toString(),
-                                            label: citizen.nome,
-                                        }),
-                                    )}
                                     aria-invalid={Boolean(errors.cidadao_id)}
                                 />
                             )}

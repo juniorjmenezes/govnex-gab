@@ -28,7 +28,6 @@ export function FilterSelect({
                 onValueChange={onChange}
                 options={options}
                 emptyLabel={clearable ? 'Todos' : undefined}
-                clearable={clearable}
             />
         </Label>
     );

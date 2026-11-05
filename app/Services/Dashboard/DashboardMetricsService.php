@@ -152,6 +152,7 @@ class DashboardMetricsService
                 'in_progress' => (int) ($statusCounts[DemandStatus::InProgress->value] ?? 0),
                 'awaiting' => (int) ($statusCounts[DemandStatus::Awaiting->value] ?? 0),
                 'for_today' => Demand::query()
+                    ->whereIn('status', $this->openStatuses)
                     ->whereNull('proxima_acao_concluida_em')
                     ->whereDate('proxima_acao_data', $now->toDateString())
                     ->count(),

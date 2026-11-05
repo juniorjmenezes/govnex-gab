@@ -28,7 +28,7 @@ class SetNextActionRequest extends FormRequest
             'responsavel_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->where(fn ($query) => OfficeMember::constrainActiveUsers($query, $officeId)),
+                Rule::exists('users', 'id')->where(fn ($query) => OfficeMember::constrainAssignableUsers($query, $officeId)),
             ],
         ];
     }
