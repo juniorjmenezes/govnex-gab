@@ -1,7 +1,8 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { ShieldUserIcon } from '@/components/icons';
 import { LocalLoginForm } from '@/components/local-login-form';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -48,6 +49,13 @@ export default function Login({
     localLoginEnabled = true,
 }: Props) {
     const [acessoLocalAberto, setAcessoLocalAberto] = useState(false);
+    const { errors } = usePage<{ errors: Record<string, string> }>().props;
+
+    // A recusa do SSO (sem vínculo, Hub fora do ar, acesso cancelado) chega
+    // por `withErrors(['email' => ...])` no retorno de `/auth/hub/callback`,
+    // fora de qualquer envio do formulário local — por isso aparece no topo.
+    const erroDoSso =
+        hubEnabled && !acessoLocalAberto ? errors.email : undefined;
 
     return (
         <>
@@ -57,6 +65,12 @@ export default function Login({
                 <div className="mb-4 text-center text-sm font-medium text-emerald-700 dark:text-emerald-400">
                     {status}
                 </div>
+            )}
+
+            {erroDoSso && (
+                <Alert variant="destructive" className="mb-4">
+                    <AlertDescription>{erroDoSso}</AlertDescription>
+                </Alert>
             )}
 
             {hubEnabled ? (

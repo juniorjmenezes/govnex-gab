@@ -240,14 +240,6 @@ export default function Offices({ offices, filters, statuses }: Props) {
                                                 {office.responsible?.email ??
                                                     '—'}
                                             </EntityCellSubtitle>
-                                            {!office.has_positions && (
-                                                <Badge
-                                                    variant="warning"
-                                                    className="mt-1"
-                                                >
-                                                    Sem cargos
-                                                </Badge>
-                                            )}
                                         </td>
                                         <td className="px-3 py-3 text-right font-normal tabular-nums first:px-5 last:px-5">
                                             {office.demands_count.toLocaleString(
@@ -256,15 +248,23 @@ export default function Offices({ offices, filters, statuses }: Props) {
                                             demandas
                                         </td>
                                         <td className="px-3 py-3 font-normal first:px-5 last:px-5">
-                                            <Badge
-                                                variant={
-                                                    office.status === 'ativo'
-                                                        ? 'default'
-                                                        : 'secondary'
-                                                }
-                                            >
-                                                {office.status_label}
-                                            </Badge>
+                                            <div className="flex flex-wrap gap-1">
+                                                <Badge
+                                                    variant={
+                                                        office.status ===
+                                                        'ativo'
+                                                            ? 'default'
+                                                            : 'secondary'
+                                                    }
+                                                >
+                                                    {office.status_label}
+                                                </Badge>
+                                                {!office.has_positions && (
+                                                    <Badge variant="warning">
+                                                        Sem cargos
+                                                    </Badge>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-3 py-3 font-normal first:px-5 last:px-5">
                                             <div className="flex justify-end gap-2">
@@ -346,23 +346,27 @@ export default function Offices({ offices, filters, statuses }: Props) {
                                             {office.city}/{office.state}
                                         </p>
                                     </div>
-                                    <Badge
-                                        variant={
-                                            office.status === 'ativo'
-                                                ? 'default'
-                                                : 'secondary'
-                                        }
-                                    >
-                                        {office.status_label}
-                                    </Badge>
+                                    <div className="flex flex-wrap justify-end gap-1">
+                                        <Badge
+                                            variant={
+                                                office.status === 'ativo'
+                                                    ? 'default'
+                                                    : 'secondary'
+                                            }
+                                        >
+                                            {office.status_label}
+                                        </Badge>
+                                        {!office.has_positions && (
+                                            <Badge variant="warning">
+                                                Sem cargos
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
                                     Responsável:{' '}
                                     {office.responsible?.name ?? 'não definido'}
                                 </p>
-                                {!office.has_positions && (
-                                    <Badge variant="warning">Sem cargos</Badge>
-                                )}
                                 <div className="flex items-center justify-between gap-3 text-sm">
                                     <span>
                                         {office.demands_count.toLocaleString(
