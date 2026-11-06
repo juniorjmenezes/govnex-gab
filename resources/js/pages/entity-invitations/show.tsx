@@ -154,6 +154,6 @@ export default function InvitationShow({
 }
 
 InvitationShow.layout = {
-    title: 'Convite para o GOVNEX GAB',
+    title: 'Convite para o GOVNEX GEP',
     description: 'Revise o vínculo antes de acessar a entidade.',
 };

@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
- * Nascimento de entidade e gabinete no GAB.
+ * Nascimento de entidade e gabinete no GEP.
  *
  * É o que a antiga criação manual pela administração fazia (licença e módulos
  * da entidade, módulos do gabinete, localização herdada, município eleitoral,
@@ -25,7 +25,7 @@ use InvalidArgumentException;
  * dispara (`HubEstruturaSyncService`). Não cria usuário: o acesso ao que
  * nasce aqui vem dos vínculos do Hub.
  *
- * O slug é sempre derivado do nome e **globalmente** único — é URL do GAB,
+ * O slug é sempre derivado do nome e **globalmente** único — é URL do GEP,
  * nunca o slug do Hub, que muda a cada renomeação.
  */
 class EstruturaProvisioningService

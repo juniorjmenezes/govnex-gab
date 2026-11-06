@@ -46,7 +46,7 @@ final class WhatsAppLiveTestCommandTest extends TestCase
         [$office] = $this->readyContext();
         $runId = (string) Str::uuid();
 
-        $this->artisan('govnexgab:whatsapp-live-test', [
+        $this->artisan('govnexgep:whatsapp-live-test', [
             '--office' => $office->slug,
             '--run-id' => $runId,
         ])->assertSuccessful();
@@ -71,7 +71,7 @@ final class WhatsAppLiveTestCommandTest extends TestCase
             '--confirm-live' => true,
         ];
 
-        $this->artisan('govnexgab:whatsapp-live-test', $arguments)->assertSuccessful();
+        $this->artisan('govnexgep:whatsapp-live-test', $arguments)->assertSuccessful();
 
         $this->assertDatabaseCount('demandas', 3);
         $this->assertDatabaseCount('compromissos', 3);
@@ -94,7 +94,7 @@ final class WhatsAppLiveTestCommandTest extends TestCase
         $this->assertStringNotContainsString('telefone_criptografado', $manifest);
         $this->assertStringNotContainsString('parametros_corpo_criptografados', $manifest);
 
-        $this->artisan('govnexgab:whatsapp-live-test', $arguments)->assertSuccessful();
+        $this->artisan('govnexgep:whatsapp-live-test', $arguments)->assertSuccessful();
         $this->assertDatabaseCount('demandas', 3);
         $this->assertDatabaseCount('compromissos', 3);
         $this->assertDatabaseCount('whatsapp_notificacoes', 40);
@@ -103,7 +103,7 @@ final class WhatsAppLiveTestCommandTest extends TestCase
             'status' => WhatsAppNotificationStatus::Sent->value,
             'enviado_em' => now(),
         ]);
-        $this->artisan('govnexgab:whatsapp-live-test', [
+        $this->artisan('govnexgep:whatsapp-live-test', [
             '--office' => $office->slug,
             '--run-id' => $runId,
             '--stage' => 'report',
@@ -116,7 +116,7 @@ final class WhatsAppLiveTestCommandTest extends TestCase
         $this->assertSame('COMPLETED', $decoded['status']);
         $this->assertCount(40, $decoded['notification_ids']);
 
-        $this->artisan('govnexgab:whatsapp-live-test', $arguments)->assertSuccessful();
+        $this->artisan('govnexgep:whatsapp-live-test', $arguments)->assertSuccessful();
         $decoded = json_decode((string) Storage::disk('local')->get($path), true, flags: JSON_THROW_ON_ERROR);
         $this->assertSame('COMPLETED', $decoded['status']);
         $this->assertDatabaseCount('whatsapp_notificacoes', 40);
@@ -127,7 +127,7 @@ final class WhatsAppLiveTestCommandTest extends TestCase
         [$office, $teamContacts, $citizenContacts] = $this->readyContext();
         $runId = (string) Str::uuid();
 
-        $this->artisan('govnexgab:whatsapp-live-test', [
+        $this->artisan('govnexgep:whatsapp-live-test', [
             '--office' => $office->slug,
             '--run-id' => $runId,
             '--team-contact' => $teamContacts,
@@ -154,7 +154,7 @@ final class WhatsAppLiveTestCommandTest extends TestCase
         Http::fake(['*' => Http::response(['message' => 'Template recusado.'], 400)]);
         $runId = (string) Str::uuid();
 
-        $this->artisan('govnexgab:whatsapp-live-test', [
+        $this->artisan('govnexgep:whatsapp-live-test', [
             '--office' => $office->slug,
             '--run-id' => $runId,
             '--team-contact' => $teamContacts,

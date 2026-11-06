@@ -13,7 +13,7 @@ $app->make(Kernel::class)->bootstrap();
 
 $database = (string) config('database.connections.mysql.database');
 
-if (! app()->environment('testing') || $database !== 'govnexgab_modules_test') {
+if (! app()->environment('testing') || $database !== 'govnexgep_modules_test') {
     fwrite(STDERR, "Refusing to alter a database outside the dedicated CI environment.\n");
     exit(1);
 }

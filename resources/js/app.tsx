@@ -13,11 +13,11 @@ import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 
-const appName = import.meta.env.VITE_APP_NAME || 'GOVNEX GAB';
+const appName = import.meta.env.VITE_APP_NAME || 'GOVNEX GEP';
 
 declare global {
     interface Window {
-        __govnexGabReactRoot?: Root;
+        __govnexGepReactRoot?: Root;
     }
 }
 
@@ -74,21 +74,21 @@ createInertiaApp({
             return application;
         }
 
-        if (window.__govnexGabReactRoot) {
-            window.__govnexGabReactRoot.render(application);
+        if (window.__govnexGepReactRoot) {
+            window.__govnexGepReactRoot.render(application);
 
             return;
         }
 
         if (el.hasAttribute('data-server-rendered')) {
-            window.__govnexGabReactRoot = hydrateRoot(el, application);
+            window.__govnexGepReactRoot = hydrateRoot(el, application);
 
             return;
         }
 
         const root = createRoot(el);
         root.render(application);
-        window.__govnexGabReactRoot = root;
+        window.__govnexGepReactRoot = root;
     },
     progress: {
         // A barra de carregamento é o feedback mais visível do app e estava

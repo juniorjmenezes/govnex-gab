@@ -16,8 +16,8 @@ return [
     'callback_window_seconds' => 300,
     'retention_days' => 90,
     'consent' => [
-        'version' => '1.1',
-        'text' => 'Autorizo o GOVNEX GAB, operado pela F3 Sistemas, a enviar por WhatsApp notificações relacionadas ao meu uso ou atendimento na plataforma, incluindo demandas, agenda, pesquisas e outros avisos operacionais. Posso revogar esta autorização a qualquer momento.',
+        'version' => '1.2',
+        'text' => 'Autorizo o GOVNEX GEP, operado pela F3 Sistemas, a enviar por WhatsApp notificações relacionadas ao meu uso ou atendimento na plataforma, incluindo demandas, agenda, pesquisas e outros avisos operacionais. Posso revogar esta autorização a qualquer momento.',
     ],
     'purposes' => array_map(
         static fn (WhatsAppPurpose $purpose): string => $purpose->value,

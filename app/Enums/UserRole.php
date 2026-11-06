@@ -4,7 +4,7 @@ namespace App\Enums;
 
 /**
  * `users.role`. Só a marca de root (`isRoot()`) é lida: root é a conta local
- * da plataforma, com poder total. Os demais valores são inertes — o GAB
+ * da plataforma, com poder total. Os demais valores são inertes — o GEP
  * decide pelo cargo local (`OfficePosition`) — e saem na limpeza do schema
  * (docs/INTEGRACAO_GOVNEX_HUB.md).
  */

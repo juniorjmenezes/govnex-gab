@@ -12,10 +12,10 @@ use Inertia\Inertia;
  * Criação local de entidade e gabinete, desligada.
  *
  * O Govnex Hub é o único ponto de criação de estrutura; o que ele cria para o
- * GAB nasce aqui pelo webhook (`HubEstruturaSyncService`). As rotas antigas
+ * GEP nasce aqui pelo webhook (`HubEstruturaSyncService`). As rotas antigas
  * (`admin.entities.create|store`, `admin.offices.create|store`) continuam
  * existindo só para responder com a orientação, em vez de 404 para quem tem o
- * endereço salvo. A edição dos campos de domínio do GAB continua.
+ * endereço salvo. A edição dos campos de domínio do GEP continua.
  */
 class EstruturaNoHubController extends Controller
 {
@@ -23,7 +23,7 @@ class EstruturaNoHubController extends Controller
 
     public function __invoke(Request $request): RedirectResponse
     {
-        Log::info('Tentativa de criar estrutura localmente no GAB recusada.', [
+        Log::info('Tentativa de criar estrutura localmente no GEP recusada.', [
             'rota' => $request->route()?->getName(),
             'usuario_id' => $request->user()?->id,
         ]);

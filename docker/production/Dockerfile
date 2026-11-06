@@ -47,7 +47,7 @@ FROM php:8.4-apache-bookworm@sha256:721cfc216f3a029c635ae55b3a43fb5c22ac271871a5
 ARG VCS_REF=unknown
 ARG SOURCE_SHA256=unknown
 
-LABEL org.opencontainers.image.title="GOVNEX GAB" \
+LABEL org.opencontainers.image.title="GOVNEX GEP" \
       org.opencontainers.image.revision="$VCS_REF" \
       org.opencontainers.image.source-sha256="$SOURCE_SHA256"
 
@@ -68,12 +68,12 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY docker/production/apache-vhost.conf /etc/apache2/sites-available/000-default.conf
-COPY docker/production/apache-global.conf /etc/apache2/conf-available/govnexgab-global.conf
-COPY docker/production/php.ini /usr/local/etc/php/conf.d/99-govnexgab-production.ini
-COPY docker/production/supervisord.conf /etc/supervisor/conf.d/govnexgab.conf
+COPY docker/production/apache-global.conf /etc/apache2/conf-available/govnexgep-global.conf
+COPY docker/production/php.ini /usr/local/etc/php/conf.d/99-govnexgep-production.ini
+COPY docker/production/supervisord.conf /etc/supervisor/conf.d/govnexgep.conf
 COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 
-RUN a2enconf govnexgab-global
+RUN a2enconf govnexgep-global
 
 WORKDIR /var/www/html
 
@@ -82,4 +82,4 @@ WORKDIR /var/www/html
 # isso, sincronizações do TSE/PollingData, envio de WhatsApp, exportações de
 # relatório e lembretes agendados ficam presos em "pendente" para sempre —
 # nada além do Apache processa fila ou scheduler.
-CMD ["supervisord", "-c", "/etc/supervisor/conf.d/govnexgab.conf", "-n"]
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/govnexgep.conf", "-n"]

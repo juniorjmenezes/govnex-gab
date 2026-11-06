@@ -1,4 +1,4 @@
-# Deploy do GOVNEX GAB
+# Deploy do GOVNEX GEP
 
 O runbook canônico foi movido para [docs/DEPLOY.md](docs/DEPLOY.md).
 

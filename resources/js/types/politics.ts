@@ -96,8 +96,8 @@ export type PoliticalPollAverage = PoliticalPollResult & {
     total_sample_size: number;
     calculated_at: string | null;
     source_url: string | null;
-    /** 'govnexgab': calculada a partir do histórico de pesquisas já sincronizado. 'electiolab': média consolidada histórica (fonte descontinuada, sem novos registros). */
-    source: 'govnexgab' | 'electiolab';
+    /** 'govnexgep': calculada a partir do histórico de pesquisas já sincronizado. 'electiolab': média consolidada histórica (fonte descontinuada, sem novos registros). */
+    source: 'govnexgep' | 'electiolab';
 };
 
 export type PoliticalPollOffice = {

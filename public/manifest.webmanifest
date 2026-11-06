@@ -1,6 +1,6 @@
 {
-    "name": "GOVNEX GAB",
-    "short_name": "GOVNEX GAB",
+    "name": "GOVNEX GEP",
+    "short_name": "GOVNEX GEP",
     "description": "Gestão interna de demandas e compromissos parlamentares.",
     "start_url": "/dashboard",
     "scope": "/",

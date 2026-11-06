@@ -25,7 +25,7 @@ use Illuminate\Validation\ValidationException;
  * O gabinete é identificado pelo id da unidade no Hub (`gabinetes.hub_unidade_id`),
  * o mesmo sistema de identificadores da pessoa (`users.hub_user_id`).
  */
-#[Signature('gab:cargo-conceder {hub_user_id : sub da pessoa no Hub} {hub_unidade_id : id da unidade (gabinete) no Hub} {cargo : VEREADOR, CHEFE_GABINETE, SECRETARIO, ASSESSOR ou AUDITOR} {--motivo= : justificativa registrada na auditoria}')]
+#[Signature('gep:cargo-conceder {hub_user_id : sub da pessoa no Hub} {hub_unidade_id : id da unidade (gabinete) no Hub} {cargo : VEREADOR, CHEFE_GABINETE, SECRETARIO, ASSESSOR ou AUDITOR} {--motivo= : justificativa registrada na auditoria}')]
 #[Description('Concede o cargo local a uma pessoa num gabinete (partida da administração de cargos; procedimento controlado e auditado).')]
 class GrantOfficePosition extends Command
 {
@@ -53,7 +53,7 @@ class GrantOfficePosition extends Command
         $user = User::query()->where('hub_user_id', (string) $this->argument('hub_user_id'))->first();
 
         if ($user === null) {
-            $this->error('Nenhuma pessoa com esse hub_user_id no GAB (ela precisa ter entrado pelo Hub ou ter sido espelhada).');
+            $this->error('Nenhuma pessoa com esse hub_user_id no GEP (ela precisa ter entrado pelo Hub ou ter sido espelhada).');
 
             return self::FAILURE;
         }
@@ -65,7 +65,7 @@ class GrantOfficePosition extends Command
         }
 
         if (! $user->is_active) {
-            $this->error('A pessoa está inativa no GAB.');
+            $this->error('A pessoa está inativa no GEP.');
 
             return self::FAILURE;
         }
@@ -115,7 +115,7 @@ class GrantOfficePosition extends Command
 
         try {
             $positions->assign($membership, $position, OfficePositionAssigner::EVENT_OPERATOR, null, [
-                'origem' => 'gab:cargo-conceder',
+                'origem' => 'gep:cargo-conceder',
                 'ator' => 'sistema',
                 'motivo' => $reason,
             ]);

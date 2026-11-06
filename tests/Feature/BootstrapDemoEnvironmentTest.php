@@ -18,9 +18,9 @@ class BootstrapDemoEnvironmentTest extends TestCase
     {
         parent::setUp();
 
-        $this->bootstrapDirectory = sys_get_temp_dir().DIRECTORY_SEPARATOR.'govnexgab-bootstrap-'.bin2hex(random_bytes(8));
+        $this->bootstrapDirectory = sys_get_temp_dir().DIRECTORY_SEPARATOR.'govnexgep-bootstrap-'.bin2hex(random_bytes(8));
         mkdir($this->bootstrapDirectory, 0700, true);
-        config()->set('govnexgab.bootstrap_directory', $this->bootstrapDirectory);
+        config()->set('govnexgep.bootstrap_directory', $this->bootstrapDirectory);
     }
 
     protected function tearDown(): void
@@ -35,7 +35,7 @@ class BootstrapDemoEnvironmentTest extends TestCase
 
     public function test_bootstraps_demo_with_unique_strong_credentials_without_printing_them(): void
     {
-        $this->artisan('govnexgab:bootstrap-demo', [
+        $this->artisan('govnexgep:bootstrap-demo', [
             '--admin-name' => 'Admin F3',
             '--admin-email' => 'fabriciovlw1@gmail.com',
         ])->assertSuccessful();
@@ -76,11 +76,11 @@ class BootstrapDemoEnvironmentTest extends TestCase
 
     public function test_refuses_to_run_again_or_overwrite_the_credentials_file(): void
     {
-        $this->artisan('govnexgab:bootstrap-demo')->assertSuccessful();
+        $this->artisan('govnexgep:bootstrap-demo')->assertSuccessful();
         $credentialsPath = $this->bootstrapDirectory.DIRECTORY_SEPARATOR.'credentials.txt';
         $originalHash = hash_file('sha256', $credentialsPath);
 
-        $this->artisan('govnexgab:bootstrap-demo')->assertFailed();
+        $this->artisan('govnexgep:bootstrap-demo')->assertFailed();
 
         $this->assertSame($originalHash, hash_file('sha256', $credentialsPath));
         $this->assertSame(1, Office::withoutGlobalScopes()->count());

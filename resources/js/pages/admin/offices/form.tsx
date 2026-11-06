@@ -88,7 +88,7 @@ type Values = z.infer<typeof schema>;
 
 /**
  * Edição de um gabinete pela administração. Criar entidade ou gabinete não
- * acontece mais no GAB (a estrutura nasce no Govnex Hub), e a conta do
+ * acontece mais no GEP (a estrutura nasce no Govnex Hub), e a conta do
  * responsável também vem de lá, pelos vínculos — aqui ela só é exibida.
  */
 export default function OfficeForm({ office, responsible, entidade }: Props) {

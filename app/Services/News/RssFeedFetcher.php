@@ -24,7 +24,7 @@ class RssFeedFetcher
      */
     public function fetch(RssSource $fonte): int
     {
-        $headers = ['User-Agent' => 'GOVNEX GAB (leitor de RSS)'];
+        $headers = ['User-Agent' => 'GOVNEX GEP (leitor de RSS)'];
 
         if ($fonte->etag) {
             $headers['If-None-Match'] = $fonte->etag;

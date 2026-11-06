@@ -92,8 +92,8 @@ final class WhatsAppGatewayClient
     {
         return $this->request('PUT', '/api/internal/v1/suppressions/'.rawurlencode($phoneHash), [
             'phone_last_four' => $lastFour,
-            'source' => 'GOVNEXGAB',
-            'reason' => 'Consentimento revogado no GOVNEX GAB.',
+            'source' => 'GOVNEXGEP',
+            'reason' => 'Consentimento revogado no GOVNEX GEP.',
             'admin_user_id' => $adminUserId,
         ]);
     }

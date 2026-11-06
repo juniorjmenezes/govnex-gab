@@ -12,7 +12,7 @@ use Throwable;
 
 final class RecreateWhatsAppTemplates extends Command
 {
-    protected $signature = 'govnexgab:whatsapp-recreate-templates
+    protected $signature = 'govnexgep:whatsapp-recreate-templates
         {--purpose=* : Finalidade operacional específica}
         {--admin-email= : Administrador responsável pela operação}
         {--submit : Submete os rascunhos criados para análise da Meta}

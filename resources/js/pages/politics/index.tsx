@@ -905,7 +905,7 @@ function PollsSection({
                                     <p className="font-medium">
                                         {aggregateInfo.source === 'electiolab'
                                             ? 'Média ponderada do ElectioLab'
-                                            : 'Média calculada pelo GOVNEX GAB'}
+                                            : 'Média calculada pelo GOVNEX GEP'}
                                     </p>
                                     <p className="mt-1 text-xs text-muted-foreground">
                                         {numberFormatter.format(
@@ -1025,7 +1025,7 @@ function PollsSection({
                                     <p>
                                         {aggregateInfo?.source === 'electiolab'
                                             ? 'A ponderação é calculada pelo ElectioLab.'
-                                            : 'A ponderação é calculada pelo GOVNEX GAB a partir do histórico de pesquisas sincronizado.'}{' '}
+                                            : 'A ponderação é calculada pelo GOVNEX GEP a partir do histórico de pesquisas sincronizado.'}{' '}
                                         Os favoritos recebem apenas destaque
                                         visual e não alteram a média.
                                     </p>

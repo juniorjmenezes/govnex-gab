@@ -43,7 +43,7 @@ return [
 
     'geocoding' => [
         'url' => env('GEOCODING_URL', 'https://nominatim.openstreetmap.org/search'),
-        'user_agent' => env('GEOCODING_USER_AGENT', 'GovnexGab/1.0 ('.env('APP_URL', 'http://localhost').')'),
+        'user_agent' => env('GEOCODING_USER_AGENT', 'GovnexGep/1.0 ('.env('APP_URL', 'http://localhost').')'),
         'contact_email' => env('GEOCODING_CONTACT_EMAIL'),
         'minimum_interval_ms' => env('GEOCODING_MINIMUM_INTERVAL_MS', 1100),
     ],
@@ -87,13 +87,13 @@ return [
      * São dois segredos com papéis distintos, e trocá-los quebra coisas
      * diferentes: `client_secret` é do cliente OIDC (mora no Passport do Hub,
      * criado por `hub:registrar-cliente-oidc`) e só serve ao handshake de
-     * login; `api_secret` é o `sistemas.client_secret` do Sistema GAB no Hub,
+     * login; `api_secret` é o `sistemas.client_secret` do Sistema GEP no Hub,
      * e tem duplo papel — autentica a leitura de `/api/v1/*` e é a chave HMAC
      * que valida o webhook que chega aqui.
      */
     'hub' => [
         'base_url' => rtrim((string) env('HUB_BASE_URL', ''), '/'),
-        'codigo' => env('HUB_SISTEMA_CODIGO', 'GAB'),
+        'codigo' => env('HUB_SISTEMA_CODIGO', 'GEP'),
         'client_id' => env('HUB_OIDC_CLIENT_ID'),
         'client_secret' => env('HUB_OIDC_CLIENT_SECRET'),
         'redirect' => env('HUB_OIDC_REDIRECT', env('APP_URL', 'http://localhost').'/auth/hub/callback'),
@@ -115,7 +115,7 @@ return [
         // quem avançou), então é sempre descoberta aqui antes de ser usada
         // em `url` (ver PollingDataService::runoffContext()).
         'scenarios_url' => env('POLLINGDATA_SCENARIOS_URL', 'https://flex.pollingdata.com.br/api/polls/scenarios-overview'),
-        'user_agent' => env('POLLINGDATA_USER_AGENT', 'GovnexGab/1.0 ('.env('APP_URL', 'http://localhost').')'),
+        'user_agent' => env('POLLINGDATA_USER_AGENT', 'GovnexGep/1.0 ('.env('APP_URL', 'http://localhost').')'),
         'timeout' => env('POLLINGDATA_TIMEOUT', 30),
         // Intervalo entre chamadas ao sincronizar vários contextos em
         // sequência (ex.: as 27 UFs de governador) — nunca concorrente.

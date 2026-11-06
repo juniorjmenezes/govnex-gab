@@ -13,7 +13,7 @@ use Throwable;
 
 class BootstrapDemoEnvironment extends Command
 {
-    protected $signature = 'govnexgab:bootstrap-demo
+    protected $signature = 'govnexgep:bootstrap-demo
         {--confirm-production : Confirma conscientemente o bootstrap em produção}
         {--admin-name=Admin F3 : Nome do administrador inicial}
         {--admin-email=fabriciovlw1@gmail.com : E-mail do administrador inicial}
@@ -78,7 +78,7 @@ class BootstrapDemoEnvironment extends Command
             throw new RuntimeException('Informe somente um nome de arquivo seguro para as credenciais.');
         }
 
-        $directory = (string) config('govnexgab.bootstrap_directory');
+        $directory = (string) config('govnexgep.bootstrap_directory');
         if (! is_dir($directory) && ! mkdir($directory, 0700, true) && ! is_dir($directory)) {
             throw new RuntimeException('Não foi possível criar o diretório protegido do bootstrap.');
         }
@@ -89,7 +89,7 @@ class BootstrapDemoEnvironment extends Command
         }
 
         if (app()->isProduction() && $resolved !== '/bootstrap') {
-            throw new RuntimeException('Em produção, GOVNEXGAB_BOOTSTRAP_DIR deve apontar para /bootstrap.');
+            throw new RuntimeException('Em produção, GOVNEXGEP_BOOTSTRAP_DIR deve apontar para /bootstrap.');
         }
 
         $path = $resolved.DIRECTORY_SEPARATOR.$file;
@@ -127,7 +127,7 @@ class BootstrapDemoEnvironment extends Command
     private function writeCredentials(string $path, array $accounts): void
     {
         $lines = [
-            'GOVNEX GAB - credenciais iniciais da demonstração',
+            'GOVNEX GEP - credenciais iniciais da demonstração',
             'Gerado em: '.now()->toIso8601String(),
             '',
         ];

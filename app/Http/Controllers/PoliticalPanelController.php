@@ -852,7 +852,7 @@ class PoliticalPanelController extends Controller
                     'total_sample_size' => $average['amostra_total'],
                     'calculated_at' => now()->toIso8601String(),
                     'source_url' => null,
-                    'source' => 'govnexgab',
+                    'source' => 'govnexgep',
                     'is_favorite' => $average['candidato_politico_id'] !== null
                         && in_array($average['candidato_politico_id'], $favoriteIds, true),
                 ], $ownAverages);

@@ -20,7 +20,7 @@ const HUB_WEBHOOK_PATH = '/api/integrations/hub/webhook';
 
 beforeEach(function () {
     config([
-        'services.hub.codigo' => 'GAB',
+        'services.hub.codigo' => 'GEP',
         'services.hub.api_secret' => str_repeat('k', 40),
         'services.hub.webhook_window_seconds' => 300,
     ]);
@@ -70,7 +70,7 @@ function eventoDoHub(string $tipo, array $dados): array
     return [
         'id' => (string) Str::uuid(),
         'tipo' => $tipo,
-        'sistema' => 'GAB',
+        'sistema' => 'GEP',
         'ocorrido_em' => now()->toIso8601String(),
         'dados' => $dados,
     ];
@@ -346,7 +346,7 @@ it('cria gabinete independente e prefeitura com os tipos equivalentes', function
     ['PREFEITURA', EntityType::CityHall, false],
 ]);
 
-it('ignora com 200 entidade de tipo sem equivalente no GAB', function () {
+it('ignora com 200 entidade de tipo sem equivalente no GEP', function () {
     enviarWebhookDoHub(eventoDoHub('entidade.criada', ['entidade' => entidadeDoHub(['tipo' => 'AUTARQUIA'])]))
         ->assertOk()
         ->assertJson(['ok' => true, 'acao' => 'entidade_ignorada', 'motivo' => 'tipo_sem_equivalente']);
@@ -466,7 +466,7 @@ it('resolve pela API do Hub a entidade de unidade que chegou antes dela', functi
         ->and($entidade->gabinetes()->withoutGlobalScopes()->first()?->tipo_gabinete)->toBe(OfficeType::CouncilorOffice);
 });
 
-it('não cria a entidade que o Hub diz não estar habilitada para o GAB', function () {
+it('não cria a entidade que o Hub diz não estar habilitada para o GEP', function () {
     config(['services.hub.base_url' => 'https://hub.teste']);
     Http::fake([
         'hub.teste/api/v1/entidades/3' => Http::response(['data' => [

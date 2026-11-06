@@ -1,4 +1,4 @@
-# GOVNEX GAB
+# GOVNEX GEP
 
 Aplicação SaaS para organizar demandas recebidas por gabinetes parlamentares. O MVP substitui controles em WhatsApp, cadernos e planilhas por uma base isolada, auditável e responsiva.
 
@@ -58,7 +58,7 @@ O tenant raiz é a entidade e cada registro operacional continua pertencendo a u
 
 O isolamento combina `EntidadeContext`, `GabineteContext`, vínculos contextuais, global scopes, route model binding, middleware de conta ativa, Form Requests e Policies. URLs canônicas carregam entidade e gabinete explicitamente; rotas legadas apenas redirecionam de forma auditada. Gestores institucionais não recebem acesso automático aos dados privados dos gabinetes.
 
-Entidades podem configurar identidade, referências territoriais, licenças e cotas. Consulte [`govnexgabentidades.md`](govnexgabentidades.md) para o contrato funcional e [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para os limites técnicos.
+Entidades podem configurar identidade, referências territoriais, licenças e cotas. Consulte [`govnexgepentidades.md`](govnexgepentidades.md) para o contrato funcional e [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para os limites técnicos.
 
 ## Módulos por gabinete
 
@@ -68,7 +68,7 @@ Os dados oficiais do TSE — base de municípios TSE/IBGE, perfil do eleitorado,
 
 Eleitorado e votação por seção são publicados um dataset por UF, então a cobertura cresce aos poucos conforme mais estados chegam à GOVNEX API. A plausibilidade de cada UF do eleitorado é validada contra a base local de municípios (`MunicipioEleitoral`) já importada, e uma linha cuja UF não bate com o dataset derruba a sincronização. A votação por seção só grava os votos dos titulares dos gabinetes; um gabinete cadastrado depois recebe a sua assim que o titular é resolvido. A votação nominal é gravada um estado por vez e exige o dataset na ordem original do CSV do TSE, agrupado por UF.
 
-O GAB encontra cada dataset pelo **nome com que ele foi cadastrado na GOVNEX API**, não por busca aproximada: o slug é o nome do arquivo oficial do TSE em kebab-case, com o recorte no fim — `{nome-oficial}`, `{nome-oficial}-{ano}` ou `{nome-oficial}-{ano}-{uf}`. Quem cadastra o dataset do outro lado deriva o slug do próprio ZIP que baixou, sem tabela de tradução. A fonte esperada é `tse`; as demais fontes do catálogo são varridas depois, como rede de segurança. Só entra dataset com o último import concluído. `App\Services\Politics\Tse\GovnexApiDatasetCatalog` é a lista canônica:
+O GEP encontra cada dataset pelo **nome com que ele foi cadastrado na GOVNEX API**, não por busca aproximada: o slug é o nome do arquivo oficial do TSE em kebab-case, com o recorte no fim — `{nome-oficial}`, `{nome-oficial}-{ano}` ou `{nome-oficial}-{ano}-{uf}`. Quem cadastra o dataset do outro lado deriva o slug do próprio ZIP que baixou, sem tabela de tradução. A fonte esperada é `tse`; as demais fontes do catálogo são varridas depois, como rede de segurança. Só entra dataset com o último import concluído. `App\Services\Politics\Tse\GovnexApiDatasetCatalog` é a lista canônica:
 
 | Dataset | Slug | Exemplo |
 | --- | --- | --- |
@@ -81,11 +81,11 @@ O GAB encontra cada dataset pelo **nome com que ele foi cadastrado na GOVNEX API
 | Votação por seção | `votacao-secao-{ano}-{uf}` | `votacao-secao-2024-sp` |
 | Registro de pesquisas | `pesquisa-eleitoral-{ano}` | `pesquisa-eleitoral-2024` |
 
-Nos datasets de votação por seção, declare `SQ_CANDIDATO` como campo filtrável na GOVNEX API. Com isso o GAB pede só as linhas do titular de cada gabinete — uma consulta por gabinete, algumas dezenas de linhas — em vez de ler o estado inteiro, que passa de 1,5 milhão de linhas. Sem a declaração a importação continua funcionando, só que lendo tudo. A GOVNEX API cria sozinha o índice de cada campo filtrável.
+Nos datasets de votação por seção, declare `SQ_CANDIDATO` como campo filtrável na GOVNEX API. Com isso o GEP pede só as linhas do titular de cada gabinete — uma consulta por gabinete, algumas dezenas de linhas — em vez de ler o estado inteiro, que passa de 1,5 milhão de linhas. Sem a declaração a importação continua funcionando, só que lendo tudo. A GOVNEX API cria sozinha o índice de cada campo filtrável.
 
 Em desenvolvimento, sirva a GOVNEX API por um servidor web de verdade, não pelo `php artisan serve`: ele entrega respostas grandes cortadas no Windows (medido: 11 de 16 requisições de ~700KB ficaram ~19s penduradas e vieram incompletas), o que derruba a leitura de qualquer dataset grande. Servida pelo Apache local, a mesma requisição responde em ~0,6s, 16 de 16 completas. `GOVNEX_API_URL` aponta para esse endereço.
 
-Módulos desativados somem da navegação, retornam HTTP 403 em acesso direto e impedem novos jobs ou efeitos externos. Os dados existentes não são apagados e voltam a ficar disponíveis após reativação. Dependências são validadas em bloco, sem ativação silenciosa. Consulte [`govnexgabmodulos.md`](govnexgabmodulos.md) para o catálogo e [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para os limites técnicos.
+Módulos desativados somem da navegação, retornam HTTP 403 em acesso direto e impedem novos jobs ou efeitos externos. Os dados existentes não são apagados e voltam a ficar disponíveis após reativação. Dependências são validadas em bloco, sem ativação silenciosa. Consulte [`govnexgepmodulos.md`](govnexgepmodulos.md) para o catálogo e [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para os limites técnicos.
 
 ## Demandas e protocolo
 
@@ -143,7 +143,7 @@ Cada gabinete possui timezone configurável; os horários são interpretados no 
 
 Lembretes internos usam as notificações de banco do Laravel. O canal `whatsapp_simulado` permanece disponível para desenvolvimento e histórico, nunca realiza chamada externa e aparece como **Simulado**, não como enviado.
 
-O canal `whatsapp` integra o [Gateway WhatsApp F3 Sistemas](https://whatsapp.f3sistemas.app.br) por API privada HMAC, sem acesso direto à Meta. Ele possui consentimento próprio, contatos cifrados, templates aprovados, outbox idempotente, callback assinado, supressão e fila exclusiva. O envio real nasce desativado e só pode ser habilitado após auditoria, consentimento e homologação controlada nos modos `PILOT` ou `LIVE`. O contrato funcional e operacional está em [`govnexgabwhatsapp.md`](govnexgabwhatsapp.md).
+O canal `whatsapp` integra o [Gateway WhatsApp F3 Sistemas](https://whatsapp.f3sistemas.app.br) por API privada HMAC, sem acesso direto à Meta. Ele possui consentimento próprio, contatos cifrados, templates aprovados, outbox idempotente, callback assinado, supressão e fila exclusiva. O envio real nasce desativado e só pode ser habilitado após auditoria, consentimento e homologação controlada nos modos `PILOT` ou `LIVE`. O contrato funcional e operacional está em [`govnexgepwhatsapp.md`](govnexgepwhatsapp.md).
 
 O scheduler despacha lembretes a cada minuto, prepara o resumo diário do WhatsApp e verifica prazos de demandas e encaminhamentos. A imagem de produção já sobe, via Supervisor, workers separados para `default`, `tse` e `whatsapp`, além de `php artisan schedule:work` (ver [`docker/production/supervisord.conf`](docker/production/supervisord.conf)); fora dela, garanta esses mesmos processos. As tentativas usam chave idempotente; resultados ambíguos são consultados antes de qualquer nova tentativa.
 

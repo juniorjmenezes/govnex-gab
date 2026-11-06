@@ -21,7 +21,7 @@ export function AppSidebar() {
             <SidebarHeader className="h-14 shrink-0 justify-center border-b border-sidebar-border px-2 py-0">
                 <SidebarBrand
                     icon={<AppLogoMark className="size-6" aria-hidden="true" />}
-                    name="GOVNEX GAB"
+                    name="GOVNEX GEP"
                 />
             </SidebarHeader>
             <SidebarContent className="min-h-0 gap-1 overflow-y-auto py-2">

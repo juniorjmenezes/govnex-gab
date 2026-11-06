@@ -411,7 +411,7 @@ it('permite no máximo um vereador e um chefe de gabinete ativos por gabinete, e
         ->assertSessionHasErrors(['cargo' => "Este gabinete já tem um vereador ativo ({$councilor->name}). Remova ou altere o cargo dele antes."]);
 
     // Comando de operador.
-    $this->artisan('gab:cargo-conceder', ['hub_user_id' => '99', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR', '--motivo' => 'Segundo vereador'])
+    $this->artisan('gep:cargo-conceder', ['hub_user_id' => '99', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR', '--motivo' => 'Segundo vereador'])
         ->expectsOutputToContain('já tem um vereador ativo')
         ->assertFailed();
 

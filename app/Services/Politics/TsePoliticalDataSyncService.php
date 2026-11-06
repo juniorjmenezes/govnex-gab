@@ -1806,7 +1806,7 @@ class TsePoliticalDataSyncService
     /**
      * O TSE registra uma única pesquisa com múltiplos cargos numa mesma
      * linha (ex.: "Governador, Senador") quando o questionário cobre mais de
-     * uma corrida. Devolve os cargos rastreados pelo GOVNEX GAB encontrados na
+     * uma corrida. Devolve os cargos rastreados pelo GOVNEX GEP encontrados na
      * lista, em minúsculas, na mesma convenção usada por
      * {@see ElectoralPoll::$cargo} — cargos fora do escopo atual (ex.:
      * Deputado Federal) são ignorados.

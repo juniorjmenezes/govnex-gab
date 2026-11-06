@@ -53,7 +53,7 @@ class FortifyServiceProvider extends ServiceProvider
      * obrigatória de todos os fluxos de senha do Fortify.
      *
      * Contingência (PLATFORM.md §4): com o Hub configurado, só funciona com
-     * `GAB_ROOT_LOGIN_ENABLED` ligada (`LocalRootLogin::enabled()`). Recusa
+     * `GEP_ROOT_LOGIN_ENABLED` ligada (`LocalRootLogin::enabled()`). Recusa
      * sempre com a mesma mensagem genérica do Fortify, sem revelar se a conta
      * existe. Tentativas contra conta root são auditadas.
      */

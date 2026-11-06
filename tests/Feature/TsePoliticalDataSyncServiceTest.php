@@ -611,7 +611,7 @@ class TsePoliticalDataSyncServiceTest extends TestCase
 
     public function test_poll_registry_matches_presidential_polls_nationally(): void
     {
-        // Pesquisas de presidente são nacionais (uf=BR no GOVNEX GAB) mesmo que
+        // Pesquisas de presidente são nacionais (uf=BR no GOVNEX GEP) mesmo que
         // a linha do TSE traga a UF de origem do instituto.
         Office::factory()->create(['estado' => 'CE']);
         $poll = $this->poll('aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', 'BR', 'presidente', 'Instituto Nacional', '2026-07-20');

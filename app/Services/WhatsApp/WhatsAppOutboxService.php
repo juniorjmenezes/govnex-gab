@@ -33,7 +33,7 @@ final class WhatsAppOutboxService
             return null;
         }
         $idempotencyKey = hash('sha256', implode('|', [
-            'govnexgab-whatsapp-v2',
+            'govnexgep-whatsapp-v2',
             $eligibility['connection']->id,
             $contact->gabinete_id,
             $contact->id,

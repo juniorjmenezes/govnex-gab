@@ -15,7 +15,7 @@ use Throwable;
 /**
  * Login por SSO no Govnex Hub (decisão #1 e #2).
  *
- * Este é o caminho padrão de entrada no GAB. O login local do Fortify continua
+ * Este é o caminho padrão de entrada no GEP. O login local do Fortify continua
  * de pé, mas restrito a `root` (decisão #6): é o acesso administrativo de
  * emergência para quando o Hub estiver fora do ar.
  */

@@ -12,9 +12,9 @@ return new class extends Migration
             $table->id();
             $table->foreignId('entidade_id')->constrained('entidades')->cascadeOnDelete();
             $table->foreignId('usuario_id')->constrained('users')->cascadeOnDelete();
-            // Inerte: o GAB não lê mais papel do Hub (o cargo local decide).
+            // Inerte: o GEP não lê mais papel do Hub (o cargo local decide).
             // Mantida até a limpeza do schema; o sync do Hub grava null.
-            $table->string('papel', 30)->nullable()->comment('Inerte (legado): papel do Hub, não é lido pelo GAB');
+            $table->string('papel', 30)->nullable()->comment('Inerte (legado): papel do Hub, não é lido pelo GEP');
             $table->boolean('ativo')->default(true);
             $table->timestamp('ingressou_em');
             $table->timestamp('desativado_em')->nullable();
@@ -28,10 +28,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('gabinete_id')->constrained('gabinetes')->cascadeOnDelete();
             $table->foreignId('usuario_id')->constrained('users')->cascadeOnDelete();
-            // Inerte: o GAB não lê mais papel do Hub (o cargo local decide).
+            // Inerte: o GEP não lê mais papel do Hub (o cargo local decide).
             // Mantida até a limpeza do schema; o sync do Hub grava null.
-            $table->string('papel', 20)->nullable()->comment('Inerte (legado): papel do Hub, não é lido pelo GAB');
-            $table->string('cargo', 30)->nullable()->comment('Cargo local do GAB (App\Enums\OfficePosition): VEREADOR, CHEFE_GABINETE, SECRETARIO, ASSESSOR ou AUDITOR; nunca vem do Hub. Sem cargo = sem acesso ao gabinete');
+            $table->string('papel', 20)->nullable()->comment('Inerte (legado): papel do Hub, não é lido pelo GEP');
+            $table->string('cargo', 30)->nullable()->comment('Cargo local do GEP (App\Enums\OfficePosition): VEREADOR, CHEFE_GABINETE, SECRETARIO, ASSESSOR ou AUDITOR; nunca vem do Hub. Sem cargo = sem acesso ao gabinete');
             $table->boolean('ativo')->default(true);
             $table->timestamp('ingressou_em');
             $table->timestamp('desativado_em')->nullable();

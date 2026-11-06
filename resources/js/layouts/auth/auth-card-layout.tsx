@@ -6,7 +6,7 @@ import type { AuthLayoutProps } from '@/types';
  * Cartão flutuante centralizado (`AuthCardLayout` da `@govnex/ui`), mesmo
  * container do Govnex Hub — usada só pela tela de login (ver
  * `auth-layout.tsx`); as demais telas de autenticação seguem no
- * `auth-simple-layout`. Conteúdo de marca (logo) é só do GAB — o padrão
+ * `auth-simple-layout`. Conteúdo de marca (logo) é só do GEP — o padrão
  * compartilhado não fixa nada disso.
  *
  * Deliberadamente enxuto: sem tagline nem blocos de ajuda/primeiro acesso —
@@ -32,7 +32,7 @@ export default function AuthCardLayout({
                     <AppWordmark className="text-base font-semibold tracking-tight text-foreground" />
                 </div>
             }
-            copyright={`© ${new Date().getFullYear()} Govnex GAB`}
+            copyright={`© ${new Date().getFullYear()} Govnex GEP`}
         >
             {children}
         </SharedAuthCardLayout>

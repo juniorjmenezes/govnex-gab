@@ -1,4 +1,4 @@
-# Homologação local do GOVNEX GAB
+# Homologação local do GOVNEX GEP
 
 Este roteiro valida o MVP antes de uma futura publicação. Ele não executa deploy, não altera uma VPS e não usa credenciais de produção.
 

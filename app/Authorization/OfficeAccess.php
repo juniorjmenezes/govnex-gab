@@ -38,7 +38,7 @@ class OfficeAccess
     /**
      * Quem atribui cargos na Equipe: root ou quem tem cargo de vereador ou
      * chefe de gabinete no gabinete em que atua. O primeiro cargo de um
-     * gabinete é concedido pelo operador do sistema (`gab:cargo-conceder`).
+     * gabinete é concedido pelo operador do sistema (`gep:cargo-conceder`).
      */
     public function canAssignPositions(User $user): bool
     {
