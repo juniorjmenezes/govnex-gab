@@ -72,7 +72,7 @@ export default function GovnexApiIntegration({
     });
 
     const submit = (values: Values) => {
-        router.put('/admin/integracoes/govnex-api', values, {
+        router.put('/admin/govnex-api', values, {
             preserveScroll: true,
             onSuccess: () => reset({ url: values.url, chave: '' }),
         });
@@ -81,7 +81,7 @@ export default function GovnexApiIntegration({
     const removeKey = () => {
         setRemoving(true);
         router.put(
-            '/admin/integracoes/govnex-api',
+            '/admin/govnex-api',
             { url: integration.url, chave: '', remover_chave: true },
             {
                 preserveScroll: true,
@@ -94,7 +94,7 @@ export default function GovnexApiIntegration({
     const test = () => {
         setTesting(true);
         router.post(
-            '/admin/integracoes/govnex-api/testar',
+            '/admin/govnex-api/testar',
             {},
             { preserveScroll: true, onFinish: () => setTesting(false) },
         );
@@ -285,7 +285,7 @@ GovnexApiIntegration.layout = {
     breadcrumbs: [
         {
             title: 'Integração GOVNEX API',
-            href: '/admin/integracoes/govnex-api',
+            href: '/admin/govnex-api',
         },
     ],
 };

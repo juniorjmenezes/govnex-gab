@@ -80,7 +80,6 @@ class EntidadeController extends Controller
                 'user_id' => $membership->usuario_id,
                 'name' => $membership->usuario?->name,
                 'email' => $membership->usuario?->email,
-                'role' => $membership->papel->value,
                 'active' => $membership->ativo,
             ])->values()->all() : [],
             'invitations' => $canManage ? $entidade->convites->map(fn (EntityInvitation $invitation): array => [

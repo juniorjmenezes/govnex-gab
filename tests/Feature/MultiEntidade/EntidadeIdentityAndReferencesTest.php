@@ -97,6 +97,7 @@ class EntidadeIdentityAndReferencesTest extends TestCase
             'gabinete_id' => $secondUnit->id,
             'usuario_id' => $manager->id,
             'papel' => AccessRole::Administrator,
+            'cargo' => 'CHEFE_GABINETE',
             'ativo' => true,
             'ingressou_em' => now(),
         ]);

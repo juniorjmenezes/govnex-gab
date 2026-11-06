@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\AccessRole;
 use App\Enums\AppointmentStatus;
+use App\Enums\OfficePosition;
 use App\Models\Appointment;
 use App\Models\Citizen;
 use App\Models\Demand;
@@ -41,7 +42,7 @@ class AccessRoleAuthorizationTest extends TestCase
         $this->get($this->contextRoute($office, 'appointments.index'))->assertOk();
     }
 
-    public function test_auditor_role_reaches_the_frontend_as_auditor(): void
+    public function test_auditor_position_reaches_the_frontend_as_read_only(): void
     {
         [$office, $auditor] = $this->officeWithAuditor();
 
@@ -49,7 +50,9 @@ class AccessRoleAuthorizationTest extends TestCase
             ->get($this->contextRoute($office, 'demands.index'))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('auth.user.role', 'auditor'));
+                ->where('auth.user.role', 'membro')
+                ->where('auth.permissions.writeRecords', false)
+                ->where('auth.permissions.deleteRecords', false));
     }
 
     public function test_auditor_cannot_write_demands(): void
@@ -67,7 +70,7 @@ class AccessRoleAuthorizationTest extends TestCase
             'prioridade' => 'normal',
             'origem' => 'whatsapp',
         ])->assertForbidden()
-            ->assertSee('Seu perfil de auditor permite apenas consultar', false);
+            ->assertSee('Seu cargo de auditor permite apenas consultar', false);
 
         $this->put($this->contextRoute($office, 'demands.update', ['demanda' => $demand->id]), [
             'titulo' => 'Alterado pelo auditor',
@@ -206,7 +209,7 @@ class AccessRoleAuthorizationTest extends TestCase
             ])
             ->assertForbidden();
 
-        $this->assertSame(AccessRole::Administrator, $otherAdministrator->gabineteRole($office->id));
+        $this->assertSame(OfficePosition::Councilor, $otherAdministrator->gabinetePosition($office->id));
     }
 
     /** @return array{Office, User} */

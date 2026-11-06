@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\AccessRole;
 use App\Enums\EntityModule;
 use App\Enums\EntityStatus;
 use App\Enums\EntityType;
@@ -174,13 +173,18 @@ it('aplica vinculo.criado e vinculo.alterado', function () {
     ]))->assertOk()->assertJson(['acao' => 'vinculo_aplicado']);
 
     $user = User::query()->where('hub_user_id', '42')->first();
-    expect($user->gabineteRole($gabinete->id))->toBe(AccessRole::Operator);
+    $membro = fn () => OfficeMember::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->sole();
+    expect($membro()->ativo)->toBeTrue()->and($membro()->papel)->toBeNull();
 
+    // O papel que o Hub envia é ignorado: o vínculo só diz "está vinculado".
+    OfficeMember::query()->whereKey($membro()->id)->update(['cargo' => 'ASSESSOR']);
     enviarWebhookDoHub(eventoDoHub('vinculo.alterado', [
         'pessoa' => pessoaDoHub(), 'vinculo' => [...$vinculo, 'papel' => 'administrador'],
     ]))->assertOk();
 
-    expect($user->fresh()->gabineteRole($gabinete->id))->toBe(AccessRole::Administrator);
+    expect($membro()->papel)->toBeNull()
+        ->and($user->fresh()->gabinetePosition($gabinete->id)?->value)->toBe('ASSESSOR')
+        ->and($user->fresh()->canManageGabinete($gabinete->id))->toBeFalse();
 });
 
 it('encerra o vínculo em vinculo.encerrado mesmo se o retrato disser ativo', function () {
@@ -193,7 +197,8 @@ it('encerra o vínculo em vinculo.encerrado mesmo se o retrato disser ativo', fu
 
     $user = User::query()->where('hub_user_id', '42')->first();
 
-    expect($user->gabineteRole($gabinete->id))->toBeNull()
+    expect($user->canAccessGabinete($gabinete->id))->toBeFalse()
+        ->and(OfficeMember::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->value('ativo'))->toBeFalsy()
         ->and(OfficeMember::query()->where('gabinete_id', $gabinete->id)->where('usuario_id', $user->id)->exists())->toBeTrue();
 });
 

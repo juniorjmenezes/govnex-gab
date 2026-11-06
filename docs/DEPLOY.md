@@ -143,7 +143,7 @@ Não reinicie banco, Traefik ou aplicações vizinhas sem necessidade. Rotas do 
 
 ## 6. Processos contínuos
 
-A produção supervisiona os seis serviços Compose. `worker-default` processa `default`, `worker-tse` processa as sincronizações do TSE pela GOVNEX API e o PollingData na fila `tse`, `worker-whatsapp` processa somente `whatsapp` e `scheduler` executa `schedule:work`. Não combine esse scheduler com cron HTTP ou outro `schedule:run`.
+A produção supervisiona os seis serviços Compose. `worker-default` processa `default`, `worker-tse` processa as sincronizações do TSE pela GOVNEX API e o PollingData na fila `tse`, `worker-whatsapp` processa somente `whatsapp` e `scheduler` executa `schedule:work`. Não combine esse scheduler com cron HTTP ou outro `schedule:run`. Entre as tarefas agendadas estão `hub:reprocessar-webhooks` (a cada 5 minutos, reprocessa a caixa de entrada `hub_webhook_eventos`) e `hub:limpar-webhooks` (diária, retenção dos eventos do Hub); ver `docs/INTEGRACAO_GOVNEX_HUB.md`.
 
 Os dados do TSE vêm da GOVNEX API, sem agendamento automático. Depois da implantação, dispare uma sincronização controlada na tela da eleição (Eleições → eleição → Dados do TSE) e confira o worker:
 
@@ -198,10 +198,16 @@ uma notificação simulada como envio real.
 Confirme, no mínimo:
 
 - `GET /up` retorna HTTP 200 por HTTPS;
-- login administrativo e login de um gabinete funcionam;
+- login de um gabinete pelo Govnex Hub funciona, e o login local do root
+  também: a equipe GOVNEX administra o GAB pelo root local, então em produção
+  `GAB_ROOT_LOGIN_ENABLED=true` (o padrão do código é `false`; ver
+  `docs/INTEGRACAO_GOVNEX_HUB.md`, Contingência). Confirme o limite de
+  tentativas (6ª tentativa recebe 429) e o registro `ROOT_LOGIN_LOCAL` em
+  `contexto_acesso_eventos`. Recomendado (pendente): 2FA ou passkey em toda
+  conta root;
 - cookies e cabeçalhos defensivos permanecem ativos;
 - assets são gerados com HTTPS atrás do proxy;
-- os quatro perfis respeitam suas permissões;
+- os cargos (vereador, chefe de gabinete, assessor, secretário, auditor) respeitam suas permissões e quem não tem cargo não entra no gabinete;
 - não há acesso cruzado entre gabinetes ou exposição de arquivo privado;
 - PDF e XLSX, incluindo a logo, são gerados;
 - worker processa um job controlado e scheduler executa uma tarefa prevista;

@@ -15,6 +15,7 @@ import {
     PenIcon,
     PowerIcon,
     SettingsIcon,
+    ShieldUserIcon,
 } from '@/components/icons';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
@@ -109,6 +110,9 @@ export default function Offices({ offices, filters, statuses }: Props) {
 
     const openDetails = (office: AdminOffice) => {
         router.get(`/admin/gabinetes/${office.id}`);
+    };
+    const openPositions = (office: AdminOffice) => {
+        router.get(`/admin/gabinetes/${office.id}/cargos`);
     };
     const openEdit = (office: AdminOffice) => {
         router.get(`/admin/gabinetes/${office.id}/editar`);
@@ -244,15 +248,23 @@ export default function Offices({ offices, filters, statuses }: Props) {
                                             demandas
                                         </td>
                                         <td className="px-3 py-3 font-normal first:px-5 last:px-5">
-                                            <Badge
-                                                variant={
-                                                    office.status === 'ativo'
-                                                        ? 'default'
-                                                        : 'secondary'
-                                                }
-                                            >
-                                                {office.status_label}
-                                            </Badge>
+                                            <div className="flex flex-wrap gap-1">
+                                                <Badge
+                                                    variant={
+                                                        office.status ===
+                                                        'ativo'
+                                                            ? 'default'
+                                                            : 'secondary'
+                                                    }
+                                                >
+                                                    {office.status_label}
+                                                </Badge>
+                                                {!office.has_positions && (
+                                                    <Badge variant="warning">
+                                                        Sem cargos
+                                                    </Badge>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-3 py-3 font-normal first:px-5 last:px-5">
                                             <div className="flex justify-end gap-2">
@@ -264,6 +276,15 @@ export default function Offices({ offices, filters, statuses }: Props) {
                                                     }
                                                 >
                                                     <EyeIcon aria-hidden="true" />
+                                                </TableActionButton>
+                                                <TableActionButton
+                                                    variant="outline"
+                                                    label={`Equipe e cargos de ${office.name}`}
+                                                    onClick={() =>
+                                                        openPositions(office)
+                                                    }
+                                                >
+                                                    <ShieldUserIcon aria-hidden="true" />
                                                 </TableActionButton>
                                                 <TableActionButton
                                                     variant="outline"
@@ -325,15 +346,22 @@ export default function Offices({ offices, filters, statuses }: Props) {
                                             {office.city}/{office.state}
                                         </p>
                                     </div>
-                                    <Badge
-                                        variant={
-                                            office.status === 'ativo'
-                                                ? 'default'
-                                                : 'secondary'
-                                        }
-                                    >
-                                        {office.status_label}
-                                    </Badge>
+                                    <div className="flex flex-wrap justify-end gap-1">
+                                        <Badge
+                                            variant={
+                                                office.status === 'ativo'
+                                                    ? 'default'
+                                                    : 'secondary'
+                                            }
+                                        >
+                                            {office.status_label}
+                                        </Badge>
+                                        {!office.has_positions && (
+                                            <Badge variant="warning">
+                                                Sem cargos
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
                                     Responsável:{' '}
@@ -354,6 +382,13 @@ export default function Offices({ offices, filters, statuses }: Props) {
                                         onClick={() => openDetails(office)}
                                     >
                                         <EyeIcon aria-hidden="true" />
+                                    </TableActionButton>
+                                    <TableActionButton
+                                        variant="outline"
+                                        label={`Equipe e cargos de ${office.name}`}
+                                        onClick={() => openPositions(office)}
+                                    >
+                                        <ShieldUserIcon aria-hidden="true" />
                                     </TableActionButton>
                                     <TableActionButton
                                         variant="outline"

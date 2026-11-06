@@ -63,3 +63,13 @@ Schedule::call(function (): void {
         ->pluck('id')
         ->each(fn (int $id) => FetchRssSource::dispatch($id)->onQueue('rss'));
 })->name('fetch-rss-sources')->everyFifteenMinutes()->withoutOverlapping(15);
+
+// Caixa de entrada dos webhooks do Govnex Hub (hub_webhook_eventos): reprocessa
+// falhas temporárias com backoff e aplica a retenção dos eventos encerrados.
+Schedule::command('hub:reprocessar-webhooks')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10);
+
+Schedule::command('hub:limpar-webhooks')
+    ->dailyAt('03:50')
+    ->withoutOverlapping(30);

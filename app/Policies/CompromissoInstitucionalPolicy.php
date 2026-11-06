@@ -2,6 +2,8 @@
 
 namespace App\Policies;
 
+use App\Authorization\OfficeAccess;
+use App\Authorization\OfficeCapability;
 use App\Enums\OfficeType;
 use App\Models\CompromissoInstitucional;
 use App\Models\Office;
@@ -10,7 +12,10 @@ use App\Tenancy\OfficeContext;
 
 class CompromissoInstitucionalPolicy
 {
-    public function __construct(private readonly OfficeContext $context) {}
+    public function __construct(
+        private readonly OfficeContext $context,
+        private readonly OfficeAccess $access,
+    ) {}
 
     /**
      * Mesma regra da agenda (`CompromissoInstitucional::visibleTo()`): mesma
@@ -31,7 +36,7 @@ class CompromissoInstitucionalPolicy
     public function create(User $user): bool
     {
         return $this->gabinete($user)?->tipo_gabinete === OfficeType::LegislativeSecretariat
-            && $this->context->roleFor($user)->canWrite();
+            && $this->access->can($user, OfficeCapability::WriteLegislativeSecretariat);
     }
 
     /**
@@ -47,7 +52,8 @@ class CompromissoInstitucionalPolicy
 
     public function delete(User $user, CompromissoInstitucional $compromisso): bool
     {
-        return $this->update($user, $compromisso);
+        return $this->update($user, $compromisso)
+            && $this->access->can($user, OfficeCapability::DeleteLegislativeSecretariat);
     }
 
     /**

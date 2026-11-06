@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Authorization\OfficeAccess;
+use App\Authorization\OfficeCapability;
 use App\Enums\DemandStatus;
 use App\Http\Requests\Citizens\StoreCitizenRequest;
 use App\Http\Requests\Citizens\UpdateCitizenRequest;
@@ -29,7 +31,7 @@ class CitizenController extends Controller
 
         return Inertia::render('citizens/index', [
             'filters' => ['q' => $search],
-            'canDelete' => app(OfficeContext::class)->roleFor($request->user())->isAdministrator(),
+            'canDelete' => app(OfficeAccess::class)->can($request->user(), OfficeCapability::DeleteRecords),
             'citizens' => Citizen::query()
                 ->select(['id', 'nome', 'telefone', 'whatsapp', 'email', 'bairro_id', 'consentimento_contato', 'eleitor', 'cadastrado_em'])
                 ->with('bairro:id,nome')

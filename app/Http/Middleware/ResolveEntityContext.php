@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Enums\UserRole;
+use App\Enums\OfficePosition;
 use App\Models\AccessContextEvent;
 use App\Models\Entity;
 use App\Models\Office;
@@ -118,13 +118,13 @@ class ResolveEntityContext
     }
 
     /**
-     * Somente leitura do auditor, aplicada num ponto só: qualquer método que
-     * não seja de leitura é recusado aqui, antes de chegar ao controller. As
-     * Policies (`canWrite`) são a segunda camada.
+     * Somente leitura do cargo auditor, aplicada num ponto só: qualquer
+     * método que não seja de leitura é recusado aqui, antes de chegar ao
+     * controller. As Policies (`OfficeAccess`) são a segunda camada.
      */
     private function ensureAuditorIsReadOnly(Request $request, User $user): void
     {
-        if ($this->gabinetes->roleFor($user) !== UserRole::Auditor
+        if ($this->gabinetes->positionFor($user) !== OfficePosition::Auditor
             || in_array($request->getMethod(), ['GET', 'HEAD', 'OPTIONS'], true)) {
             return;
         }
@@ -133,7 +133,7 @@ class ResolveEntityContext
             return;
         }
 
-        abort(403, 'Seu perfil de auditor permite apenas consultar as informações deste gabinete.');
+        abort(403, 'Seu cargo de auditor permite apenas consultar as informações deste gabinete.');
     }
 
     private function auditContextChange(

@@ -183,7 +183,7 @@ export default function EventShow({
                                             )}
                                         />
                                         <div>
-                                            <h3 className="text-sm font-medium">
+                                            <h3 className="text-sm font-bold uppercase">
                                                 Cidadãos
                                             </h3>
                                             {citizenParticipants.length ===
@@ -294,7 +294,7 @@ function ParticipantList({
 }) {
     return (
         <div>
-            <h3 className="text-sm font-medium">{title}</h3>
+            <h3 className="text-sm font-bold uppercase">{title}</h3>
             {participants.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                     Nenhum integrante selecionado.

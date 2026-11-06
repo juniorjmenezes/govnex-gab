@@ -107,6 +107,20 @@ return Application::configure(basePath: dirname(__DIR__))
             return response($message, 413);
         });
 
+        // Regra de negócio violada numa corrida ou ação obsoleta (ex.: concluir
+        // próxima ação inexistente, transição de status já inválida): não é
+        // bug, então volta para a tela com um toast de erro em vez de um 500.
+        // API/JSON puro mantém o tratamento padrão.
+        $exceptions->render(function (DomainException $exception, Request $request) {
+            if ($request->is('api/*') || ($request->expectsJson() && $request->header('X-Inertia') === null)) {
+                return null;
+            }
+
+            Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+
+            return back();
+        });
+
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );

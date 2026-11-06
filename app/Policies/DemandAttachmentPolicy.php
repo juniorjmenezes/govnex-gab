@@ -2,13 +2,18 @@
 
 namespace App\Policies;
 
+use App\Authorization\OfficeAccess;
+use App\Authorization\OfficeCapability;
 use App\Models\DemandAttachment;
 use App\Models\User;
 use App\Tenancy\OfficeContext;
 
 class DemandAttachmentPolicy
 {
-    public function __construct(private readonly OfficeContext $context) {}
+    public function __construct(
+        private readonly OfficeContext $context,
+        private readonly OfficeAccess $access,
+    ) {}
 
     public function view(User $user, DemandAttachment $attachment): bool
     {
@@ -17,6 +22,6 @@ class DemandAttachmentPolicy
 
     public function delete(User $user, DemandAttachment $attachment): bool
     {
-        return $this->view($user, $attachment) && $this->context->roleFor($user)->canWrite();
+        return $this->view($user, $attachment) && $this->access->can($user, OfficeCapability::WriteRecords);
     }
 }

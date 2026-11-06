@@ -2,13 +2,18 @@
 
 namespace App\Policies;
 
+use App\Authorization\OfficeAccess;
+use App\Authorization\OfficeCapability;
 use App\Models\Category;
 use App\Models\User;
 use App\Tenancy\OfficeContext;
 
 class CategoryPolicy
 {
-    public function __construct(private readonly OfficeContext $context) {}
+    public function __construct(
+        private readonly OfficeContext $context,
+        private readonly OfficeAccess $access,
+    ) {}
 
     public function viewAny(User $user): bool
     {
@@ -22,7 +27,7 @@ class CategoryPolicy
 
     public function create(User $user): bool
     {
-        return $this->context->roleFor($user)->isAdministrator();
+        return $this->access->can($user, OfficeCapability::ConfigureOffice);
     }
 
     public function update(User $user, Category $categoria): bool

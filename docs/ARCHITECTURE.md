@@ -15,34 +15,36 @@ O GOVNEX GAB e um monolito modular multientidade. Laravel concentra regras de do
 
 O administrador da plataforma pode entrar em qualquer contexto, sempre com evento auditado. Um administrador da entidade pode operar recursos institucionais, mas so acessa dados privados de um gabinete quando tambem possui vinculo com ele.
 
-### Papeis de acesso
+### Cargos (autorizacao)
 
-Quatro niveis, iguais em todo o ecossistema GOVNEX (decisao #5 de [INTEGRACAO_GOVNEX_HUB.md](INTEGRACAO_GOVNEX_HUB.md)):
+O Govnex Hub so diz quem e a pessoa (autenticacao) e que ela esta vinculada a uma entidade/gabinete. **O GAB nao le papel do Hub**: a autorizacao e o cargo local do vinculo (`gabinete_membros.cargo`, `App\Enums\OfficePosition`), decidido num ponto so, `App\Authorization\OfficeAccess` (capacidades nomeadas consultadas pelas Policies). Detalhes em [INTEGRACAO_GOVNEX_HUB.md](INTEGRACAO_GOVNEX_HUB.md#cargos-locais).
 
-| Papel | Onde vive | O que pode |
+| Cargo | Onde vale | O que pode |
 |---|---|---|
-| `root` | `users.role`, conta local | Administracao da plataforma; nunca e vinculo nem vem do Hub. |
-| administrador | `AccessRole::Administrator` (`ADMINISTRADOR`) | Tudo no contexto: equipe, convites, configuracoes, exclusoes, relatorios. |
-| operador | `AccessRole::Operator` (`OPERADOR`) | Cria e altera registros operacionais; nao exclui demandas, cidadaos, agenda, atendimentos e eventos, nem gerencia equipe. |
-| auditor | `AccessRole::Auditor` (`AUDITOR`) | Somente leitura. |
+| `root` (conta) | `users.role`, conta local | Poder total em qualquer gabinete; nunca e vinculo nem vem do Hub. |
+| `VEREADOR`, `CHEFE_GABINETE` | gabinete parlamentar e gabinete independente | Tudo no gabinete, iguais: excluir, redistribuir demandas, relatorios, configuracoes, equipe e atribuicao de cargos. |
+| `ASSESSOR` | gabinete parlamentar, independente e Secretaria legislativa | Le tudo, cria e altera; nao exclui, nao redistribui, nao exporta, nao configura. |
+| `SECRETARIO` | Secretaria legislativa | So o modulo Secretaria legislativa; o resto, so leitura (pendente). |
+| `AUDITOR` | todos os tipos | Somente leitura. |
+| sem cargo | — | Falha fechada: nao entra no gabinete (`User::canAccessGabinete()` exige cargo); ve so o diretorio da entidade. |
 
-`App\Enums\AccessRole` e o unico enum de papel de vinculo, usado por `entidade_membros.papel`, `gabinete_membros.papel` e pelos convites. Administrador de gabinete so e administrador da **entidade** quando ela e gabinete independente; em Camara ou Prefeitura ele e operador da entidade (`AccessRole::forEntidadeOfUnit`). Funcoes de negocio (vereador, chefe de gabinete, lideranca) nao sao papel: `gabinetes.vereador_nome` e `gabinetes.candidato_titular_id` sao dado de dominio do gabinete, sem efeito em autorizacao. O historico de liderancas (`gabinete_liderancas`, model `GabineteLideranca`) foi removido em 23/09/2026 por decisao do usuario: nao tinha leitores, e papel de acesso nao implica lideranca. O rotulo contextual do titular (Vereador, Prefeito, Secretario) continua em `GabineteType::leaderLabel()`.
+Somente leitura do cargo auditor em duas camadas: `ResolveEntityContext` recusa com 403 qualquer metodo fora de GET/HEAD/OPTIONS quando o cargo no gabinete da URL (`OfficeContext::positionFor()`) e `AUDITOR` (exceto acoes pessoais: marcar notificacoes como lidas e registrar progresso de leitura), e as Policies de escrita consultam `OfficeAccess`. Gestao da entidade (`User::canManageEntidade()`): root ou, em gabinete independente, quem lidera o gabinete dela; Camara e Prefeitura ainda nao tem cargo de entidade (so root).
 
-Somente leitura do auditor em duas camadas: `ResolveEntityContext` recusa com 403 qualquer metodo fora de GET/HEAD/OPTIONS quando o papel no gabinete da URL (`OfficeContext::roleFor()`) e auditor (exceto acoes pessoais: marcar notificacoes como lidas e registrar progresso de leitura), e as Policies de escrita exigem `roleFor($user)->canWrite()`. Rotas fora do contexto (perfil proprio, logout) nao passam por esse middleware.
+Colunas inertes, a remover na limpeza do schema: `gabinete_membros.papel` e `entidade_membros.papel` (nullable; o sync do Hub grava `null`), `entidade_convites.papel_*` (convites legados) e os valores nao-root de `users.role` (`App\Enums\AccessRole` e o resto de `App\Enums\UserRole` so existem para elas).
 
-### Gabinete e papel da requisicao
+### Gabinete e cargo da requisicao
 
-Nas rotas canonicas, `entidade_membros` e `gabinete_membros` definem acesso e papel. `ResolveEntityContext` confere o vinculo e registra o gabinete da URL em `OfficeContext` (`setUnit`); nada e gravado na conta. Controllers, Policies, Form Requests e middlewares leem o contexto pelo `OfficeContext`:
+Nas rotas canonicas, `entidade_membros` e `gabinete_membros` (com cargo) definem acesso. `ResolveEntityContext` confere o vinculo e registra o gabinete da URL em `OfficeContext` (`setUnit`); nada e gravado na conta. Controllers, Policies, Form Requests e middlewares leem o contexto pelo `OfficeContext`:
 
 - `officeIdFor($user)` / `officeFor($user)`: o gabinete em que a pessoa atua. Para a pessoa autenticada numa rota com contexto, e o da URL; fora disso (filas, comandos, outra pessoa que nao a autenticada), e `users.gabinete_id`.
 - `requireOfficeFor($user)`: instancia nova desse gabinete, para quem vai altera-lo ou carregar relacoes (a de `officeFor()` e compartilhada pela requisicao).
-- `roleFor($user)`: o papel do vinculo com o gabinete da URL, 1:1 (`AccessRole` → `UserRole`: `administrador`, `operador`, `auditor`); `root` nunca e substituido; fora de uma rota com contexto, vale `users.role`.
+- `positionFor($user)`: o cargo do vinculo ativo com o gabinete da URL; fora de uma rota com contexto, o do vinculo com `users.gabinete_id`; root nao tem cargo.
 
-O gabinete da requisicao nao muda dentro de `runAs()`: quem atua (e com qual papel) continua sendo o da URL, mesmo quando um fluxo grava em outro gabinete. O Inertia compartilha em `auth.user.role` e `auth.user.gabinete_id` os valores do contexto, nao os da conta.
+O gabinete da requisicao nao muda dentro de `runAs()`: quem atua (e com qual cargo) continua sendo o da URL, mesmo quando um fluxo grava em outro gabinete. O Inertia compartilha em `auth.user.gabinete_id` o gabinete do contexto, em `auth.user.role` so a marca `root`/`membro` e em `auth.permissions` as capacidades do cargo.
 
 Ate 28/10/2026 o middleware projetava o gabinete e o papel do contexto em `$user->gabinete_id`/`$user->role` durante a requisicao; essa projecao foi removida depois que todos os consumidores passaram a ler o `OfficeContext`.
 
-`users.gabinete_id` e `users.role` continuam existindo com outro significado: o gabinete em que a conta nasceu (usado pela entrada legada `RedirectLegacyTenantRoute`, que resolve o contexto apos o login e de links antigos) e o papel global, gravado na criacao ou reprojetado pelo Hub. Fora de uma requisicao com contexto (filas, comandos, notificacoes, destinatarios de avisos), eles valem o que foi gravado por ultimo, e nao o papel em cada gabinete. Criterio para remover as colunas: os consumidores fora de requisicao consultarem os vinculos e a entrada legada deixar de depender de `users.gabinete_id`.
+`users.gabinete_id` e `users.role` continuam existindo com outro significado: o gabinete em que a conta nasceu (usado pela entrada legada `RedirectLegacyTenantRoute`, que resolve o contexto apos o login e de links antigos) e a marca de root (os demais valores sao inertes; o Hub nao os reprojeta mais). Fora de uma requisicao com contexto (filas, comandos, notificacoes, destinatarios de avisos), vale o gabinete gravado por ultimo; destinatarios de "lideranca" sao os cargos `VEREADOR`/`CHEFE_GABINETE`. Criterio para remover as colunas: os consumidores fora de requisicao consultarem os vinculos e a entrada legada deixar de depender de `users.gabinete_id`.
 
 Todo gabinete novo pertence obrigatoriamente a uma entidade. O schema de desenvolvimento nao admite `gabinetes.entidade_id` nulo.
 

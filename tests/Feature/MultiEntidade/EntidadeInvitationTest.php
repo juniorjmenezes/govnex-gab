@@ -167,7 +167,8 @@ class EntidadeInvitationTest extends TestCase
         $otherOffice = Office::factory()->for($managedOffice->entidade, 'entidade')->create();
         $manager = User::factory()->administrator()->forGabinete($managedOffice)->create();
 
-        $this->assertSame(AccessRole::Operator, $manager->entidadeRole($managedOffice->entidade_id));
+        // Em Câmara, liderar um gabinete não dá gestão da entidade.
+        $this->assertFalse($manager->canManageEntidade($managedOffice->entidade_id));
 
         $this->actingAs($manager)
             ->post(route('entidades.invitations.store', $managedOffice->entidade), [

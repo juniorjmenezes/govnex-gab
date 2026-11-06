@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\MultiEntidade;
 
-use App\Enums\AccessRole;
+use App\Enums\OfficePosition;
 use App\Enums\UserRole;
 use App\Models\Citizen;
 use App\Models\Office;
@@ -31,7 +31,7 @@ class RequestContextAuthorizationTest extends TestCase
         $home = Office::factory()->create();
         $other = Office::factory()->for($home->entidade, 'entidade')->create();
         $user = User::factory()->administrator()->forGabinete($home)->create();
-        $this->joinOffice($user, $other, AccessRole::Auditor);
+        $this->joinOffice($user, $other, OfficePosition::Auditor);
 
         $homeCitizen = Citizen::factory()->forGabinete($home)->create();
         $otherCitizen = Citizen::factory()->forGabinete($other)->create();
@@ -43,7 +43,7 @@ class RequestContextAuthorizationTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->has('citizens.data', 1)
                 ->where('citizens.data.0.id', $otherCitizen->id)
-                ->where('auth.user.role', UserRole::Auditor->value)
+                ->where('auth.permissions.writeRecords', false)
                 ->where('auth.user.gabinete_id', $other->id));
 
         $this->assertNotContains(
@@ -51,7 +51,7 @@ class RequestContextAuthorizationTest extends TestCase
             [200],
         );
 
-        // Administrador na conta, auditor no gabinete da URL: não escreve aqui.
+        // Chefe de gabinete na conta, auditor no gabinete da URL: não escreve aqui.
         $this->actingAs($user)
             ->post(route('context.citizens.store', $context), ['nome' => 'Tentativa'])
             ->assertForbidden();
@@ -68,7 +68,7 @@ class RequestContextAuthorizationTest extends TestCase
         $home = Office::factory()->create();
         $other = Office::factory()->for($home->entidade, 'entidade')->create();
         $user = User::factory()->administrator()->forGabinete($home)->create();
-        $this->joinOffice($user, $other, AccessRole::Operator);
+        $this->joinOffice($user, $other, OfficePosition::Advisor);
         $citizen = Citizen::factory()->forGabinete($other)->create();
 
         $this->actingAs($user)
@@ -132,12 +132,12 @@ class RequestContextAuthorizationTest extends TestCase
             ->assertForbidden();
     }
 
-    private function joinOffice(User $user, Office $office, AccessRole $role): void
+    private function joinOffice(User $user, Office $office, OfficePosition $position): void
     {
         OfficeMember::query()->create([
             'gabinete_id' => $office->id,
             'usuario_id' => $user->id,
-            'papel' => $role,
+            'cargo' => $position,
             'ativo' => true,
             'ingressou_em' => now(),
         ]);

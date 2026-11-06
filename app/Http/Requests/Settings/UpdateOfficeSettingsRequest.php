@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Settings;
 
+use App\Authorization\OfficeAccess;
+use App\Authorization\OfficeCapability;
 use App\Rules\DefinidoNoHub;
 use App\Rules\MunicipalityInState;
 use App\Tenancy\OfficeContext;
@@ -13,7 +15,7 @@ class UpdateOfficeSettingsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return app(OfficeContext::class)->officeIdFor($this->user()) !== null && app(OfficeContext::class)->roleFor($this->user())->isAdministrator();
+        return app(OfficeContext::class)->officeIdFor($this->user()) !== null && app(OfficeAccess::class)->can($this->user(), OfficeCapability::ConfigureOffice);
     }
 
     /** @return array<string, array<int, mixed>> */

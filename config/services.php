@@ -101,6 +101,11 @@ return [
         'timeout' => env('HUB_TIMEOUT', 15),
         // Janela de tolerância do `X-Hub-Timestamp`, em segundos.
         'webhook_window_seconds' => env('HUB_WEBHOOK_WINDOW_SECONDS', 300),
+        // Caixa de entrada (`hub_webhook_eventos`): teto de tentativas de um
+        // evento com falha nossa e retenção dos eventos encerrados, em dias.
+        'webhook_max_attempts' => (int) env('HUB_WEBHOOK_MAX_ATTEMPTS', 5),
+        'webhook_retention_days' => (int) env('HUB_WEBHOOK_RETENTION_DAYS', 30),
+        'webhook_failed_retention_days' => (int) env('HUB_WEBHOOK_FAILED_RETENTION_DAYS', 90),
     ],
 
     'pollingdata' => [

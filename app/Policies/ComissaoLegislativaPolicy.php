@@ -2,6 +2,8 @@
 
 namespace App\Policies;
 
+use App\Authorization\OfficeAccess;
+use App\Authorization\OfficeCapability;
 use App\Enums\EntityModule;
 use App\Enums\OfficeModule;
 use App\Enums\OfficeType;
@@ -30,6 +32,7 @@ class ComissaoLegislativaPolicy
         private readonly OfficeModuleManager $modules,
         private readonly EntityModuleManager $entidadeModules,
         private readonly OfficeContext $context,
+        private readonly OfficeAccess $access,
     ) {}
 
     public function viewAny(User $user): bool
@@ -52,7 +55,7 @@ class ComissaoLegislativaPolicy
 
         return $gabinete !== null
             && $gabinete->tipo_gabinete === OfficeType::LegislativeSecretariat
-            && $this->context->roleFor($user)->canWrite()
+            && $this->access->can($user, OfficeCapability::WriteLegislativeSecretariat)
             && $this->modules->isActive($gabinete, OfficeModule::LegislativeSecretariat);
     }
 
@@ -65,7 +68,8 @@ class ComissaoLegislativaPolicy
 
     public function delete(User $user, ComissaoLegislativa $comissao): bool
     {
-        return $this->update($user, $comissao);
+        return $this->update($user, $comissao)
+            && $this->access->can($user, OfficeCapability::DeleteLegislativeSecretariat);
     }
 
     /**

@@ -134,7 +134,7 @@ export function useAppNavSections(): NavSection[] {
         isPlatformOverview
             ? [
                   {
-                      title: 'Visão geral da plataforma',
+                      title: 'Visão geral',
                       href: '/dashboard',
                       icon: WidgetIcon,
                   },
@@ -150,70 +150,96 @@ export function useAppNavSections(): NavSection[] {
               )
     ).map(withContext);
 
+    // Visão geral da plataforma (root sem gabinete): os itens ficam em blocos
+    // por assunto, para integrações e dados externos não se misturarem.
+    const platformSections: NavSection[] = isPlatformOverview
+        ? [
+              {
+                  label: 'Estrutura',
+                  items: [
+                      {
+                          title: 'Entidades',
+                          href: '/entidades',
+                          icon: StructureIcon,
+                      },
+                      {
+                          title: 'Gabinetes',
+                          href: '/admin/gabinetes',
+                          icon: BuildingsIcon,
+                      },
+                  ],
+              },
+              {
+                  label: 'Dados políticos',
+                  items: [
+                      {
+                          title: 'Eleições',
+                          href: '/admin/eleicoes',
+                          icon: CalendarDateIcon,
+                      },
+                      {
+                          title: 'Pesquisas',
+                          href: '/admin/pesquisas-eleitorais',
+                          icon: Buildings2Icon,
+                      },
+                      {
+                          title: 'Partidos',
+                          href: '/admin/cores-partidos',
+                          icon: PaletteIcon,
+                      },
+                  ],
+              },
+              {
+                  label: 'Integrações',
+                  items: [
+                      {
+                          title: 'PollingData',
+                          href: '/admin/sincronizacao-politica',
+                          icon: RefreshCircleIcon,
+                      },
+                      {
+                          title: 'RSS',
+                          href: '/admin/fontes-rss',
+                          icon: FeedIcon,
+                      },
+                      {
+                          title: 'WhatsApp',
+                          href: '/admin/whatsapp',
+                          icon: ChatRoundDotsIcon,
+                      },
+                      {
+                          title: 'GOVNEX API',
+                          href: '/admin/govnex-api',
+                          icon: PlugCircleIcon,
+                      },
+                  ],
+              },
+              {
+                  label: 'Plataforma',
+                  items: [
+                      {
+                          title: 'Base de Conhecimento',
+                          href: '/admin/conhecimento',
+                          icon: LibraryIcon,
+                      },
+                      {
+                          title: 'Usuários root',
+                          href: '/admin/usuarios',
+                          icon: ShieldCheckIcon,
+                      },
+                      {
+                          title: 'Diagnóstico do sistema',
+                          href: '/admin/sistema',
+                          icon: ServerIcon,
+                      },
+                  ],
+              },
+          ]
+        : [];
+
     const serviceItems: NavItem[] = isRoot
         ? isPlatformOverview
-            ? [
-                  {
-                      title: 'Entidades',
-                      href: '/entidades',
-                      icon: StructureIcon,
-                  },
-                  {
-                      title: 'Gerenciar gabinetes',
-                      href: '/admin/gabinetes',
-                      icon: BuildingsIcon,
-                  },
-                  {
-                      title: 'Eleições',
-                      href: '/admin/eleicoes',
-                      icon: CalendarDateIcon,
-                  },
-                  {
-                      title: 'Pesquisas do PollingData',
-                      href: '/admin/sincronizacao-politica',
-                      icon: RefreshCircleIcon,
-                  },
-                  {
-                      title: 'Pesquisas eleitorais',
-                      href: '/admin/pesquisas-eleitorais',
-                      icon: Buildings2Icon,
-                  },
-                  {
-                      title: 'Cores de partidos',
-                      href: '/admin/cores-partidos',
-                      icon: PaletteIcon,
-                  },
-                  {
-                      title: 'Fontes de notícias',
-                      href: '/admin/fontes-rss',
-                      icon: FeedIcon,
-                  },
-                  {
-                      title: 'Base de Conhecimento',
-                      href: '/admin/conhecimento',
-                      icon: LibraryIcon,
-                  },
-                  {
-                      title: 'WhatsApp',
-                      href: '/admin/whatsapp',
-                      icon: ChatRoundDotsIcon,
-                  },
-                  {
-                      title: 'Integração GOVNEX API',
-                      href: '/admin/integracoes/govnex-api',
-                      icon: PlugCircleIcon,
-                  },
-                  {
-                      title: 'Usuários da plataforma',
-                      href: '/admin/usuarios',
-                      icon: ShieldCheckIcon,
-                  },
-                  {
-                      title: 'Diagnóstico do sistema',
-                      href: '/admin/sistema',
-                      icon: ServerIcon,
-                  },
-              ]
+            ? []
             : tenantServiceItems
                   .filter(
                       (item) =>
@@ -245,7 +271,7 @@ export function useAppNavSections(): NavSection[] {
                       icon: StructureIcon,
                   },
                   {
-                      title: 'Gerenciar gabinetes',
+                      title: 'Gabinetes',
                       href: '/admin/gabinetes',
                       icon: BuildingsIcon,
                   },
@@ -264,10 +290,14 @@ export function useAppNavSections(): NavSection[] {
 
     return [
         { label: 'Painel', items: panelItems },
-        {
-            label: isRoot ? 'Plataforma' : 'Atendimento',
-            items: serviceItems,
-        },
+        ...(isPlatformOverview
+            ? platformSections
+            : [
+                  {
+                      label: isRoot ? 'Plataforma' : 'Atendimento',
+                      items: serviceItems,
+                  },
+              ]),
         ...(visibleMapItems.length > 0
             ? [{ label: 'Mapas', items: visibleMapItems }]
             : []),

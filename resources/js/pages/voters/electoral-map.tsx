@@ -217,7 +217,7 @@ export default function ElectoralMap({
                     <div className="grid h-full place-items-center p-6">
                         <Card className="max-w-md gap-3 p-6 text-center">
                             <SettingsIcon className="mx-auto size-8 text-muted-foreground" />
-                            <h1 className="font-semibold">
+                            <h1 className="text-sm font-bold uppercase">
                                 {summary.reason === 'candidate_unmatched'
                                     ? 'Candidatura não localizada no TSE'
                                     : 'Número eleitoral não cadastrado'}

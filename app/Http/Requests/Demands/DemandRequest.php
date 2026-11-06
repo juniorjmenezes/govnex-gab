@@ -22,9 +22,24 @@ abstract class DemandRequest extends FormRequest
     {
         $demand = $this->route('demanda');
 
-        return $demand instanceof Demand
-            ? $this->user()->can('update', $demand)
-            : $this->user()->can('create', Demand::class);
+        if (! $demand instanceof Demand) {
+            return $this->user()->can('create', Demand::class);
+        }
+
+        return $this->user()->can('update', $demand)
+            && (! $this->reassignsResponsible($demand) || $this->user()->can('reassign', $demand));
+    }
+
+    /** Troca ou retira o responsável que a demanda já tinha. */
+    private function reassignsResponsible(Demand $demand): bool
+    {
+        if ($demand->responsavel_id === null || ! $this->exists('responsavel_id')) {
+            return false;
+        }
+
+        $requested = $this->input('responsavel_id');
+
+        return ! is_numeric($requested) || (int) $requested !== (int) $demand->responsavel_id;
     }
 
     /** @return array<string, array<int, mixed>> */
@@ -60,7 +75,7 @@ abstract class DemandRequest extends FormRequest
             'responsavel_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->where(fn ($query) => OfficeMember::constrainActiveUsers($query, $officeId)),
+                Rule::exists('users', 'id')->where(fn ($query) => OfficeMember::constrainAssignableUsers($query, $officeId)),
             ],
             'endereco' => ['nullable', 'string', 'max:255'],
             'numero' => ['nullable', 'string', 'max:20'],

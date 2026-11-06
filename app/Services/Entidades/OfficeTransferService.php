@@ -258,7 +258,10 @@ class OfficeTransferService
                 ->where('usuario_id', $member->usuario_id)
                 ->lockForUpdate()
                 ->first();
-            if ($sourceMembership?->papel !== AccessRole::Operator) {
+            // Quem lidera o gabinete pelo cargo (vereador/chefe) segue na
+            // entidade de origem, como antes seguia o administrador; os
+            // demais perdem o vínculo com ela se não tiverem outra unidade lá.
+            if ($sourceMembership === null || $member->cargo?->leadsOffice() === true) {
                 continue;
             }
             $hasAnotherSourceUnit = OfficeMember::query()

@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\AccessRole;
 use App\Enums\DemandStatus;
 use App\Enums\EntityStatus;
 use App\Enums\EntityType;
 use App\Enums\OfficeModule;
+use App\Enums\OfficePosition;
 use App\Enums\OfficeStatus;
 use App\Enums\OfficeType;
 use App\Http\Controllers\Controller;
@@ -45,9 +45,10 @@ class OfficeController extends Controller
 
         $office->load([
             'entidade',
-            // Responsável = administrador ativo mais antigo do gabinete.
+            // Responsável = quem lidera o gabinete pelo cargo (vereador ou
+            // chefe de gabinete), o mais antigo.
             'membros' => fn ($query) => $query
-                ->where('papel', AccessRole::Administrator)
+                ->whereIn('cargo', [OfficePosition::Councilor->value, OfficePosition::ChiefOfStaff->value])
                 ->where('ativo', true)
                 ->orderBy('ingressou_em')
                 ->orderBy('id')
@@ -305,6 +306,8 @@ class OfficeController extends Controller
      * Query base reutilizada por `index` e `show`: carrega os mesmos
      * relacionamentos e contadores agregados para apresentar um gabinete da
      * administração da plataforma, sem duplicar a lógica de apresentação.
+     *
+     * @return Builder<Office>
      */
     private function officeBaseQuery(): Builder
     {
@@ -313,7 +316,7 @@ class OfficeController extends Controller
             ->with([
                 'entidade:id,nome,slug,tipo,status',
                 'membros' => fn ($query) => $query
-                    ->where('papel', AccessRole::Administrator)
+                    ->whereIn('cargo', [OfficePosition::Councilor->value, OfficePosition::ChiefOfStaff->value])
                     ->where('ativo', true)
                     ->orderBy('ingressou_em')
                     ->orderBy('id')
@@ -323,6 +326,10 @@ class OfficeController extends Controller
                 'modulos:id,gabinete_id,modulo,ativo',
             ])
             ->withCount([
+                // Gabinete sem nenhum cargo ativo ainda precisa da partida.
+                'membros as positioned_members_count' => fn ($query) => $query
+                    ->where('ativo', true)
+                    ->whereNotNull('cargo'),
                 'membros as users_count',
                 'membros as active_users_count' => fn ($query) => $query
                     ->where('ativo', true)
@@ -371,6 +378,7 @@ class OfficeController extends Controller
      * @param  Collection<int, TseSync>  $syncs  Sincronizações do gabinete,
      *                                           já restritas a ele (não
      *                                           precisam estar agrupadas).
+     * @return array<string, mixed>
      */
     private function presentOffice(Office $office, Collection $syncs): array
     {
@@ -406,6 +414,7 @@ class OfficeController extends Controller
             'created_at' => $office->created_at?->toIso8601String(),
             'users_count' => (int) $office->getAttribute('users_count'),
             'active_users_count' => (int) $office->getAttribute('active_users_count'),
+            'has_positions' => (int) $office->getAttribute('positioned_members_count') > 0,
             'responsible' => $office->membros->first()?->usuario?->only([
                 'id', 'name', 'email', 'is_active', 'last_login_at',
             ]),

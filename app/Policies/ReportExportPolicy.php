@@ -2,18 +2,23 @@
 
 namespace App\Policies;
 
+use App\Authorization\OfficeAccess;
+use App\Authorization\OfficeCapability;
 use App\Models\ReportExport;
 use App\Models\User;
 use App\Tenancy\OfficeContext;
 
 class ReportExportPolicy
 {
-    public function __construct(private readonly OfficeContext $context) {}
+    public function __construct(
+        private readonly OfficeContext $context,
+        private readonly OfficeAccess $access,
+    ) {}
 
     public function viewAny(User $user): bool
     {
         return $this->context->officeIdFor($user) !== null
-            && $this->context->roleFor($user)->isAdministrator();
+            && $this->access->can($user, OfficeCapability::ExportReports);
     }
 
     public function view(User $user, ReportExport $export): bool

@@ -28,8 +28,7 @@ class EntityInvitationService
     public function canGrantGabineteAccess(User $actor, Entity $entidade, Office $gabinete): bool
     {
         return $gabinete->entidade_id === $entidade->id
-            && ($actor->isRoot()
-                || $actor->entidadeRole($entidade->id) === AccessRole::Administrator
+            && ($actor->canManageEntidade($entidade->id)
                 || $actor->canManageGabinete($gabinete->id));
     }
 

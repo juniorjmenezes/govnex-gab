@@ -43,7 +43,6 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { accessRoleLabel } from '@/lib/access-roles';
 import { checkRequiredFields } from '@/lib/required-fields';
 
 const SYSTEM_PRIMARY_COLOR = '#ca3500';
@@ -127,7 +126,6 @@ type Member = {
     id: number;
     name: string | null;
     email: string | null;
-    role: string;
     active: boolean;
 };
 
@@ -462,14 +460,9 @@ export default function EntidadeShow({
                             <div className="divide-y">
                                 {members.map((member) => (
                                     <div key={member.id} className="p-4">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <p className="text-sm font-medium">
-                                                {member.name}
-                                            </p>
-                                            <Badge variant="outline">
-                                                {accessRoleLabel(member.role)}
-                                            </Badge>
-                                        </div>
+                                        <p className="text-sm font-medium">
+                                            {member.name}
+                                        </p>
                                         <p className="truncate text-sm text-muted-foreground">
                                             {member.email}
                                         </p>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\GovnexApiIntegrationController;
 use App\Http\Controllers\Admin\KnowledgeBaseController as AdminKnowledgeBaseController;
 use App\Http\Controllers\Admin\OfficeController;
 use App\Http\Controllers\Admin\OfficePoliticalDataSyncController;
+use App\Http\Controllers\Admin\OfficePositionController;
 use App\Http\Controllers\Admin\PartyColorController;
 use App\Http\Controllers\Admin\PollCurationController;
 use App\Http\Controllers\Admin\PollingDataSyncController;
@@ -70,6 +71,10 @@ Route::middleware(['auth', 'verified', 'user.active'])->group(function () {
         Route::get('gabinetes/{office}', [OfficeController::class, 'show'])->name('offices.show');
         Route::post('gabinetes', EstruturaNoHubController::class)->name('offices.store');
         Route::put('gabinetes/{office}', [OfficeController::class, 'update'])->name('offices.update');
+        Route::get('gabinetes/{office}/cargos', [OfficePositionController::class, 'index'])
+            ->name('offices.positions.index');
+        Route::put('gabinetes/{office}/cargos/{member}', [OfficePositionController::class, 'update'])
+            ->name('offices.positions.update');
         Route::get('gabinetes/{office}/modulos', [OfficeController::class, 'editModules'])
             ->name('offices.modules.edit');
         Route::patch('gabinetes/{office}/modulos', [OfficeController::class, 'updateModules'])
@@ -166,11 +171,11 @@ Route::middleware(['auth', 'verified', 'user.active'])->group(function () {
             ->name('users.reset-password');
         Route::delete('usuarios/{rootUsuario}', [RootUserController::class, 'destroy'])->name('users.destroy');
 
-        Route::get('integracoes/govnex-api', [GovnexApiIntegrationController::class, 'edit'])
+        Route::get('govnex-api', [GovnexApiIntegrationController::class, 'edit'])
             ->name('integrations.govnex-api.edit');
-        Route::put('integracoes/govnex-api', [GovnexApiIntegrationController::class, 'update'])
+        Route::put('govnex-api', [GovnexApiIntegrationController::class, 'update'])
             ->name('integrations.govnex-api.update');
-        Route::post('integracoes/govnex-api/testar', [GovnexApiIntegrationController::class, 'test'])
+        Route::post('govnex-api/testar', [GovnexApiIntegrationController::class, 'test'])
             ->middleware('throttle:10,1')
             ->name('integrations.govnex-api.test');
 

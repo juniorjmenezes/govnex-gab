@@ -58,6 +58,8 @@ export type AdminOffice = {
     created_at: string;
     users_count: number;
     active_users_count: number;
+    /** Há ao menos um integrante ativo com cargo (senão falta a partida). */
+    has_positions: boolean;
     demands_count: number;
     open_demands_count: number;
     citizens_count: number;

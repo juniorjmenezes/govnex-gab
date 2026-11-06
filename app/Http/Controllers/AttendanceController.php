@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Authorization\OfficeAccess;
+use App\Authorization\OfficeCapability;
 use App\Enums\OfficeModule;
 use App\Enums\UserRole;
 use App\Http\Requests\Attendances\AttendanceRequest;
@@ -260,6 +262,6 @@ class AttendanceController extends Controller
 
     private function canDelete(Request $request): bool
     {
-        return app(OfficeContext::class)->roleFor($request->user())->isAdministrator();
+        return app(OfficeAccess::class)->can($request->user(), OfficeCapability::DeleteRecords);
     }
 }

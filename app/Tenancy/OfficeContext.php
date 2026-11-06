@@ -2,7 +2,7 @@
 
 namespace App\Tenancy;
 
-use App\Enums\UserRole;
+use App\Enums\OfficePosition;
 use App\Models\Office;
 use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -16,26 +16,26 @@ class OfficeContext
     /**
      * Gabinete resolvido pela URL da requisição. Diferente de `$explicitUnit`,
      * não muda dentro de `runAs()`: é onde a pessoa autenticada atua (e com
-     * qual papel), mesmo quando um fluxo grava temporariamente em outro
+     * qual cargo), mesmo quando um fluxo grava temporariamente em outro
      * gabinete.
      */
     private ?Office $requestUnit = null;
 
-    /** @var array<int, UserRole> */
-    private array $requestRoles = [];
+    /** @var array<int, OfficePosition|null> */
+    private array $requestPositions = [];
 
     public function setUnit(Office $gabinete): void
     {
         $this->explicitUnit = $gabinete;
         $this->requestUnit = $gabinete;
-        $this->requestRoles = [];
+        $this->requestPositions = [];
     }
 
     public function clear(): void
     {
         $this->explicitUnit = null;
         $this->requestUnit = null;
-        $this->requestRoles = [];
+        $this->requestPositions = [];
     }
 
     /**
@@ -72,18 +72,27 @@ class OfficeContext
     }
 
     /**
-     * Papel de `$user` no gabinete em que atua: o do vínculo com o gabinete
-     * da URL (`AccessRole` → `UserRole`, 1:1). `root` nunca é substituído, e
-     * fora de uma rota com contexto vale o papel gravado na conta.
+     * Cargo local de `$user` no gabinete em que atua (`gabinete_membros.cargo`
+     * do vínculo ativo), ou `null` sem cargo. Root não tem vínculo, logo nunca
+     * tem cargo.
      */
-    public function roleFor(User $user): UserRole
+    public function positionFor(User $user): ?OfficePosition
     {
-        if (! $this->actsInRequestUnit($user) || $user->isRoot() || $this->requestUnit === null) {
-            return $user->role;
+        if ($user->isRoot()) {
+            return null;
         }
 
-        return $this->requestRoles[$user->id]
-            ??= $user->gabineteRole($this->requestUnit->id)?->userRole() ?? $user->role;
+        if (! $this->actsInRequestUnit($user) || $this->requestUnit === null) {
+            $officeId = $this->officeIdFor($user);
+
+            return $officeId !== null ? $user->gabinetePosition($officeId) : null;
+        }
+
+        if (! array_key_exists($user->id, $this->requestPositions)) {
+            $this->requestPositions[$user->id] = $user->gabinetePosition($this->requestUnit->id);
+        }
+
+        return $this->requestPositions[$user->id];
     }
 
     private function actsInRequestUnit(?User $user): bool

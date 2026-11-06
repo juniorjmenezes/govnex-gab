@@ -2,6 +2,8 @@
 
 namespace App\Policies;
 
+use App\Authorization\OfficeAccess;
+use App\Authorization\OfficeCapability;
 use App\Enums\EntityModule;
 use App\Enums\OfficeModule;
 use App\Enums\OfficeType;
@@ -18,6 +20,7 @@ class KnowledgeDocumentPolicy
         private readonly OfficeModuleManager $modules,
         private readonly EntityModuleManager $entidadeModules,
         private readonly OfficeContext $context,
+        private readonly OfficeAccess $access,
     ) {}
 
     /**
@@ -47,7 +50,7 @@ class KnowledgeDocumentPolicy
     /** Envio pelo gabinete: qualquer integrante no contexto dele, exceto o auditor. */
     public function create(User $user): bool
     {
-        return $this->context->officeIdFor($user) !== null && $this->context->roleFor($user)->canWrite();
+        return $this->context->officeIdFor($user) !== null && $this->access->can($user, OfficeCapability::WriteRecords);
     }
 
     /**
@@ -60,7 +63,8 @@ class KnowledgeDocumentPolicy
      */
     public function createEntidadeWide(User $user): bool
     {
-        return $this->create($user)
+        return $this->context->officeIdFor($user) !== null
+            && $this->access->can($user, OfficeCapability::WriteLegislativeSecretariat)
             && $this->gabinete($user)?->tipo_gabinete === OfficeType::LegislativeSecretariat
             && $this->modules->isActive($this->context->officeIdFor($user), OfficeModule::LegislativeSecretariat);
     }
@@ -86,13 +90,15 @@ class KnowledgeDocumentPolicy
             return $this->createEntidadeWide($user)
                 && $this->gabinete($user)?->entidade_id === $document->entidade_id
                 && ($document->enviado_por_id === $user->id
-                    || $user->canManageGabinete((int) $this->context->officeIdFor($user)));
+                    || $user->isRoot()
+                    || $this->access->can($user, OfficeCapability::ModerateLegislativeSecretariat));
         }
 
         return $this->context->officeIdFor($user) === $document->gabinete_id
-            && $this->context->roleFor($user)->canWrite()
+            && $this->access->can($user, OfficeCapability::WriteRecords)
             && ($document->enviado_por_id === $user->id
-                || $user->canManageGabinete($document->gabinete_id));
+                || $user->isRoot()
+                || $this->access->can($user, OfficeCapability::DeleteRecords));
     }
 
     /**

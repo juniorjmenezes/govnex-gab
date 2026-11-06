@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\AccessRole;
+use App\Enums\OfficePosition;
 use App\Enums\UserRole;
 use App\Models\Entity;
 use App\Models\Office;
@@ -62,8 +62,10 @@ it('casa a conta existente pelo e-mail e grava o hub_user_id', function () {
 
     expect(auth()->id())->toBe($existente->id)
         ->and($existente->hub_user_id)->toBe('42')
-        ->and($existente->gabineteRole($gabinete->id))->toBe(AccessRole::Administrator)
-        ->and($existente->role)->toBe(UserRole::Administrator);
+        // O papel `administrador` do Hub é ignorado: fica o cargo local.
+        ->and($existente->gabinetePosition($gabinete->id))->toBe(OfficePosition::Advisor)
+        ->and($existente->canManageGabinete($gabinete->id))->toBeFalse()
+        ->and($existente->role)->toBe(UserRole::Operator);
 });
 
 it('cria a conta quando a pessoa ainda não existe no GAB', function () {
@@ -82,7 +84,10 @@ it('cria a conta quando a pessoa ainda não existe no GAB', function () {
     expect($novo)->not->toBeNull()
         ->and($novo->email)->toBe('bruno@exemplo.gov.br')
         ->and($novo->email_verified_at)->not->toBeNull()
-        ->and($novo->role)->toBe(UserRole::Administrator)
+        // Papel do Hub ignorado: vinculada, mas sem cargo, não entra no gabinete.
+        ->and($novo->role)->toBe(UserRole::Operator)
+        ->and($novo->gabinetePosition((int) $novo->gabinete_id))->toBeNull()
+        ->and($novo->canAccessGabinete((int) $novo->gabinete_id))->toBeFalse()
         ->and(auth()->id())->toBe($novo->id);
 });
 
@@ -130,6 +135,9 @@ it('não oferece o SSO quando o Hub não está configurado', function () {
 });
 
 it('login local por senha fica restrito a root', function () {
+    // Com o Hub configurado, o acesso local é contingência: só com a flag
+    // ligada (ver tests/Feature/Auth/LocalRootLoginTest.php).
+    config(['govnexgab.root_login_enabled' => true]);
     $assessor = User::factory()->create(['email' => 'assessor@exemplo.gov.br']);
     $root = User::factory()->root()->create(['email' => 'root@exemplo.gov.br']);
 

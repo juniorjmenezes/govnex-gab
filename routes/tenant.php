@@ -111,6 +111,7 @@ $registerTenantRoutes = static function (): void {
     });
 
     Route::middleware('module:DEMANDAS')->group(function () {
+        Route::get('demandas/cidadaos/buscar', [DemandController::class, 'searchCitizens'])->name('demands.citizens.search');
         Route::get('demandas/kanban', [DemandController::class, 'kanban'])->name('demands.kanban');
         Route::patch('demandas/{demanda}/kanban-status', [DemandController::class, 'transitionFromKanban'])->name('demands.kanban.transition');
         Route::patch('demandas/{demanda}/status', [DemandController::class, 'transition'])->name('demands.transition');
@@ -201,6 +202,7 @@ $registerTenantRoutes = static function (): void {
     Route::get('equipe', [TeamController::class, 'index'])->name('team.index');
     Route::post('equipe', [TeamController::class, 'store'])->name('team.store');
     Route::put('equipe/{usuario}', [TeamController::class, 'update'])->name('team.update');
+    Route::put('equipe/{usuario}/cargo', [TeamController::class, 'updatePosition'])->name('team.position.update');
     Route::put('equipe/{usuario}/senha', [TeamController::class, 'resetPassword'])->name('team.password.update');
     Route::delete('equipe/{usuario}', [TeamController::class, 'destroy'])->name('team.destroy');
 

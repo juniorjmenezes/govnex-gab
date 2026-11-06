@@ -65,6 +65,7 @@ class EntidadeFoundationTest extends TestCase
             'gabinete_id' => $secondUnit->id,
             'usuario_id' => $user->id,
             'papel' => AccessRole::Operator,
+            'cargo' => 'ASSESSOR',
             'ativo' => true,
             'ingressou_em' => now(),
         ]);

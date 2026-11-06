@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SurfaceHeader, SurfaceTitle } from '@/components/ui/surface';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import type {
     AppointmentOptions,
@@ -362,14 +363,6 @@ export function AppointmentFields({
                             </SurfaceHeader>
                             <div className="grid gap-4 p-5">
                                 <div className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center">
-                                    <Checkbox
-                                        checked={Boolean(internalReminder)}
-                                        onCheckedChange={(checked) =>
-                                            toggleInternalReminder(
-                                                checked === true,
-                                            )
-                                        }
-                                    />
                                     <div className="min-w-0 flex-1">
                                         <p className="text-sm font-medium">
                                             Notificação interna
@@ -379,6 +372,14 @@ export function AppointmentFields({
                                             selecionados.
                                         </p>
                                     </div>
+                                    <Switch
+                                        className="shrink-0 sm:order-last"
+                                        aria-label="Notificação interna"
+                                        checked={Boolean(internalReminder)}
+                                        onCheckedChange={(checked) =>
+                                            toggleInternalReminder(checked)
+                                        }
+                                    />
                                     {internalReminder && (
                                         <ReminderMinutes
                                             value={
@@ -422,14 +423,6 @@ export function AppointmentFields({
                                     )}
                                 </div>
                                 <div className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center">
-                                    <Checkbox
-                                        checked={Boolean(fakeWhatsAppReminder)}
-                                        onCheckedChange={(checked) =>
-                                            toggleFakeWhatsAppReminder(
-                                                checked === true,
-                                            )
-                                        }
-                                    />
                                     <div className="min-w-0 flex-1">
                                         <p className="text-sm font-medium">
                                             WhatsApp simulado
@@ -440,6 +433,14 @@ export function AppointmentFields({
                                             externo.
                                         </p>
                                     </div>
+                                    <Switch
+                                        className="shrink-0 sm:order-last"
+                                        aria-label="WhatsApp simulado"
+                                        checked={Boolean(fakeWhatsAppReminder)}
+                                        onCheckedChange={(checked) =>
+                                            toggleFakeWhatsAppReminder(checked)
+                                        }
+                                    />
                                     {fakeWhatsAppReminder && (
                                         <ReminderMinutes
                                             value={
@@ -465,18 +466,6 @@ export function AppointmentFields({
                                     )}
                                 </div>
                                 <div className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center">
-                                    <Checkbox
-                                        checked={Boolean(realWhatsAppReminder)}
-                                        disabled={
-                                            !whatsappRealEnabled ||
-                                            realRecipients.length === 0
-                                        }
-                                        onCheckedChange={(checked) =>
-                                            toggleRealWhatsAppReminder(
-                                                checked === true,
-                                            )
-                                        }
-                                    />
                                     <div className="min-w-0 flex-1">
                                         <p className="text-sm font-medium">
                                             WhatsApp
@@ -487,6 +476,18 @@ export function AppointmentFields({
                                                 : 'Nenhum participante possui o canal pronto.'}
                                         </p>
                                     </div>
+                                    <Switch
+                                        className="shrink-0 sm:order-last"
+                                        aria-label="WhatsApp"
+                                        checked={Boolean(realWhatsAppReminder)}
+                                        disabled={
+                                            !whatsappRealEnabled ||
+                                            realRecipients.length === 0
+                                        }
+                                        onCheckedChange={(checked) =>
+                                            toggleRealWhatsAppReminder(checked)
+                                        }
+                                    />
                                     {realWhatsAppReminder && (
                                         <ReminderMinutes
                                             value={

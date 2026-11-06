@@ -22,7 +22,7 @@ type ModuleNavItem = NavItem & { module?: GabineteModuleCode };
 export function useManagementNavItems(): NavItem[] {
     const { auth } = usePage<{ auth: Auth }>().props;
     const isRoot = auth.user.role === 'root';
-    const canManageTeam = auth.user.role === 'administrador';
+    const canManageTeam = auth.permissions?.manageTeam ?? false;
 
     if (isRoot) {
         return [];

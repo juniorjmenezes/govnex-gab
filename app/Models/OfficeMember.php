@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AccessRole;
+use App\Enums\OfficePosition;
 use Illuminate\Contracts\Database\Query\Builder as QueryContract;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,6 +14,7 @@ use Illuminate\Support\Carbon;
  * @property int $gabinete_id
  * @property int $usuario_id
  * @property AccessRole $papel
+ * @property OfficePosition|null $cargo
  * @property bool $ativo
  * @property Carbon|null $ingressou_em
  * @property-read User $usuario
@@ -39,6 +41,7 @@ class OfficeMember extends Model
     {
         return [
             'papel' => AccessRole::class,
+            'cargo' => OfficePosition::class,
             'ativo' => 'boolean',
             'ingressou_em' => 'datetime',
             'desativado_em' => 'datetime',
@@ -74,6 +77,26 @@ class OfficeMember extends Model
                     ->whereColumn('gabinete_membros.usuario_id', 'users.id')
                     ->where('gabinete_membros.gabinete_id', $gabineteId)
                     ->where('gabinete_membros.ativo', false);
+            });
+    }
+
+    /**
+     * Usuários que podem receber uma demanda/ação: membros ativos
+     * (`constrainActiveUsers`) que TÊM cargo local no gabinete — vínculo sem
+     * cargo não acessa nada (falha fechada), então não faz sentido atribuir
+     * trabalho a ele. É a mesma regra de `User::canAccessGabinete()` expressa
+     * como consulta, para validar e listar com o mesmo critério.
+     */
+    public static function constrainAssignableUsers(QueryContract $query, int $gabineteId): QueryContract
+    {
+        return static::constrainActiveUsers($query, $gabineteId)
+            ->whereExists(function (QueryContract $withPosition) use ($gabineteId): void {
+                $withPosition->selectRaw('1')
+                    ->from('gabinete_membros')
+                    ->whereColumn('gabinete_membros.usuario_id', 'users.id')
+                    ->where('gabinete_membros.gabinete_id', $gabineteId)
+                    ->where('gabinete_membros.ativo', true)
+                    ->whereNotNull('gabinete_membros.cargo');
             });
     }
 
