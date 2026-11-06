@@ -18,7 +18,7 @@ Não há segredos neste arquivo: valores reais ficam nos `.env`, que não são v
 
 | Produto | Repositório | Porta usada em dev |
 |---|---|---|
-| GEP | `juniorjmenezes/govnex-gab` | 8000 |
+| GEP | `juniorjmenezes/govnex-gep` | 8000 |
 | GOVNEX API | `juniorjmenezes/govnex-api` | 8010 |
 | Hub | `juniorjmenezes/govnex-hub` | 8020 |
 | GRI | `juniorjmenezes/govnex-gri` | — |
