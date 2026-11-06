@@ -8,14 +8,14 @@
 
 /*
  * Teste: Geist Mono no lugar do JetBrains Mono padrão da govnex-ui, só no
- * GAB — não mexe no pacote compartilhado (afetaria Hub/API/GHO).
+ * GEP — não mexe no pacote compartilhado (afetaria Hub/API/GHO).
  */
 :root {
     --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
 }
 
 /*
- * Cor primária do GOVNEX GAB, por cima do laranja padrão da govnex-ui — único
+ * Cor primária do GOVNEX GEP, por cima do laranja padrão da govnex-ui — único
  * token que varia por produto (ver comentário em @govnex/ui/styles.css).
  * `--primary-foreground` reaproveita o near-white padrão do pacote: o
  * contraste do novo verde com ele passa de 5:1 nos dois temas.
@@ -42,7 +42,7 @@
 /*
  * `AuthCardLayout` da govnex-ui reserva `md:min-h-[22rem]` na coluna de
  * conteúdo, calibrado para o fluxo de duas etapas do Hub (e-mail → senha).
- * O login do GAB, sem a tagline e os blocos de ajuda que preenchiam a
+ * O login do GEP, sem a tagline e os blocos de ajuda que preenchiam a
  * coluna esquerda, sobrava vazio com essa altura fixa — então ela volta a
  * acompanhar o próprio conteúdo só aqui, via o `data-slot` que o pacote
  * expõe para isso. Decisão deliberada de não mexer no pacote compartilhado

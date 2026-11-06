@@ -31,7 +31,7 @@ export function AppWordmark({ className }: { className?: string }) {
                 className,
             )}
         >
-            GOVNEX GAB
+            GOVNEX GEP
         </span>
     );
 }

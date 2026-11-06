@@ -1,11 +1,11 @@
-# Integração do GOVNEX GAB com o Gateway WhatsApp
+# Integração do GOVNEX GEP com o Gateway WhatsApp
 
 ## Objetivo
 
-O GOVNEX GAB utiliza o Gateway WhatsApp F3 Sistemas para notificações transacionais. O aplicativo não acessa a Meta diretamente e não compartilha banco com o gateway.
+O GOVNEX GEP utiliza o Gateway WhatsApp F3 Sistemas para notificações transacionais. O aplicativo não acessa a Meta diretamente e não compartilha banco com o gateway.
 
 - Cliente técnico no gateway: `GABINETE`.
-- Nome operacional: `GOVNEXGAB`.
+- Nome operacional: `GOVNEXGEP`.
 - Conta operacional: número terminado em `0874`, selecionado pelo ID interno do gateway.
 - Gateway de produção: `https://whatsapp.f3sistemas.app.br`.
 - Callback privado: `POST /api/integrations/whatsapp/callback`.
@@ -14,11 +14,11 @@ O GOVNEX GAB utiliza o Gateway WhatsApp F3 Sistemas para notificações transaci
 O canal `whatsapp_simulado` permanece disponível para desenvolvimento e histórico. O canal real é `whatsapp` e nasce desativado.
 
 O webhook público da Meta permanece no gateway. A única URL alterada para o
-GOVNEX GAB é o callback privado do cliente `GABINETE`.
+GOVNEX GEP é o callback privado do cliente `GABINETE`.
 
 O número terminado em `9273` pertence ao sistema Gabinete legado e ao cliente
 `GABINETE_F3`. Ele não compartilha templates, segredos, histórico ou callback
-privado com o GOVNEX GAB.
+privado com o GOVNEX GEP.
 
 ## Controles de ativação
 
@@ -39,7 +39,7 @@ Nenhum contato ou consentimento legado é promovido automaticamente. O campo his
 
 O consentimento v1.1 é único para notificações operacionais da plataforma e não cobre marketing:
 
-> Autorizo o GOVNEX GAB, operado pela F3 Sistemas, a enviar por WhatsApp notificações relacionadas ao meu uso ou atendimento na plataforma, incluindo demandas, agenda, pesquisas e outros avisos operacionais. Posso revogar esta autorização a qualquer momento.
+> Autorizo o GOVNEX GEP, operado pela F3 Sistemas, a enviar por WhatsApp notificações relacionadas ao meu uso ou atendimento na plataforma, incluindo demandas, agenda, pesquisas e outros avisos operacionais. Posso revogar esta autorização a qualquer momento.
 
 O número é classificado como `DECLARADO`, não como verificado. O aceite registra versão, hash do texto, origem, responsável e data. `SAIR`, `CANCELAR` ou revogação no sistema desativa todo o canal e sincroniza a supressão no gateway.
 
@@ -60,7 +60,7 @@ Telefones e parâmetros são cifrados no banco. Hash e últimos quatro dígitos 
 | `PESQUISA_ELEITORAL_PUBLICADA` | Equipe autorizada | Desativado até consentimento de marketing próprio |
 | `SECRETARIA_CONVOCACAO` | Equipe dos gabinetes de vereador do público de um compromisso institucional | Manual, pela Secretaria legislativa ("Convocar por WhatsApp"); módulo de origem Agenda no gabinete de quem recebe |
 
-As notificações internas do Laravel são independentes. Falha no WhatsApp nunca impede uma operação do GOVNEX GAB.
+As notificações internas do Laravel são independentes. Falha no WhatsApp nunca impede uma operação do GOVNEX GEP.
 
 ## Contrato com o gateway
 
@@ -83,7 +83,7 @@ SHA256(CORPO)
 
 O envio usa `POST /api/internal/v1/messages/templates` e um `client_request_id` UUID estável. Resultado ambíguo é reconciliado por `GET /api/internal/v1/messages/{client_request_id}` antes da repetição idempotente.
 
-Templates são administrados pelo ADMIN do GOVNEX GAB através dos endpoints privados do gateway. Categoria, idioma, finalidade, parâmetros e host dos botões são contratos fixos. Somente o texto de um rascunho pode ser alterado sem mudar os marcadores obrigatórios.
+Templates são administrados pelo ADMIN do GOVNEX GEP através dos endpoints privados do gateway. Categoria, idioma, finalidade, parâmetros e host dos botões são contratos fixos. Somente o texto de um rascunho pode ser alterado sem mudar os marcadores obrigatórios.
 
 `WHATSAPP_GATEWAY_ACCOUNT_ID` fixa a conta de destino para listagem, criação,
 submissão e sincronização dos templates. A ausência desse valor bloqueia a
@@ -127,8 +127,8 @@ Os segredos ficam somente em `/etc/f3/secrets/gabnex/application.env`. O handoff
 
 A ativação segue a ordem:
 
-1. backup dos bancos GOVNEX GAB e gateway;
-2. migrations do GOVNEX GAB;
+1. backup dos bancos GOVNEX GEP e gateway;
+2. migrations do GOVNEX GEP;
 3. callback validado com envio real desligado;
 4. conta `0874` fixada por `WHATSAPP_GATEWAY_ACCOUNT_ID`;
 5. templates operacionais criados, aprovados e sincronizados;
@@ -138,7 +138,7 @@ A ativação segue a ordem:
 9. ativação gradual das finalidades;
 10. modo `LIVE` somente após homologação.
 
-Antes do piloto, execute `php artisan govnexgab:whatsapp-audit --strict`. O modo
+Antes do piloto, execute `php artisan govnexgep:whatsapp-audit --strict`. O modo
 estrito exige exatamente um integrante da equipe e um cidadão marcados como
 piloto, além de todos os templates ativos. O handoff do gateway usa simulação
 por padrão e só grava com `whatsapp:handoff-gabnex --confirm`; os segredos não
@@ -146,7 +146,7 @@ são exibidos no terminal.
 
 ### Ensaio ampliado em LIVE
 
-O comando `govnexgab:whatsapp-live-test` exige todas as finalidades operacionais
+O comando `govnexgep:whatsapp-live-test` exige todas as finalidades operacionais
 habilitadas e com template pronto (inclusive `SECRETARIA_CONVOCACAO`, que o ensaio
 não dispara) e exercita as oito finalidades de demandas e agenda com
 dois contatos de equipe e três cidadãos. A execução padrão é uma simulação e

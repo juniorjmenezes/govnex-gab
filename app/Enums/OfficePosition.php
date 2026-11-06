@@ -5,7 +5,7 @@ namespace App\Enums;
 /**
  * Cargo local de uma pessoa num gabinete (`gabinete_membros.cargo`).
  *
- * É a autorização do GAB: o Hub só diz quem é a pessoa e que ela está
+ * É a autorização do GEP: o Hub só diz quem é a pessoa e que ela está
  * vinculada; o cargo é atribuído e mantido aqui e define o que ela faz no
  * gabinete (ver `App\Authorization\OfficeAccess`). Vínculo sem cargo não
  * acessa o gabinete (falha fechada).

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Aplica no GAB os vínculos que o Hub declara para uma pessoa.
+ * Aplica no GEP os vínculos que o Hub declara para uma pessoa.
  *
  * É a peça compartilhada pelos dois caminhos de provisionamento (decisão #3):
  * o login chama `aplicar()` com a lista inteira que a API de leitura devolveu,
@@ -28,7 +28,7 @@ use Throwable;
  *
  * Nada aqui apaga linha: vínculo que acabou vira `ativo = false` com
  * `desativado_em`. O histórico de quem respondeu pelo quê é dado de auditoria
- * do GAB, e o Hub não é dono dele.
+ * do GEP, e o Hub não é dono dele.
  */
 class HubVinculoSyncService
 {
@@ -107,10 +107,10 @@ class HubVinculoSyncService
 
     /**
      * Entity ou unidade do vínculo que ainda não está espelhada é criada
-     * sob demanda pela API do Hub (respeitando a habilitação do GAB na
+     * sob demanda pela API do Hub (respeitando a habilitação do GEP na
      * entidade e os tipos com equivalente) — a fila não garante que o
      * `*.criada` chegue antes do vínculo. Fica fora da transação dos vínculos
-     * porque envolve HTTP. Se não der (Hub fora do ar, GAB não habilitado,
+     * porque envolve HTTP. Se não der (Hub fora do ar, GEP não habilitado,
      * tipo sem equivalente), `escrever()` ignora o vínculo como antes.
      *
      * @param  array<string, mixed>  $vinculo
@@ -162,10 +162,10 @@ class HubVinculoSyncService
         $entidade = Entity::query()->where('hub_entidade_id', $hubEntidadeId)->first();
 
         if ($entidade === null) {
-            // Nem sob demanda deu para espelhar (Hub fora do ar, GAB não
+            // Nem sob demanda deu para espelhar (Hub fora do ar, GEP não
             // habilitado na entidade, tipo sem equivalente). Ignorar o
             // vínculo é preferível a inventar uma entidade local.
-            Log::warning('Vínculo do Hub ignorado: entidade não espelhada no GAB.', [
+            Log::warning('Vínculo do Hub ignorado: entidade não espelhada no GEP.', [
                 'hub_entidade_id' => $hubEntidadeId,
                 'usuario_id' => $user->id,
             ]);
@@ -182,7 +182,7 @@ class HubVinculoSyncService
                 ->first();
 
             if ($gabinete === null) {
-                Log::warning('Vínculo do Hub ignorado: gabinete não espelhado no GAB.', [
+                Log::warning('Vínculo do Hub ignorado: gabinete não espelhado no GEP.', [
                     'hub_unidade_id' => $hubUnidadeId,
                     'usuario_id' => $user->id,
                 ]);
@@ -221,7 +221,7 @@ class HubVinculoSyncService
      * original — é a data de entrada da pessoa naquele contexto, não a data do
      * último evento que chegou.
      *
-     * `gabinete_membros.cargo` é local do GAB: o Hub nunca o envia, e este
+     * `gabinete_membros.cargo` é local do GEP: o Hub nunca o envia, e este
      * método não pode escrevê-lo nem limpá-lo.
      */
     private function escreverMembro(EntityMember|OfficeMember $membro, bool $ativo): void
@@ -289,7 +289,7 @@ class HubVinculoSyncService
      * reescreveria os vínculos a partir de `role`/`gabinete_id` — o caminho
      * inverso deste — e, com o Hub como fonte da verdade, dois escritores para
      * a mesma linha só produziriam disputa. O observer continua valendo para as
-     * contas que ainda nascem dentro do GAB.
+     * contas que ainda nascem dentro do GEP.
      */
     private function reprojetarContextoLegado(User $user): void
     {

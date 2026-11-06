@@ -22,7 +22,7 @@ abstract class TestCase extends BaseTestCase
     {
         $response = parent::call($method, $uri, $parameters, $cookies, $files, $server, $content);
         if (! $this->followLegacyTenantRedirects
-            || $response->headers->get('X-GovnexGab-Legacy-Redirect') !== '1') {
+            || $response->headers->get('X-GovnexGep-Legacy-Redirect') !== '1') {
             return $response;
         }
 

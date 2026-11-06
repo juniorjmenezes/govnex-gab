@@ -69,7 +69,7 @@ class HubEventProcessor
 
         // `pessoa.alterada` e os eventos de vínculo também criam a conta quando
         // ela ainda não existe aqui: é exatamente o caso que a decisão #3 quer
-        // cobrir — listar e atribuir trabalho a quem nunca entrou no GAB.
+        // cobrir — listar e atribuir trabalho a quem nunca entrou no GEP.
         $user = $this->pessoas->sincronizarPessoa($pessoa);
 
         if ($user === null) {

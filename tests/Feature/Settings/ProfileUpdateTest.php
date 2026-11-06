@@ -61,10 +61,10 @@ class ProfileUpdateTest extends TestCase
         $this->assertNotNull($user->refresh()->email_verified_at);
     }
 
-    public function test_account_deletion_is_not_available_in_gab(): void
+    public function test_account_deletion_is_not_available_in_gep(): void
     {
         // Contas passam a ser geridas pelo Govnex Hub, e a tabela users segue
-        // referenciada por demandas, agenda e auditoria: o GAB não exclui
+        // referenciada por demandas, agenda e auditoria: o GEP não exclui
         // contas.
         $user = User::factory()->create();
 

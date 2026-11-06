@@ -124,10 +124,10 @@ final class WhatsAppTemplateAccountIsolationTest extends TestCase
         app(WhatsAppTemplateService::class)->catalog();
         Http::fake();
 
-        $this->artisan('govnexgab:whatsapp-recreate-templates')->assertSuccessful();
+        $this->artisan('govnexgep:whatsapp-recreate-templates')->assertSuccessful();
         Http::assertNothingSent();
 
-        $this->artisan('govnexgab:whatsapp-recreate-templates', [
+        $this->artisan('govnexgep:whatsapp-recreate-templates', [
             '--purpose' => [WhatsAppPurpose::PoliticalPollPublished->value],
             '--confirm' => true,
         ])->expectsOutputToContain('política de marketing')->assertFailed();

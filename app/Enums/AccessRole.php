@@ -3,7 +3,7 @@
 namespace App\Enums;
 
 /**
- * LEGADO, não decide nada: o GAB não lê mais papel do Hub (o cargo local,
+ * LEGADO, não decide nada: o GEP não lê mais papel do Hub (o cargo local,
  * `OfficePosition`, é a autorização). Sobrevive só porque convites antigos e
  * a sincronização legada ainda gravam as colunas inertes `papel`; sai na
  * limpeza do schema (docs/INTEGRACAO_GOVNEX_HUB.md).

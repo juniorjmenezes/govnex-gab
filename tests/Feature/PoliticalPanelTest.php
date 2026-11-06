@@ -867,7 +867,7 @@ class PoliticalPanelTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('polls.offices.1.slug', 'governador')
                 ->where('polls.offices.1.has_aggregate', true)
-                ->where('polls.offices.1.averages.0.source', 'govnexgab')
+                ->where('polls.offices.1.averages.0.source', 'govnexgep')
                 ->where('polls.offices.1.averages.0.percentage', 41.5));
     }
 

@@ -10,7 +10,7 @@ use RuntimeException;
  * O slug é derivado do nome do arquivo oficial do TSE, em kebab-case, com o
  * recorte no fim: `{nome-oficial}`, `{nome-oficial}-{ano}` ou
  * `{nome-oficial}-{ano}-{uf}`. Quem baixa o ZIP do TSE sabe o slug sem
- * consultar tabela de tradução, e a descoberta do lado do GAB deixa de
+ * consultar tabela de tradução, e a descoberta do lado do GEP deixa de
  * depender de heurística (antes eram três regras diferentes: slug exato para
  * municípios, `metadata.uf` para eleitorado e busca por texto para
  * candidaturas).

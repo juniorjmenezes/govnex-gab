@@ -11,7 +11,7 @@ type Props = {
 
 /**
  * Substitui os antigos botões "Nova entidade"/"Novo gabinete": a estrutura é
- * criada no Govnex Hub e nasce no GAB pelo webhook. Sem `HUB_BASE_URL`
+ * criada no Govnex Hub e nasce no GEP pelo webhook. Sem `HUB_BASE_URL`
  * configurada, mostra só o aviso.
  */
 export function HubStructureLink({

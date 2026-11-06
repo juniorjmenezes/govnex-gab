@@ -37,7 +37,7 @@ class HubCallbackController extends Controller
         $validator = Validator::make((array) $request->json()->all(), [
             'id' => ['required', 'uuid'],
             'tipo' => ['required', 'string', 'in:'.implode(',', HubEventProcessor::TIPOS)],
-            'sistema' => ['required', 'string', 'in:'.config('services.hub.codigo', 'GAB')],
+            'sistema' => ['required', 'string', 'in:'.config('services.hub.codigo', 'GEP')],
             'ocorrido_em' => ['nullable', 'date'],
             'dados' => ['required', 'array'],
         ]);

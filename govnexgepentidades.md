@@ -1,8 +1,8 @@
-# Evolução multientidade do GOVNEX GAB
+# Evolução multientidade do GOVNEX GEP
 
 ## Estado e objetivo
 
-Este documento é a referência funcional e técnica para transformar o GOVNEX GAB em uma única plataforma multientidade, sem reescrever os módulos atuais nem romper o isolamento por gabinete.
+Este documento é a referência funcional e técnica para transformar o GOVNEX GEP em uma única plataforma multientidade, sem reescrever os módulos atuais nem romper o isolamento por gabinete.
 
 Modelos atendidos:
 
@@ -49,7 +49,7 @@ Tipos de gabinete:
 - `GABINETE_PREFEITO`;
 - `SECRETARIA`;
 - `SETOR_ADMINISTRATIVO`;
-- `SECRETARIA_LEGISLATIVA` — só em Câmara Municipal e no máximo uma por Câmara; coordena os recursos compartilhados entre os gabinetes de vereador (ver `govnexgabmodulos.md`). Não recebe acesso aos dados privados desses gabinetes.
+- `SECRETARIA_LEGISLATIVA` — só em Câmara Municipal e no máximo uma por Câmara; coordena os recursos compartilhados entre os gabinetes de vereador (ver `govnexgepmodulos.md`). Não recebe acesso aos dados privados desses gabinetes.
 
 O nome é livre. Rótulos de líder são contextuais: Vereador, Prefeito, Secretário, Secretário legislativo ou Responsável.
 

@@ -15,8 +15,8 @@ use RuntimeException;
 /**
  * Preenche as colunas de ponte com a estrutura do Hub.
  *
- * Regra de mapeamento (a mesma que o Hub usou ao importar o GAB, em
- * `ImportadorDoGab`): a `Entity` do Hub casa com a `Entity` local pelo
+ * Regra de mapeamento (a mesma que o Hub usou ao importar o GEP, em
+ * `ImportadorDoGep`): a `Entity` do Hub casa com a `Entity` local pelo
  * `slug`, e a `Unidade` do Hub casa com o `Office` local, dentro da entidade
  * já casada, pelo `slug`. Unidades do Hub sem gabinete equivalente (secretarias,
  * setores…) simplesmente não têm correspondência.
@@ -31,11 +31,11 @@ use RuntimeException;
  * ao Hub inclusive as suspensas. Depois de ligado, o casamento é pelo id do
  * Hub — o slug local nunca é alterado.
  *
- * Com `--criar`, cria no GAB a estrutura do Hub que ainda não tem espelho —
- * só entidade com o GAB habilitado e tipo com equivalente, e só unidade raiz
+ * Com `--criar`, cria no GEP a estrutura do Hub que ainda não tem espelho —
+ * só entidade com o GEP habilitado e tipo com equivalente, e só unidade raiz
  * com tipo com equivalente —, pelo mesmo caminho do webhook
  * (`HubEstruturaSyncService::criarEntidade`/`criarUnidade`). É a rede de
- * segurança para `*.criada` perdido e para entidades em que o GAB foi
+ * segurança para `*.criada` perdido e para entidades em que o GEP foi
  * habilitado depois de criadas. Com `--dry-run`, só lista o que nasceria.
  */
 class EspelharEstruturaHub extends Command
@@ -43,7 +43,7 @@ class EspelharEstruturaHub extends Command
     protected $signature = 'hub:espelhar-estrutura
         {--dry-run : Mostra o que seria preenchido sem gravar}
         {--atualizar : Aplica nome e situação do Hub aos itens ligados}
-        {--criar : Cria no GAB a estrutura habilitada no Hub que ainda não tem espelho}';
+        {--criar : Cria no GEP a estrutura habilitada no Hub que ainda não tem espelho}';
 
     protected $description = 'Preenche hub_entidade_id e hub_unidade_id casando a estrutura do Hub por slug';
 
@@ -84,10 +84,10 @@ class EspelharEstruturaHub extends Command
         $this->line("Entidades já preenchidas: {$r['ja_preenchidas']}");
         $this->line("Gabinetes casados (preenchidos agora): {$r['unidades_casadas']}");
         $this->line("Gabinetes já preenchidos: {$r['unidades_ja_preenchidas']}");
-        $this->line('Entidades do Hub sem correspondência no GAB: '.count($r['sem_local']).$this->lista($r['sem_local']));
-        $this->line('Unidades do Hub sem gabinete no GAB: '.count($r['unidades_sem_local']).$this->lista($r['unidades_sem_local']));
-        $this->line('Entidades do GAB sem correspondência no Hub: '.count($semHubEntidades).$this->lista($semHubEntidades));
-        $this->line('Gabinetes do GAB sem correspondência no Hub: '.count($semHubGabinetes).$this->lista($semHubGabinetes));
+        $this->line('Entidades do Hub sem correspondência no GEP: '.count($r['sem_local']).$this->lista($r['sem_local']));
+        $this->line('Unidades do Hub sem gabinete no GEP: '.count($r['unidades_sem_local']).$this->lista($r['unidades_sem_local']));
+        $this->line('Entidades do GEP sem correspondência no Hub: '.count($semHubEntidades).$this->lista($semHubEntidades));
+        $this->line('Gabinetes do GEP sem correspondência no Hub: '.count($semHubGabinetes).$this->lista($semHubGabinetes));
         if ($this->atualizar) {
             $this->line('Nome/situação '.($dryRun ? 'divergentes do Hub' : 'atualizados pelo Hub').': '.count($r['atualizacoes']));
 
@@ -97,7 +97,7 @@ class EspelharEstruturaHub extends Command
         }
 
         if ($this->criar) {
-            $this->line(($dryRun ? 'Seriam criados no GAB' : 'Criados no GAB').': '.count($r['criacoes']));
+            $this->line(($dryRun ? 'Seriam criados no GEP' : 'Criados no GEP').': '.count($r['criacoes']));
 
             foreach ($r['criacoes'] as $criacao) {
                 $this->line("  {$criacao}");
@@ -144,7 +144,7 @@ class EspelharEstruturaHub extends Command
         }
 
         if ($entidade->hub_entidade_id !== null && $entidade->hub_entidade_id !== $hubId) {
-            $r['conflitos'][] = "Entidade '{$slug}': GAB já aponta para o Hub {$entidade->hub_entidade_id}, o Hub informou {$hubId}.";
+            $r['conflitos'][] = "Entidade '{$slug}': GEP já aponta para o Hub {$entidade->hub_entidade_id}, o Hub informou {$hubId}.";
 
             return;
         }
@@ -176,7 +176,7 @@ class EspelharEstruturaHub extends Command
 
     /**
      * Entity do Hub sem espelho, com `--criar`: consulta a entidade (para
-     * saber se o GAB está habilitado nela, fuso e município resolvidos) e a
+     * saber se o GEP está habilitado nela, fuso e município resolvidos) e a
      * cria pelo mesmo caminho do webhook. Em `--dry-run` só relata — e relata
      * também as unidades que nasceriam junto.
      *
@@ -255,7 +255,7 @@ class EspelharEstruturaHub extends Command
             }
 
             if ($gabinete->hub_unidade_id !== null && $gabinete->hub_unidade_id !== $uId) {
-                $r['conflitos'][] = "Gabinete '{$slug}/{$uSlug}': GAB já aponta para a unidade {$gabinete->hub_unidade_id}, o Hub informou {$uId}.";
+                $r['conflitos'][] = "Gabinete '{$slug}/{$uSlug}': GEP já aponta para a unidade {$gabinete->hub_unidade_id}, o Hub informou {$uId}.";
 
                 continue;
             }

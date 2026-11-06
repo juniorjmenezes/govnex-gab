@@ -17,7 +17,7 @@ use Inertia\Response;
 
 /**
  * Equipe e cargos de qualquer gabinete, para o root: é a partida da
- * administração de cargos em tela (o `gab:cargo-conceder` fica como
+ * administração de cargos em tela (o `gep:cargo-conceder` fica como
  * contingência). Pessoas e vínculos continuam só no Govnex Hub — aqui só se
  * escolhe o cargo, com motivo auditado.
  */

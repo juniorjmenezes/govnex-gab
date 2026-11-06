@@ -1,6 +1,6 @@
 # Erros recorrentes e prevenção
 
-Esta base contém somente falhas com causa confirmada, solução reproduzível e prevenção útil para o GOVNEX GAB ou sua futura operação em VPS. Não registre hipóteses, erros de digitação ou indisponibilidades transitórias.
+Esta base contém somente falhas com causa confirmada, solução reproduzível e prevenção útil para o GOVNEX GEP ou sua futura operação em VPS. Não registre hipóteses, erros de digitação ou indisponibilidades transitórias.
 
 ## Formato de registro
 
@@ -125,10 +125,10 @@ Cada caso deve informar contexto, sintoma, causa confirmada, correção, valida�
 
 ## ERR-WHATSAPP-001 - Submissao de template ultrapassa o timeout privado
 
-- **Contexto:** submissao administrativa de templates do GOVNEX GAB pelo Gateway WhatsApp.
-- **Sintoma:** o GOVNEX GAB informa resultado ambiguo apos 20 segundos, enquanto templates anteriores do mesmo lote aparecem como pendentes na Meta.
+- **Contexto:** submissao administrativa de templates do GOVNEX GEP pelo Gateway WhatsApp.
+- **Sintoma:** o GOVNEX GEP informa resultado ambiguo apos 20 segundos, enquanto templates anteriores do mesmo lote aparecem como pendentes na Meta.
 - **Causa confirmada:** o timeout generico do cliente HMAC era menor que o tempo eventual de uma operacao administrativa envolvendo a Meta.
-- **Correcao:** usar timeout de ate 60 segundos somente para submissao e sincronizacao de templates; o gateway deve responder com `ambiguous=true`, e o GOVNEX GAB deve persistir `SUBMISSION_AMBIGUOUS` antes de devolver o erro. Depois, sincronizar e usar a rotina auditavel do gateway, sem repetir automaticamente.
+- **Correcao:** usar timeout de ate 60 segundos somente para submissao e sincronizacao de templates; o gateway deve responder com `ambiguous=true`, e o GOVNEX GEP deve persistir `SUBMISSION_AMBIGUOUS` antes de devolver o erro. Depois, sincronizar e usar a rotina auditavel do gateway, sem repetir automaticamente.
 - **Validacao:** confirmar na Meta os itens aceitos, manter o item ausente como ambiguo durante a janela de seguranca e reabri-lo somente apos nova consulta e confirmacao explicita.
 - **Prevencao:** submeter templates individualmente, reconciliar antes de qualquer retry e manter o timeout maior restrito a administracao, sem amplia-lo para mensagens.
 
@@ -161,12 +161,12 @@ Cada caso deve informar contexto, sintoma, causa confirmada, correção, valida�
 
 ## ERR-LOCAL-PHP-001 - Build usa o PHP antigo do XAMPP no Wayfinder
 
-- **Contexto:** desenvolvimento no Windows com PHP 8.2 do XAMPP no `PATH` e PHP 8.4 portátil usado pelo GOVNEX GAB.
+- **Contexto:** desenvolvimento no Windows com PHP 8.2 do XAMPP no `PATH` e PHP 8.4 portátil usado pelo GOVNEX GEP.
 - **Sintoma:** `npm run build` falha no plugin Wayfinder porque o subprocesso `php artisan wayfinder:generate` encontra PHP 8.2, embora Composer e testes tenham sido executados com PHP 8.4.
 - **Causa confirmada:** o plugin invoca `php` pelo `PATH`; informar o executável 8.4 somente ao comando Composer não altera o PHP encontrado pelo processo Node.
 - **Correção:** priorizar o diretório do PHP 8.4 no `PATH` da sessão antes de executar o build.
 - **Validação:** executar `npm run build` e confirmar a geração das rotas e dos assets Vite.
-- **Prevenção:** iniciar a sessão local do GOVNEX GAB com o PHP 8.4 antes do XAMPP no `PATH`; a imagem Docker continua sendo a referência reproduzível.
+- **Prevenção:** iniciar a sessão local do GOVNEX GEP com o PHP 8.4 antes do XAMPP no `PATH`; a imagem Docker continua sendo a referência reproduzível.
 
 ## ERR-CI-003 - Teste depende da disponibilidade da API do IBGE
 

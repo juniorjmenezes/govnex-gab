@@ -28,7 +28,7 @@ function rootLoginEvents(): array
 
 it('recusa o root com a flag desligada e o Hub configurado, com mensagem genérica', function () {
     configureHub();
-    config(['govnexgab.root_login_enabled' => false]);
+    config(['govnexgep.root_login_enabled' => false]);
     $root = User::factory()->root()->create();
 
     $this->post(route('login.store'), ['email' => $root->email, 'password' => 'password'])
@@ -48,7 +48,7 @@ it('recusa o root com a flag desligada e o Hub configurado, com mensagem genéri
 });
 
 it('permite o root com a flag desligada quando o Hub não está configurado', function () {
-    config(['govnexgab.root_login_enabled' => false, 'services.hub.client_id' => null]);
+    config(['govnexgep.root_login_enabled' => false, 'services.hub.client_id' => null]);
     $root = User::factory()->root()->create();
 
     $this->post(route('login.store'), ['email' => $root->email, 'password' => 'password'])
@@ -60,7 +60,7 @@ it('permite o root com a flag desligada quando o Hub não está configurado', fu
 
 it('permite o root com a flag ligada e o Hub configurado', function () {
     configureHub();
-    config(['govnexgab.root_login_enabled' => true]);
+    config(['govnexgep.root_login_enabled' => true]);
     $root = User::factory()->root()->create();
 
     $this->post(route('login.store'), ['email' => $root->email, 'password' => 'password'])
@@ -77,7 +77,7 @@ it('nunca deixa não-root entrar por senha, com ou sem flag', function () {
     $admin = User::factory()->administrator()->create();
 
     foreach ([true, false] as $flag) {
-        config(['govnexgab.root_login_enabled' => $flag]);
+        config(['govnexgep.root_login_enabled' => $flag]);
 
         foreach ([$operator, $admin] as $user) {
             $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
@@ -91,7 +91,7 @@ it('nunca deixa não-root entrar por senha, com ou sem flag', function () {
 
 it('audita senha errada do root', function () {
     configureHub();
-    config(['govnexgab.root_login_enabled' => true]);
+    config(['govnexgep.root_login_enabled' => true]);
     $root = User::factory()->root()->create();
 
     $this->post(route('login.store'), ['email' => $root->email, 'password' => 'errada'])
@@ -103,7 +103,7 @@ it('audita senha errada do root', function () {
 
 it('bloqueia a 6ª tentativa por e-mail e IP e audita o bloqueio', function () {
     configureHub();
-    config(['govnexgab.root_login_enabled' => true]);
+    config(['govnexgep.root_login_enabled' => true]);
     $root = User::factory()->root()->create();
 
     foreach (range(1, 5) as $_) {
@@ -122,19 +122,19 @@ it('bloqueia a 6ª tentativa por e-mail e IP e audita o bloqueio', function () {
 
 it('informa à tela de login se o formulário local aparece', function () {
     configureHub();
-    config(['govnexgab.root_login_enabled' => false]);
+    config(['govnexgep.root_login_enabled' => false]);
 
     $this->get(route('login'))->assertInertia(fn ($page) => $page
         ->component('auth/login')
         ->where('hubEnabled', true)
         ->where('localLoginEnabled', false));
 
-    config(['govnexgab.root_login_enabled' => true]);
+    config(['govnexgep.root_login_enabled' => true]);
     $this->get(route('login'))->assertInertia(fn ($page) => $page
         ->where('hubEnabled', true)
         ->where('localLoginEnabled', true));
 
-    config(['govnexgab.root_login_enabled' => false, 'services.hub.base_url' => '']);
+    config(['govnexgep.root_login_enabled' => false, 'services.hub.base_url' => '']);
     $this->get(route('login'))->assertInertia(fn ($page) => $page
         ->where('hubEnabled', false)
         ->where('localLoginEnabled', true));
@@ -147,10 +147,10 @@ it('aplica a mesma regra ao login por passkey', function () {
     $passkeyOf = fn (User $user) => (new Passkey)->setRelation('user', $user);
     $request = request();
 
-    config(['govnexgab.root_login_enabled' => false]);
+    config(['govnexgep.root_login_enabled' => false]);
     expect(Passkeys::allowsLogin($request, $passkeyOf($root)))->toBeFalse();
 
-    config(['govnexgab.root_login_enabled' => true]);
+    config(['govnexgep.root_login_enabled' => true]);
     expect(Passkeys::allowsLogin($request, $passkeyOf($root)))->toBeTrue()
         ->and(Passkeys::allowsLogin($request, $passkeyOf($operator)))->toBeFalse()
         ->and(rootLoginEvents())->toBe([['resultado' => 'NEGADO', 'motivo' => 'desligado_por_flag']]);

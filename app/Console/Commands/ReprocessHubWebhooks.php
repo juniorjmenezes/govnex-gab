@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 
 /**
  * Reprocessa a caixa de entrada dos webhooks do Hub (padrão do GHO, mas
- * síncrono: o GAB processa no próprio comando, pelo `HubWebhookInbox`).
+ * síncrono: o GEP processa no próprio comando, pelo `HubWebhookInbox`).
  *
  * Sem `--id`: eventos em FALHA_TRANSITORIA cuja próxima tentativa já venceu,
  * RECEBIDO esquecido há mais de 5 minutos e PROCESSANDO preso há mais de 15

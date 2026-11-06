@@ -1,4 +1,4 @@
-# Deploy do GOVNEX GAB
+# Deploy do GOVNEX GEP
 
 Este é o runbook canônico de publicação. Deploy, migrations externas e alterações de infraestrutura exigem solicitação explícita.
 
@@ -6,7 +6,7 @@ Este é o runbook canônico de publicação. Deploy, migrations externas e alter
 
 > **Nota sobre o rename:** os paths, scripts e nomes abaixo (`gabnex` em `/srv/f3/apps/gabnex`, nos scripts `*-gabnex-*.sh`, no projeto Compose `f3-gabnex`, nos timers systemd `@gabnex.*` e no domínio) refletem a infraestrutura real hoje, versionada no repositório separado `f3-infra`, ao qual este agente não tem acesso. Eles **não foram renomeados** — fazer isso exigiria uma mudança coordenada nesse outro repositório e no DNS antes que a documentação aqui deixasse de mentir sobre o que existe de fato no servidor. Só o nome do produto no texto e os comandos artisan (que já mudaram no código desta sessão) foram atualizados.
 
-O GOVNEX GAB está publicado na `f3-vps` e usa a infraestrutura versionada em `C:\xampp82\htdocs\f3-infra`:
+O GOVNEX GEP está publicado na `f3-vps` e usa a infraestrutura versionada em `C:\xampp82\htdocs\f3-infra`:
 
 - acesso administrativo: `ssh f3-vps`;
 - domínio: `https://gabnex.f3sistemas.app.br`;
@@ -18,7 +18,7 @@ O GOVNEX GAB está publicado na `f3-vps` e usa a infraestrutura versionada em `C
 - Compose: `/opt/f3/platform/apps/gabnex/compose.yml`;
 - projeto Compose: `f3-gabnex`.
 
-Os serviços são `db`, `web`, `worker-default`, `worker-tse`, `worker-whatsapp` e `scheduler`. Somente `web` participa da rede externa `proxy`; nenhum serviço publica porta no host. Não altere a `minha-vps` para publicar ou recuperar o GOVNEX GAB.
+Os serviços são `db`, `web`, `worker-default`, `worker-tse`, `worker-whatsapp` e `scheduler`. Somente `web` participa da rede externa `proxy`; nenhum serviço publica porta no host. Não altere a `minha-vps` para publicar ou recuperar o GOVNEX GEP.
 
 ## 1. Parâmetros obrigatórios
 
@@ -68,7 +68,7 @@ Quando a release incluir `2026_08_10_000001_create_gabinete_module_tables.php`:
 5. mantenha os módulos ativos durante o smoke test inicial;
 6. teste uma desativação somente em gabinete controlado, após o aceite do comportamento integral.
 
-A migration preserva o comportamento anterior por backfill. Não desative módulos em massa durante a mesma janela de publicação. O catálogo e os critérios de aceite estão em [`govnexgabmodulos.md`](../govnexgabmodulos.md).
+A migration preserva o comportamento anterior por backfill. Não desative módulos em massa durante a mesma janela de publicação. O catálogo e os critérios de aceite estão em [`govnexgepmodulos.md`](../govnexgepmodulos.md).
 
 ### Gate da primeira publicação (fundação multientidade)
 
@@ -79,7 +79,7 @@ A aplicação ainda não foi publicada em produção. A hierarquia `entidade →
 3. confirme planos/licenças (`LEGADO_COMPLETO`) e todos os módulos institucionais disponíveis para as entidades semeadas;
 4. homologue gabinete independente, Câmara e Prefeitura antes de preparar o pacote final.
 
-Na primeira publicação, não crie comunicados, solicitações, transferências ou conexões WhatsApp reais durante o smoke test. As URLs legadas devem apenas redirecionar para o contexto canônico e registrar diagnóstico sanitizado. O contrato está em [`govnexgabentidades.md`](../govnexgabentidades.md).
+Na primeira publicação, não crie comunicados, solicitações, transferências ou conexões WhatsApp reais durante o smoke test. As URLs legadas devem apenas redirecionar para o contexto canônico e registrar diagnóstico sanitizado. O contrato está em [`govnexgepentidades.md`](../govnexgepentidades.md).
 
 ## 3. Release seletiva
 
@@ -128,7 +128,7 @@ Migrations devem ocorrer apenas depois do backup, com revisão de FKs, índices,
 scripts/initialize-gabnex.sh
 ```
 
-Esse comando sobe o banco, executa `migrate --force` e chama `govnexgab:bootstrap-demo` com confirmação explícita. O bootstrap recusa banco já preenchido e grava credenciais uma única vez em `/run/gabnex-bootstrap/credentials.txt`, com modo `600`. Guarde-as fora do servidor, ative o TOTP do administrador e remova o arquivo. Nunca use `migrate:fresh` ou o bootstrap em uma base operacional.
+Esse comando sobe o banco, executa `migrate --force` e chama `govnexgep:bootstrap-demo` com confirmação explícita. O bootstrap recusa banco já preenchido e grava credenciais uma única vez em `/run/gabnex-bootstrap/credentials.txt`, com modo `600`. Guarde-as fora do servidor, ative o TOTP do administrador e remova o arquivo. Nunca use `migrate:fresh` ou o bootstrap em uma base operacional.
 
 Para configurar SMTP sem exibir a senha:
 
@@ -168,21 +168,21 @@ O importador mantém `WHATSAPP_REAL_ENABLED=false`. Depois das migrations,
 execute no container web:
 
 ```bash
-php artisan govnexgab:whatsapp-audit
+php artisan govnexgep:whatsapp-audit
 ```
 
 Cadastre os templates, sincronize sua aprovação e selecione exatamente um
 integrante da equipe e um cidadão consentidos antes de usar `--strict`. Ativar
 envio real, submeter templates ou chamar a Meta exige autorização separada.
-Consulte [`govnexgabwhatsapp.md`](../govnexgabwhatsapp.md) para o contrato completo.
+Consulte [`govnexgepwhatsapp.md`](../govnexgepwhatsapp.md) para o contrato completo.
 
 Para mudança de WABA, use primeiro a simulação do comando abaixo. A execução
 confirmada recria somente as nove finalidades operacionais na conta configurada
 e não inclui pesquisa eleitoral:
 
 ```bash
-php artisan govnexgab:whatsapp-recreate-templates
-php artisan govnexgab:whatsapp-recreate-templates --confirm --submit \
+php artisan govnexgep:whatsapp-recreate-templates
+php artisan govnexgep:whatsapp-recreate-templates --confirm --submit \
   --admin-email=fabriciovlw1@gmail.com
 ```
 
@@ -199,8 +199,8 @@ Confirme, no mínimo:
 
 - `GET /up` retorna HTTP 200 por HTTPS;
 - login de um gabinete pelo Govnex Hub funciona, e o login local do root
-  também: a equipe GOVNEX administra o GAB pelo root local, então em produção
-  `GAB_ROOT_LOGIN_ENABLED=true` (o padrão do código é `false`; ver
+  também: a equipe GOVNEX administra o GEP pelo root local, então em produção
+  `GEP_ROOT_LOGIN_ENABLED=true` (o padrão do código é `false`; ver
   `docs/INTEGRACAO_GOVNEX_HUB.md`, Contingência). Confirme o limite de
   tentativas (6ª tentativa recebe 429) e o registro `ROOT_LOGIN_LOCAL` em
   `contexto_acesso_eventos`. Recomendado (pendente): 2FA ou passkey em toda

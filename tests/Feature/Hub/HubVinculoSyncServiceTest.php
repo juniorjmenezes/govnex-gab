@@ -114,7 +114,7 @@ it('elege como principal o vínculo de gabinete ativo mais antigo', function () 
         ->and(vinculadoAoGabinete($user, $primeiro->id))->toBeTrue();
 });
 
-it('ignora vínculo cuja entidade ainda não foi espelhada no GAB', function () {
+it('ignora vínculo cuja entidade ainda não foi espelhada no GEP', function () {
     $user = User::factory()->create(['gabinete_id' => null]);
 
     hubSync()->aplicar($user, [[
@@ -188,7 +188,7 @@ it('aplica o vínculo mapeável e preserva o resto quando há vínculo não mape
         ->and(OfficeMember::query()->where('gabinete_id', $outro->id)->where('usuario_id', $user->id)->value('ativo'))->toBeTruthy();
 });
 
-/** Hub com uma Câmara (3) habilitada ou não para o GAB e seu gabinete raiz (12). */
+/** Hub com uma Câmara (3) habilitada ou não para o GEP e seu gabinete raiz (12). */
 function fingirEstruturaSobDemanda(bool $habilitado = true): void
 {
     config([
@@ -243,7 +243,7 @@ it('cria sob demanda só a entidade quando o vínculo é de entidade', function 
         ->and(Office::withoutGlobalScopes()->count())->toBe(0);
 });
 
-it('descarta o vínculo quando o Hub diz que o GAB não está habilitado na entidade', function () {
+it('descarta o vínculo quando o Hub diz que o GEP não está habilitado na entidade', function () {
     fingirEstruturaSobDemanda(habilitado: false);
     $user = User::factory()->create(['gabinete_id' => null]);
 

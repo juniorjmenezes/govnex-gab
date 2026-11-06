@@ -27,9 +27,9 @@ class EntityInvitationNotification extends Notification
         $entidadeName = (string) $this->invitation->entidade()->value('nome');
 
         return (new MailMessage)
-            ->subject('Convite para acessar o GOVNEX GAB')
+            ->subject('Convite para acessar o GOVNEX GEP')
             ->greeting('Olá!')
-            ->line("Você recebeu um convite para participar de {$entidadeName} no GOVNEX GAB.")
+            ->line("Você recebeu um convite para participar de {$entidadeName} no GOVNEX GEP.")
             ->action('Revisar convite', route('entidade-invitations.show', $this->credential))
             ->line('O convite expira em 48 horas e pode ser utilizado uma única vez.');
     }

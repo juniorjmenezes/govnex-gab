@@ -12,7 +12,7 @@ use Laravel\Socialite\Two\User as SocialiteUser;
 beforeEach(function () {
     config([
         'services.hub.base_url' => 'https://hub.teste',
-        'services.hub.codigo' => 'GAB',
+        'services.hub.codigo' => 'GEP',
         'services.hub.client_id' => 'client-de-teste',
         'services.hub.client_secret' => 'segredo-oidc-de-teste',
         'services.hub.api_secret' => str_repeat('k', 40),
@@ -35,7 +35,7 @@ function fingirRetornoDoHub(string $sub, string $nome, string $email): void
 function fingirAcessoDoHub(string $sub, array $vinculos): void
 {
     Http::fake([
-        "https://hub.teste/api/v1/sistemas/GAB/pessoas/{$sub}" => Http::response([
+        "https://hub.teste/api/v1/sistemas/GEP/pessoas/{$sub}" => Http::response([
             'data' => ['id' => $sub, 'nome' => 'Ana Sousa', 'email' => 'ana@exemplo.gov.br', 'ativo' => true, 'vinculos' => $vinculos],
         ]),
     ]);
@@ -68,7 +68,7 @@ it('casa a conta existente pelo e-mail e grava o hub_user_id', function () {
         ->and($existente->role)->toBe(UserRole::Operator);
 });
 
-it('cria a conta quando a pessoa ainda não existe no GAB', function () {
+it('cria a conta quando a pessoa ainda não existe no GEP', function () {
     $entidade = Entity::factory()->create(['hub_entidade_id' => '3']);
     Office::factory()->create(['entidade_id' => $entidade->id, 'hub_unidade_id' => '12']);
 
@@ -137,7 +137,7 @@ it('não oferece o SSO quando o Hub não está configurado', function () {
 it('login local por senha fica restrito a root', function () {
     // Com o Hub configurado, o acesso local é contingência: só com a flag
     // ligada (ver tests/Feature/Auth/LocalRootLoginTest.php).
-    config(['govnexgab.root_login_enabled' => true]);
+    config(['govnexgep.root_login_enabled' => true]);
     $assessor = User::factory()->create(['email' => 'assessor@exemplo.gov.br']);
     $root = User::factory()->root()->create(['email' => 'root@exemplo.gov.br']);
 

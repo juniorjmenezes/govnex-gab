@@ -153,7 +153,7 @@ class GovnexApiClientTest extends TestCase
 
     /**
      * O filtro vai junto da consulta: é o que faz a API devolver só as linhas
-     * pedidas, em vez de o GAB ler o dataset inteiro para descartar quase
+     * pedidas, em vez de o GEP ler o dataset inteiro para descartar quase
      * tudo.
      */
     public function test_a_filter_is_sent_to_the_records_endpoint(): void

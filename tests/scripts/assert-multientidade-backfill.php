@@ -14,7 +14,7 @@ $app->make(Kernel::class)->bootstrap();
 
 $database = (string) config('database.connections.mysql.database');
 
-if (! app()->environment('testing') || $database !== 'govnexgab_multientidade_test') {
+if (! app()->environment('testing') || $database !== 'govnexgep_multientidade_test') {
     fwrite(STDERR, "Refusing to alter a database outside the dedicated multi-entidade validation environment.\n");
     exit(1);
 }

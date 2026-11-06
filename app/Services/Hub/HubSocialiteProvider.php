@@ -85,7 +85,7 @@ class HubSocialiteProvider extends AbstractProvider implements ProviderInterface
      * Endereço publicado pelo documento de descoberta, com o caminho conhecido
      * como reserva.
      *
-     * O contrato diz que a descoberta é "o único endereço que o GAB precisa
+     * O contrato diz que a descoberta é "o único endereço que o GEP precisa
      * configurar", e respeitá-lo é o que permite ao Hub mudar de endereço sem
      * release aqui. Mas uma indisponibilidade momentânea da descoberta não
      * pode derrubar todo o login: os caminhos atuais ficam como reserva.

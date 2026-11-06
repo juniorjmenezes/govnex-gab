@@ -13,10 +13,10 @@ use Illuminate\Console\Command;
 
 final class AuditWhatsAppReadiness extends Command
 {
-    protected $signature = 'govnexgab:whatsapp-audit
+    protected $signature = 'govnexgep:whatsapp-audit
         {--strict : Retorna falha quando o canal real não estiver integralmente pronto}';
 
-    protected $description = 'Audita a prontidão local do GOVNEX GAB para o Gateway WhatsApp sem enviar mensagens';
+    protected $description = 'Audita a prontidão local do GOVNEX GEP para o Gateway WhatsApp sem enviar mensagens';
 
     public function handle(): int
     {

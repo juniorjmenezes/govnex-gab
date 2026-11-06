@@ -6,10 +6,10 @@ use App\Enums\EntityType;
 use App\Enums\OfficeType;
 
 /**
- * Traduz os tipos da estrutura do Govnex Hub para os do GAB.
+ * Traduz os tipos da estrutura do Govnex Hub para os do GEP.
  *
  * O Hub classifica entidades e unidades num vocabulário amplo (escola,
- * hospital, autarquia…); o GAB só conhece três tipos de entidade e cinco de
+ * hospital, autarquia…); o GEP só conhece três tipos de entidade e cinco de
  * gabinete. O que não tem equivalente devolve `null` e quem chama ignora o
  * item com log — nunca inventa um tipo.
  *

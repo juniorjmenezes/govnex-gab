@@ -26,7 +26,7 @@ import {
  * direto, sem precisar de um botão para chegar nele.
  *
  * Com o Hub configurado, o acesso local é contingência e só aparece com a
- * flag `GAB_ROOT_LOGIN_ENABLED` ligada (`localLoginEnabled`); o servidor
+ * flag `GEP_ROOT_LOGIN_ENABLED` ligada (`localLoginEnabled`); o servidor
  * também recusa o POST quando ela está desligada.
  *
  * O botão do Hub e o link de troca de conta são âncoras, não `Link` do
@@ -126,6 +126,6 @@ export default function Login({
 }
 
 Login.layout = {
-    title: 'Entrar no GOVNEX GAB',
+    title: 'Entrar no GOVNEX GEP',
     description: 'Use sua conta do Govnex Hub para continuar.',
 };

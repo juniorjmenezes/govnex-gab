@@ -21,7 +21,7 @@ final class WhatsAppTemplateCatalog
             ],
             [
                 'type' => 'FOOTER',
-                'text' => 'GOVNEX GAB · F3 Sistemas',
+                'text' => 'GOVNEX GEP · F3 Sistemas',
             ],
         ];
 
@@ -76,23 +76,23 @@ final class WhatsAppTemplateCatalog
     {
         return [
             WhatsAppPurpose::DemandAssigned->value => [
-                'body' => 'Olá, {{1}}. A demanda {{2}} foi atribuída a você. Prazo: {{3}}. Acesse o GOVNEX GAB para consultar os detalhes.',
-                'examples' => ['Marina', 'GAB-2026-0012', '05/08/2026'],
+                'body' => 'Olá, {{1}}. A demanda {{2}} foi atribuída a você. Prazo: {{3}}. Acesse o GOVNEX GEP para consultar os detalhes.',
+                'examples' => ['Marina', 'GEP-2026-0012', '05/08/2026'],
             ],
             WhatsAppPurpose::DemandStatusChanged->value => [
-                'body' => 'Olá, {{1}}. A demanda {{2}} teve o status atualizado para {{3}}. Consulte o GOVNEX GAB ou o gabinete responsável para mais informações.',
-                'examples' => ['Marina', 'GAB-2026-0012', 'Em andamento'],
+                'body' => 'Olá, {{1}}. A demanda {{2}} teve o status atualizado para {{3}}. Consulte o GOVNEX GEP ou o gabinete responsável para mais informações.',
+                'examples' => ['Marina', 'GEP-2026-0012', 'Em andamento'],
             ],
             WhatsAppPurpose::DemandObservationAdded->value => [
-                'body' => 'Olá, {{1}}. {{3}} registrou uma nova observação na demanda {{2}}. O conteúdo está disponível somente no GOVNEX GAB.',
-                'examples' => ['Marina', 'GAB-2026-0012', 'Carlos'],
+                'body' => 'Olá, {{1}}. {{3}} registrou uma nova observação na demanda {{2}}. O conteúdo está disponível somente no GOVNEX GEP.',
+                'examples' => ['Marina', 'GEP-2026-0012', 'Carlos'],
             ],
             WhatsAppPurpose::DemandDeadlineDigest->value => [
-                'body' => 'Olá, {{1}}. Resumo de prazos do GOVNEX GAB: {{2}} demanda(s) atrasada(s), {{3}} próxima(s) do prazo e {{4}} próxima(s) ação(ões) pendente(s).',
+                'body' => 'Olá, {{1}}. Resumo de prazos do GOVNEX GEP: {{2}} demanda(s) atrasada(s), {{3}} próxima(s) do prazo e {{4}} próxima(s) ação(ões) pendente(s).',
                 'examples' => ['Marina', '2', '3', '1'],
             ],
             WhatsAppPurpose::AppointmentStaffReminder->value => [
-                'body' => 'Olá, {{1}}. Você possui um compromisso em {{2}}, às {{3}}. Local: {{4}}. Consulte a agenda do GOVNEX GAB para os detalhes.',
+                'body' => 'Olá, {{1}}. Você possui um compromisso em {{2}}, às {{3}}. Local: {{4}}. Consulte a agenda do GOVNEX GEP para os detalhes.',
                 'examples' => ['Marina', '05/08/2026', '14:30', 'Gabinete'],
             ],
             WhatsAppPurpose::AppointmentCitizenReminder->value => [
@@ -108,13 +108,13 @@ final class WhatsAppTemplateCatalog
                 'examples' => ['João', '06/08/2026', '15:00'],
             ],
             WhatsAppPurpose::PoliticalPollPublished->value => [
-                'body' => 'Olá, {{1}}. Uma nova pesquisa eleitoral foi publicada: {{2}}. Abrangência: {{3}}. Consulte o painel político do GOVNEX GAB.',
+                'body' => 'Olá, {{1}}. Uma nova pesquisa eleitoral foi publicada: {{2}}. Abrangência: {{3}}. Consulte o painel político do GOVNEX GEP.',
                 'examples' => ['Marina', 'Pesquisa municipal de agosto', 'Fortaleza/CE'],
             ],
             // {{3}} já vem montado ("10/11/2026 às 09:00" ou "10/11/2026, dia
             // inteiro"): compromisso de dia inteiro não tem horário a citar.
             WhatsAppPurpose::InstitutionalConvocation->value => [
-                'body' => 'Olá, {{1}}. A Secretaria legislativa convoca o seu gabinete para {{2}}, em {{3}}. Local: {{4}}. Consulte a agenda do GOVNEX GAB para os detalhes.',
+                'body' => 'Olá, {{1}}. A Secretaria legislativa convoca o seu gabinete para {{2}}, em {{3}}. Local: {{4}}. Consulte a agenda do GOVNEX GEP para os detalhes.',
                 'examples' => ['Marina', 'Sessão ordinária', '10/11/2026 às 09:00', 'Plenário'],
             ],
         ];

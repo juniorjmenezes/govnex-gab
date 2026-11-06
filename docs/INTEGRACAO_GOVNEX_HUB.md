@@ -2,21 +2,21 @@
 
 Status: **decisões fechadas** (22/09/2026); **passo 2 concluído dos dois lados**
 (23/09/2026). O Hub é provedor OIDC, tem 2FA/passkeys, webhook assinado com
-caixa de saída e API de leitura protegida; o GAB é o **piloto consumidor** —
+caixa de saída e API de leitura protegida; o GEP é o **piloto consumidor** —
 entra por SSO, recebe os webhooks e espelha pessoas e vínculos. A carga inicial
 (decisão #7) acontece automaticamente no primeiro login de cada pessoa; as
-telas de Equipe e convite de entidade do GAB ficaram somente leitura em
+telas de Equipe e convite de entidade do GEP ficaram somente leitura em
 24/09/2026 (passo 4 do plano abaixo). Falta o corte em produção (senha/2FA
 locais dos não-root) e a limpeza (passo 5), e GRI e GPC replicam o padrão do
-GAB depois.
+GEP depois.
 
 ## Decisão
 
-Contas, vínculos com entidades e gabinetes, papéis e permissões passarão a ser geridos pelo **Govnex Hub** em curto prazo. Até lá, o GAB não evolui a própria gestão de usuários: só corrige defeitos e mantém as telas existentes funcionando.
+Contas, vínculos com entidades e gabinetes, papéis e permissões passarão a ser geridos pelo **Govnex Hub** em curto prazo. Até lá, o GEP não evolui a própria gestão de usuários: só corrige defeitos e mantém as telas existentes funcionando.
 
-Este documento registra como o GAB funciona hoje, o que ele precisa do Hub e as decisões que ainda precisam ser tomadas em conjunto.
+Este documento registra como o GEP funciona hoje, o que ele precisa do Hub e as decisões que ainda precisam ser tomadas em conjunto.
 
-## Como o GAB funciona hoje
+## Como o GEP funciona hoje
 
 ### Conta
 
@@ -27,7 +27,7 @@ A tabela `users` guarda nome, e-mail, senha, 2FA, passkeys, `is_active`, `last_l
 
 `root` é o administrador da plataforma: acessa qualquer contexto, sempre com auditoria, e não pertence a gabinete.
 
-O login é do próprio GAB (Laravel Fortify): senha, redefinição por e-mail, verificação de e-mail, 2FA por aplicativo e passkeys. Não há autocadastro. As contas são desativadas por `is_active`; o GAB **não exclui contas** (a opção de encerrar conta pelo perfil foi removida em 16/09/2026).
+O login é do próprio GEP (Laravel Fortify): senha, redefinição por e-mail, verificação de e-mail, 2FA por aplicativo e passkeys. Não há autocadastro. As contas são desativadas por `is_active`; o GEP **não exclui contas** (a opção de encerrar conta pelo perfil foi removida em 16/09/2026).
 
 ### Vínculos
 
@@ -62,7 +62,7 @@ A entrada após o login (`/dashboard`) usa `users.gabinete_id` enquanto a pessoa
 - Existem duas noções de inativo (`users.is_active` e `gabinete_membros.ativo`) e nenhuma tela mostra as duas juntas.
 - Senhas são redefinidas por `window.prompt` na Equipe e na administração; `exige_troca_senha` só existe nos convites.
 
-## O que o GAB continua precisando localmente
+## O que o GEP continua precisando localmente
 
 A tabela `users` não pode desaparecer: ela é chave estrangeira de dados operacionais e de auditoria. Alguns exemplos:
 
@@ -71,40 +71,40 @@ A tabela `users` não pode desaparecer: ela é chave estrangeira de dados operac
 - autores de encaminhamentos, atualizações, favoritos, convites, transferências e eventos de contexto;
 - `gabinete_membros`, `entidade_membros`, `compromisso_participantes` e `whatsapp_contatos` (`cascadeOnDelete`).
 
-Por isso, com o Hub, o GAB mantém uma **cópia local** de cada pessoa e dos seus vínculos, alimentada pelo Hub, e **nunca exclui fisicamente** uma conta: desativa.
+Por isso, com o Hub, o GEP mantém uma **cópia local** de cada pessoa e dos seus vínculos, alimentada pelo Hub, e **nunca exclui fisicamente** uma conta: desativa.
 
-O GAB também precisa listar pessoas que ainda não entraram no sistema — por exemplo, para escolher o responsável de uma demanda ou os participantes de um compromisso.
+O GEP também precisa listar pessoas que ainda não entraram no sistema — por exemplo, para escolher o responsável de uma demanda ou os participantes de um compromisso.
 
 ## Proposta
 
-1. **Fonte da verdade:** o Hub cria, altera e desativa contas e vínculos. As telas do GAB que fazem isso (Equipe, convites, responsável do gabinete, usuários root) passam a ser somente leitura ou apontam para o Hub.
-2. **Login:** SSO pelo Hub via OpenID Connect. O GAB deixa de guardar senha, 2FA e passkeys e confia na autenticação do Hub.
+1. **Fonte da verdade:** o Hub cria, altera e desativa contas e vínculos. As telas do GEP que fazem isso (Equipe, convites, responsável do gabinete, usuários root) passam a ser somente leitura ou apontam para o Hub.
+2. **Login:** SSO pelo Hub via OpenID Connect. O GEP deixa de guardar senha, 2FA e passkeys e confia na autenticação do Hub.
 3. **Identificador:** nova coluna `users.hub_user_id` (única), preenchida com o `sub` do Hub. O casamento é sempre por esse identificador; o e-mail é só um dado da pessoa.
 4. **Provisionamento:** combinação de dois caminhos.
-   - **No login**, o GAB cria ou atualiza a pessoa e os vínculos a partir das claims recebidas.
-   - **Por webhook assinado**, o Hub avisa criação, alteração e desativação de pessoas e vínculos, para o GAB conseguir listar quem ainda não entrou e bloquear quem foi desligado sem esperar o próximo login.
-5. **Papéis:** o Hub envia os papéis já no vocabulário do GAB (`entidade_membros.papel` e `gabinete_membros.papel`), ou um vocabulário próprio com mapeamento documentado aqui. `users.role` passa a ser derivado e deixa de ser editado.
-6. **Desativação:** desligar alguém no Hub desativa a conta local (`is_active = false`) e encerra as sessões ativas no GAB.
+   - **No login**, o GEP cria ou atualiza a pessoa e os vínculos a partir das claims recebidas.
+   - **Por webhook assinado**, o Hub avisa criação, alteração e desativação de pessoas e vínculos, para o GEP conseguir listar quem ainda não entrou e bloquear quem foi desligado sem esperar o próximo login.
+5. **Papéis:** o Hub envia os papéis já no vocabulário do GEP (`entidade_membros.papel` e `gabinete_membros.papel`), ou um vocabulário próprio com mapeamento documentado aqui. `users.role` passa a ser derivado e deixa de ser editado.
+6. **Desativação:** desligar alguém no Hub desativa a conta local (`is_active = false`) e encerra as sessões ativas no GEP.
 
 ## Decisões fechadas (22/09/2026)
 
 | # | Pergunta | Decisão | Observação |
 |---|---|---|---|
-| 1 | Protocolo de login | **OIDC** | ✅ Implementado no Hub em 23/09/2026. O Hub virou Identity Provider com `laravel/passport` (OAuth2 Authorization Code + PKCE) e uma camada fina própria para o que falta de OIDC — `id_token`, descoberta, JWKS e `userinfo`. Não existe pacote maduro de *provider* OIDC para Laravel 13; só de cliente. No GAB, o consumo será por Socialite com provider genérico apontado ao documento de descoberta. Detalhes no passo 2 do plano. |
-| 2 | Período de transição | **Corte direto** | Sem login local e SSO lado a lado. Login local do GAB é desativado no dia do corte — exige que a carga inicial (decisão #7) e a base técnica (webhook, `hub_user_id`) estejam prontas e testadas antes do corte. |
-| 3 | Provisionamento | **Login + webhook** | No login, o GAB sincroniza a própria conta; webhook assinado do Hub avisa mudanças em tempo real (necessário para listar quem ainda não entrou e bloquear desligados sem esperar login). |
+| 1 | Protocolo de login | **OIDC** | ✅ Implementado no Hub em 23/09/2026. O Hub virou Identity Provider com `laravel/passport` (OAuth2 Authorization Code + PKCE) e uma camada fina própria para o que falta de OIDC — `id_token`, descoberta, JWKS e `userinfo`. Não existe pacote maduro de *provider* OIDC para Laravel 13; só de cliente. No GEP, o consumo será por Socialite com provider genérico apontado ao documento de descoberta. Detalhes no passo 2 do plano. |
+| 2 | Período de transição | **Corte direto** | Sem login local e SSO lado a lado. Login local do GEP é desativado no dia do corte — exige que a carga inicial (decisão #7) e a base técnica (webhook, `hub_user_id`) estejam prontas e testadas antes do corte. |
+| 3 | Provisionamento | **Login + webhook** | No login, o GEP sincroniza a própria conta; webhook assinado do Hub avisa mudanças em tempo real (necessário para listar quem ainda não entrou e bloquear desligados sem esperar login). |
 | 4 | Contrato do webhook | **Eventos por pessoa e por vínculo** | Não é snapshot periódico. Precisa de assinatura, idempotência e fila de reprocessamento por evento perdido. |
 | 5 | Vocabulário de papéis | **Fechado (23/09/2026): `administrador` · `operador` · `auditor`, mais `root` local** | Padrão do ecossistema, igual em todos os produtos — ver "Vocabulário de papéis" abaixo. |
-| 6 | Usuários root | **Mantidos locais no GAB** | Preserva acesso de emergência se o Hub cair — coerente com a decisão #10. |
-| 7 | Contas já existentes | **Vínculo único por e-mail** | Cada e-mail do GAB casa com uma pessoa no Hub na carga inicial. E-mails duplicados ou divergentes precisam de revisão manual antes do corte. |
+| 6 | Usuários root | **Mantidos locais no GEP** | Preserva acesso de emergência se o Hub cair — coerente com a decisão #10. |
+| 7 | Contas já existentes | **Vínculo único por e-mail** | Cada e-mail do GEP casa com uma pessoa no Hub na carga inicial. E-mails duplicados ou divergentes precisam de revisão manual antes do corte. |
 | 8 | 2FA e passkeys atuais | **Hub precisa oferecer o equivalente antes do corte** | O corte só acontece quando o Hub já tiver 2FA/passkey funcionando — não pode reduzir a segurança das contas na virada. Bloqueia a decisão #2 até estar pronto. |
-| 9 | WhatsApp e consentimento | **Ficam no GAB** | Continuam dado operacional do GAB; fora do escopo de identidade/acesso do Hub. |
+| 9 | WhatsApp e consentimento | **Ficam no GEP** | Continuam dado operacional do GEP; fora do escopo de identidade/acesso do Hub. |
 | 10 | Queda do Hub | **Aceita sessão já aberta até expirar** | Só login novo é bloqueado quando o Hub está fora do ar; quem já estava logado continua trabalhando até a sessão expirar. Root local (#6) cobre o acesso administrativo de emergência. |
 
 ## Plano sugerido
 
 1. ~~**Contrato:** fechar as decisões acima e o formato das claims e dos webhooks.~~ ✅ Decisões fechadas em 22/09/2026 (falta ainda o formato exato das claims OIDC e do payload dos webhooks, item de detalhe técnico do passo 2).
-2. **Base:** ✅ **concluído em 23/09/2026 dos dois lados** — Hub como provedor, GAB como primeiro consumidor. O contrato efetivo do lado do GAB está em "O que o GAB implementou", no fim deste passo; é o que GRI e GPC replicam.
+2. **Base:** ✅ **concluído em 23/09/2026 dos dois lados** — Hub como provedor, GEP como primeiro consumidor. O contrato efetivo do lado do GEP está em "O que o GEP implementou", no fim deste passo; é o que GRI e GPC replicam.
 
    O que o Hub passou a oferecer:
 
@@ -112,14 +112,14 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
 
    | Endpoint | Para quê |
    |---|---|
-   | `GET /.well-known/openid-configuration` | Descoberta. É o único endereço que o GAB precisa configurar. |
+   | `GET /.well-known/openid-configuration` | Descoberta. É o único endereço que o GEP precisa configurar. |
    | `GET /oauth/authorize` | Código de autorização. Exige `code_challenge_method=S256`; `response_type` só aceita `code`. |
    | `POST /oauth/token` | Troca do código pelo par de tokens. A resposta traz `id_token` quando o pedido incluiu o escopo `openid`. |
    | `GET /oauth/jwks` | Chave pública RSA (RS256) que valida o `id_token`. O `kid` é o thumbprint RFC 7638 da própria chave. |
    | `GET\|POST /oauth/userinfo` | Perfil do portador do access token. |
 
    Escopos: `openid`, `profile`, `email`. Cliente OAuth por sistema, criado com
-   `php artisan hub:registrar-cliente-oidc GAB --redirect=<uri>`; o id fica em
+   `php artisan hub:registrar-cliente-oidc GEP --redirect=<uri>`; o id fica em
    `sistemas.oauth_client_id` e o segredo nas tabelas do Passport. Clientes do
    ecossistema são de primeira parte e **não** passam por tela de consentimento.
 
@@ -136,17 +136,17 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    ```
 
    `sub` é o id da pessoa no Hub, **como string** — é o valor que vira
-   `users.hub_user_id` no GAB (decisão #3). Vínculo e papel não viajam em claim:
+   `users.hub_user_id` no GEP (decisão #3). Vínculo e papel não viajam em claim:
    mudam mais rápido do que um token vive, e quem precisa deles chama
    `GET /api/v1/sistemas/{codigo}/pessoas/{usuario}`, que responde o estado de
    agora. O `/oauth/userinfo` devolve as mesmas claims de perfil mais `sub`.
-   Não há claim `nonce` — se o GAB usar `nonce`, ele não volta no token.
+   Não há claim `nonce` — se o GEP usar `nonce`, ele não volta no token.
 
    **Webhook assinado** (decisão #4) — `POST` no `sistemas.webhook_url`, com
    `X-Hub-Timestamp`, `X-Hub-Nonce` e `X-Hub-Signature: sha256=<hex>`. O HMAC-SHA256
    usa `sistemas.client_secret` sobre o canônico
    `MÉTODO\nCAMINHO?QUERY\nTIMESTAMP\nNONCE\nsha256(corpo)` — o mesmo esquema que o
-   GAB já valida em `WhatsAppCallbackSignatureValidator`. Tipos de evento:
+   GEP já valida em `WhatsAppCallbackSignatureValidator`. Tipos de evento:
    `pessoa.criada`, `pessoa.alterada`, `pessoa.desligada`, `vinculo.criado`,
    `vinculo.alterado`, `vinculo.encerrado` e, desde 24/09/2026, os de estrutura
    `entidade.criada|alterada|removida` e `unidade.criada|alterada|removida`
@@ -156,7 +156,7 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    {
      "id": "<uuid do evento>",
      "tipo": "vinculo.alterado",
-     "sistema": "GAB",
+     "sistema": "GEP",
      "ocorrido_em": "2026-09-23T13:40:00-03:00",
      "dados": {
        "pessoa": {
@@ -174,14 +174,14 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    }
    ```
 
-   É retrato, não diferença: o GAB aplica o bloco recebido por cima do que tem e
-   fica correto mesmo se um aviso anterior nunca chegou. `id` é o que o GAB usa
+   É retrato, não diferença: o GEP aplica o bloco recebido por cima do que tem e
+   fica correto mesmo se um aviso anterior nunca chegou. `id` é o que o GEP usa
    para descartar reentrega. Eventos de pessoa trazem só `dados.pessoa`. Os avisos
    ficam numa caixa de saída (`webhook_eventos`) e o que falha é reenfileirado por
    `hub:reprocessar-webhooks-pendentes`, agendado a cada cinco minutos.
 
    **2FA e passkeys** (decisão #8) — `laravel/fortify` com `laravel/passkeys`, a
-   mesma dupla que o GAB já usa, com 2FA confirmado (`confirm: true`) e
+   mesma dupla que o GEP já usa, com 2FA confirmado (`confirm: true`) e
    confirmação de senha para gerenciar os dois. Tela em `/settings/security`.
 
    **API de leitura** — `/api/v1/*` estava aberta e passou a exigir
@@ -191,7 +191,7 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    **Vocabulário de papéis** (decisão #5) — fechado em 23/09/2026; ver a seção
    "Vocabulário de papéis" abaixo.
 
-   ### O que o GAB implementou (contrato efetivo — referência para GRI e GPC)
+   ### O que o GEP implementou (contrato efetivo — referência para GRI e GPC)
 
    **Rotas do consumidor.**
 
@@ -208,8 +208,8 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    restrita a `root` e redireciona os demais para o painel.
 
    **Contingência (04/11/2026, PLATFORM.md §4).** O acesso local do root
-   (senha + 2FA, ou passkey) passou a depender de `GAB_ROOT_LOGIN_ENABLED`
-   (`config/govnexgab.php`, padrão `false`; regra em `App\Auth\LocalRootLogin`):
+   (senha + 2FA, ou passkey) passou a depender de `GEP_ROOT_LOGIN_ENABLED`
+   (`config/govnexgep.php`, padrão `false`; regra em `App\Auth\LocalRootLogin`):
 
    | Hub configurado (`HUB_BASE_URL` + `HUB_OIDC_CLIENT_ID` + `HUB_OIDC_CLIENT_SECRET`) | Flag | Acesso local do root |
    |---|---|---|
@@ -218,8 +218,8 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    | sim | `true` (**produção**, ver abaixo) | liga, só para root ativo |
 
    **Decisão do proprietário (04/11/2026): a equipe GOVNEX faz todos os
-   cadastros e administra o GAB pelo root local, sem SSO — no dia a dia e em
-   emergência.** Por isso, em produção, `GAB_ROOT_LOGIN_ENABLED=true` (ver
+   cadastros e administra o GEP pelo root local, sem SSO — no dia a dia e em
+   emergência.** Por isso, em produção, `GEP_ROOT_LOGIN_ENABLED=true` (ver
    `.env.production.example`); o padrão do código continua `false` (ambiente
    sem a variável fica fechado). **Recomendado, pendente:** exigir 2FA ou
    passkey em toda conta root de produção (hoje é opcional, em
@@ -235,7 +235,7 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
      `bloqueado_por_tentativas`, `desligado_por_flag`, `conta_inativa` —,
      `metodo`, estado da flag e do Hub) e um `Log::warning`. A senha nunca é
      registrada; IP e user agent só como HMAC.
-   - **Ligar/desligar:** no servidor, ajuste `GAB_ROOT_LOGIN_ENABLED` e rode
+   - **Ligar/desligar:** no servidor, ajuste `GEP_ROOT_LOGIN_ENABLED` e rode
      `php artisan config:cache` (ou reinicie os containers que leem o
      `.env`). Em produção ela fica `true`; desligue só se a decisão mudar
      (ex.: root deixar de ser o caminho de administração). Confira as
@@ -250,10 +250,10 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    | Variável | Origem | Papel |
    |---|---|---|
    | `HUB_BASE_URL` | endereço do Hub | Base da descoberta OIDC e da API. |
-   | `HUB_SISTEMA_CODIGO` | fixo, `GAB` | Código do `Sistema` no Hub; entra na URL da API e é conferido no campo `sistema` do webhook. |
-   | `HUB_OIDC_CLIENT_ID` / `HUB_OIDC_CLIENT_SECRET` | `php artisan hub:registrar-cliente-oidc GAB --redirect=<HUB_OIDC_REDIRECT>`, rodado **no Hub** | Handshake OIDC. |
+   | `HUB_SISTEMA_CODIGO` | fixo, `GEP` | Código do `Sistema` no Hub; entra na URL da API e é conferido no campo `sistema` do webhook. |
+   | `HUB_OIDC_CLIENT_ID` / `HUB_OIDC_CLIENT_SECRET` | `php artisan hub:registrar-cliente-oidc GEP --redirect=<HUB_OIDC_REDIRECT>`, rodado **no Hub** | Handshake OIDC. |
    | `HUB_OIDC_REDIRECT` | `${APP_URL}/auth/hub/callback` | Precisa bater exatamente com o `--redirect` registrado. |
-   | `HUB_API_SECRET` | `sistemas.client_secret` do Sistema GAB no Hub | Duplo papel: `Bearer` na leitura de `/api/v1/*` e chave HMAC que valida o webhook. |
+   | `HUB_API_SECRET` | `sistemas.client_secret` do Sistema GEP no Hub | Duplo papel: `Bearer` na leitura de `/api/v1/*` e chave HMAC que valida o webhook. |
    | `HUB_TIMEOUT` | opcional, 15 | Timeout das chamadas ao Hub. |
    | `HUB_WEBHOOK_WINDOW_SECONDS` | opcional, 300 | Tolerância do `X-Hub-Timestamp`. |
    | `HUB_WEBHOOK_MAX_ATTEMPTS` | opcional, 5 | Teto de tentativas de um evento com falha nossa. |
@@ -315,13 +315,13 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    aplica a lista completa e desativa o que não veio; o webhook mexe só no
    vínculo citado, porque um aviso isolado não afirma nada sobre os outros.
    E nada apaga linha — vínculo encerrado vira `ativo = false` com
-   `desativado_em`, que é o histórico de auditoria do GAB, não do Hub.
+   `desativado_em`, que é o histórico de auditoria do GEP, não do Hub.
 
    **Espelhamento da estrutura (antes do primeiro login SSO).** Rode
    `php artisan hub:espelhar-estrutura --dry-run` e, se o relatório estiver
    coerente, `php artisan hub:espelhar-estrutura`. O comando lê a estrutura pela
    API do Hub, casa entidade por `slug` e gabinete (dentro da entidade) por
-   `slug` — a mesma regra do `ImportadorDoGab` no Hub — e preenche
+   `slug` — a mesma regra do `ImportadorDoGep` no Hub — e preenche
    `hub_entidade_id`/`hub_unidade_id` só onde estão nulos; é idempotente e nunca
    sobrescreve um id diferente (reporta conflito e sai com falha). Sem esse
    passo, vínculos não mapeáveis são ignorados com aviso em log e o login
@@ -333,8 +333,8 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    O Hub é a fonte da verdade do **nome e da situação** das entidades e
    unidades **já ligadas** (`entidades.hub_entidade_id`,
    `gabinetes.hub_unidade_id`). Renomear, suspender ou reativar no Hub chega ao
-   GAB pelo webhook. Todo o resto — slug, tipo, cores, módulos, licença,
-   timezone — continua do GAB.
+   GEP pelo webhook. Todo o resto — slug, tipo, cores, módulos, licença,
+   timezone — continua do GEP.
 
    **Eventos.** `entidade.criada`, `entidade.alterada`, `entidade.removida`,
    `unidade.criada`, `unidade.alterada`, `unidade.removida`. Desde a fase 2
@@ -346,7 +346,7 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
 
    ```json
    {
-     "id": "<uuid>", "tipo": "entidade.alterada", "sistema": "GAB",
+     "id": "<uuid>", "tipo": "entidade.alterada", "sistema": "GEP",
      "ocorrido_em": "2026-09-24T10:00:00-03:00",
      "dados": {
        "entidade": {
@@ -367,7 +367,7 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    Ids são string; `atualizado_em` é o `updated_at` do registro no Hub. Não há
    bloco `pessoa`.
 
-   **Como o GAB aplica** (`HubEstruturaSyncService`, chamado pelo
+   **Como o GEP aplica** (`HubEstruturaSyncService`, chamado pelo
    `HubEventProcessor` antes da exigência de `pessoa`):
 
    | Situação | Resultado |
@@ -375,7 +375,7 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    | `*.alterada` de item ligado | Aplica `nome` e situação: entidade `status = ativa` → `ATIVA`, qualquer outro → `SUSPENSA` (com `suspensa_em`); unidade `ativa` → gabinete `ativo`/`suspenso` (com `suspended_at`). Slug **nunca** é alterado. |
    | `*.removida` de item ligado | **Suspende**, nunca apaga (reversível; os dados operacionais ficam). |
    | Item não ligado | `Log::info` e **200** (`entidade_ignorada`/`unidade_ignorada`). Nunca 409/422. |
-   | `*.criada` | Cria a entidade/o gabinete — ver "Estrutura criada no Hub nasce no GAB". Item já ligado cai na linha de `*.alterada`. |
+   | `*.criada` | Cria a entidade/o gabinete — ver "Estrutura criada no Hub nasce no GEP". Item já ligado cai na linha de `*.alterada`. |
    | `atualizado_em` mais antigo que `hub_sincronizado_em` | Descartado (`evento_antigo_descartado`). Igual é reaplicado — `updated_at` tem resolução de segundo e o retrato é idempotente. |
    | Bloco `entidade`/`unidade` ausente ou sem `id` | 409 (payload inaplicável), como vínculo sem bloco. |
 
@@ -398,34 +398,34 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    ligar pela primeira vez. A API do Hub passou a devolver `status` e
    `atualizado_em` nas entidades e `atualizado_em` nas unidades (aditivo).
 
-   **Ordem de deploy: GAB antes do Hub.** O GAB antigo responde 422 a tipo
+   **Ordem de deploy: GEP antes do Hub.** O GEP antigo responde 422 a tipo
    desconhecido e o Hub trata 4xx como falha permanente: se o Hub subir antes,
    os eventos de estrutura ficam `Falhou`. Depois de publicar os dois, rode
    `hub:espelhar-estrutura --atualizar --dry-run` e, se coerente, sem
    `--dry-run`.
 
-   **Fora de escopo da fase 1.** Conta (o GAB não a conhece), alteração de
-   timezone e tipo depois de criado, e unidades aninhadas (o GAB é plano). A
+   **Fora de escopo da fase 1.** Conta (o GEP não a conhece), alteração de
+   timezone e tipo depois de criado, e unidades aninhadas (o GEP é plano). A
    criação ficou para a fase 2, logo abaixo.
 
-   ### Estrutura criada no Hub nasce no GAB (fase 2, 24/09/2026)
+   ### Estrutura criada no Hub nasce no GEP (fase 2, 24/09/2026)
 
    O Hub é o **único ponto de criação** de entidade e gabinete. O que ele cria
-   para o GAB nasce aqui sozinho, sem inventar dado: titular
+   para o GEP nasce aqui sozinho, sem inventar dado: titular
    (`vereador_nome`), número eleitoral, cores e protocolo continuam sendo
-   preenchidos no GAB depois (Configurações do gabinete / Administração →
+   preenchidos no GEP depois (Configurações do gabinete / Administração →
    Gabinetes).
 
    **Habilitação por entidade (Hub).** Cada entidade declara no `/estrutura`
    do Hub os **sistemas habilitados** (tabela `entidade_sistema`; só
    administrador do Hub edita). Os avisos de estrutura da entidade e das
-   unidades dela vão só para os habilitados. Habilitar o GAB numa entidade —
-   inclusive ao criá-la — manda ao GAB, e só a ele, `entidade.criada` e
+   unidades dela vão só para os habilitados. Habilitar o GEP numa entidade —
+   inclusive ao criá-la — manda ao GEP, e só a ele, `entidade.criada` e
    `unidade.criada` de tudo o que já existe (pai antes do filho); desabilitar
-   só para de avisar (nada é suspenso aqui). Com o GAB habilitado, a entidade
+   só para de avisar (nada é suspenso aqui). Com o GEP habilitado, a entidade
    precisa ter município e UF (próprios ou da organização). A migration do Hub
    habilita, para cada entidade, os sistemas em que ela já tem vínculo; o
-   importador habilita o GAB no que veio do GAB — nenhum dos dois anuncia
+   importador habilita o GEP no que veio do GEP — nenhum dos dois anuncia
    `*.criada`.
 
    **Payload (aditivo).** `dados.entidade` ganhou `sigla`, `timezone` (da
@@ -445,9 +445,9 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    antigas trouxeram como `OUTRA` são revisadas com
    `hub:reclassificar-gabinetes-independentes --dry-run` (no Hub), que só
    aplica — com confirmação ou `--force` — às candidatas com uma única
-   unidade `GABINETE` e origem no GAB.
+   unidade `GABINETE` e origem no GEP.
 
-   **Como o GAB cria** (`HubEstruturaSyncService::criarEntidade`/`criarUnidade`,
+   **Como o GEP cria** (`HubEstruturaSyncService::criarEntidade`/`criarUnidade`,
    sobre `EstruturaProvisioningService`, o mesmo caminho da antiga criação
    manual):
 
@@ -464,12 +464,12 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    **Vínculo sob demanda.** `HubVinculoSyncService` (login e webhook), antes
    de escrever, cria pela API a entidade/unidade do vínculo que ainda não está
    espelhada (`GET /api/v1/entidades/{id}` e `/unidades/{id}`). Só descarta o
-   vínculo se o Hub disser que o GAB não está habilitado, o tipo não tiver
+   vínculo se o Hub disser que o GEP não está habilitado, o tipo não tiver
    equivalente ou o Hub não responder — e aí vale a regra de antes: o login
    não desativa os ausentes.
 
    **Rede de segurança.** `php artisan hub:espelhar-estrutura --criar` cria o
-   que falta (entidade com o GAB habilitado e tipo com equivalente, unidades
+   que falta (entidade com o GEP habilitado e tipo com equivalente, unidades
    raiz com tipo com equivalente); `--criar --dry-run` só lista o que
    nasceria e o motivo de cada item que não nasce.
 
@@ -480,21 +480,21 @@ O GAB também precisa listar pessoas que ainda não entraram no sistema — por 
    gabinete" viraram atalhos para `{HUB_BASE_URL}/estrutura` (sem
    `HUB_BASE_URL`, só o aviso). A edição de gabinete na administração não cria
    nem altera mais a conta do responsável — ela é só exibida. Continuam
-   editáveis no GAB os campos de domínio dele (titular, número eleitoral,
+   editáveis no GEP os campos de domínio dele (titular, número eleitoral,
    contato, endereço, módulos, cores…).
 
-   **Ordem de deploy: GAB antes do Hub.** O Hub só passa a emitir `*.criada`
+   **Ordem de deploy: GEP antes do Hub.** O Hub só passa a emitir `*.criada`
    filtrado por habilitação depois do `migrate` (tabela `entidade_sistema`),
-   que exige autorização. Depois de publicar os dois: habilitar o GAB numa
-   entidade de teste no Hub, criar uma unidade e conferir o GAB; rodar
+   que exige autorização. Depois de publicar os dois: habilitar o GEP numa
+   entidade de teste no Hub, criar uma unidade e conferir o GEP; rodar
    `hub:espelhar-estrutura --criar --dry-run` para ver o que falta.
 3. **Carga inicial:** ✅ acontece automaticamente — `HubProvisioningService` casa a conta por `hub_user_id` e, na falta dele, por e-mail (decisão #7), no primeiro login de cada pessoa. Falta revisar divergências (duplicados, e-mails que não batem) antes do corte em produção.
-4. **Corte:** ✅ **concluído em 24/09/2026 no que depende só de código.** Login local do GAB já recusa quem não é `root` desde a fase 2 (decisão #2); SSO pelo Hub é o caminho normal. Telas de gestão de usuários do GAB passaram a somente leitura: `TeamController`/`UserPolicy` (equipe do gabinete) e `EntidadeInvitationController::store` (convite novo) retornam 403 com "Gerenciado no Govnex Hub — altere lá" (`HubManagedHint`); convites pendentes anteriores ao corte ainda podem ser aceitos (`EntidadeInvitationAcceptController`, não tocado). Sessões já abertas continuam até expirar se o Hub cair (decisão #10); root continua local (decisão #6), fora desse corte. Falta só a decisão de produção sobre desligar senha/2FA/passkeys locais dos não-root (passo 5).
-5. **Limpeza:** remover senha, 2FA e passkeys locais do GAB e `users.role` como dado editável. ✅ Em 28/10/2026 saiu a projeção do contexto em `users.gabinete_id`/`users.role` durante a requisição (`ResolveEntityContext`): Policies, controllers, Form Requests e middlewares passaram a ler gabinete e papel do `OfficeContext`. As rotas sem prefixo continuam, de propósito: `RedirectLegacyTenantRoute` é a entrada após o login e trata links antigos, e lê `users.gabinete_id` como gabinete de origem da conta (assim como `EnsureOfficeIsActive` nessas rotas e o gabinete padrão do `HandleInertiaRequests` em telas sem gabinete). As colunas ficam até os consumidores fora de requisição (filas, comandos, notificações) consultarem os vínculos.
+4. **Corte:** ✅ **concluído em 24/09/2026 no que depende só de código.** Login local do GEP já recusa quem não é `root` desde a fase 2 (decisão #2); SSO pelo Hub é o caminho normal. Telas de gestão de usuários do GEP passaram a somente leitura: `TeamController`/`UserPolicy` (equipe do gabinete) e `EntidadeInvitationController::store` (convite novo) retornam 403 com "Gerenciado no Govnex Hub — altere lá" (`HubManagedHint`); convites pendentes anteriores ao corte ainda podem ser aceitos (`EntidadeInvitationAcceptController`, não tocado). Sessões já abertas continuam até expirar se o Hub cair (decisão #10); root continua local (decisão #6), fora desse corte. Falta só a decisão de produção sobre desligar senha/2FA/passkeys locais dos não-root (passo 5).
+5. **Limpeza:** remover senha, 2FA e passkeys locais do GEP e `users.role` como dado editável. ✅ Em 28/10/2026 saiu a projeção do contexto em `users.gabinete_id`/`users.role` durante a requisição (`ResolveEntityContext`): Policies, controllers, Form Requests e middlewares passaram a ler gabinete e papel do `OfficeContext`. As rotas sem prefixo continuam, de propósito: `RedirectLegacyTenantRoute` é a entrada após o login e trata links antigos, e lê `users.gabinete_id` como gabinete de origem da conta (assim como `EnsureOfficeIsActive` nessas rotas e o gabinete padrão do `HandleInertiaRequests` em telas sem gabinete). As colunas ficam até os consumidores fora de requisição (filas, comandos, notificações) consultarem os vínculos.
 
 ## Vocabulário de papéis (decisão #5, fechada em 23/09/2026 — superada em 04/11/2026)
 
-> **Superada:** o Hub não tem mais papéis; o GAB ignora o `papel` recebido e decide pelo cargo local (ver "Cargos locais"). O texto abaixo é histórico.
+> **Superada:** o Hub não tem mais papéis; o GEP ignora o `papel` recebido e decide pelo cargo local (ver "Cargos locais"). O texto abaixo é histórico.
 
 Quatro níveis, iguais em todos os produtos do ecossistema:
 
@@ -511,7 +511,7 @@ Quatro níveis, iguais em todos os produtos do ecossistema:
 - Funções de negócio (líder, gestor, vereador, chefe de gabinete, dono do risco,
   gestor de unidade) **não** são papel no Hub: viram atribuição dentro do
   produto.
-- No GAB, o `HubPapelMapper` aceita só `administrador`/`operador`/`auditor`
+- No GEP, o `HubPapelMapper` aceita só `administrador`/`operador`/`auditor`
   (sem distinção de caixa) e grava `AccessRole` (`ADMINISTRADOR`/`OPERADOR`/`AUDITOR`)
   em `gabinete_membros.papel` e `entidade_membros.papel`. Papel desconhecido vira
   **auditor** (menor privilégio) com aviso em log; vínculo com papel `root` é
@@ -528,8 +528,8 @@ Mapeamento para os papéis antigos:
 
 | Produto | Papel antigo | Papel no ecossistema |
 |---|---|---|
-| GAB | vereador, chefe de gabinete (`LIDER`, `GESTOR`) | administrador |
-| GAB | assessor (`MEMBRO`) | operador |
+| GEP | vereador, chefe de gabinete (`LIDER`, `GESTOR`) | administrador |
+| GEP | assessor (`MEMBRO`) | operador |
 | GRI (quando integrado) | `administrator` | administrador |
 | GRI (quando integrado) | `executive` | auditor |
 | GRI (quando integrado) | `risk_management`, `unit_manager`, `risk_owner`, `collaborator` | operador (as funções viram atribuições no GRI) |
@@ -539,12 +539,12 @@ Mapeamento para os papéis antigos:
 ## Cargos locais
 
 **Decisão (04/11/2026): o Hub é só vínculo e autenticação. Não há papéis do
-Hub; cada sistema controla os seus.** O GAB deixou de depender do papel do Hub
+Hub; cada sistema controla os seus.** O GEP deixou de depender do papel do Hub
 por completo: o campo `papel` ainda chega no login e no webhook (o Hub ainda o
 envia), mas é **ignorado** — vínculo ativo significa só "está vinculado". Não
 há mais pontes de transição.
 
-- **Cargo = local do GAB**, em `gabinete_membros.cargo`
+- **Cargo = local do GEP**, em `gabinete_membros.cargo`
   (`App\Enums\OfficePosition`: `VEREADOR`, `CHEFE_GABINETE`, `SECRETARIO`,
   `ASSESSOR`, `AUDITOR`). O Hub não o envia, e o `HubVinculoSyncService`
   nunca o escreve nem o limpa — nem ao encerrar e reativar o vínculo.
@@ -577,7 +577,7 @@ há mais pontes de transição.
 - **Unicidade (decisão do proprietário, 04/11/2026):** no máximo **1
   vereador e 1 chefe de gabinete ativos** por gabinete; assessor, auditor e
   secretário são ilimitados; vínculo inativo com o cargo não conta. Vale em
-  todos os caminhos (Equipe, Administração do root, `gab:cargo-conceder`),
+  todos os caminhos (Equipe, Administração do root, `gep:cargo-conceder`),
   porque todos gravam pelo `OfficePositionAssigner`, que confere com
   `lockForUpdate` sobre os membros do gabinete. Rede de segurança no banco:
   coluna gerada `gabinete_membros.cargo_lider_ativo` (só tem valor para
@@ -616,7 +616,7 @@ pessoas ou vínculos (isso é do Hub). A gravação é a mesma da Equipe e do
 comando (`App\Services\Offices\OfficePositionAssigner`).
 
 **Partida por comando (contingência).** Quem opera o servidor também concede
-com `gab:cargo-conceder` (PLATFORM.md §3.1, padrão do
+com `gep:cargo-conceder` (PLATFORM.md §3.1, padrão do
 `gho:gestor-acesso-conceder`). Exige pessoa ativa com `hub_user_id`, gabinete
 identificado pelo **id da unidade no Hub** (`gabinetes.hub_unidade_id`, o mesmo
 sistema de identificadores da pessoa), vínculo ativo, cargo permitido ao tipo
@@ -627,18 +627,18 @@ nada). Grava `CARGO_CONCEDIDO_POR_OPERADOR` em `contexto_acesso_eventos` com
 é VEREADOR ou CHEFE_GABINETE; os demais são atribuídos depois pela Equipe.
 
 ```bash
-php artisan gab:cargo-conceder 42 12 CHEFE_GABINETE --motivo="Partida do gabinete — chamado #123"
+php artisan gep:cargo-conceder 42 12 CHEFE_GABINETE --motivo="Partida do gabinete — chamado #123"
 ```
 
 **Colunas inertes (limpeza pendente do schema).** `gabinete_membros.papel` e
 `entidade_membros.papel` ficaram nullable e não são lidas (o sync do Hub grava
-`null`; convites e a sincronização legada de contas criadas no GAB ainda
+`null`; convites e a sincronização legada de contas criadas no GEP ainda
 gravam valores, sem efeito); `entidade_convites.papel_*` idem; em
 `users.role` só a marca `root` é lida. `App\Enums\AccessRole` e os valores
 não-root de `UserRole` existem só para essas colunas.
 
 **Passos restantes.** O Hub parar de enviar `papel` (claims, API de leitura e
-webhook) — o GAB já ignora; remover as colunas inertes acima (trocar
+webhook) — o GEP já ignora; remover as colunas inertes acima (trocar
 `users.role` por um `is_root`); cargo de entidade para Câmara/Prefeitura;
 poderes do secretário fora do módulo; cargos próprios para gabinete do
 prefeito, secretaria e setor administrativo; GRI, GPC e demais produtos
@@ -646,6 +646,6 @@ adotarem o mesmo modelo (cargo/perfil local, Hub só vínculo).
 
 ## Até a integração
 
-- Não criar telas ou regras novas de gestão de usuários no GAB.
+- Não criar telas ou regras novas de gestão de usuários no GEP.
 - Nunca excluir contas fisicamente; desativar.
 - Corrigir apenas defeitos que afetem o uso atual.

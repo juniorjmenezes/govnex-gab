@@ -24,7 +24,7 @@ use Throwable;
 class GovnexHubApiClient
 {
     /**
-     * Acesso de uma pessoa no sistema GAB.
+     * Acesso de uma pessoa no sistema GEP.
      *
      * @return array{pessoa: array<string, mixed>, vinculos: array<int, array<string, mixed>>}
      *
@@ -32,7 +32,7 @@ class GovnexHubApiClient
      */
     public function acessoDaPessoa(string $hubUserId): array
     {
-        $codigo = rawurlencode((string) config('services.hub.codigo', 'GAB'));
+        $codigo = rawurlencode((string) config('services.hub.codigo', 'GEP'));
         $url = $this->baseUrl()."/api/v1/sistemas/{$codigo}/pessoas/".rawurlencode($hubUserId);
 
         try {
@@ -109,7 +109,7 @@ class GovnexHubApiClient
 
     /**
      * Uma entidade, para criar sob demanda o que ainda não foi espelhado.
-     * Além dos campos da listagem traz `habilitado` (o GAB está entre os
+     * Além dos campos da listagem traz `habilitado` (o GEP está entre os
      * sistemas habilitados da entidade), `timezone` e município/UF já
      * resolvidos (da entidade, senão da conta). `null` quando o Hub não a
      * conhece (inexistente ou removida).

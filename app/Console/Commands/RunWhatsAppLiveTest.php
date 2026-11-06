@@ -66,7 +66,7 @@ final class RunWhatsAppLiveTest extends Command
         'agenda-cancelled',
     ];
 
-    protected $signature = 'govnexgab:whatsapp-live-test
+    protected $signature = 'govnexgep:whatsapp-live-test
         {--office=Fortaleza : Nome ou slug exato do gabinete}
         {--team-contact=* : IDs dos dois contatos de equipe}
         {--citizen-contact=* : IDs dos três contatos de cidadãos}
@@ -107,7 +107,7 @@ final class RunWhatsAppLiveTest extends Command
                 throw new RuntimeException('A execução exige --expected-messages=40.');
             }
 
-            $lock = Cache::lock('govnexgab:whatsapp-live-test:'.$office->id, 1800);
+            $lock = Cache::lock('govnexgep:whatsapp-live-test:'.$office->id, 1800);
             if (! $lock->get()) {
                 throw new RuntimeException('Já existe um ensaio WhatsApp em execução para este gabinete.');
             }

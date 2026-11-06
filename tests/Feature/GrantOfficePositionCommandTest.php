@@ -26,7 +26,7 @@ function grantScenario(): array
 it('concede o cargo e grava a auditoria com ator sistema e motivo', function () {
     [$office, $user] = grantScenario();
 
-    $this->artisan('gab:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'chefe_gabinete', '--motivo' => 'Partida do gabinete'])
+    $this->artisan('gep:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'chefe_gabinete', '--motivo' => 'Partida do gabinete'])
         ->expectsOutputToContain('Cargo Chefe de gabinete concedido')
         ->assertSuccessful();
 
@@ -40,7 +40,7 @@ it('concede o cargo e grava a auditoria com ator sistema e motivo', function () 
             'membro_id' => $user->id,
             'de' => null,
             'para' => 'CHEFE_GABINETE',
-            'origem' => 'gab:cargo-conceder',
+            'origem' => 'gep:cargo-conceder',
             'ator' => 'sistema',
             'motivo' => 'Partida do gabinete',
         ]);
@@ -50,8 +50,8 @@ it('é idempotente: repetir não altera nem audita de novo', function () {
     [$office, $user] = grantScenario();
     $args = ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR', '--motivo' => 'Partida'];
 
-    $this->artisan('gab:cargo-conceder', $args)->assertSuccessful();
-    $this->artisan('gab:cargo-conceder', $args)
+    $this->artisan('gep:cargo-conceder', $args)->assertSuccessful();
+    $this->artisan('gep:cargo-conceder', $args)
         ->expectsOutputToContain('Nada alterado')
         ->assertSuccessful();
 
@@ -62,7 +62,7 @@ it('é idempotente: repetir não altera nem audita de novo', function () {
 it('exige motivo', function () {
     [$office, $user] = grantScenario();
 
-    $this->artisan('gab:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR'])
+    $this->artisan('gep:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR'])
         ->expectsOutputToContain('--motivo')
         ->assertFailed();
 
@@ -72,12 +72,12 @@ it('exige motivo', function () {
 it('recusa pessoa inexistente ou inativa', function () {
     [$office, $user] = grantScenario();
 
-    $this->artisan('gab:cargo-conceder', ['hub_user_id' => '999', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR', '--motivo' => 'x'])
+    $this->artisan('gep:cargo-conceder', ['hub_user_id' => '999', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR', '--motivo' => 'x'])
         ->expectsOutputToContain('Nenhuma pessoa')
         ->assertFailed();
 
     $user->forceFill(['is_active' => false])->saveQuietly();
-    $this->artisan('gab:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR', '--motivo' => 'x'])
+    $this->artisan('gep:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR', '--motivo' => 'x'])
         ->expectsOutputToContain('inativa')
         ->assertFailed();
 
@@ -87,17 +87,17 @@ it('recusa pessoa inexistente ou inativa', function () {
 it('recusa gabinete inexistente e vínculo inexistente ou inativo', function () {
     [$office, $user] = grantScenario();
 
-    $this->artisan('gab:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '777', 'cargo' => 'VEREADOR', '--motivo' => 'x'])
+    $this->artisan('gep:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '777', 'cargo' => 'VEREADOR', '--motivo' => 'x'])
         ->expectsOutputToContain('Nenhum gabinete')
         ->assertFailed();
 
     OfficeMember::query()->where('usuario_id', $user->id)->update(['ativo' => false, 'desativado_em' => now()]);
-    $this->artisan('gab:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR', '--motivo' => 'x'])
+    $this->artisan('gep:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR', '--motivo' => 'x'])
         ->expectsOutputToContain('vínculo ativo')
         ->assertFailed();
 
     $other = Office::factory()->create(['tipo_gabinete' => OfficeType::CouncilorOffice, 'hub_unidade_id' => '13']);
-    $this->artisan('gab:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '13', 'cargo' => 'VEREADOR', '--motivo' => 'x'])
+    $this->artisan('gep:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '13', 'cargo' => 'VEREADOR', '--motivo' => 'x'])
         ->expectsOutputToContain('vínculo ativo')
         ->assertFailed();
 
@@ -108,11 +108,11 @@ it('recusa gabinete inexistente e vínculo inexistente ou inativo', function () 
 it('recusa cargo inválido ou não permitido ao tipo do gabinete', function () {
     [$office, $user] = grantScenario();
 
-    $this->artisan('gab:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'PREFEITO', '--motivo' => 'x'])
+    $this->artisan('gep:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'PREFEITO', '--motivo' => 'x'])
         ->expectsOutputToContain('Cargo inválido')
         ->assertFailed();
 
-    $this->artisan('gab:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'SECRETARIO', '--motivo' => 'x'])
+    $this->artisan('gep:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'SECRETARIO', '--motivo' => 'x'])
         ->expectsOutputToContain('não é permitido')
         ->assertFailed();
 
@@ -123,7 +123,7 @@ it('recusa root', function () {
     grantScenario();
     User::factory()->root()->create(['hub_user_id' => '1']);
 
-    $this->artisan('gab:cargo-conceder', ['hub_user_id' => '1', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR', '--motivo' => 'x'])
+    $this->artisan('gep:cargo-conceder', ['hub_user_id' => '1', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR', '--motivo' => 'x'])
         ->expectsOutputToContain('Root')
         ->assertFailed();
 
@@ -134,7 +134,7 @@ it('depois da partida, quem recebeu o cargo atribui os demais pela Equipe', func
     [$office, $user] = grantScenario();
     $teammate = User::factory()->forGabinete($office)->withoutPosition()->create(['role' => UserRole::Operator]);
 
-    $this->artisan('gab:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR', '--motivo' => 'Partida'])
+    $this->artisan('gep:cargo-conceder', ['hub_user_id' => '42', 'hub_unidade_id' => '12', 'cargo' => 'VEREADOR', '--motivo' => 'Partida'])
         ->assertSuccessful();
 
     $this->withoutVite()

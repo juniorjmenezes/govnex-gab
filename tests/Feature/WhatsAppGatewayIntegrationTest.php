@@ -133,13 +133,13 @@ class WhatsAppGatewayIntegrationTest extends TestCase
             $contact,
             WhatsAppPurpose::DemandAssigned,
             'demand:10:assigned:20',
-            ['Pessoa Teste', 'GAB-2026-0010', '05/08/2026'],
+            ['Pessoa Teste', 'GEP-2026-0010', '05/08/2026'],
         );
         $second = $outbox->enqueue(
             $contact,
             WhatsAppPurpose::DemandAssigned,
             'demand:10:assigned:20',
-            ['Pessoa Teste', 'GAB-2026-0010', '05/08/2026'],
+            ['Pessoa Teste', 'GEP-2026-0010', '05/08/2026'],
         );
 
         $this->assertNotNull($first);
@@ -201,7 +201,7 @@ class WhatsAppGatewayIntegrationTest extends TestCase
             $contact,
             WhatsAppPurpose::DemandAssigned,
             'demand:20:assigned:30',
-            ['Pessoa Teste', 'GAB-2026-0020', '05/08/2026'],
+            ['Pessoa Teste', 'GEP-2026-0020', '05/08/2026'],
         );
         $this->assertNotNull($notification);
         $notification->forceFill(['status' => WhatsAppNotificationStatus::Submitted])->save();
@@ -391,7 +391,7 @@ class WhatsAppGatewayIntegrationTest extends TestCase
             $contact,
             WhatsAppPurpose::DemandAssigned,
             'demand:30:assigned:40',
-            ['Pessoa Teste', 'GAB-2026-0030', '05/08/2026'],
+            ['Pessoa Teste', 'GEP-2026-0030', '05/08/2026'],
         );
         $this->assertNotNull($notification);
 
@@ -432,7 +432,7 @@ class WhatsAppGatewayIntegrationTest extends TestCase
             $contact,
             WhatsAppPurpose::DemandAssigned,
             'demand:40:assigned:50',
-            ['Pessoa Teste', 'GAB-2026-0040', '05/08/2026'],
+            ['Pessoa Teste', 'GEP-2026-0040', '05/08/2026'],
         );
         $this->assertNotNull($notification);
         $notification->forceFill(['expurgar_sensiveis_em' => now()->subMinute()])->save();
@@ -482,14 +482,14 @@ class WhatsAppGatewayIntegrationTest extends TestCase
             $this->readyEntidadeWhatsAppTemplate($office, $purpose);
         }
 
-        $this->artisan('govnexgab:whatsapp-audit --strict')->assertSuccessful();
+        $this->artisan('govnexgep:whatsapp-audit --strict')->assertSuccessful();
 
         $extra = User::factory()->forGabinete($office)->create();
         $extraContact = app(WhatsAppContactService::class)
             ->declareForUser($extra, '(88) 97777-5678', $extra);
         $extraContact->forceFill(['piloto' => true])->save();
 
-        $this->artisan('govnexgab:whatsapp-audit --strict')->assertFailed();
+        $this->artisan('govnexgep:whatsapp-audit --strict')->assertFailed();
     }
 
     /** @return array{Office,User,WhatsAppContact} */

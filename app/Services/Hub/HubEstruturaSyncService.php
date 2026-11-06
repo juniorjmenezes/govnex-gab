@@ -20,12 +20,12 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * Aplica no GAB o nome e a situação que o Hub declara para a estrutura já
+ * Aplica no GEP o nome e a situação que o Hub declara para a estrutura já
  * espelhada (entidades e unidades ligadas por `hub_entidade_id` /
  * `hub_unidade_id`).
  *
  * O Hub é a fonte da verdade desses dois campos — e só deles. Slug, tipo,
- * cores, módulos e licença continuam do GAB: o slug do Hub muda a cada
+ * cores, módulos e licença continuam do GEP: o slug do Hub muda a cada
  * renomeação, e aqui ele é URL. Depois de ligado, o casamento é só pelo id.
  *
  * Mesmo contrato do resto da integração: retrato, não diferença. A ordem vem
@@ -35,10 +35,10 @@ use RuntimeException;
  * operacionais do gabinete.
  *
  * Criação (`criarEntidade`/`criarUnidade`): o Hub é o único ponto de criação
- * de estrutura, e o que ele cria para o GAB nasce aqui pelo mesmo caminho da
+ * de estrutura, e o que ele cria para o GEP nasce aqui pelo mesmo caminho da
  * antiga criação manual (`EstruturaProvisioningService`) — licença, módulos,
  * localização herdada —, sem usuário: o acesso vem dos vínculos. Só entra o
- * que tem equivalente no GAB (`HubTipoMapper`); o resto é ignorado com log e
+ * que tem equivalente no GEP (`HubTipoMapper`); o resto é ignorado com log e
  * responde 200. A fila não garante ordem, então unidade (ou vínculo) que
  * chega antes da entidade a resolve sob demanda pela API do Hub. Criar é
  * idempotente: item já ligado cai no caminho de atualização, e o `unique` de
@@ -68,7 +68,7 @@ class HubEstruturaSyncService
 
         if ($existente !== null) {
             return $existente->trashed()
-                ? $this->ignorar('entidade', $hubId, 'excluida_no_gab')
+                ? $this->ignorar('entidade', $hubId, 'excluida_no_gep')
                 : $this->aplicarEntidade($dados);
         }
 
@@ -79,7 +79,7 @@ class HubEstruturaSyncService
         }
 
         // Entidade local ainda não ligada com o mesmo slug do Hub é, pela regra
-        // do espelhamento, a mesma entidade (veio do GAB pelo importador).
+        // do espelhamento, a mesma entidade (veio do GEP pelo importador).
         // Criar outra seria duplicar; ligar é tarefa do `hub:espelhar-estrutura`.
         if ($this->casamentoPendente(Entity::query(), 'hub_entidade_id', $dados)) {
             return $this->ignorar('entidade', $hubId, 'casamento_pendente', ['slug' => $dados['slug'] ?? null]);
@@ -110,7 +110,7 @@ class HubEstruturaSyncService
             throw $e;
         }
 
-        Log::info('Entidade criada no GAB a partir do Govnex Hub.', [
+        Log::info('Entidade criada no GEP a partir do Govnex Hub.', [
             'entidade_id' => $entidade->id,
             'hub_entidade_id' => $hubId,
             'tipo' => $tipo->value,
@@ -121,7 +121,7 @@ class HubEstruturaSyncService
 
     /**
      * `unidade.criada` (ou item da API ao resolver sob demanda). Só unidade
-     * raiz: o GAB é plano.
+     * raiz: o GEP é plano.
      *
      * @param  array<string, mixed>  $dados
      * @return array<string, mixed>
@@ -135,7 +135,7 @@ class HubEstruturaSyncService
 
         if ($existente !== null) {
             return $existente->trashed()
-                ? $this->ignorar('unidade', $hubId, 'excluida_no_gab')
+                ? $this->ignorar('unidade', $hubId, 'excluida_no_gep')
                 : $this->aplicarUnidade($dados);
         }
 
@@ -178,7 +178,7 @@ class HubEstruturaSyncService
             ], null, ['origem' => 'GOVNEX_HUB', 'hub_unidade_id' => $hubId]);
         } catch (InvalidArgumentException $e) {
             // Gabinete independente que já tem o seu (inclusive por criação
-            // simultânea): o GAB não aceita um segundo.
+            // simultânea): o GEP não aceita um segundo.
             return $this->ignorar('unidade', $hubId, 'entidade_nao_aceita', ['erro' => $e->getMessage()]);
         } catch (UniqueConstraintViolationException $e) {
             if (Office::withoutGlobalScopes()->where('hub_unidade_id', $hubId)->exists()) {
@@ -188,7 +188,7 @@ class HubEstruturaSyncService
             throw $e;
         }
 
-        Log::info('Gabinete criado no GAB a partir do Govnex Hub.', [
+        Log::info('Gabinete criado no GEP a partir do Govnex Hub.', [
             'gabinete_id' => $gabinete->id,
             'entidade_id' => $entidade->id,
             'hub_unidade_id' => $hubId,
@@ -199,7 +199,7 @@ class HubEstruturaSyncService
     }
 
     /**
-     * Por que a entidade do Hub não nasce no GAB (`null` quando nasce). Usado
+     * Por que a entidade do Hub não nasce no GEP (`null` quando nasce). Usado
      * pela criação e pelo `hub:espelhar-estrutura --criar --dry-run`.
      *
      * @param  array<string, mixed>  $dados
@@ -213,7 +213,7 @@ class HubEstruturaSyncService
         // `habilitado` só vem da API; o webhook já chega filtrado pela
         // habilitação no Hub.
         if (array_key_exists('habilitado', $dados) && $dados['habilitado'] === false) {
-            return 'gab_nao_habilitado';
+            return 'gep_nao_habilitado';
         }
 
         if ($this->nome($dados, 180) === null
@@ -246,8 +246,8 @@ class HubEstruturaSyncService
 
     /**
      * Entidade espelhada; se ainda não existir aqui, pergunta ao Hub e cria
-     * (respeitando a habilitação do GAB na entidade). `null` quando o Hub não
-     * a conhece, o GAB não está habilitado nela ou o tipo não tem equivalente.
+     * (respeitando a habilitação do GEP na entidade). `null` quando o Hub não
+     * a conhece, o GEP não está habilitado nela ou o tipo não tem equivalente.
      *
      * @throws HubIndisponivelException
      */
@@ -320,7 +320,7 @@ class HubEstruturaSyncService
         $entidade = Entity::query()->where('hub_entidade_id', $hubId)->first();
 
         if ($entidade === null) {
-            Log::info('Entidade do Hub sem correspondência ligada no GAB; aviso ignorado.', ['hub_entidade_id' => $hubId]);
+            Log::info('Entidade do Hub sem correspondência ligada no GEP; aviso ignorado.', ['hub_entidade_id' => $hubId]);
 
             return ['acao' => 'entidade_ignorada', 'hub_entidade_id' => $hubId];
         }
@@ -346,7 +346,7 @@ class HubEstruturaSyncService
         $gabinete = Office::withoutGlobalScopes()->where('hub_unidade_id', $hubId)->first();
 
         if ($gabinete === null) {
-            Log::info('Unidade do Hub sem gabinete ligado no GAB; aviso ignorado.', ['hub_unidade_id' => $hubId]);
+            Log::info('Unidade do Hub sem gabinete ligado no GEP; aviso ignorado.', ['hub_unidade_id' => $hubId]);
 
             return ['acao' => 'unidade_ignorada', 'hub_unidade_id' => $hubId];
         }
@@ -451,7 +451,7 @@ class HubEstruturaSyncService
      */
     private function ignorar(string $recurso, string $hubId, string $motivo, array $contexto = []): array
     {
-        Log::info("Criação de {$recurso} do Govnex Hub ignorada no GAB.", [
+        Log::info("Criação de {$recurso} do Govnex Hub ignorada no GEP.", [
             "hub_{$recurso}_id" => $hubId,
             'motivo' => $motivo,
             ...$contexto,

@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'bootstrap_directory' => env('GOVNEXGAB_BOOTSTRAP_DIR', storage_path('app/bootstrap')),
+    'bootstrap_directory' => env('GOVNEXGEP_BOOTSTRAP_DIR', storage_path('app/bootstrap')),
 
     /*
     | Acesso local de contingência do root (senha/2FA/passkey). Desligado por
@@ -10,5 +10,5 @@ return [
     | (ambiente novo), o acesso local continua valendo. Ver
     | App\Auth\LocalRootLogin e docs/INTEGRACAO_GOVNEX_HUB.md.
     */
-    'root_login_enabled' => (bool) env('GAB_ROOT_LOGIN_ENABLED', false),
+    'root_login_enabled' => (bool) env('GEP_ROOT_LOGIN_ENABLED', false),
 ];

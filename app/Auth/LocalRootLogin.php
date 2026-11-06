@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
  * Acesso local de contingência do root (PLATFORM.md §4).
  *
  * O login local (senha + 2FA, ou passkey) é só do root e só funciona quando
- * `govnexgab.root_login_enabled` está ligado — ou quando o Hub nem está
+ * `govnexgep.root_login_enabled` está ligado — ou quando o Hub nem está
  * configurado (ambiente novo, sem `HUB_*`, que ainda não tem outra porta de
  * entrada). Em produção com o Hub, fica desligado e só é ligado em
  * emergência.
@@ -33,7 +33,7 @@ class LocalRootLogin
 
     public static function enabled(): bool
     {
-        return (bool) config('govnexgab.root_login_enabled') || ! self::hubConfigured();
+        return (bool) config('govnexgep.root_login_enabled') || ! self::hubConfigured();
     }
 
     /**
@@ -46,7 +46,7 @@ class LocalRootLogin
         $payload = [
             'contingencia' => true,
             'motivo' => $reason,
-            'flag_ligada' => (bool) config('govnexgab.root_login_enabled'),
+            'flag_ligada' => (bool) config('govnexgep.root_login_enabled'),
             'hub_configurado' => self::hubConfigured(),
             ...$context,
         ];

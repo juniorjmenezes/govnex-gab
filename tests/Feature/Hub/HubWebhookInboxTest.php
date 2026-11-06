@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 
 beforeEach(function () {
     config([
-        'services.hub.codigo' => 'GAB',
+        'services.hub.codigo' => 'GEP',
         'services.hub.api_secret' => str_repeat('k', 40),
         'services.hub.webhook_window_seconds' => 300,
         'services.hub.webhook_max_attempts' => 5,
@@ -39,7 +39,7 @@ function personCreatedEvent(): array
     return [
         'id' => (string) Str::uuid(),
         'tipo' => 'pessoa.criada',
-        'sistema' => 'GAB',
+        'sistema' => 'GEP',
         'ocorrido_em' => now()->toIso8601String(),
         'dados' => ['pessoa' => [
             'id' => '42', 'nome' => 'Ana Sousa', 'email' => 'ana@exemplo.gov.br',
@@ -75,7 +75,7 @@ it('grava o evento processado na caixa de entrada', function () {
     expect($row->status)->toBe(HubWebhookStatus::Processed)
         ->and($row->tentativas)->toBe(1)
         ->and($row->tipo)->toBe('pessoa.criada')
-        ->and($row->sistema)->toBe('GAB')
+        ->and($row->sistema)->toBe('GEP')
         ->and($row->resultado)->toBe('pessoa_sincronizada')
         ->and($row->payload['id'])->toBe($event['id'])
         ->and($row->recebido_em)->not->toBeNull()
@@ -156,7 +156,7 @@ it('não entra em loop com payload inaplicável (409)', function () {
 it('responde duplicado quando outra entrega está processando o mesmo evento', function () {
     $event = personCreatedEvent();
     HubWebhookEvent::query()->create([
-        'evento_id' => $event['id'], 'tipo' => $event['tipo'], 'sistema' => 'GAB',
+        'evento_id' => $event['id'], 'tipo' => $event['tipo'], 'sistema' => 'GEP',
         'status' => HubWebhookStatus::Processing, 'tentativas' => 1, 'payload' => $event,
         'recebido_em' => now(), 'ultima_tentativa_em' => now(),
     ]);
@@ -170,7 +170,7 @@ it('responde duplicado quando outra entrega está processando o mesmo evento', f
 it('garante a unicidade do evento no banco', function () {
     $event = personCreatedEvent();
     $attributes = [
-        'evento_id' => $event['id'], 'tipo' => $event['tipo'], 'sistema' => 'GAB',
+        'evento_id' => $event['id'], 'tipo' => $event['tipo'], 'sistema' => 'GEP',
         'status' => HubWebhookStatus::Received, 'payload' => $event, 'recebido_em' => now(),
     ];
 
@@ -207,7 +207,7 @@ it('respeita o teto de tentativas', function () {
 it('libera e reprocessa evento preso em processamento', function () {
     $event = personCreatedEvent();
     HubWebhookEvent::query()->create([
-        'evento_id' => $event['id'], 'tipo' => $event['tipo'], 'sistema' => 'GAB',
+        'evento_id' => $event['id'], 'tipo' => $event['tipo'], 'sistema' => 'GEP',
         'status' => HubWebhookStatus::Processing, 'tentativas' => 1, 'payload' => $event,
         'recebido_em' => now()->subHour(), 'ultima_tentativa_em' => now()->subHour(),
     ]);
@@ -219,7 +219,7 @@ it('libera e reprocessa evento preso em processamento', function () {
 
 it('apaga pela retenção só os eventos encerrados antigos', function () {
     $make = fn (HubWebhookStatus $status, $when) => HubWebhookEvent::query()->forceCreate([
-        'evento_id' => (string) Str::uuid(), 'tipo' => 'pessoa.criada', 'sistema' => 'GAB',
+        'evento_id' => (string) Str::uuid(), 'tipo' => 'pessoa.criada', 'sistema' => 'GEP',
         'status' => $status, 'payload' => [], 'recebido_em' => $when,
         'processado_em' => $status === HubWebhookStatus::Processed ? $when : null,
         'created_at' => $when, 'updated_at' => $when,

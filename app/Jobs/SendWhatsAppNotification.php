@@ -125,7 +125,7 @@ class SendWhatsAppNotification implements ShouldQueue
             $response = $gateway->sendTemplate([
                 'client_request_id' => (string) $notification->client_request_id,
                 'purpose' => $notification->finalidade->value,
-                'origin' => 'GOVNEXGAB',
+                'origin' => 'GOVNEXGEP',
                 'phone' => (string) $notification->telefone_criptografado,
                 'template_version_id' => (int) $evaluation['template']->gateway_template_id,
                 'body_parameters' => (array) $notification->parametros_corpo_criptografados,

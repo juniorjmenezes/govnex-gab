@@ -65,7 +65,7 @@ class RedirectLegacyTenantRoute
             $request->isMethodSafe() ? 302 : 307,
             [
                 'Cache-Control' => 'no-store',
-                'X-GovnexGab-Legacy-Redirect' => '1',
+                'X-GovnexGep-Legacy-Redirect' => '1',
             ],
         );
     }

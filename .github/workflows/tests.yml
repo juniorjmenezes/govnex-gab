@@ -72,9 +72,9 @@ jobs:
       DB_CONNECTION: mysql
       DB_HOST: 127.0.0.1
       DB_PORT: 3306
-      DB_DATABASE: govnexgab_modules_test
-      DB_USERNAME: govnexgab
-      DB_PASSWORD: govnexgab-ci-password
+      DB_DATABASE: govnexgep_modules_test
+      DB_USERNAME: govnexgep
+      DB_PASSWORD: govnexgep-ci-password
       MAIL_MAILER: array
       QUEUE_CONNECTION: sync
       SESSION_DRIVER: array
@@ -83,9 +83,9 @@ jobs:
       mariadb:
         image: mariadb:11.4.12
         env:
-          MARIADB_DATABASE: govnexgab_modules_test
-          MARIADB_USER: govnexgab
-          MARIADB_PASSWORD: govnexgab-ci-password
+          MARIADB_DATABASE: govnexgep_modules_test
+          MARIADB_USER: govnexgep
+          MARIADB_PASSWORD: govnexgep-ci-password
           MARIADB_ROOT_PASSWORD: root-ci-password
         ports:
           - 3306:3306

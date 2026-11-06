@@ -143,7 +143,7 @@ class ResolveEntityContext
         ?Office $gabinete,
     ): void {
         $signature = $entidade->id.':'.($gabinete !== null ? $gabinete->id : 'entidade');
-        $previous = (string) $request->session()->get('govnexgab.context_signature', '');
+        $previous = (string) $request->session()->get('govnexgep.context_signature', '');
 
         if ($previous === $signature) {
             return;
@@ -164,6 +164,6 @@ class ResolveEntityContext
             'ocorrido_em' => now(),
         ]);
 
-        $request->session()->put('govnexgab.context_signature', $signature);
+        $request->session()->put('govnexgep.context_signature', $signature);
     }
 }

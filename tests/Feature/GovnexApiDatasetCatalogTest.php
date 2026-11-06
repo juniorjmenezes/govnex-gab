@@ -9,7 +9,7 @@ use Tests\TestCase;
 
 /**
  * A convenção de slug é o contrato entre os dois sistemas: é por ela que o
- * GAB encontra na GOVNEX API o dataset que alguém cadastrou do outro lado.
+ * GEP encontra na GOVNEX API o dataset que alguém cadastrou do outro lado.
  * Mudar qualquer string aqui quebra sincronizações já publicadas.
  */
 class GovnexApiDatasetCatalogTest extends TestCase

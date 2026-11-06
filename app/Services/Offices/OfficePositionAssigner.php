@@ -16,7 +16,7 @@ use Illuminate\Validation\ValidationException;
  * Grava o cargo local de um integrante e a trilha da mudança — o único ponto
  * de escrita de `gabinete_membros.cargo`, usado pela Equipe do gabinete
  * (`CARGO_ALTERADO`), pela Administração → Gabinetes do root e pelo comando
- * `gab:cargo-conceder` (`CARGO_CONCEDIDO_POR_OPERADOR`).
+ * `gep:cargo-conceder` (`CARGO_CONCEDIDO_POR_OPERADOR`).
  *
  * Quem pode e quais cargos cabem no tipo do gabinete são decididos antes, por
  * `OfficeAccess` e pelos Form Requests/comando; aqui só se grava. Idempotente:

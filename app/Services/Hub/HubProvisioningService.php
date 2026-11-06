@@ -43,7 +43,7 @@ class HubProvisioningService
             'nome' => $hubUser->getName(),
             'email' => $hubUser->getEmail(),
             // Quem chegou até aqui foi autenticado pelo Hub. Exigir uma
-            // segunda verificação de e-mail no GAB (as rotas internas passam
+            // segunda verificação de e-mail no GEP (as rotas internas passam
             // por `verified`) só prenderia a pessoa numa tela de confirmação
             // logo depois de ela provar quem é.
             'email_verificado' => true,
@@ -54,11 +54,11 @@ class HubProvisioningService
         }
 
         if (! $user->is_active) {
-            throw new RuntimeException('Esta conta está desativada no GOVNEX GAB.');
+            throw new RuntimeException('Esta conta está desativada no GOVNEX GEP.');
         }
 
         // Uma queda do Hub entre o token e esta chamada não pode barrar o
-        // login: a pessoa já foi autenticada, e os vínculos que o GAB tem
+        // login: a pessoa já foi autenticada, e os vínculos que o GEP tem
         // valem até o próximo aviso (decisão #10). Só o login novo depende do
         // Hub estar no ar, não a exatidão momentânea dos vínculos.
         try {
@@ -79,7 +79,7 @@ class HubProvisioningService
      * falta dele, pelo e-mail.
      *
      * O casamento por e-mail é a carga inicial acontecendo sozinha, no momento
-     * do primeiro acesso (decisão #7): a conta que já existe no GAB recebe o
+     * do primeiro acesso (decisão #7): a conta que já existe no GEP recebe o
      * `hub_user_id` e segue com todo o histórico. Só vale para conta ainda sem
      * ponte — um e-mail que já pertence a outra pessoa do Hub é divergência de
      * cadastro e precisa de gente, não de heurística.
@@ -130,7 +130,7 @@ class HubProvisioningService
         // `ativo` só é reescrito quando o bloco recebido fala dele. As claims
         // do login não falam — e assumir "ativo" ali reabriria, no primeiro
         // acesso, toda conta desativada aqui dentro. Quem desliga alguém é o
-        // Hub, por webhook, ou o próprio GAB; nunca a ausência de um campo.
+        // Hub, por webhook, ou o próprio GEP; nunca a ausência de um campo.
         $ativo = array_key_exists('ativo', $pessoa)
             ? (filter_var($pessoa['ativo'], FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? true)
             : ($user->exists ? (bool) $user->is_active : true);
@@ -149,7 +149,7 @@ class HubProvisioningService
         }
 
         if ($user->trashed() && $ativo) {
-            // O GAB nunca exclui de verdade; se o Hub reativa a pessoa, a conta
+            // O GEP nunca exclui de verdade; se o Hub reativa a pessoa, a conta
             // volta com o histórico dela em vez de nascer de novo.
             $user->restore();
         }

@@ -79,7 +79,7 @@ class TeamController extends Controller
     }
 
     /**
-     * Cargo é local do GAB (o Hub não o conhece nem o sobrescreve): é a única
+     * Cargo é local do GEP (o Hub não o conhece nem o sobrescreve): é a única
      * alteração de vínculo que a Equipe ainda faz. A mudança fica registrada
      * na trilha de eventos de acesso (`contexto_acesso_eventos`).
      */

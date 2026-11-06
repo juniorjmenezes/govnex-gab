@@ -9,7 +9,7 @@ use RuntimeException;
 /**
  * Valida a assinatura HMAC-SHA256 dos webhooks do Govnex Hub.
  *
- * Mesmo esquema que o GAB já valida nos callbacks do WhatsApp
+ * Mesmo esquema que o GEP já valida nos callbacks do WhatsApp
  * (`WhatsAppCallbackSignatureValidator`), e de propósito: o Hub escolheu repetir
  * um esquema já revisado dos dois lados em vez de inventar um melhor.
  *
@@ -21,7 +21,7 @@ use RuntimeException;
  * Uma diferença em relação ao WhatsApp: o Hub não manda cabeçalho de
  * identificação do sistema (ver `AssinadorDeWebhook` lá), e validar um
  * cabeçalho que o emissor não envia só recusaria tudo. Quem identifica o
- * emissor é o próprio segredo — ele é exclusivo do Sistema GAB no Hub.
+ * emissor é o próprio segredo — ele é exclusivo do Sistema GEP no Hub.
  */
 class HubCallbackSignatureValidator
 {

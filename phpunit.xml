@@ -36,7 +36,7 @@
         <env name="HUB_BASE_URL" value="" force="true"/>
         <env name="HUB_OIDC_CLIENT_ID" value="" force="true"/>
         <env name="HUB_OIDC_CLIENT_SECRET" value="" force="true"/>
-        <env name="GAB_ROOT_LOGIN_ENABLED" value="false" force="true"/>
+        <env name="GEP_ROOT_LOGIN_ENABLED" value="false" force="true"/>
         <env name="MAIL_MAILER" value="array" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <env name="SESSION_DRIVER" value="array" force="true"/>

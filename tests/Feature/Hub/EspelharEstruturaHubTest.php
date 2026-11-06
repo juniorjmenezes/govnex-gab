@@ -23,7 +23,7 @@ function fingirEstruturaDoHub(): void
         ]]),
         'hub.teste/api/v1/entidades/7/unidades' => Http::response(['data' => [
             ['id' => 70, 'slug' => 'raiz', 'unidades' => [
-                ['id' => 71, 'slug' => 'gab-a', 'unidades' => []],
+                ['id' => 71, 'slug' => 'gep-a', 'unidades' => []],
             ]],
         ]]),
         'hub.teste/api/v1/entidades/8/unidades' => Http::response(['data' => []]),
@@ -33,7 +33,7 @@ function fingirEstruturaDoHub(): void
 it('preenche as colunas de ponte casando por slug', function () {
     fingirEstruturaDoHub();
     $entidade = Entity::factory()->create(['slug' => 'camara-x']);
-    $gabinete = Office::factory()->create(['entidade_id' => $entidade->id, 'slug' => 'gab-a']);
+    $gabinete = Office::factory()->create(['entidade_id' => $entidade->id, 'slug' => 'gep-a']);
 
     $this->artisan('hub:espelhar-estrutura')->assertSuccessful();
 
@@ -79,7 +79,7 @@ function fingirEstruturaDoHubParaAtualizar(): void
             ['id' => 7, 'slug' => 'camara-renomeada', 'nome' => 'Câmara Renomeada', 'status' => 'suspensa', 'atualizado_em' => now()->toIso8601String()],
         ]]),
         'hub.teste/api/v1/entidades/7/unidades?somente_ativas=false' => Http::response(['data' => [
-            ['id' => 71, 'slug' => 'gab-novo', 'nome' => 'Gabinete Novo', 'ativa' => false, 'atualizado_em' => now()->toIso8601String(), 'unidades' => []],
+            ['id' => 71, 'slug' => 'gep-novo', 'nome' => 'Gabinete Novo', 'ativa' => false, 'atualizado_em' => now()->toIso8601String(), 'unidades' => []],
         ]]),
     ]);
 }
@@ -87,7 +87,7 @@ function fingirEstruturaDoHubParaAtualizar(): void
 it('com --atualizar aplica nome e situação do Hub aos itens ligados, preservando o slug', function () {
     fingirEstruturaDoHubParaAtualizar();
     $entidade = Entity::factory()->create(['slug' => 'camara-x', 'nome' => 'Câmara X', 'hub_entidade_id' => '7']);
-    $gabinete = Office::factory()->create(['entidade_id' => $entidade->id, 'slug' => 'gab-a', 'nome' => 'Gab A', 'hub_unidade_id' => '71']);
+    $gabinete = Office::factory()->create(['entidade_id' => $entidade->id, 'slug' => 'gep-a', 'nome' => 'Gep A', 'hub_unidade_id' => '71']);
 
     $this->artisan('hub:espelhar-estrutura --atualizar')->assertSuccessful();
 
@@ -98,7 +98,7 @@ it('com --atualizar aplica nome e situação do Hub aos itens ligados, preservan
         ->and($entidade->slug)->toBe('camara-x')
         ->and($entidade->status)->toBe(EntityStatus::Suspended)
         ->and($gabinete->nome)->toBe('Gabinete Novo')
-        ->and($gabinete->slug)->toBe('gab-a')
+        ->and($gabinete->slug)->toBe('gep-a')
         ->and($gabinete->status)->toBe(OfficeStatus::Suspended);
 });
 
@@ -138,7 +138,7 @@ function fingirEstruturaDoHubParaCriar(bool $habilitado = true): void
             'habilitado' => $habilitado,
         ]]),
         'hub.teste/api/v1/entidades/9/unidades' => Http::response(['data' => [
-            ['id' => 90, 'entidade_id' => 9, 'unidade_pai_id' => null, 'slug' => 'gab-vereador', 'nome' => 'Gabinete do Vereador', 'tipo' => 'GABINETE', 'ativa' => true, 'unidades' => [
+            ['id' => 90, 'entidade_id' => 9, 'unidade_pai_id' => null, 'slug' => 'gep-vereador', 'nome' => 'Gabinete do Vereador', 'tipo' => 'GABINETE', 'ativa' => true, 'unidades' => [
                 ['id' => 91, 'entidade_id' => 9, 'unidade_pai_id' => 90, 'slug' => 'assessoria', 'nome' => 'Assessoria', 'tipo' => 'ASSESSORIA', 'ativa' => true, 'unidades' => []],
             ]],
             ['id' => 92, 'entidade_id' => 9, 'unidade_pai_id' => null, 'slug' => 'escola', 'nome' => 'Escola do Legislativo', 'tipo' => 'ESCOLA', 'ativa' => true, 'unidades' => []],
@@ -151,7 +151,7 @@ it('com --criar --dry-run só lista o que nasceria', function () {
 
     $this->artisan('hub:espelhar-estrutura --criar --dry-run')
         ->expectsOutputToContain("Entidade 'camara-nova'")
-        ->expectsOutputToContain("Gabinete 'camara-nova/gab-vereador'")
+        ->expectsOutputToContain("Gabinete 'camara-nova/gep-vereador'")
         ->assertSuccessful();
 
     expect(Entity::query()->count())->toBe(0)
@@ -177,11 +177,11 @@ it('com --criar cria a entidade habilitada e os gabinetes raiz com equivalente',
         ->and(Office::withoutGlobalScopes()->count())->toBe(1);
 });
 
-it('com --criar não cria entidade em que o GAB não está habilitado', function () {
+it('com --criar não cria entidade em que o GEP não está habilitado', function () {
     fingirEstruturaDoHubParaCriar(habilitado: false);
 
     $this->artisan('hub:espelhar-estrutura --criar')
-        ->expectsOutputToContain('gab_nao_habilitado')
+        ->expectsOutputToContain('gep_nao_habilitado')
         ->assertSuccessful();
 
     expect(Entity::query()->count())->toBe(0);

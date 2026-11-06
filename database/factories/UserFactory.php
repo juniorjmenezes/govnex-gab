@@ -37,7 +37,7 @@ class UserFactory extends Factory
     /**
      * Atalho de teste: o `role` da fábrica vira o cargo local no gabinete da
      * conta (administrador → chefe de gabinete, operador → assessor, auditor →
-     * auditor), porque o GAB não decide mais pelo papel. Sem isso, toda conta
+     * auditor), porque o GEP não decide mais pelo papel. Sem isso, toda conta
      * de teste cairia na falha fechada (vínculo sem cargo não acessa nada).
      * Para testar o vínculo sem cargo, use `withoutPosition()`; para um cargo
      * específico, `withPosition()`.

@@ -40,7 +40,7 @@ export function PwaUpdatePrompt() {
             return;
         }
 
-        toast.info('Uma atualização do GOVNEX GAB está disponível.', {
+        toast.info('Uma atualização do GOVNEX GEP está disponível.', {
             duration: Infinity,
             action: {
                 label: 'Atualizar',

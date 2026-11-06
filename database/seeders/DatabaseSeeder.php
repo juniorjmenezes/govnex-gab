@@ -94,7 +94,7 @@ class DatabaseSeeder extends Seeder
             ->get()
             ->each(fn (User $user) => $memberships->syncLegacyUser($user, $administrator));
 
-        // O GAB decide pelo cargo local (o papel do Hub é ignorado): sem cargo,
+        // O GEP decide pelo cargo local (o papel do Hub é ignorado): sem cargo,
         // a conta de demonstração não entraria no gabinete.
         $this->assignPosition($accounts['councilor']['email'], $avulso, OfficePosition::Councilor);
         $this->assignPosition($accounts['chief']['email'], $avulso, OfficePosition::ChiefOfStaff);

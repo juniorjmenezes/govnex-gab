@@ -1,6 +1,6 @@
-# Arquitetura do GOVNEX GAB
+# Arquitetura do GOVNEX GEP
 
-O GOVNEX GAB e um monolito modular multientidade. Laravel concentra regras de dominio, persistencia, autenticacao, autorizacao, filas e integracoes. Inertia transporta props tipadas e React renderiza a interface.
+O GOVNEX GEP e um monolito modular multientidade. Laravel concentra regras de dominio, persistencia, autenticacao, autorizacao, filas e integracoes. Inertia transporta props tipadas e React renderiza a interface.
 
 ## Tenancy hierarquico
 
@@ -17,7 +17,7 @@ O administrador da plataforma pode entrar em qualquer contexto, sempre com event
 
 ### Cargos (autorizacao)
 
-O Govnex Hub so diz quem e a pessoa (autenticacao) e que ela esta vinculada a uma entidade/gabinete. **O GAB nao le papel do Hub**: a autorizacao e o cargo local do vinculo (`gabinete_membros.cargo`, `App\Enums\OfficePosition`), decidido num ponto so, `App\Authorization\OfficeAccess` (capacidades nomeadas consultadas pelas Policies). Detalhes em [INTEGRACAO_GOVNEX_HUB.md](INTEGRACAO_GOVNEX_HUB.md#cargos-locais).
+O Govnex Hub so diz quem e a pessoa (autenticacao) e que ela esta vinculada a uma entidade/gabinete. **O GEP nao le papel do Hub**: a autorizacao e o cargo local do vinculo (`gabinete_membros.cargo`, `App\Enums\OfficePosition`), decidido num ponto so, `App\Authorization\OfficeAccess` (capacidades nomeadas consultadas pelas Policies). Detalhes em [INTEGRACAO_GOVNEX_HUB.md](INTEGRACAO_GOVNEX_HUB.md#cargos-locais).
 
 | Cargo | Onde vale | O que pode |
 |---|---|---|
@@ -61,7 +61,7 @@ Todo gabinete novo pertence obrigatoriamente a uma entidade. O schema de desenvo
 
 `GabineteModule` e `GabineteModuleCatalog` definem o catalogo e as dependencias. `GabineteModuleManager` consulta e altera o estado de forma transacional. O middleware `module:<CODIGO>` protege rotas tenant, enquanto `auth.modules` permite adaptar a navegacao.
 
-Ausencia de registro significa modulo desativado. O backfill inicial ativa todos os modulos para gabinetes existentes. Desativacao preserva dados e bloqueia somente acesso e novos processamentos. O contrato completo esta em [`govnexgabmodulos.md`](../govnexgabmodulos.md).
+Ausencia de registro significa modulo desativado. O backfill inicial ativa todos os modulos para gabinetes existentes. Desativacao preserva dados e bloqueia somente acesso e novos processamentos. O contrato completo esta em [`govnexgepmodulos.md`](../govnexgepmodulos.md).
 
 ## Licenciamento e modulos da entidade
 
