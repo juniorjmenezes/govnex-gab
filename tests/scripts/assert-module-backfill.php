@@ -23,7 +23,11 @@ $fail = static function (string $message): never {
     exit(1);
 };
 
-$moduleCodes = array_column(OfficeModule::cases(), 'value');
+// The backfill migration seeds only the original catalog; later modules are enabled by their own migrations.
+$moduleCodes = array_values(array_diff(
+    array_column(OfficeModule::cases(), 'value'),
+    [OfficeModule::KnowledgeBase->value, OfficeModule::LegislativeSecretariat->value],
+));
 $officeIds = DB::table('gabinetes')->orderBy('id')->pluck('id')->all();
 
 if ($officeIds === []) {
